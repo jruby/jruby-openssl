@@ -2,10 +2,7 @@
 
 gemspec :jar => 'jopenssl', :include_jars => true
 
-version = File.read( File.join( basedir, '..', '..', 'VERSION' ) ).strip
-version.gsub!( /-SNAPSHOT$/, '' )
-
-parent 'org.jruby:jruby-ext', version
+parent 'org.jruby:jruby-ext', '9000.dev'
 
 if model.version.to_s.match /[a-zA-Z]/
   model.group_id = 'org.jruby.gems'
