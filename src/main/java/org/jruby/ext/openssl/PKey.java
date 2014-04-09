@@ -86,8 +86,8 @@ public abstract class PKey extends RubyObject {
     public static class PKeyModule {
 
         @JRubyMethod(name = "read", meta = true, required = 1, optional = 1)
-        public static IRubyObject read(ThreadContext ctx, IRubyObject recv, IRubyObject[] args) {
-            Ruby runtime = ctx.runtime;
+        public static IRubyObject read(final ThreadContext context, IRubyObject recv, IRubyObject[] args) {
+            final Ruby runtime = context.runtime;
             IRubyObject data;
             char[] pass;
             switch (args.length) {
@@ -99,7 +99,7 @@ public abstract class PKey extends RubyObject {
                 data = args[0];
                 pass = args[1].isNil() ? null : args[1].toString().toCharArray();
             }
-            byte[] input = OpenSSLImpl.readX509PEM(data);
+            byte[] input = OpenSSLImpl.readX509PEM(context, data);
             KeyPair key = null;
             // d2i_PrivateKey_bio
             try {
