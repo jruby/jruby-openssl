@@ -2,10 +2,14 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.jruby.gems</groupId>
-  <artifactId>jruby-openssl</artifactId>
-  <version>0.9.5.dev-SNAPSHOT</version>
-  <packaging>gem</packaging>
+  <parent>
+    <groupId>org.jruby</groupId>
+    <artifactId>jruby-ext</artifactId>
+    <version>1.7.12</version>
+  </parent>
+  <artifactId>openssl</artifactId>
+  <version>0.9.4</version>
+  <packaging>jar</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
   <url>https://github.com/jruby/jruby</url>
