@@ -71,6 +71,8 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
+import static org.jruby.ext.openssl.PKey._PKey;
+
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
@@ -97,7 +99,7 @@ public class PKeyRSA extends PKey {
    }
 
     public static RaiseException newRSAError(Ruby runtime, String message) {
-        return Utils.newError(runtime, "OpenSSL::PKey::RSAError", message);
+        return Utils.newError(runtime, _PKey(runtime).getClass("RSAError"), message);
     }
 
     public PKeyRSA(Ruby runtime, RubyClass type) {
@@ -332,6 +334,7 @@ public class PKeyRSA extends PKey {
         return privKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
+    @Override
     @JRubyMethod
     public IRubyObject to_der() {
         try {
@@ -570,7 +573,7 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="iqmp")
     public synchronized IRubyObject get_iqmp() {
-        BigInteger iqmp = null;
+        BigInteger iqmp;
         if (privKey != null) {
             iqmp = privKey.getCrtCoefficient();
         } else {
@@ -584,7 +587,7 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="dmp1")
     public synchronized IRubyObject get_dmp1() {
-        BigInteger dmp1 = null;
+        BigInteger dmp1;
         if (privKey != null) {
             dmp1 = privKey.getPrimeExponentP();
         } else {
@@ -598,7 +601,7 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="dmq1")
     public synchronized IRubyObject get_dmq1() {
-        BigInteger dmq1 = null;
+        BigInteger dmq1;
         if (privKey != null) {
             dmq1 = privKey.getPrimeExponentQ();
         } else {
@@ -612,7 +615,7 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="d")
     public synchronized IRubyObject get_d() {
-        BigInteger d = null;
+        BigInteger d;
         if (privKey != null) {
             d = privKey.getPrivateExponent();
         } else {
@@ -626,7 +629,7 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="p")
     public synchronized IRubyObject get_p() {
-        BigInteger p = null;
+        BigInteger p;
         if (privKey != null) {
             p = privKey.getPrimeP();
         } else {
@@ -640,7 +643,7 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="q")
     public synchronized IRubyObject get_q() {
-        BigInteger q = null;
+        BigInteger q;
         if (privKey != null) {
             q = privKey.getPrimeQ();
         } else {
