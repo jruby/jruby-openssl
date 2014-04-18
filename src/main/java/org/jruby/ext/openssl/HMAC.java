@@ -87,8 +87,8 @@ public class HMAC extends RubyObject {
     public static IRubyObject digest(IRubyObject self, IRubyObject digest, IRubyObject key, IRubyObject data) {
         final Ruby runtime = self.getRuntime();
         final String algName = getDigestAlgorithmName(digest);
-        final byte[] keyBytes = key.convertToString().getBytes();
-        final ByteList bytes = data.convertToString().getByteList();
+        final byte[] keyBytes = key.asString().getBytes();
+        final ByteList bytes = data.asString().getByteList();
         try {
             Mac mac = getMacInstance(algName);
             mac.init( new SecretKeySpec(keyBytes, mac.getAlgorithm()) );
@@ -108,8 +108,8 @@ public class HMAC extends RubyObject {
     public static IRubyObject hexdigest(IRubyObject self, IRubyObject digest, IRubyObject key, IRubyObject data) {
         final Ruby runtime = self.getRuntime();
         final String algName = getDigestAlgorithmName(digest);
-        final byte[] keyBytes = key.convertToString().getBytes();
-        final ByteList bytes = data.convertToString().getByteList();
+        final byte[] keyBytes = key.asString().getBytes();
+        final ByteList bytes = data.asString().getByteList();
         try {
             final Mac mac = getMacInstance(algName);
             mac.init( new SecretKeySpec(keyBytes, mac.getAlgorithm()) );
@@ -138,7 +138,7 @@ public class HMAC extends RubyObject {
         final String algName = getDigestAlgorithmName(digest);
         try {
             this.mac = getMacInstance(algName);
-            this.key = key.convertToString().getBytes();
+            this.key = key.asString().getBytes();
             mac.init( new SecretKeySpec(this.key, mac.getAlgorithm()) );
         }
         catch (NoSuchAlgorithmException e) {
