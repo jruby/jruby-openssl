@@ -90,6 +90,10 @@ public class PKeyDSA extends PKey {
         _DSA.defineAnnotatedMethods(PKeyDSA.class);
     }
 
+    static RubyClass _DSA(final Ruby runtime) {
+        return _PKey(runtime).getClass("DSA");
+    }
+
     public static RaiseException newDSAError(Ruby runtime, String message) {
         return Utils.newError(runtime, _PKey(runtime).getClass("DSAError"), message);
     }
