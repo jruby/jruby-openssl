@@ -143,7 +143,7 @@
         </executions>
         <configuration>
           <outputDirectory>lib</outputDirectory>
-          <finalName>jopenssl.jar</finalName>
+          <finalName>jopenssl</finalName>
         </configuration>
       </plugin>
       <plugin>
