@@ -1,0 +1,46 @@
+#-*- mode: ruby -*-
+
+id 'none:base:0'
+packaging :pom
+
+snapshot_repository :id => 'jruby', :url => 'http://ci.jruby.org/snapshots/maven'
+
+# TODO should be setup whenever a plugin uses gems
+snapshot_repository :id => 'rubygems-releases', :url => 'http://rubygems-proxy.torquebox.org/releases'
+
+properties( 'bc.version' => '1.47',# to satisfy maven
+            'jruby.openssl.version' => '0.9.5',# to satisfy maven
+            # use the gem-maven-plugin repo for the tests
+            'gem.home' => '${basedir}/../pkg/rubygems',
+            'gem.path' => '${basedir}/../pkg/rubygems',
+            'tesla.dump.pom' => 'pom.xml',
+            'tesla.dump.readonly' => true )
+
+jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
+  execute_goal :initialize
+
+  gem 'jar-dependencies', '0.0.4'
+
+  # make sure we have those in the local repo
+  # BUT not be part of the runit-classloader
+  # otherwise jruby-1.7.x and jruby-1.6.x will not use those
+  # required in the test_*.rb files
+  jar  'org.bouncycastle', 'bcpkix-jdk15on', '${bc.version}'
+  jar  'org.bouncycastle', 'bcprov-jdk15on', '${bc.version}'
+  gem 'jruby-openssl', '${jruby.openssl.version}'
+
+  # TODO first it should install ALL ruby-maven dependencies by itself
+  # TODO second it should not need ruby-maven since jar-dependencies is a development dep inside jruby-openssl gemspec
+  gem 'ruby-maven', '3.1.1.0.8'
+end
+
+jruby_plugin :runit, '1.0.4-SNAPSHOT' do
+  execute_goal( :test,
+                :env => { 'BC_VERSION' => '${bc.version}' },
+                :jrubySwitches => '-I../../lib',
+                :runitDirectory => '../../test/test_*rb',
+                :versions => '${jruby.versions}',
+                :modes => '${jruby.modes}' )
+end
+
+# vim: syntax=Ruby

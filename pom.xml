@@ -2,7 +2,7 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.jruby.gems</groupId>
+  <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
   <version>0.9.6.dev-SNAPSHOT</version>
   <packaging>gem</packaging>
@@ -23,15 +23,24 @@
     <url>https://github.com/jruby/jruby</url>
   </scm>
   <properties>
-    <jruby.version>1.7.12</jruby.version>
-    <tesla.dump.readonly>true</tesla.dump.readonly>
-    <gem.path>${gem.home}</gem.path>
-    <gem.home>../target/rubygems</gem.home>
-    <jruby.plugins.version>1.0.3</jruby.plugins.version>
-    <tesla.dump.pom>pom.xml</tesla.dump.pom>
+    <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+    <jruby.plugins.version>1.0.4-SNAPSHOT</jruby.plugins.version>
+    <invoker.skip>${maven.test.skip}</invoker.skip>
+    <jruby.versions>1.6.8,1.7.4,1.7.13,9000.dev-SNAPSHOT</jruby.versions>
     <project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
+    <tesla.dump.pom>pom.xml</tesla.dump.pom>
+    <tesla.dump.readonly>true</tesla.dump.readonly>
+    <invoker.test>${bc.versions}</invoker.test>
+    <jruby.modes>1.8,1.9,2.1</jruby.modes>
   </properties>
   <dependencies>
+    <dependency>
+      <groupId>rubygems</groupId>
+      <artifactId>jar-dependencies</artifactId>
+      <version>[0.0.4,0.0.4.0.0.0.0.1)</version>
+      <type>gem</type>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
@@ -45,13 +54,7 @@
     <dependency>
       <groupId>org.jruby</groupId>
       <artifactId>jruby-core</artifactId>
-      <version>${jruby.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.jruby</groupId>
-      <artifactId>jruby-stdlib</artifactId>
-      <version>${jruby.version}</version>
+      <version>1.6.8</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -63,6 +66,10 @@
   </dependencies>
   <repositories>
     <repository>
+      <id>rubygems-releases</id>
+      <url>http://rubygems-proxy.torquebox.org/releases</url>
+    </repository>
+    <repository>
       <releases>
         <enabled>false</enabled>
       </releases>
@@ -71,10 +78,6 @@
       </snapshots>
       <id>sonatype</id>
       <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </repository>
-    <repository>
-      <id>rubygems-releases</id>
-      <url>http://rubygems-proxy.torquebox.org/releases</url>
     </repository>
   </repositories>
   <build>
@@ -124,11 +127,16 @@
         <version>${jruby.plugins.version}</version>
         <executions>
           <execution>
-            <goals>
-              <goal>initialize</goal>
-            </goals>
+            <id>default-initialize</id>
             <configuration>
-              <lib>non-existing</lib>
+              <libDirectory>something-which-does-not-exists</libDirectory>
+              <jrubyVersion>1.7.13</jrubyVersion>
+            </configuration>
+          </execution>
+          <execution>
+            <id>default-package</id>
+            <configuration>
+              <jrubyVersion>1.7.13</jrubyVersion>
             </configuration>
           </execution>
           <execution>
@@ -169,6 +177,61 @@
           <showDeprecation>true</showDeprecation>
         </configuration>
       </plugin>
+      <plugin>
+        <artifactId>maven-invoker-plugin</artifactId>
+        <version>1.8</version>
+        <executions>
+          <execution>
+            <id>tests-with-different-bc-versions</id>
+            <goals>
+              <goal>install</goal>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <projectsDirectory>integration</projectsDirectory>
+              <pomIncludes>
+                <pomInclude>*/pom.xml</pomInclude>
+              </pomIncludes>
+              <streamLogs>true</streamLogs>
+              <properties>
+                <jruby.versions>${jruby.versions}</jruby.versions>
+                <jruby.modes>${jruby.modes}</jruby.modes>
+                <jruby.openssl.version>${project.version}</jruby.openssl.version>
+              </properties>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>test</id>
+      <build>
+        <defaultGoal>test</defaultGoal>
+        <plugins>
+          <plugin>
+            <groupId>de.saumya.mojo</groupId>
+            <artifactId>runit-maven-plugin</artifactId>
+            <version>${jruby.plugins.version}</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <runitDirectory>test/test_*rb</runitDirectory>
+                  <versions>${jruby.versions}</versions>
+                  <modes>${jruby.modes}</modes>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <properties>
+        <invoker.skip>true</invoker.skip>
+      </properties>
+    </profile>
+  </profiles>
 </project>

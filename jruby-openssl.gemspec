@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
   s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
 
-  s.require_paths = ['lib']
+  s.add_development_dependency 'jar-dependencies', '0.0.4'
 end
 
 # vim: syntax=Ruby

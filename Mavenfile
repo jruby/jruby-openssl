@@ -1,44 +1,76 @@
 #-*- mode: ruby -*-
 
-snapshot_repository :id => 'sonatype', :url => 'https://oss.sonatype.org/content/repositories/snapshots'
-
 gemspec :jar => 'jopenssl', :include_jars => true
 
-if model.version.to_s.match /[a-zA-Z]/
-  model.group_id = 'org.jruby.gems'
+snapshot_repository :id => 'sonatype', :url => 'https://oss.sonatype.org/content/repositories/snapshots'
 
+if model.version.to_s.match /[a-zA-Z]/
+  #model.group_id = 'org.jruby.gems'
+
+  # deploy snapshot versions on sonatype !!!
   model.version = model.version + '-SNAPSHOT'
   plugin :deploy do
     execute_goals( :deploy, 
-                  :skip => false,
-                  :altDeploymentRepository => 'sonatype-nexus-snapshots::default::https://oss.sonatype.org/content/repositories/snapshots/' )
+                   :skip => false,
+                   :altDeploymentRepository => 'sonatype-nexus-snapshots::default::https://oss.sonatype.org/content/repositories/snapshots/' )
   end
 end
 
 plugin( :compiler, :target => '1.6', :source => '1.6', :debug => true, :verbose => false, :showWarnings => true, :showDeprecation => true )
 
-jruby_plugin! :gem do
-  # avoid adding this not yet built openssl to the load_path
-  # when installing dependent gems
-  execute_goal :initialize, :lib => 'non-existing'
-  execute_goals :id => 'default-push', :skip => true
-end
-
-# you can use -Djruby.version=1.6.8 to pick a jruby version
-# TODO use 1.6.8 and let the gem-maven-plugin pick the right version
-properties 'jruby.version' => '1.7.12'
-# we need the jruby API here, the version should be less important here
-jar 'org.jruby:jruby-core', '${jruby.version}', :scope => :provided
-# this artifact is needed to run the packaging at the end of the build
-jar 'org.jruby:jruby-stdlib', '${jruby.version}', :scope => :provided
+# we need the jruby API here and use the oldest jruby we want to support
+jar 'org.jruby:jruby-core', '1.6.8', :scope => :provided
 
 scope :test do
   jar 'junit:junit:4.11'
 end
 
-properties( 'gem.home' => '../target/rubygems',
-            'gem.path' => '${gem.home}',
+jruby_plugin! :gem do
+  # avoid adding this not yet built openssl to the load_path
+  # when installing dependent gems
+  # use explicit jruby version for running these tasks
+  execute_goal :id => 'default-initialize', :libDirectory => 'something-which-does-not-exists', :jrubyVersion => '1.7.13'
+  execute_goal :id => 'default-package', :jrubyVersion => '1.7.13'
+  execute_goals :id => 'default-push', :skip => true
+end
+
+plugin :invoker, '1.8' do
+  execute_goals( :install, :run,
+                 :id => 'tests-with-different-bc-versions',
+                 :projectsDirectory => 'integration',
+                 :pomIncludes => [ '*/pom.xml' ],
+                 :streamLogs => true,
+                 # pass those properties on to the test project
+                 :properties => { 'jruby.versions' => '${jruby.versions}',
+                   'jruby.modes' => '${jruby.modes}',
+                   'jruby.openssl.version' => '${project.version}' }, )
+end
+
+properties( 'jruby.plugins.version' => '1.0.4-SNAPSHOT',
+            'bc.versions' => '1.47,1.48,1.49,1.50',
+            'jruby.versions' => '1.6.8,1.7.4,1.7.13,9000.dev-SNAPSHOT',
+            'jruby.modes' => '1.8,1.9,2.1',
+            'invoker.test' => '${bc.versions}',
+            # allow to skip all tests
+            'invoker.skip' => '${maven.test.skip}',
+            # dump pom.xml as readonly when running 'rmvn'
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true )
+
+profile :id => 'test' do
+  properties( 'invoker.skip' => true )
+
+  build do
+    default_goal 'test'
+  end
+
+  jruby_plugin :runit do
+    execute_goal( :test,
+                  :runitDirectory => 'test/test_*rb',
+                  :versions => '${jruby.versions}',
+                  :modes => '${jruby.modes}' )
+  end
+
+end
 
 # vim: syntax=Ruby
