@@ -20,4 +20,4 @@ require 'openssl/config'
 require 'openssl/digest'
 require 'openssl/ssl-internal'
 require 'openssl/x509-internal'
-require 'krypt/ossl'
+require 'krypt/ossl' unless JRUBY_VERSION =~ /^1\.6\./
