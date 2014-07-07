@@ -1,4 +1,4 @@
-if ENV[ 'BC_VERSIONs' ]
+if ENV[ 'BC_VERSION' ]
   require 'rubygems'
   require 'jar-dependencies'
   require_jar( 'org.bouncycastle', 'bcpkix-jdk15on', ENV[ 'BC_VERSION' ] )

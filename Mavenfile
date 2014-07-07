@@ -61,11 +61,12 @@ profile :id => 'test' do
   properties( 'invoker.skip' => true )
 
   build do
-    default_goal 'test'
+    default_goal 'package'
   end
 
   jruby_plugin :runit do
-    execute_goal( :test,
+    execute_goal( :test, :phase=> :package,
+                  :jrubyVersion => '1.7.13',
                   :runitDirectory => 'test/test_*rb',
                   :versions => '${jruby.versions}',
                   :modes => '${jruby.modes}' )

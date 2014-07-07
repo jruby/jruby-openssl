@@ -6,4 +6,4 @@ jdk:
   - openjdk7
   - oraclejdk7
   - oraclejdk8
-script: mvn verify -Ptest
+script: mvn verify

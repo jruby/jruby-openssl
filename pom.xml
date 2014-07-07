@@ -208,7 +208,7 @@
     <profile>
       <id>test</id>
       <build>
-        <defaultGoal>test</defaultGoal>
+        <defaultGoal>package</defaultGoal>
         <plugins>
           <plugin>
             <groupId>de.saumya.mojo</groupId>
@@ -216,10 +216,12 @@
             <version>${jruby.plugins.version}</version>
             <executions>
               <execution>
+                <phase>package</phase>
                 <goals>
                   <goal>test</goal>
                 </goals>
                 <configuration>
+                  <jrubyVersion>1.7.13</jrubyVersion>
                   <runitDirectory>test/test_*rb</runitDirectory>
                   <versions>${jruby.versions}</versions>
                   <modes>${jruby.modes}</modes>
