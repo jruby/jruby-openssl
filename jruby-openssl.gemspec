@@ -10,7 +10,8 @@ Gem::Specification.new do |s|
   s.email = "ola.bini@gmail.com"
   s.summary = "JRuby OpenSSL"
   s.homepage = 'https://github.com/jruby/jruby-openssl'
-  s.description = File.read('README.txt').split(/\n{2,}/)[3...4].join("\n\n")
+  s.description = 'JRuby-OpenSSL is an add-on gem for JRuby that emulates the ' <<
+                  'Ruby OpenSSL native library.'
   s.licenses = [ 'EPL-1.0', 'GPL-2.0', 'LGPL-2.1' ]
   s.files = Dir['[A-Z]*'] + Dir['lib/**/*'] + Dir['test/**/*']
 
