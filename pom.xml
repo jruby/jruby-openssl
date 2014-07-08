@@ -85,7 +85,7 @@
       <extension>
         <groupId>de.saumya.mojo</groupId>
         <artifactId>gem-with-jar-extension</artifactId>
-        <version>${jruby.plugins.version}</version>
+        <version>1.0.3</version>
       </extension>
     </extensions>
     <directory>${basedir}/pkg</directory>
