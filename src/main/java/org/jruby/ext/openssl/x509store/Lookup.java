@@ -45,8 +45,8 @@ import java.security.cert.X509Certificate;
 import java.security.cert.CRL;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
 import org.jruby.Ruby;
 import org.jruby.RubyHash;
@@ -60,23 +60,32 @@ import org.jruby.ext.openssl.SecurityHelper;
  */
 public class Lookup {
 
-    boolean init;
-    boolean skip;
-    LookupMethod method;
+    boolean init = false;
+    boolean skip = false;
+    final LookupMethod method;
     Object methodData;
     Store store;
 
     /**
      * c: X509_LOOKUP_new
      */
-    public Lookup(LookupMethod method) throws Exception {
-        init=false;
-        skip=false;
-        this.method=method;
-        methodData=null;
-        store=null;
-        if(method.newItem != null && method.newItem != Function1.EMPTY && method.newItem.call(this) == 0) {
-            throw new Exception();
+    public Lookup(LookupMethod method) {
+        if ( method == null ) {
+            throw new IllegalArgumentException("null method");
+        }
+        this.method = method;
+
+        final LookupMethod.NewItemFunction newItem = method.newItem;
+        if ( newItem != null && newItem != Function1.EMPTY ) {
+            final int result;
+            try {
+                result = newItem.call(this);
+            }
+            catch (Exception e) {
+                if ( e instanceof RuntimeException ) throw (RuntimeException) e;
+                throw new IllegalArgumentException("invalid lookup method", e);
+            }
+            if ( result == 0) throw new IllegalArgumentException("invalid lookup method");
         }
     }
 
@@ -132,44 +141,36 @@ public class Lookup {
         Reader reader = null;
         try {
             InputStream in = wrapJRubyNormalizedInputStream(file);
-            X509AuxCertificate x = null;
+            X509AuxCertificate auxCert;
             if (type == X509Utils.X509_FILETYPE_PEM) {
                 reader = new BufferedReader(new InputStreamReader(in));
                 for (;;) {
-                    x = PEMInputOutput.readX509Aux(reader, null);
-                    if (null == x) {
-                        break;
-                    }
-                    int i = store.addCertificate(x);
-                    if (i == 0) {
-                        return ret;
-                    }
+                    auxCert = PEMInputOutput.readX509Aux(reader, null);
+                    if ( auxCert == null ) break;
+                    final int i = store.addCertificate(auxCert);
+                    if ( i == 0 ) return ret;
                     count++;
-                    x = null;
                 }
                 ret = count;
-            } else if (type == X509Utils.X509_FILETYPE_ASN1) {
+            }
+            else if (type == X509Utils.X509_FILETYPE_ASN1) {
                 X509Certificate cert = (X509Certificate)
                     SecurityHelper.getCertificateFactory("X.509").generateCertificate(in);
-                x = StoreContext.ensureAux(cert);
-                if (x == null) {
+                auxCert = StoreContext.ensureAux(cert);
+                if ( auxCert == null ) {
                     X509Error.addError(13);
                     return ret;
                 }
-                int i = store.addCertificate(x);
-                if (i == 0) {
-                    return ret;
-                }
+                final int i = store.addCertificate(auxCert);
+                if ( i == 0 ) return ret;
                 ret = i;
             } else {
                 X509Error.addError(X509Utils.X509_R_BAD_X509_FILETYPE);
             }
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (Exception ignored) {
-                }
+        }
+        finally {
+            if ( reader != null ) {
+                try { reader.close(); } catch (Exception ignored) {}
             }
         }
         return ret;
@@ -187,42 +188,35 @@ public class Lookup {
         Reader reader = null;
         try {
             InputStream in = wrapJRubyNormalizedInputStream(file);
-            CRL x = null;
+            CRL crl;
             if (type == X509Utils.X509_FILETYPE_PEM) {
                 reader = new BufferedReader(new InputStreamReader(in));
                 for (;;) {
-                    x = PEMInputOutput.readX509CRL(reader, null);
-                    if (null == x) {
-                        break;
-                    }
-                    int i = store.addCRL(x);
-                    if (i == 0) {
-                        return ret;
-                    }
+                    crl = PEMInputOutput.readX509CRL(reader, null);
+                    if ( crl == null ) break;
+                    final int i = store.addCRL(crl);
+                    if ( i == 0 ) return ret;
                     count++;
-                    x = null;
                 }
                 ret = count;
-            } else if (type == X509Utils.X509_FILETYPE_ASN1) {
-                x = SecurityHelper.getCertificateFactory("X.509").generateCRL(in);
-                if (x == null) {
+            }
+            else if (type == X509Utils.X509_FILETYPE_ASN1) {
+                crl = SecurityHelper.getCertificateFactory("X.509").generateCRL(in);
+                if (crl == null) {
                     X509Error.addError(13);
                     return ret;
                 }
-                int i = store.addCRL(x);
-                if (i == 0) {
-                    return ret;
-                }
+                final int i = store.addCRL(crl);
+                if ( i == 0 ) return ret;
                 ret = i;
-            } else {
+            }
+            else {
                 X509Error.addError(X509Utils.X509_R_BAD_X509_FILETYPE);
             }
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (Exception ignored) {
-                }
+        }
+        finally {
+            if ( reader != null ) {
+                try { reader.close(); } catch (Exception ignored) {}
             }
         }
         return ret;
@@ -242,23 +236,21 @@ public class Lookup {
             reader = new BufferedReader(new InputStreamReader(in));
             for (;;) {
                 Object v = PEMInputOutput.readPEM(reader, null);
-                if (null == v) {
-                    break;
-                }
-                if (v instanceof X509Certificate) {
+                if ( v == null ) break;
+
+                if ( v instanceof X509Certificate ) {
                     store.addCertificate(StoreContext.ensureAux((X509Certificate) v));
                     count++;
-                } else if (v instanceof CRL) {
+                }
+                else if ( v instanceof CRL ) {
                     store.addCRL((CRL) v);
                     count++;
                 }
             }
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (Exception ignored) {
-                }
+        }
+        finally {
+            if ( reader != null ) {
+                try { reader.close(); } catch (Exception ignored) {}
             }
         }
         return count;
@@ -266,24 +258,22 @@ public class Lookup {
 
     public int loadDefaultJavaCACertsFile() throws Exception {
         int count = 0;
-        String certsFile = System.getProperty("java.home") + "/lib/security/cacerts".replace('/', File.separatorChar);
-        FileInputStream fin = new FileInputStream(certsFile);
+        final String certsFile = System.getProperty("java.home") +
+            "/lib/security/cacerts".replace('/', File.separatorChar);
+        final FileInputStream fin = new FileInputStream(certsFile);
         try {
             KeyStore keystore = SecurityHelper.getKeyStore(KeyStore.getDefaultType());
             // we pass a null password, as the cacerts file isn't password protected
             keystore.load(fin, null);
             PKIXParameters params = new PKIXParameters(keystore);
-            for(TrustAnchor trustAnchor : params.getTrustAnchors()) {
+            for ( TrustAnchor trustAnchor : params.getTrustAnchors() ) {
                 X509Certificate certificate = trustAnchor.getTrustedCert();
                 store.addCertificate(certificate);
                 count++;
             }
         }
         finally {
-            try {
-                fin.close();
-            }
-            catch (Exception ignored) {}
+            try { fin.close(); } catch (Exception ignored) {}
         }
         return count;
     }
@@ -429,8 +419,8 @@ public class Lookup {
      * c: BY_DIR, lookup_dir_st
      */
     private static class LookupDir {
-        List<String> dirs;
-        List<Integer> dirsType;
+        Collection<String> dirs;
+        Collection<Integer> dirsType;
     }
 
     /**
@@ -463,50 +453,57 @@ public class Lookup {
      * c: dir_ctrl
      */
     private static class LookupDirControl implements LookupMethod.ControlFunction {
-        public int call(Lookup ctx, Integer cmd, String argp, Number argl, String[] retp) {
+
+        public int call(final Lookup ctx, final Integer cmd, String argp, Number argl, String[] retp) {
             int ret = 0;
-            LookupDir ld = (LookupDir)ctx.methodData;
-            String dir = null;
-            switch(cmd) {
+            final LookupDir lookupData = (LookupDir) ctx.methodData;
+            switch ( cmd ) {
             case X509Utils.X509_L_ADD_DIR:
                 if ( argl.intValue() == X509Utils.X509_FILETYPE_DEFAULT ) {
+                    String certDir = null;
                     try {
-                        RubyHash env = (RubyHash)Ruby.getGlobalRuntime().getObject().getConstant("ENV");
-                        dir = (String)env.get(Ruby.getGlobalRuntime().newString(X509Utils.getDefaultCertificateDirectoryEnvironment()));
-                    } catch (Error error) {
+                        certDir = getDefaultCertificateDirectory();
                     }
-                    if(null != dir) {
-                        ret = addCertificateDirectory(ld,dir,X509Utils.X509_FILETYPE_PEM);
+                    catch (RuntimeException e) { }
+
+                    if ( certDir != null ) {
+                        ret = addCertificateDirectory(lookupData, certDir, X509Utils.X509_FILETYPE_PEM);
                     } else {
-                        ret = addCertificateDirectory(ld,X509Utils.getDefaultCertificateDirectory(),X509Utils.X509_FILETYPE_PEM);
+                        ret = addCertificateDirectory(lookupData, X509Utils.getDefaultCertificateDirectory(), X509Utils.X509_FILETYPE_PEM);
                     }
-                    if(ret == 0) {
+                    if ( ret == 0 ) {
                         X509Error.addError(X509Utils.X509_R_LOADING_CERT_DIR);
                     }
-                } else {
-                    ret = addCertificateDirectory(ld,argp, argl.intValue());
+                }
+                else {
+                    ret = addCertificateDirectory(lookupData,argp, argl.intValue());
                 }
                 break;
             }
             return ret;
         }
 
+        private static String getDefaultCertificateDirectory() {
+            final RubyHash env = Ruby.getGlobalRuntime().getENV();
+            return (String) env.get( X509Utils.getDefaultCertificateDirectoryEnvironment() );
+        }
+
         /**
          * c: add_cert_dir
          */
-        private int addCertificateDirectory(LookupDir ctx,String dir,int type) {
-            if(dir == null || "".equals(dir)) {
+        private int addCertificateDirectory(final LookupDir ctx, final String dir, final int type) {
+            if ( dir == null || dir.isEmpty() ) {
                 X509Error.addError(X509Utils.X509_R_INVALID_DIRECTORY);
                 return 0;
             }
 
             String[] dirs = dir.split(System.getProperty("path.separator"));
 
-            for(int i=0;i<dirs.length;i++) {
-                if(dirs[i].length() == 0) {
+            for ( int i=0; i<dirs.length; i++ ) {
+                if ( dirs[i].length() == 0 ) {
                     continue;
                 }
-                if(ctx.dirs.contains(dirs[i])) {
+                if ( ctx.dirs.contains(dirs[i]) ) {
                     continue;
                 }
                 ctx.dirsType.add(type);
@@ -543,39 +540,36 @@ public class Lookup {
             final long hash = name.hash();
             final StringBuilder buffer = new StringBuilder();
 
-            Iterator<Integer> iter = ctx.dirsType.iterator();
+            final Iterator<Integer> iter = ctx.dirsType.iterator();
+
             for ( String cdir : ctx.dirs ) {
-                int tp = iter.next();
-                int k = 0;
-                for(;;) {
+                final int dirType = iter.next(); int k = 0;
+                for (;;) {
                     buffer.append(String.format("%s%s%08x.%s%d", cdir, File.separator, hash, postfix, k));
+                    final String path = buffer.toString();
                     k++;
-                    if(!(new File(buffer.toString()).exists())) {
-                        break;
-                    }
-                    if(type == X509Utils.X509_LU_X509) {
-                        if ( x1.loadCertificateFile(buffer.toString(), tp) == 0 ) {
+                    if ( ! new File(path).exists() ) break;
+
+                    if ( type == X509Utils.X509_LU_X509 ) {
+                        if ( x1.loadCertificateFile(path, dirType) == 0 ) {
                             break;
                         }
-                    } else if(type == X509Utils.X509_LU_CRL) {
-                        if ( x1.loadCRLFile(buffer.toString(), tp) == 0 ) {
+                    } else if ( type == X509Utils.X509_LU_CRL ) {
+                        if ( x1.loadCRLFile(path, dirType) == 0 ) {
                             break;
                         }
                     }
                 }
                 X509Object tmp = null;
-                synchronized(X509Utils.CRYPTO_LOCK_X509_STORE) {
-                    for(X509Object o : x1.store.objects) {
-                        if(o.type() == type && o.isName(name)) {
-                            tmp = o;
-                            break;
+                synchronized (X509Utils.CRYPTO_LOCK_X509_STORE) {
+                    for ( X509Object o : x1.store.objects ) {
+                        if ( o.type() == type && o.isName(name) ) {
+                            tmp = o; break;
                         }
                     }
                 }
-                if(tmp != null) {
-                    ok = 1;
-                    ret[0] = tmp;
-                    break;
+                if ( tmp != null ) {
+                    ok = 1; ret[0] = tmp; break;
                 }
             }
 

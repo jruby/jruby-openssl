@@ -27,7 +27,9 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import java.io.IOException;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import javax.security.auth.x500.X500Principal;
 
 import org.bouncycastle.asn1.ASN1Encoding;
@@ -41,18 +43,22 @@ import org.jruby.ext.openssl.SecurityHelper;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class Name {
-    public X500Name name;
 
-    public Name(X500Principal nm) {
+    final X500Name name;
+
+    public Name(final X500Principal nm) {
+        X500Name name;
         try {
-            this.name = X500Name.getInstance(nm.getEncoded());
-        } catch(Exception e) {
-            this.name = null;
+            name = X500Name.getInstance(nm.getEncoded());
         }
+        catch (RuntimeException e) {
+            name = null;
+        }
+        this.name = name;
     }
 
-    public Name(X500Name nm) {
-        this.name = nm;
+    public Name(final X500Name name) {
+        this.name = name;
     }
 
     /**
@@ -61,16 +67,22 @@ public class Name {
     public long hash() {
         try {
             byte[] bytes = name.getEncoded();
-            byte[] md = null;
             MessageDigest md5 = SecurityHelper.getMessageDigest("MD5");
-            md = md5.digest(bytes);
+            final byte[] digest = md5.digest(bytes);
             long result = 0;
-            result |= md[3] & 0xff; result <<= 8;
-            result |= md[2] & 0xff; result <<= 8;
-            result |= md[1] & 0xff; result <<= 8;
-            result |= md[0] & 0xff;
+            result |= digest[3] & 0xff; result <<= 8;
+            result |= digest[2] & 0xff; result <<= 8;
+            result |= digest[1] & 0xff; result <<= 8;
+            result |= digest[0] & 0xff;
             return result & 0xffffffff;
-        } catch(Exception e) {
+        }
+        catch (NoSuchAlgorithmException e) {
+            return 0;
+        }
+        catch (IOException e) {
+            return 0;
+        }
+        catch (RuntimeException e) {
             return 0;
         }
     }
@@ -78,8 +90,10 @@ public class Name {
     public boolean isEqual(X500Principal oname) {
         try {
             return new X500Principal(name.getEncoded(ASN1Encoding.DER)).equals(oname);
-        } catch(Exception e) {
+        }
+        catch(IOException e) {
             return false;
         }
     }
+
 }// X509_NAME
