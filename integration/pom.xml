@@ -28,12 +28,6 @@
       <url>https://oss.sonatype.org/content/repositories/snapshots</url>
     </pluginRepository>
     <pluginRepository>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
       <id>rubygems-releases</id>
       <url>http://rubygems-proxy.torquebox.org/releases</url>
     </pluginRepository>
