@@ -13,7 +13,12 @@ Gem::Specification.new do |s|
   s.description = 'JRuby-OpenSSL is an add-on gem for JRuby that emulates the ' <<
                   'Ruby OpenSSL native library.'
   s.licenses = [ 'EPL-1.0', 'GPL-2.0', 'LGPL-2.1' ]
-  s.files = Dir['[A-Z]*'] + Dir['lib/**/*'] + Dir['test/**/*']
+
+  s.require_paths = ["lib"]
+
+  s.files = `git ls-files`.split("\n").
+    select { |f| f =~ /^(lib)/ || f =~ /^History|License|README|Rakefile/i } +
+    Dir.glob('lib/**/*.jar') # 'lib/jopenssl.jar' and potentially BC jars
 
   s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
   s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
