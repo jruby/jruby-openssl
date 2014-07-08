@@ -16,6 +16,18 @@
     <bc.version>1.47</bc.version>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
   </properties>
+  <pluginRepositories>
+    <pluginRepository>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <id>sonatype</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </pluginRepository>
+  </pluginRepositories>
   <repositories>
     <repository>
       <releases>
