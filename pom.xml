@@ -80,6 +80,18 @@
       <url>https://oss.sonatype.org/content/repositories/snapshots</url>
     </repository>
   </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <id>sonatype</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </pluginRepository>
+  </pluginRepositories>
   <build>
     <extensions>
       <extension>
