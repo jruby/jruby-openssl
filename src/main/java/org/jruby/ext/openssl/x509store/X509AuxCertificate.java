@@ -82,7 +82,7 @@ public class X509AuxCertificate extends X509Certificate {
     }
 
     public X509AuxCertificate(X509Certificate wrap) {
-        this(wrap,null);
+        this(wrap, null);
     }
 
     public X509AuxCertificate(X509Certificate wrap, X509Aux aux) {
@@ -111,71 +111,143 @@ public class X509AuxCertificate extends X509Certificate {
         this.ex_flags = ex_flags;
     }
 
-    public void checkValidity() throws CertificateExpiredException, CertificateNotYetValidException { wrap.checkValidity(); }
-    public void 	checkValidity(Date date) throws CertificateExpiredException, CertificateNotYetValidException { wrap.checkValidity(date); }
-    public int 	getBasicConstraints()  { return wrap.getBasicConstraints(); }
-    public List<String> 	getExtendedKeyUsage() throws CertificateParsingException { return wrap.getExtendedKeyUsage(); }
-    public Collection<List<?>> 	getIssuerAlternativeNames() throws CertificateParsingException { return wrap.getIssuerAlternativeNames(); }
-    public Principal 	getIssuerDN() { return wrap.getIssuerDN(); }
-    public boolean[] 	getIssuerUniqueID() { return wrap.getIssuerUniqueID(); }
-    public X500Principal 	getIssuerX500Principal() { return wrap.getIssuerX500Principal(); }
-    public boolean[] 	getKeyUsage() { return wrap.getKeyUsage(); }
-    public Date 	getNotAfter() { return wrap.getNotAfter(); }
-    public Date 	getNotBefore() { return wrap.getNotBefore(); }
-    public BigInteger 	getSerialNumber() { return wrap.getSerialNumber(); }
-    public String 	getSigAlgName() { return wrap.getSigAlgName(); }
-    public String 	getSigAlgOID() { return wrap.getSigAlgOID(); }
-    public byte[] 	getSigAlgParams() { return wrap.getSigAlgParams(); }
-    public byte[] 	getSignature() { return wrap.getSignature(); }
-    public Collection<List<?>> 	getSubjectAlternativeNames() throws CertificateParsingException { return wrap.getSubjectAlternativeNames(); }
-    public Principal 	getSubjectDN() { return wrap.getSubjectDN(); }
-    public boolean[] 	getSubjectUniqueID() { return wrap.getSubjectUniqueID(); }
-    public X500Principal 	getSubjectX500Principal() { return wrap.getSubjectX500Principal(); }
-    public byte[] 	getTBSCertificate() throws CertificateEncodingException { return wrap.getTBSCertificate(); }
-    public int 	getVersion() { return wrap.getVersion(); }
+    // DELEGATES :
 
-    public boolean 	equals(Object other) {
-        boolean ret = this == other;
-        if(!ret && (other instanceof X509AuxCertificate)) {
-            X509AuxCertificate o = (X509AuxCertificate)other;
-            ret = this.wrap.equals(o.wrap) && ((this.aux == null) ? o.aux == null : this.aux.equals(o.aux));
-        }
-        return ret;
+    public void checkValidity() throws CertificateExpiredException, CertificateNotYetValidException {
+        wrap.checkValidity();
     }
-    public byte[] 	getEncoded() throws CertificateEncodingException { return wrap.getEncoded(); }
-    public PublicKey 	getPublicKey(){ return wrap.getPublicKey(); }
+
+    public void checkValidity(Date date) throws CertificateExpiredException, CertificateNotYetValidException {
+        wrap.checkValidity(date);
+    }
+
+    public int getBasicConstraints()  {
+        return wrap.getBasicConstraints();
+    }
+
+    @Override
+    public List<String> getExtendedKeyUsage() throws CertificateParsingException {
+        return wrap.getExtendedKeyUsage();
+    }
+
+    @Override
+    public Collection<List<?>> getIssuerAlternativeNames() throws CertificateParsingException {
+        return wrap.getIssuerAlternativeNames();
+    }
+
+    public Principal getIssuerDN() {
+        return wrap.getIssuerDN();
+    }
+
+    public boolean[] getIssuerUniqueID() {
+        return wrap.getIssuerUniqueID();
+    }
+
+    @Override
+    public X500Principal getIssuerX500Principal() {
+        return wrap.getIssuerX500Principal();
+    }
+
+    public boolean[] getKeyUsage() { return wrap.getKeyUsage(); }
+    public Date getNotAfter() { return wrap.getNotAfter(); }
+    public Date getNotBefore() { return wrap.getNotBefore(); }
+    public BigInteger getSerialNumber() { return wrap.getSerialNumber(); }
+    public String getSigAlgName() { return wrap.getSigAlgName(); }
+    public String getSigAlgOID() { return wrap.getSigAlgOID(); }
+    public byte[] getSigAlgParams() { return wrap.getSigAlgParams(); }
+    public byte[] getSignature() { return wrap.getSignature(); }
+
+    @Override
+    public Collection<List<?>> getSubjectAlternativeNames() throws CertificateParsingException {
+        return wrap.getSubjectAlternativeNames();
+    }
+    public Principal getSubjectDN() { return wrap.getSubjectDN(); }
+    public boolean[] getSubjectUniqueID() { return wrap.getSubjectUniqueID(); }
+
+    @Override
+    public X500Principal getSubjectX500Principal() { return wrap.getSubjectX500Principal(); }
+
+    public byte[] getTBSCertificate() throws CertificateEncodingException {
+        return wrap.getTBSCertificate();
+    }
+
+    public int getVersion() { return wrap.getVersion(); }
+
+    public byte[] getEncoded() throws CertificateEncodingException {
+        return wrap.getEncoded();
+    }
+
+    public PublicKey getPublicKey(){ return wrap.getPublicKey(); }
+
+    @Override
+    public String toString(){ return wrap.toString(); }
+
+    @Override
+    public boolean equals(Object other) {
+        if ( this == other ) return true;
+        if ( other instanceof X509AuxCertificate ) {
+            X509AuxCertificate o = (X509AuxCertificate) other;
+            return this.wrap.equals(o.wrap) && ((this.aux == null) ? o.aux == null : this.aux.equals(o.aux));
+        }
+        return false;
+    }
+
+    @Override
     public int 	hashCode() {
         int ret = wrap.hashCode();
         ret += 3 * (aux == null ? 1 : aux.hashCode());
         return ret;
     }
-    public String 	toString(){ return wrap.toString(); }
-    public void 	verify(PublicKey key) throws CertificateException,NoSuchAlgorithmException,InvalidKeyException,NoSuchProviderException,SignatureException { wrap.verify(key); }
-    public void 	verify(PublicKey key, String sigProvider) throws CertificateException,NoSuchAlgorithmException,InvalidKeyException,NoSuchProviderException,SignatureException { wrap.verify(key,sigProvider); }
-    public  Set<String> 	getCriticalExtensionOIDs(){ return wrap.getCriticalExtensionOIDs(); }
-    public byte[] 	getExtensionValue(String oid){ return wrap.getExtensionValue(oid); }
-    public Set<String> 	getNonCriticalExtensionOIDs(){ return wrap.getNonCriticalExtensionOIDs(); }
-    public boolean 	hasUnsupportedCriticalExtension(){ return wrap.hasUnsupportedCriticalExtension(); }
+
+    public void verify(PublicKey key) throws CertificateException, NoSuchAlgorithmException,
+        InvalidKeyException, NoSuchProviderException, SignatureException {
+        wrap.verify(key);
+    }
+
+    public void verify(PublicKey key, String sigProvider) throws CertificateException,
+        NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException,
+        SignatureException {
+        wrap.verify(key,sigProvider);
+    }
+
+    public  Set<String> getCriticalExtensionOIDs() {
+        return wrap.getCriticalExtensionOIDs();
+    }
+
+    public byte[] getExtensionValue(String oid) {
+        return wrap.getExtensionValue(oid);
+    }
+
+    public Set<String> getNonCriticalExtensionOIDs() {
+        return wrap.getNonCriticalExtensionOIDs();
+    }
+
+    public boolean hasUnsupportedCriticalExtension() {
+        return wrap.hasUnsupportedCriticalExtension();
+    }
 
     private static final String NS_CERT_TYPE_OID = "2.16.840.1.113730.1.1";
+
     public Integer getNsCertType() throws CertificateException {
-        byte[] bytes = getExtensionValue(NS_CERT_TYPE_OID);
-        if (bytes == null) {
-            return null;
-        }
+        final byte[] bytes = getExtensionValue(NS_CERT_TYPE_OID);
+        if ( bytes == null ) return null;
+
         try {
             Object o = new ASN1InputStream(bytes).readObject();
-            if (o instanceof DERBitString) {
+            if ( o instanceof DERBitString ) {
                 return ((DERBitString) o).intValue();
-            } else if (o instanceof DEROctetString) {
+            }
+            else if ( o instanceof DEROctetString ) {
                 // just reads initial object for nsCertType definition and ignores trailing objects.
                 ASN1InputStream in = new ASN1InputStream(((DEROctetString) o).getOctets());
                 o = in.readObject();
                 return ((DERBitString) o).intValue();
-            } else {
+            }
+            else {
                 throw new CertificateException("unknown type from ASN1InputStream.readObject: " + o);
             }
-        } catch (IOException ioe) {
+        }
+        catch (IOException ioe) {
             throw new CertificateEncodingException(ioe.getMessage(), ioe);
         }
     }

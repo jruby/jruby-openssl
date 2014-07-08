@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2006 Ola Bini <ola@ologix.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -35,9 +35,9 @@ import org.bouncycastle.asn1.ASN1Primitive;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class X509Aux {
-    public List<String> trust = new ArrayList<String>(); // String of OID's /* trusted uses */
-    public List<String> reject = new ArrayList<String>(); // String of OID's /* rejected uses */
+    final List<String> trust = new ArrayList<String>(); // String of OID's /* trusted uses */
+    final List<String> reject = new ArrayList<String>(); // String of OID's /* rejected uses */
     public String alias; /* "friendly name" */
     public byte[] keyid; /* key id of private key */
-    public List<ASN1Primitive> other = new ArrayList<ASN1Primitive>(); /* String of OID's of sigAlgs, other unspecified info */
+    List<ASN1Primitive> other = new ArrayList<ASN1Primitive>(); /* String of OID's of sigAlgs, other unspecified info */
 }// X509_AUX

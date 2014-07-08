@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2006 Ola Bini <ola@ologix.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -40,10 +40,8 @@ public abstract class X509Object implements Comparable<X509Object> {
      */
     public static int indexBySubject(List<? extends X509Object> h, int type, Name name) {
         int ix = 0;
-        for(X509Object oo : h) {
-            if(type == oo.type() && oo.isName(name)) {
-                return ix;
-            }
+        for ( X509Object oo : h ) {
+            if ( type == oo.type() && oo.isName(name) ) return ix;
         }
         return -1;
     }
@@ -51,11 +49,9 @@ public abstract class X509Object implements Comparable<X509Object> {
     /**
      * c: X509_OBJECT_retrieve_by_subject
      */
-    public static X509Object retrieveBySubject(List<? extends X509Object> h,int type,Name name) {
-        for(X509Object o : h) {
-            if(type == o.type() && o.isName(name)) {
-                return o;
-            }
+    public static X509Object retrieveBySubject(final List<? extends X509Object> h, int type, Name name) {
+        for ( X509Object o : h ) {
+            if ( type == o.type() && o.isName(name) ) return o;
         }
         return null;
     }
@@ -63,11 +59,9 @@ public abstract class X509Object implements Comparable<X509Object> {
     /**
      * c: X509_OBJECT_retrieve_match
      */
-    public static X509Object retrieveMatch(List<? extends X509Object> h, X509Object x) {
-        for(X509Object o : h) {
-            if(o.matches(x)) {
-                return o;
-            }
+    public static X509Object retrieveMatch(final List<? extends X509Object> h, X509Object x) {
+        for ( X509Object o : h ) {
+            if ( o.matches(x) ) return o;
         }
         return null;
     }

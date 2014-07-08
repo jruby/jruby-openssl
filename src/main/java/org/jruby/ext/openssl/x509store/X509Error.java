@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2006 Ola Bini <ola@ologix.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -27,14 +27,12 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Provide a dynamically-growing list of X509 error messages.
- * 
+ *
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class X509Error {
@@ -117,7 +115,7 @@ public class X509Error {
             }
         }
     }
-    
+
     public static Map<Integer, String> getErrors() {
         synchronized (errors) {
             Map<Integer, String> errs = errors.get();
