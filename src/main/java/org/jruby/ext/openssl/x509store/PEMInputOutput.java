@@ -131,10 +131,11 @@ import org.jruby.ext.openssl.SecurityHelper;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class PEMInputOutput {
+
     public static final String BEF = "-----";
     public static final String AFT = "-----";
-    public static final String BEF_G = BEF+"BEGIN ";
-    public static final String BEF_E = BEF+"END ";
+    public static final String BEF_G = BEF + "BEGIN ";
+    public static final String BEF_E = BEF + "END ";
     public static final String PEM_STRING_X509_OLD="X509 CERTIFICATE";
     public static final String PEM_STRING_X509="CERTIFICATE";
     public static final String PEM_STRING_X509_PAIR="CERTIFICATE PAIR";
@@ -158,21 +159,26 @@ public class PEMInputOutput {
     public static final String PEM_STRING_ECPARAMETERS="EC PARAMETERS";
     public static final String PEM_STRING_ECPRIVATEKEY="EC PRIVATE KEY";
 
-    private static final Pattern DH_PARAM_PATTERN = Pattern.compile(
-            "(-----BEGIN DH PARAMETERS-----)(.*)(-----END DH PARAMETERS-----)",
-            Pattern.MULTILINE);
-    private static final int DH_PARAM_GROUP = 2; // the group above containing encoded params
+    private static final String BEG_STRING_PUBLIC = BEF_G + PEM_STRING_PUBLIC;
+    private static final String BEG_STRING_DSA = BEF_G + PEM_STRING_DSA;
+    private static final String BEG_STRING_RSA = BEF_G + PEM_STRING_RSA;
+    private static final String BEG_STRING_RSA_PUBLIC = BEF_G + PEM_STRING_RSA_PUBLIC;
+    private static final String BEG_STRING_X509_OLD = BEF_G + PEM_STRING_X509_OLD;
+    private static final String BEG_STRING_X509 = BEF_G + PEM_STRING_X509;
+    private static final String BEG_STRING_X509_TRUSTED = BEF_G + PEM_STRING_X509_TRUSTED;
+    private static final String BEG_STRING_X509_CRL = BEF_G + PEM_STRING_X509_CRL;
+    private static final String BEG_STRING_X509_REQ = BEF_G + PEM_STRING_X509_REQ;
 
     private static BufferedReader makeBuffered(Reader in) {
-        if(in instanceof BufferedReader) {
-            return (BufferedReader)in;
+        if (in instanceof BufferedReader) {
+            return (BufferedReader) in;
         }
         return new BufferedReader(in);
     }
 
     private static BufferedWriter makeBuffered(Writer out) {
-        if(out instanceof BufferedWriter) {
-            return (BufferedWriter)out;
+        if (out instanceof BufferedWriter) {
+            return (BufferedWriter) out;
         }
         return new BufferedWriter(out);
     }
@@ -180,96 +186,105 @@ public class PEMInputOutput {
     /**
      * c: PEM_X509_INFO_read_bio
      */
-    public static Object readPEM(Reader in,char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_PUBLIC) != -1) {
+    public static Object readPEM(final Reader in, final char[] passwd) throws IOException {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
-                    return readPublicKey(_in,BEF_E+PEM_STRING_PUBLIC);
+                    return readPublicKey(reader,BEF_E+PEM_STRING_PUBLIC);
                 } catch (Exception e) {
-                    throw new IOException("problem creating public key: " + e.toString());
+                    throw new IOException("problem creating public key: " + e.toString(), e);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_DSA) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_DSA) != -1 ) {
                 try {
-                    return readKeyPair(_in,f, "DSA", BEF_E+PEM_STRING_DSA);
+                    return readKeyPair(reader,passwd, "DSA", BEF_E+PEM_STRING_DSA);
                 } catch (Exception e) {
-                    throw new IOException("problem creating DSA private key: " + e.toString());
+                    throw new IOException("problem creating DSA private key: " + e.toString(), e);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_RSA_PUBLIC) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_RSA_PUBLIC) != -1 ) {
                 try {
-                    return readPublicKey(_in,BEF_E+PEM_STRING_RSA_PUBLIC);
+                    return readPublicKey(reader,BEF_E+PEM_STRING_RSA_PUBLIC);
                 } catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString());
+                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509_OLD) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_X509_OLD) != -1 ) {
                 try {
-                    return readAuxCertificate(_in,BEF_E+PEM_STRING_X509_OLD);
+                    return readAuxCertificate(reader,BEF_E+PEM_STRING_X509_OLD);
                 } catch (Exception e) {
-                    throw new IOException("problem creating X509 Aux certificate: " + e.toString());
+                    throw new IOException("problem creating X509 Aux certificate: " + e.toString(), e);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_X509) != -1 ) {
                 try {
-                    return readAuxCertificate(_in,BEF_E+PEM_STRING_X509);
+                    return readAuxCertificate(reader,BEF_E+PEM_STRING_X509);
                 } catch (Exception e) {
-                    throw new IOException("problem creating X509 Aux certificate: " + e.toString());
+                    throw new IOException("problem creating X509 Aux certificate: " + e.toString(), e);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509_TRUSTED) != -1) {
+            }
+            else if( line.indexOf(BEG_STRING_X509_TRUSTED) != -1 ) {
                 try {
-                    return readAuxCertificate(_in,BEF_E+PEM_STRING_X509_TRUSTED);
+                    return readAuxCertificate(reader,BEF_E+PEM_STRING_X509_TRUSTED);
                 } catch (Exception e) {
-                    throw new IOException("problem creating X509 Aux certificate: " + e.toString());
+                    throw new IOException("problem creating X509 Aux certificate: " + e.toString(), e);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509_CRL) != -1) {
+            }
+            else if( line.indexOf(BEG_STRING_X509_CRL) != -1 ) {
                 try {
-                    return readCRL(_in,BEF_E+PEM_STRING_X509_CRL);
+                    return readCRL(reader,BEF_E+PEM_STRING_X509_CRL);
                 } catch (Exception e) {
-                    throw new IOException("problem creating X509 CRL: " + e.toString());
+                    throw new IOException("problem creating X509 CRL: " + e.toString(), e);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509_REQ) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_X509_REQ) != -1 ) {
                 try {
-                    return readCertificateRequest(_in,BEF_E+PEM_STRING_X509_REQ);
+                    return readCertificateRequest(reader,BEF_E+PEM_STRING_X509_REQ);
                 } catch (Exception e) {
-                    throw new IOException("problem creating X509 REQ: " + e.toString());
+                    throw new IOException("problem creating X509 REQ: " + e.toString(), e);
                 }
             }
         }
         return null;
     }
 
-    public static byte[] readX509PEM(Reader in) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String line;
-        while ((line = _in.readLine()) != null) {
-            if (line.indexOf(BEF_G + PEM_STRING_X509_OLD) != -1) {
+    public static byte[] readX509PEM(final Reader in) throws IOException {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_X509_OLD) != -1 ) {
                 try {
-                    return readBytes(_in, BEF_E + PEM_STRING_X509_OLD);
+                    return readBytes(reader, BEF_E + PEM_STRING_X509_OLD);
                 } catch (Exception e) {
-                    throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString());
+                    throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString(), e);
                 }
-            } else if (line.indexOf(BEF_G + PEM_STRING_X509) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_X509) != -1 ) {
                 try {
-                    return readBytes(_in, BEF_E + PEM_STRING_X509);
+                    return readBytes(reader, BEF_E + PEM_STRING_X509);
                 } catch (Exception e) {
-                    throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString());
+                    throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString(), e);
                 }
-            } else if (line.indexOf(BEF_G + PEM_STRING_X509_TRUSTED) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_X509_TRUSTED) != -1 ) {
                 try {
-                    return readBytes(_in, BEF_E + PEM_STRING_X509_TRUSTED);
+                    return readBytes(reader, BEF_E + PEM_STRING_X509_TRUSTED);
                 } catch (Exception e) {
-                    throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString());
+                    throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString(), e);
                 }
-            } else if (line.indexOf(BEF_G + PEM_STRING_X509_CRL) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_X509_CRL) != -1 ) {
                 try {
-                    return readBytes(_in, BEF_E + PEM_STRING_X509_CRL);
+                    return readBytes(reader, BEF_E + PEM_STRING_X509_CRL);
                 } catch (Exception e) {
-                    throw new IOException("problem reading PEM X509 CRL: " + e.toString());
+                    throw new IOException("problem reading PEM X509 CRL: " + e.toString(), e);
                 }
-            } else if (line.indexOf(BEF_G + PEM_STRING_X509_REQ) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_X509_REQ) != -1 ) {
                 try {
-                    return readBytes(_in, BEF_E + PEM_STRING_X509_REQ);
+                    return readBytes(reader, BEF_E + PEM_STRING_X509_REQ);
                 } catch (Exception e) {
-                    throw new IOException("problem reading PEM X509 REQ: " + e.toString());
+                    throw new IOException("problem reading PEM X509 REQ: " + e.toString(), e);
                 }
             }
         }
@@ -280,47 +295,55 @@ public class PEMInputOutput {
      * c: PEM_read_PrivateKey + PEM_read_bio_PrivateKey
      * CAUTION: KeyPair#getPublic() may be null.
      */
-    public static KeyPair readPrivateKey(Reader in, char[] password) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String line;
-        while ((line = _in.readLine()) != null) {
-            if (line.indexOf(BEF_G + PEM_STRING_RSA) != -1) {
+    public static KeyPair readPrivateKey(final Reader in, char[] passwd) throws IOException {
+        final String BEG_STRING_ECPRIVATEKEY = BEF_G + PEM_STRING_ECPRIVATEKEY;
+        final String BEG_STRING_PKCS8INF = BEF_G + PEM_STRING_PKCS8INF;
+        final String BEG_STRING_PKCS8 = BEF_G + PEM_STRING_PKCS8;
+
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_RSA) != -1 ) {
                 try {
-                    return readKeyPair(_in, password, "RSA", BEF_E + PEM_STRING_RSA);
+                    return readKeyPair(reader, passwd, "RSA", BEF_E + PEM_STRING_RSA);
                 } catch (Exception e) {
-                    throw new IOException("problem creating RSA private key: " + e.toString());
+                    throw new IOException("problem creating RSA private key: " + e.toString(), e);
                 }
-            } else if (line.indexOf(BEF_G + PEM_STRING_DSA) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_DSA) != -1 ) {
                 try {
-                    return readKeyPair(_in, password, "DSA", BEF_E + PEM_STRING_DSA);
+                    return readKeyPair(reader, passwd, "DSA", BEF_E + PEM_STRING_DSA);
                 } catch (Exception e) {
-                    throw new IOException("problem creating DSA private key: " + e.toString());
+                    throw new IOException("problem creating DSA private key: " + e.toString(), e);
                 }
-            } else if (line.indexOf(BEF_G + PEM_STRING_ECPRIVATEKEY) != -1) {
-                throw new IOException("EC private key not supported");
-            } else if (line.indexOf(BEF_G + PEM_STRING_PKCS8INF) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_ECPRIVATEKEY) != -1) { // TODO EC!
+                throw new UnsupportedOperationException("EC private key not supported");
+            }
+            else if ( line.indexOf(BEG_STRING_PKCS8INF) != -1) {
                 try {
-                    byte[] bytes = readBytes(_in, BEF_E + PEM_STRING_PKCS8INF);
+                    byte[] bytes = readBytes(reader, BEF_E + PEM_STRING_PKCS8INF);
                     PrivateKeyInfo info = PrivateKeyInfo.getInstance(bytes);
                     String type = getPrivateKeyTypeFromObjectId(info.getPrivateKeyAlgorithm().getAlgorithm());
                     return org.jruby.ext.openssl.impl.PKey.readPrivateKey(((ASN1Object) info.parsePrivateKey()).getEncoded(ASN1Encoding.DER), type);
-                } catch (Exception e) {
-                    throw new IOException("problem creating private key: " + e.toString());
                 }
-            } else if (line.indexOf(BEF_G + PEM_STRING_PKCS8) != -1) {
+                catch (Exception e) {
+                    throw new IOException("problem creating private key: " + e.toString(), e);
+                }
+            }
+            else if ( line.indexOf(BEG_STRING_PKCS8) != -1 ) {
                 try {
-                    byte[] bytes = readBytes(_in, BEF_E + PEM_STRING_PKCS8);
+                    byte[] bytes = readBytes(reader, BEF_E + PEM_STRING_PKCS8);
                     EncryptedPrivateKeyInfo eIn = EncryptedPrivateKeyInfo.getInstance(bytes);
                     AlgorithmIdentifier algId = eIn.getEncryptionAlgorithm();
                     PrivateKey privKey;
                     if (algId.getAlgorithm().toString().equals("1.2.840.113549.1.5.13")) { // PBES2
-                        privKey = derivePrivateKeyPBES2(eIn, algId, password);
+                        privKey = derivePrivateKeyPBES2(eIn, algId, passwd);
                     } else {
-                        privKey = derivePrivateKeyPBES1(eIn, algId, password);
+                        privKey = derivePrivateKeyPBES1(eIn, algId, passwd);
                     }
                     return new KeyPair(null, privKey);
                 } catch (Exception e) {
-                    throw new IOException("problem creating private key: " + e.toString());
+                    throw new IOException("problem creating private key: " + e.toString(), e);
                 }
             }
         }
@@ -408,14 +431,15 @@ public class PEMInputOutput {
      * c: PEM_read_bio_DSA_PUBKEY
      */
     public static DSAPublicKey readDSAPubKey(Reader in) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_DSA_PUBLIC) != -1) {
+        final String BEG_STRING_DSA_PUBLIC = BEF_G + PEM_STRING_DSA_PUBLIC;
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_DSA_PUBLIC) != -1 ) {
                 try {
-                    return (DSAPublicKey)readPublicKey(_in,"DSA",BEF_E+PEM_STRING_DSA_PUBLIC);
-                } catch (Exception e) {
-                    throw new IOException("problem creating DSA public key: " + e.toString());
+                    return (DSAPublicKey) readPublicKey(reader, "DSA", BEF_E + PEM_STRING_DSA_PUBLIC);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating DSA public key: " + e.toString(), e);
                 }
             }
         }
@@ -425,15 +449,15 @@ public class PEMInputOutput {
     /*
      * c: PEM_read_bio_DSAPublicKey
      */
-    public static DSAPublicKey readDSAPublicKey(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_PUBLIC) != -1) {
+    public static DSAPublicKey readDSAPublicKey(final Reader in, final char[] passwd) throws IOException {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
-                    return (DSAPublicKey)readPublicKey(_in,"DSA",BEF_E+PEM_STRING_PUBLIC);
-                } catch (Exception e) {
-                    throw new IOException("problem creating DSA public key: " + e.toString());
+                    return (DSAPublicKey) readPublicKey(reader, "DSA", BEF_E + PEM_STRING_PUBLIC);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating DSA public key: " + e.toString(), e);
                 }
             }
         }
@@ -443,15 +467,15 @@ public class PEMInputOutput {
     /*
      * c: PEM_read_bio_DSAPrivateKey
      */
-    public static KeyPair readDSAPrivateKey(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_DSA) != -1) {
+    public static KeyPair readDSAPrivateKey(final Reader in, final char[] passwd) throws IOException {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_DSA) != -1 ) {
                 try {
-                    return readKeyPair(_in,f, "DSA", BEF_E+PEM_STRING_DSA);
-                } catch (Exception e) {
-                    throw new IOException("problem creating DSA private key: " + e.toString());
+                    return readKeyPair(reader, passwd, "DSA", BEF_E + PEM_STRING_DSA);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating DSA private key: " + e.toString(), e);
                 }
             }
         }
@@ -463,20 +487,20 @@ public class PEMInputOutput {
      * c: PEM_read_bio_RSA_PUBKEY
      */
     public static RSAPublicKey readRSAPubKey(Reader in) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_PUBLIC) != -1) {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
-                    return readRSAPublicKey(_in,BEF_E+PEM_STRING_PUBLIC);
+                    return readRSAPublicKey(reader, BEF_E + PEM_STRING_PUBLIC);
                 } catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString());
+                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_RSA_PUBLIC) != -1) {
+            }
+            else if ( line.indexOf(BEG_STRING_RSA_PUBLIC) != -1 ) {
                 try {
-                    return readRSAPublicKey(_in,BEF_E+PEM_STRING_RSA_PUBLIC);
+                    return readRSAPublicKey(reader, BEF_E + PEM_STRING_RSA_PUBLIC);
                 } catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString());
+                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
                 }
             }
         }
@@ -488,20 +512,22 @@ public class PEMInputOutput {
      * c: PEM_read_bio_RSAPublicKey
      */
     public static RSAPublicKey readRSAPublicKey(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_PUBLIC) != -1) {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
-                    return (RSAPublicKey)readPublicKey(_in,"RSA",BEF_E+PEM_STRING_PUBLIC);
-                } catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString());
+                    return (RSAPublicKey) readPublicKey(reader, "RSA", BEF_E + PEM_STRING_PUBLIC);
                 }
-            } else if(line.indexOf(BEF_G+PEM_STRING_RSA_PUBLIC) != -1) {
+                catch (Exception e) {
+                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
+                }
+            }
+            else if ( line.indexOf(BEF_G+PEM_STRING_RSA_PUBLIC) != -1 ) {
                 try {
-                    return (RSAPublicKey)readPublicKey(_in,"RSA",BEF_E+PEM_STRING_RSA_PUBLIC);
-                } catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString());
+                    return (RSAPublicKey) readPublicKey(reader, "RSA", BEF_E + PEM_STRING_RSA_PUBLIC);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
                 }
             }
         }
@@ -512,178 +538,198 @@ public class PEMInputOutput {
      * c: PEM_read_bio_RSAPrivateKey
      */
     public static KeyPair readRSAPrivateKey(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_RSA) != -1) {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_RSA) != -1 ) {
                 try {
-                    return readKeyPair(_in,f, "RSA", BEF_E+PEM_STRING_RSA);
-                } catch (Exception e) {
-                    throw new IOException("problem creating RSA private key: " + e.toString());
+                    return readKeyPair(reader,f, "RSA", BEF_E + PEM_STRING_RSA);
                 }
-            }
-        }
-        return null;
-    }
-    public static CMSSignedData readPKCS7(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_PKCS7) != -1) {
-                try {
-                    return readPKCS7(_in,f, BEF_E+PEM_STRING_PKCS7);
-                } catch (Exception e) {
-                    throw new IOException("problem creating PKCS7: " + e.toString());
-                }
-            }
-        }
-        return null;
-    }
-    public static X509AuxCertificate readX509Certificate(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_X509_OLD) != -1) {
-                try {
-                    return new X509AuxCertificate(readCertificate(_in,BEF_E+PEM_STRING_X509_OLD));
-                } catch (Exception e) {
-                    throw new IOException("problem creating X509 certificate: " + e.toString());
-                }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509) != -1) {
-                try {
-                    return new X509AuxCertificate(readCertificate(_in,BEF_E+PEM_STRING_X509));
-                } catch (Exception e) {
-                    throw new IOException("problem creating X509 certificate: " + e.toString());
-                }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509_TRUSTED) != -1) {
-                try {
-                    return new X509AuxCertificate(readCertificate(_in,BEF_E+PEM_STRING_X509_TRUSTED));
-                } catch (Exception e) {
-                    throw new IOException("problem creating X509 certificate: " + e.toString());
-                }
-            }
-        }
-        return null;
-    }
-    public static X509AuxCertificate readX509Aux(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_X509_OLD) != -1) {
-                try {
-                    return readAuxCertificate(_in,BEF_E+PEM_STRING_X509_OLD);
-                } catch (Exception e) {
-                    throw new IOException("problem creating X509 Aux certificate: " + e.toString());
-                }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509) != -1) {
-                try {
-                    return readAuxCertificate(_in,BEF_E+PEM_STRING_X509);
-                } catch (Exception e) {
-                    throw new IOException("problem creating X509 Aux certificate: " + e.toString());
-                }
-            } else if(line.indexOf(BEF_G+PEM_STRING_X509_TRUSTED) != -1) {
-                try {
-                    return readAuxCertificate(_in,BEF_E+PEM_STRING_X509_TRUSTED);
-                } catch (Exception e) {
-                    throw new IOException("problem creating X509 Aux certificate: " + e.toString());
-                }
-            }
-        }
-        return null;
-    }
-    public static X509CRL readX509CRL(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_X509_CRL) != -1) {
-                try {
-                    return readCRL(_in,BEF_E+PEM_STRING_X509_CRL);
-                } catch (Exception e) {
-                    throw new IOException("problem creating X509 CRL: " + e.toString());
-                }
-            }
-        }
-        return null;
-    }
-    public static PKCS10Request readX509Request(Reader in, char[] f) throws IOException {
-        BufferedReader _in = makeBuffered(in);
-        String  line;
-        while ((line = _in.readLine()) != null) {
-            if(line.indexOf(BEF_G+PEM_STRING_X509_REQ) != -1) {
-                try {
-                    return readCertificateRequest(_in,BEF_E+PEM_STRING_X509_REQ);
-                } catch (Exception e) {
-                    throw new IOException("problem creating X509 REQ: " + e.toString());
+                catch (Exception e) {
+                    throw new IOException("problem creating RSA private key: " + e.toString(), e);
                 }
             }
         }
         return null;
     }
 
-    public static DHParameterSpec readDHParameters(Reader _in) throws IOException {
-        BufferedReader in = makeBuffered(_in);
-        String line;
-        StringBuilder buf = new StringBuilder();
-        while ((line = in.readLine()) != null) {
-            if (line.indexOf(BEF_G + PEM_STRING_DHPARAMS) >= 0) {
+    public static CMSSignedData readPKCS7(Reader in, char[] f) throws IOException {
+        final String BEG_STRING_PKCS7 = BEF_G + PEM_STRING_PKCS7;
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_PKCS7) != -1 ) {
+                try {
+                    return readPKCS7(reader,f, BEF_E + PEM_STRING_PKCS7);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating PKCS7: " + e.toString(), e);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static X509AuxCertificate readX509Certificate(final Reader in, final char[] passwd)
+        throws IOException {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_X509_OLD) != -1 ) {
+                try {
+                    return new X509AuxCertificate(readCertificate(reader,BEF_E+PEM_STRING_X509_OLD));
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating X509 certificate: " + e.toString(), e);
+                }
+            }
+            else if ( line.indexOf(BEG_STRING_X509) != -1 ) {
+                try {
+                    return new X509AuxCertificate(readCertificate(reader,BEF_E+PEM_STRING_X509));
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating X509 certificate: " + e.toString(), e);
+                }
+            }
+            else if ( line.indexOf(BEG_STRING_X509_TRUSTED) != -1 ) {
+                try {
+                    return new X509AuxCertificate(readCertificate(reader,BEF_E+PEM_STRING_X509_TRUSTED));
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating X509 certificate: " + e.toString(), e);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static X509AuxCertificate readX509Aux(final Reader in, final char[] passwd)
+        throws IOException {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_X509_OLD) != -1 ) {
+                try {
+                    return readAuxCertificate(reader, BEF_E + PEM_STRING_X509_OLD);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating X509 Aux certificate: " + e.toString(), e);
+                }
+            }
+            else if ( line.indexOf(BEG_STRING_X509) != -1 ) {
+                try {
+                    return readAuxCertificate(reader, BEF_E + PEM_STRING_X509);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating X509 Aux certificate: " + e.toString(), e);
+                }
+            }
+            else if ( line.indexOf(BEG_STRING_X509_TRUSTED) != -1 ) {
+                try {
+                    return readAuxCertificate(reader, BEF_E + PEM_STRING_X509_TRUSTED);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating X509 Aux certificate: " + e.toString(), e);
+                }
+            }
+        }
+        return null;
+    }
+    
+    public static X509CRL readX509CRL(final Reader in, final char[] passwd) throws IOException {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_X509_CRL) != -1 ) {
+                try {
+                    return readCRL(reader, BEF_E + PEM_STRING_X509_CRL);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating X509 CRL: " + e.toString(), e);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static PKCS10Request readX509Request(final Reader in, final char[] passwd)
+        throws IOException {
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_X509_REQ) != -1 ) {
+                try {
+                    return readCertificateRequest(reader, BEF_E + PEM_STRING_X509_REQ);
+                }
+                catch (Exception e) {
+                    throw new IOException("problem creating X509 REQ: " + e.toString(), e);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static DHParameterSpec readDHParameters(final Reader in) throws IOException {
+        final String BEG_STRING_DHPARAMS = BEF_G + PEM_STRING_DHPARAMS;
+
+        final BufferedReader reader = makeBuffered(in); String line;
+        final StringBuilder lines = new StringBuilder();
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_DHPARAMS) >= 0 ) {
+                final String endParams = BEF_E + PEM_STRING_DHPARAMS;
                 do {
-                    buf.append(line.trim());
-                } while (line.indexOf(BEF_E + PEM_STRING_DHPARAMS) < 0 && (line = in.readLine()) != null);
+                    lines.append(line.trim());
+                }
+                while ( line.indexOf(endParams) < 0 && ( line = reader.readLine() ) != null );
                 break;
             }
         }
-        Matcher m = DH_PARAM_PATTERN.matcher(buf.toString());
-        if (m.find()) {
+
+        final Pattern DH_PARAMS_PATTERN = Pattern.compile(
+            "(-----BEGIN DH PARAMETERS-----)(.*)(-----END DH PARAMETERS-----)",
+            Pattern.MULTILINE);
+        final int DH_PARAMS_GROUP = 2; // the group above containing encoded params
+
+        final Matcher matcher = DH_PARAMS_PATTERN.matcher( lines.toString() );
+        if ( matcher.find() ) {
             try {
-                byte[] decoded = Base64.decode(m.group(DH_PARAM_GROUP));
+                byte[] decoded = Base64.decode(matcher.group(DH_PARAMS_GROUP));
                 return org.jruby.ext.openssl.impl.PKey.readDHParameter(decoded);
-            } catch (Exception e) {
+            }
+            catch (IOException e) {
+                // TODO
             }
         }
         return null;
     }
 
     private static byte[] getEncoded(java.security.Key key) {
-        if (key != null) {
-            return key.getEncoded();
-        }
-        return new byte[] { '0', 0 };
+        if ( key == null ) return new byte[] { '0', 0 };
+        return key.getEncoded();
     }
 
     private static byte[] getEncoded(ASN1Encodable obj) throws IOException {
-        if (obj != null) {
-            return obj.toASN1Primitive().getEncoded();
-        }
-        return new byte[] { '0', 0 };
+        if ( obj == null ) return new byte[] { '0', 0 };
+        return obj.toASN1Primitive().getEncoded();
     }
 
     private static byte[] getEncoded(CMSSignedData obj) throws IOException {
-        if (obj != null) {
-            return obj.getEncoded();
-        }
-        return new byte[] { '0', 0 };
+        if ( obj == null ) return new byte[] { '0', 0 };
+        return obj.getEncoded();
     }
 
     private static byte[] getEncoded(X509Certificate cert) throws IOException {
-        if (cert != null) {
-            try {
-                return cert.getEncoded();
-            } catch (GeneralSecurityException gse) {
-                throw new IOException("problem with encoding object in write_X509");
-            }
+        if ( cert == null ) return new byte[] { '0', 0 };
+        try {
+            return cert.getEncoded();
         }
-        return new byte[] { '0', 0 };
+        catch (GeneralSecurityException e) {
+            throw new IOException("problem with encoding object in write_X509", e);
+        }
     }
 
     private static byte[] getEncoded(X509CRL crl) throws IOException {
-        if (crl != null) {
-            try {
-                return crl.getEncoded();
-            } catch (GeneralSecurityException gse) {
-                throw new IOException("problem with encoding object in write_X509_CRL");
-            }
+        if ( crl == null ) return new byte[] { '0', 0 };
+        try {
+            return crl.getEncoded();
         }
-        return new byte[] { '0', 0 };
+        catch (GeneralSecurityException e) {
+            throw new IOException("problem with encoding object in write_X509_CRL", e);
+        }
     }
 
     public static void writeDSAPublicKey(Writer _out, DSAPublicKey obj) throws IOException {
@@ -727,7 +773,7 @@ public class PEMInputOutput {
         out.newLine();
         out.flush();
     }
-    public static void writePKCS7(Writer _out, byte[] encoded) throws IOException {
+    public static void writePKCS7(final Writer _out, final byte[] encoded) throws IOException {
         BufferedWriter out = makeBuffered(_out);
         out.write(BEF_G + PEM_STRING_PKCS7 + AFT);
         out.newLine();
@@ -736,9 +782,9 @@ public class PEMInputOutput {
         out.newLine();
         out.flush();
     }
-    public static void writeX509Certificate(Writer _out, X509Certificate obj) throws IOException {
+    public static void writeX509Certificate(final Writer _out, final X509Certificate cert) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding = getEncoded(obj);
+        byte[] encoding = getEncoded(cert);
         out.write(BEF_G + PEM_STRING_X509 + AFT);
         out.newLine();
         writeEncoded(out, encoding);
@@ -746,52 +792,52 @@ public class PEMInputOutput {
         out.newLine();
         out.flush();
     }
-    public static void writeX509Aux(Writer _out, X509AuxCertificate obj) throws IOException {
+    public static void writeX509Aux(final Writer _out, final X509AuxCertificate cert) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding = null;
+        byte[] encoding;
         try {
-            if(obj.getAux() == null) {
-                encoding = obj.getEncoded();
-            } else {
+            if ( cert.aux == null ) {
+                encoding = cert.getEncoded();
+            }
+            else {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                byte[] ymp = obj.getEncoded();
-                baos.write(ymp,0,ymp.length);
+                byte[] enc = cert.getEncoded();
+                baos.write(enc, 0, enc.length);
 
-                X509Aux aux = obj.getAux();
+                final X509Aux aux = cert.aux;
                 ASN1EncodableVector a1 = new ASN1EncodableVector();
-                if(aux.trust.size()>0) {
+                if ( aux.trust.size() > 0 ) {
                     ASN1EncodableVector a2 = new ASN1EncodableVector();
-                    for(String trust : aux.trust) {
+                    for ( String trust : aux.trust ) {
                         a2.add(new ASN1ObjectIdentifier(trust));
                     }
                     a1.add(new DLSequence(a2));
                 }
-                if(aux.reject.size()>0) {
+                if ( aux.reject.size() > 0 ) {
                     ASN1EncodableVector a2 = new ASN1EncodableVector();
-                    for(String reject : aux.reject) {
+                    for ( String reject : aux.reject ) {
                         a2.add(new ASN1ObjectIdentifier(reject));
                     }
                     a1.add(new DERTaggedObject(0,new DLSequence(a2)));
                 }
-                if(aux.alias != null) {
+                if ( aux.alias != null ) {
                     a1.add(new DERUTF8String(aux.alias));
                 }
-                if(aux.keyid != null) {
+                if ( aux.keyid != null ) {
                     a1.add(new DEROctetString(aux.keyid));
                 }
-                if(aux.other.size()>0) {
+                if ( aux.other.size() > 0 ) {
                     ASN1EncodableVector a2 = new ASN1EncodableVector();
-                    for(ASN1Primitive other : aux.other) {
-                        a2.add(other);
-                    }
-                    a1.add(new DERTaggedObject(1,new DLSequence(a2)));
+                    for ( ASN1Primitive other : aux.other ) a2.add(other);
+                    a1.add( new DERTaggedObject( 1, new DLSequence(a2) ) );
                 }
-                ymp = new DLSequence(a1).getEncoded();
-                baos.write(ymp,0,ymp.length);
+                enc = new DLSequence(a1).getEncoded();
+                baos.write(enc, 0, enc.length);
                 encoding = baos.toByteArray();
             }
-        } catch(CertificateEncodingException e) {
-            throw new IOException("problem with encoding object in write_X509_AUX");
+        }
+        catch (CertificateEncodingException e) {
+            throw new IOException("problem with encoding object in write_X509_AUX", e);
         }
         out.write(BEF_G + PEM_STRING_X509_TRUSTED + AFT);
         out.newLine();
@@ -819,15 +865,6 @@ public class PEMInputOutput {
         out.write(BEF_E + PEM_STRING_X509_REQ + AFT);
         out.newLine();
         out.flush();
-    }
-
-    private static SecureRandom random;
-    static {
-        try {
-            random = SecureRandom.getInstance("SHA1PRNG");
-        } catch(Exception e) {
-            random = null;
-        }
     }
 
     public static void writeDSAPrivateKey(Writer _out, DSAPrivateKey obj, CipherSpec cipher, char[] passwd) throws IOException {
@@ -881,27 +918,34 @@ public class PEMInputOutput {
         out.flush();
     }
 
-    private static void writePemEncrypted(BufferedWriter out, String pemHeader, byte[] encoding, CipherSpec cipherSpec, char[] passwd) throws IOException {
-        Cipher cipher = cipherSpec.getCipher();
-        byte[] iv = new byte[cipher.getBlockSize()];
-        random.nextBytes(iv);
-        byte[] salt = new byte[8];
+    private static void writePemEncrypted(final BufferedWriter out,
+        final String pemHeader, final byte[] encoding,
+        final CipherSpec cipherSpec, final char[] passwd) throws IOException {
+
+        final Cipher cipher = cipherSpec.getCipher();
+        final byte[] iv = new byte[cipher.getBlockSize()];
+        secureRandom().nextBytes(iv);
+        final byte[] salt = new byte[8];
         System.arraycopy(iv, 0, salt, 0, 8);
         OpenSSLPBEParametersGenerator pGen = new OpenSSLPBEParametersGenerator();
         pGen.init(PBEParametersGenerator.PKCS5PasswordToBytes(passwd), salt);
+
         KeyParameter param = (KeyParameter) pGen.generateDerivedParameters(cipherSpec.getKeyLenInBits());
         SecretKey secretKey = new SecretKeySpec(param.getKey(), Algorithm.getAlgorithmBase(cipher));
-        byte[] encData = null;
+        final byte[] encData;
         try {
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(iv));
             encData = cipher.doFinal(encoding);
-        } catch (InvalidKeyException ike) {
-            if (ike.getMessage().startsWith("Invalid key length")) {
-                throw new IOException("Invalid key length. See http://wiki.jruby.org/UnlimitedStrengthCrypto");
+        }
+        catch (InvalidKeyException e) {
+            final String msg = e.getMessage();
+            if ( msg != null && msg.startsWith("Invalid key length") ) {
+                throw new IOException("Invalid key length. See http://wiki.jruby.org/UnlimitedStrengthCrypto", e);
             }
-            throw new IOException("exception using cipher:" + ike.toString(), ike);
-        } catch (GeneralSecurityException gse) {
-            throw new IOException("exception using cipher: " + gse.toString(), gse);
+            throw new IOException("exception using cipher: "+ cipherSpec.getOsslName()  + " (" + e + ")", e);
+        }
+        catch (GeneralSecurityException e) {
+            throw new IOException("exception using cipher: "+ cipherSpec.getOsslName()  + " (" + e + ")", e);
         }
         out.write(BEF_G + pemHeader + AFT);
         out.newLine();
@@ -916,28 +960,43 @@ public class PEMInputOutput {
         out.flush();
     }
 
+    private static SecureRandom random;
+
+    private static SecureRandom secureRandom() {
+        if ( random == null ) {
+            try {
+                random = SecureRandom.getInstance("SHA1PRNG");
+            }
+            catch (NoSuchAlgorithmException e) {
+                random = new SecureRandom();
+            }
+        }
+        return random;
+    }
+
     public static void writeDHParameters(Writer _out, DHParameterSpec params) throws IOException {
-        BufferedWriter out = makeBuffered(_out);
-        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
-        ASN1OutputStream aOut = new ASN1OutputStream(bOut);
+        final BufferedWriter out = makeBuffered(_out);
 
         ASN1EncodableVector v = new ASN1EncodableVector();
 
         BigInteger value;
-        if ((value = params.getP()) != null) {
-            v.add(new ASN1Integer(value));
+        if ( ( value = params.getP() ) != null ) {
+            v.add( new ASN1Integer(value) );
         }
-        if ((value = params.getG()) != null) {
-            v.add(new ASN1Integer(value));
+        if ( ( value = params.getG() ) != null ) {
+            v.add( new ASN1Integer(value) );
         }
+
+        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
+        ASN1OutputStream aOut = new ASN1OutputStream(bOut);
 
         aOut.writeObject(new DLSequence(v));
         byte[] encoding = bOut.toByteArray();
 
-        out.write(BEF_G + PEM_STRING_DHPARAMS + AFT);
+        out.write(BEF_G); out.write(PEM_STRING_DHPARAMS); out.write(AFT);
         out.newLine();
-        writeEncoded(out,encoding);
-        out.write(BEF_E + PEM_STRING_DHPARAMS + AFT);
+        writeEncoded(out, encoding);
+        out.write(BEF_E); out.write(PEM_STRING_DHPARAMS); out.write(AFT);
         out.newLine();
         out.flush();
     }
@@ -1260,8 +1319,9 @@ public class PEMInputOutput {
             Base64.decode(buf.substring(0, (buf.length() / 4) * 4), bOut);
             buf.delete(0, (buf.length() / 4) * 4);
         }
+
         if (buf.length() != 0) {
-            throw new RuntimeException("base64 data appears to be truncated");
+            throw new IOException("base64 data appears to be truncated");
         }
         if (line == null) {
             throw new IOException(endMarker + " not found");
@@ -1269,7 +1329,8 @@ public class PEMInputOutput {
         try {
             ASN1InputStream aIn = new ASN1InputStream(bOut.toByteArray());
             return new CMSSignedData(ContentInfo.getInstance(aIn.readObject()));
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw new IOException("problem parsing PKCS7 object: " + e.toString());
         }
     }
