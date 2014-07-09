@@ -34,10 +34,13 @@ import org.bouncycastle.asn1.ASN1Primitive;
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
-public class X509Aux {
-    final List<String> trust = new ArrayList<String>(); // String of OID's /* trusted uses */
-    final List<String> reject = new ArrayList<String>(); // String of OID's /* rejected uses */
+final class X509Aux {
+
     public String alias; /* "friendly name" */
     public byte[] keyid; /* key id of private key */
+
+    final List<String> trust = new ArrayList<String>(); // String of OID's /* trusted uses */
+    final List<String> reject = new ArrayList<String>(); // String of OID's /* rejected uses */
     List<ASN1Primitive> other = new ArrayList<ASN1Primitive>(); /* String of OID's of sigAlgs, other unspecified info */
+    
 }// X509_AUX

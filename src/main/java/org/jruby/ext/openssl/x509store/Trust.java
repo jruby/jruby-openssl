@@ -209,7 +209,7 @@ public class Trust {
     final static Checker<Trust> trust1OIDAny = new Checker<Trust>() {
         public int call(final Trust trust,
             final X509AuxCertificate x, final Integer flags) throws Exception {
-            final X509Aux aux = x.getAux();
+            final X509Aux aux = x.aux;
             if ( aux != null && ( aux.trust.size() > 0 || aux.reject.size() > 0 ) ) {
                 return objTrust.call(trust.arg1, x, flags);
             }
@@ -223,7 +223,7 @@ public class Trust {
     final static Checker<Trust> trust1OID = new Checker<Trust>() {
         public int call(final Trust trust,
             final X509AuxCertificate x, final Integer flags) throws Exception {
-            if ( x.getAux() != null ) {
+            if ( x.aux != null ) {
                 return objTrust.call(trust.arg1, x, flags);
             }
             return X509Utils.X509_TRUST_UNTRUSTED;
@@ -236,7 +236,7 @@ public class Trust {
     final static Checker<String> objTrust = new Checker<String>() {
         public int call(final String id,
             final X509AuxCertificate x, final Integer flags) {
-            final X509Aux aux = x.getAux();
+            final X509Aux aux = x.aux;
             if ( aux == null ) {
                 return X509Utils.X509_TRUST_UNTRUSTED;
             }
@@ -268,4 +268,5 @@ public class Trust {
         new Trust(X509Utils.X509_TRUST_OCSP_SIGN, 0, trust1OID, "OCSP responder", "1.3.6.1.5.5.7.3.9", null),
         new Trust(X509Utils.X509_TRUST_OCSP_REQUEST, 0, trust1OID, "OCSP request", "1.3.6.1.5.5.7.48.1", null),
     };
+    
 }// X509_TRUST

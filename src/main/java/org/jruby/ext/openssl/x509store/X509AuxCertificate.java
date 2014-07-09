@@ -67,8 +67,10 @@ import org.jruby.ext.openssl.SecurityHelper;
  */
 public class X509AuxCertificate extends X509Certificate {
     private static final long serialVersionUID = -909543379295427515L;
+
     private final X509Certificate wrap;
-    private final X509Aux aux;
+
+    final X509Aux aux;
 
     private boolean valid = false;
     private int ex_flags = 0;
@@ -85,14 +87,10 @@ public class X509AuxCertificate extends X509Certificate {
         this(wrap, null);
     }
 
-    public X509AuxCertificate(X509Certificate wrap, X509Aux aux) {
+    X509AuxCertificate(X509Certificate wrap, X509Aux aux) {
         super();
         this.wrap = wrap;
         this.aux = aux;
-    }
-
-    public X509Aux getAux() {
-        return this.aux;
     }
 
     public boolean isValid() {
@@ -113,14 +111,17 @@ public class X509AuxCertificate extends X509Certificate {
 
     // DELEGATES :
 
+    @Override
     public void checkValidity() throws CertificateExpiredException, CertificateNotYetValidException {
         wrap.checkValidity();
     }
 
+    @Override
     public void checkValidity(Date date) throws CertificateExpiredException, CertificateNotYetValidException {
         wrap.checkValidity(date);
     }
 
+    @Override
     public int getBasicConstraints()  {
         return wrap.getBasicConstraints();
     }
@@ -135,10 +136,12 @@ public class X509AuxCertificate extends X509Certificate {
         return wrap.getIssuerAlternativeNames();
     }
 
+    @Override
     public Principal getIssuerDN() {
         return wrap.getIssuerDN();
     }
 
+    @Override
     public boolean[] getIssuerUniqueID() {
         return wrap.getIssuerUniqueID();
     }
@@ -148,39 +151,62 @@ public class X509AuxCertificate extends X509Certificate {
         return wrap.getIssuerX500Principal();
     }
 
+    @Override
     public boolean[] getKeyUsage() { return wrap.getKeyUsage(); }
+
+    @Override
     public Date getNotAfter() { return wrap.getNotAfter(); }
+
+    @Override
     public Date getNotBefore() { return wrap.getNotBefore(); }
+
+    @Override
     public BigInteger getSerialNumber() { return wrap.getSerialNumber(); }
+
+    @Override
     public String getSigAlgName() { return wrap.getSigAlgName(); }
+
+    @Override
     public String getSigAlgOID() { return wrap.getSigAlgOID(); }
+
+    @Override
     public byte[] getSigAlgParams() { return wrap.getSigAlgParams(); }
+
+    @Override
     public byte[] getSignature() { return wrap.getSignature(); }
 
     @Override
     public Collection<List<?>> getSubjectAlternativeNames() throws CertificateParsingException {
         return wrap.getSubjectAlternativeNames();
     }
+
+    @Override
     public Principal getSubjectDN() { return wrap.getSubjectDN(); }
+
+    @Override
     public boolean[] getSubjectUniqueID() { return wrap.getSubjectUniqueID(); }
 
     @Override
     public X500Principal getSubjectX500Principal() { return wrap.getSubjectX500Principal(); }
 
+    @Override
     public byte[] getTBSCertificate() throws CertificateEncodingException {
         return wrap.getTBSCertificate();
     }
 
+    @Override
     public int getVersion() { return wrap.getVersion(); }
 
+    @Override
     public byte[] getEncoded() throws CertificateEncodingException {
         return wrap.getEncoded();
     }
 
-    public PublicKey getPublicKey(){ return wrap.getPublicKey(); }
+    @Override
+    public PublicKey getPublicKey() { return wrap.getPublicKey(); }
 
     @Override
-    public String toString(){ return wrap.toString(); }
+    public String toString() { return wrap.toString(); }
 
     @Override
     public boolean equals(Object other) {
@@ -199,29 +225,35 @@ public class X509AuxCertificate extends X509Certificate {
         return ret;
     }
 
+    @Override
     public void verify(PublicKey key) throws CertificateException, NoSuchAlgorithmException,
         InvalidKeyException, NoSuchProviderException, SignatureException {
         wrap.verify(key);
     }
 
+    @Override
     public void verify(PublicKey key, String sigProvider) throws CertificateException,
         NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException,
         SignatureException {
         wrap.verify(key,sigProvider);
     }
 
+    @Override
     public  Set<String> getCriticalExtensionOIDs() {
         return wrap.getCriticalExtensionOIDs();
     }
 
+    @Override
     public byte[] getExtensionValue(String oid) {
         return wrap.getExtensionValue(oid);
     }
 
+    @Override
     public Set<String> getNonCriticalExtensionOIDs() {
         return wrap.getNonCriticalExtensionOIDs();
     }
 
+    @Override
     public boolean hasUnsupportedCriticalExtension() {
         return wrap.hasUnsupportedCriticalExtension();
     }
