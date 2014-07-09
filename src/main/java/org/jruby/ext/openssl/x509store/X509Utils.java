@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2006 Ola Bini <ola@ologix.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -28,11 +28,15 @@
 package org.jruby.ext.openssl.x509store;
 
 
+import java.io.IOException;
+import java.math.BigInteger;
 import java.util.Arrays;
+
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.DERTaggedObject;
@@ -48,6 +52,7 @@ import org.bouncycastle.asn1.x500.X500Name;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public abstract class X509Utils {
+
     private X509Utils() {}
 
     /**
@@ -95,180 +100,186 @@ public abstract class X509Utils {
     /**
      * c: X509_verify_cert_error_string
      */
-    public static String verifyCertificateErrorString(int n) {
-	switch(n){
+    public static String verifyCertificateErrorString(final int n) {
+        switch (n) {
         case V_OK:
             return("ok");
-	case V_ERR_UNABLE_TO_GET_ISSUER_CERT:
-            return("unable to get issuer certificate");
-	case V_ERR_UNABLE_TO_GET_CRL:
-            return("unable to get certificate CRL");
-	case V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE:
-            return("unable to decrypt certificate's signature");
-	case V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE:
-            return("unable to decrypt CRL's signature");
-	case V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY:
-            return("unable to decode issuer public key");
-	case V_ERR_CERT_SIGNATURE_FAILURE:
-            return("certificate signature failure");
-	case V_ERR_CRL_SIGNATURE_FAILURE:
-            return("CRL signature failure");
-	case V_ERR_CERT_NOT_YET_VALID:
-            return("certificate is not yet valid");
-	case V_ERR_CRL_NOT_YET_VALID:
-            return("CRL is not yet valid");
-	case V_ERR_CERT_HAS_EXPIRED:
-            return("certificate has expired");
-	case V_ERR_CRL_HAS_EXPIRED:
-            return("CRL has expired");
-	case V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
-            return("format error in certificate's notBefore field");
-	case V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
-            return("format error in certificate's notAfter field");
-	case V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD:
-            return("format error in CRL's lastUpdate field");
-	case V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD:
-            return("format error in CRL's nextUpdate field");
-	case V_ERR_OUT_OF_MEM:
-            return("out of memory");
-	case V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
-            return("self signed certificate");
-	case V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
-            return("self signed certificate in certificate chain");
-	case V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
-            return("unable to get local issuer certificate");
-	case V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
-            return("unable to verify the first certificate");
-	case V_ERR_CERT_CHAIN_TOO_LONG:
-            return("certificate chain too long");
-	case V_ERR_CERT_REVOKED:
-            return("certificate revoked");
-	case V_ERR_INVALID_CA:
-            return ("invalid CA certificate");
-	case V_ERR_INVALID_NON_CA:
-            return ("invalid non-CA certificate (has CA markings)");
-	case V_ERR_PATH_LENGTH_EXCEEDED:
-            return ("path length constraint exceeded");
-	case V_ERR_PROXY_PATH_LENGTH_EXCEEDED:
-            return("proxy path length constraint exceeded");
-	case V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED:
-            return("proxy cerificates not allowed, please set the appropriate flag");
-	case V_ERR_INVALID_PURPOSE:
-            return ("unsupported certificate purpose");
-	case V_ERR_CERT_UNTRUSTED:
-            return ("certificate not trusted");
-	case V_ERR_CERT_REJECTED:
-            return ("certificate rejected");
-	case V_ERR_APPLICATION_VERIFICATION:
-            return("application verification failure");
-	case V_ERR_SUBJECT_ISSUER_MISMATCH:
-            return("subject issuer mismatch");
-	case V_ERR_AKID_SKID_MISMATCH:
-            return("authority and subject key identifier mismatch");
-	case V_ERR_AKID_ISSUER_SERIAL_MISMATCH:
-            return("authority and issuer serial number mismatch");
-	case V_ERR_KEYUSAGE_NO_CERTSIGN:
-            return("key usage does not include certificate signing");
-	case V_ERR_UNABLE_TO_GET_CRL_ISSUER:
-            return("unable to get CRL issuer certificate");
-	case V_ERR_UNHANDLED_CRITICAL_EXTENSION:
-            return("unhandled critical extension");
-	case V_ERR_KEYUSAGE_NO_CRL_SIGN:
-            return("key usage does not include CRL signing");
-	case V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE:
-            return("key usage does not include digital signature");
-	case V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION:
-            return("unhandled critical CRL extension");
-	case V_ERR_INVALID_EXTENSION:
-            return("invalid or inconsistent certificate extension");
-	case V_ERR_INVALID_POLICY_EXTENSION:
-            return("invalid or inconsistent certificate policy extension");
-	case V_ERR_NO_EXPLICIT_POLICY:
-            return("no explicit policy");
-	default:
-            return "error number " + n;
+        case V_ERR_UNABLE_TO_GET_ISSUER_CERT:
+                return("unable to get issuer certificate");
+        case V_ERR_UNABLE_TO_GET_CRL:
+                return("unable to get certificate CRL");
+        case V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE:
+                return("unable to decrypt certificate's signature");
+        case V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE:
+                return("unable to decrypt CRL's signature");
+        case V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY:
+                return("unable to decode issuer public key");
+        case V_ERR_CERT_SIGNATURE_FAILURE:
+                return("certificate signature failure");
+        case V_ERR_CRL_SIGNATURE_FAILURE:
+                return("CRL signature failure");
+        case V_ERR_CERT_NOT_YET_VALID:
+                return("certificate is not yet valid");
+        case V_ERR_CRL_NOT_YET_VALID:
+                return("CRL is not yet valid");
+        case V_ERR_CERT_HAS_EXPIRED:
+                return("certificate has expired");
+        case V_ERR_CRL_HAS_EXPIRED:
+                return("CRL has expired");
+        case V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+                return("format error in certificate's notBefore field");
+        case V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+                return("format error in certificate's notAfter field");
+        case V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD:
+                return("format error in CRL's lastUpdate field");
+        case V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD:
+                return("format error in CRL's nextUpdate field");
+        case V_ERR_OUT_OF_MEM:
+                return("out of memory");
+        case V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+                return("self signed certificate");
+        case V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
+                return("self signed certificate in certificate chain");
+        case V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+                return("unable to get local issuer certificate");
+        case V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+                return("unable to verify the first certificate");
+        case V_ERR_CERT_CHAIN_TOO_LONG:
+                return("certificate chain too long");
+        case V_ERR_CERT_REVOKED:
+                return("certificate revoked");
+        case V_ERR_INVALID_CA:
+                return ("invalid CA certificate");
+        case V_ERR_INVALID_NON_CA:
+                return ("invalid non-CA certificate (has CA markings)");
+        case V_ERR_PATH_LENGTH_EXCEEDED:
+                return ("path length constraint exceeded");
+        case V_ERR_PROXY_PATH_LENGTH_EXCEEDED:
+                return("proxy path length constraint exceeded");
+        case V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED:
+                return("proxy cerificates not allowed, please set the appropriate flag");
+        case V_ERR_INVALID_PURPOSE:
+                return ("unsupported certificate purpose");
+        case V_ERR_CERT_UNTRUSTED:
+                return ("certificate not trusted");
+        case V_ERR_CERT_REJECTED:
+                return ("certificate rejected");
+        case V_ERR_APPLICATION_VERIFICATION:
+                return("application verification failure");
+        case V_ERR_SUBJECT_ISSUER_MISMATCH:
+                return("subject issuer mismatch");
+        case V_ERR_AKID_SKID_MISMATCH:
+                return("authority and subject key identifier mismatch");
+        case V_ERR_AKID_ISSUER_SERIAL_MISMATCH:
+                return("authority and issuer serial number mismatch");
+        case V_ERR_KEYUSAGE_NO_CERTSIGN:
+                return("key usage does not include certificate signing");
+        case V_ERR_UNABLE_TO_GET_CRL_ISSUER:
+                return("unable to get CRL issuer certificate");
+        case V_ERR_UNHANDLED_CRITICAL_EXTENSION:
+                return("unhandled critical extension");
+        case V_ERR_KEYUSAGE_NO_CRL_SIGN:
+                return("key usage does not include CRL signing");
+        case V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE:
+                return("key usage does not include digital signature");
+        case V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION:
+                return("unhandled critical CRL extension");
+        case V_ERR_INVALID_EXTENSION:
+                return("invalid or inconsistent certificate extension");
+        case V_ERR_INVALID_POLICY_EXTENSION:
+                return("invalid or inconsistent certificate policy extension");
+        case V_ERR_NO_EXPLICIT_POLICY:
+                return("no explicit policy");
+        default:
+                return "error number " + n;
         }
     }
 
-    private static Object get(Object str) throws Exception {
-        return get(((DEROctetString)str).getOctets());
+    private static ASN1Primitive get(DEROctetString str) throws IOException {
+        return get( str.getOctets() );
     }
-    
-    private static Object get(byte[] str) throws Exception {
-        return new ASN1InputStream(str).readObject();
+
+    private static ASN1Primitive get(final byte[] input) throws IOException {
+        return new ASN1InputStream(input).readObject();
     }
 
     /**
      * c: X509_check_issued
      */
-    public static int checkIfIssuedBy(X509AuxCertificate issuer, X509AuxCertificate subject) throws Exception { 
-        if(!issuer.getSubjectX500Principal().equals(subject.getIssuerX500Principal())) {
+    public static int checkIfIssuedBy(final X509AuxCertificate issuer,
+        final X509AuxCertificate subject) throws IOException {
+
+        if ( ! issuer.getSubjectX500Principal().equals(subject.getIssuerX500Principal()) ) {
             return V_ERR_SUBJECT_ISSUER_MISMATCH;
         }
 
-        if(subject.getExtensionValue("2.5.29.35") != null) { //authorityKeyID
+        if ( subject.getExtensionValue("2.5.29.35") != null ) { //authorityKeyID
             // I hate ASN1 and DER
             Object key = get(subject.getExtensionValue("2.5.29.35"));
-            if(!(key instanceof ASN1Sequence)) {
-                key = get(key);
-            }
-            
-            ASN1Sequence seq = (ASN1Sequence)key;
-            AuthorityKeyIdentifier sakid = null;
-            if(seq.size() == 1 && (seq.getObjectAt(0) instanceof ASN1OctetString)) {
+            if ( ! (key instanceof ASN1Sequence) ) key = get( (DEROctetString) key );
+
+            final ASN1Sequence seq = (ASN1Sequence) key;
+            final AuthorityKeyIdentifier sakid;
+            if ( seq.size() == 1 && (seq.getObjectAt(0) instanceof ASN1OctetString) ) {
                 sakid = AuthorityKeyIdentifier.getInstance(new DLSequence(new DERTaggedObject(0, seq.getObjectAt(0))));
             } else {
                 sakid = AuthorityKeyIdentifier.getInstance(seq);
             }
 
-            if(sakid.getKeyIdentifier() != null) {
-                if(issuer.getExtensionValue("2.5.29.14") != null) {
-                    DEROctetString der = (DEROctetString)get(issuer.getExtensionValue("2.5.29.14"));
-                    if(der.getOctets().length > 20) {
-                        der = (DEROctetString)get(der.getOctets());
+            if ( sakid.getKeyIdentifier() != null ) {
+                if ( issuer.getExtensionValue("2.5.29.14") != null ) {
+                    DEROctetString der = (DEROctetString) get(issuer.getExtensionValue("2.5.29.14"));
+                    if ( der.getOctets().length > 20 ) {
+                        der = (DEROctetString) get(der.getOctets());
                     }
                     SubjectKeyIdentifier iskid = SubjectKeyIdentifier.getInstance(der);
-                    if(iskid.getKeyIdentifier() != null) {
-                        if(!Arrays.equals(sakid.getKeyIdentifier(),iskid.getKeyIdentifier())) {
+                    if ( iskid.getKeyIdentifier() != null ) {
+                        if ( ! Arrays.equals( sakid.getKeyIdentifier(), iskid.getKeyIdentifier() ) ) {
                             return V_ERR_AKID_SKID_MISMATCH;
                         }
                     }
                 }
             }
-            if(sakid.getAuthorityCertSerialNumber() != null && !sakid.getAuthorityCertSerialNumber().equals(issuer.getSerialNumber())) {
+
+            final BigInteger serialNumber = sakid.getAuthorityCertSerialNumber();
+            if ( serialNumber != null && ! serialNumber.equals(issuer.getSerialNumber()) ) {
                 return V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
             }
-            if(sakid.getAuthorityCertIssuer() != null) {
+
+            if ( sakid.getAuthorityCertIssuer() != null ) {
                 GeneralName[] gens = sakid.getAuthorityCertIssuer().getNames();
-                X500Name nm = null;
-                for(int i=0;i<gens.length;i++) {
-                    if(gens[i].getTagNo() == GeneralName.directoryName) {
-                        ASN1Encodable nameTmp = gens[i].getName();
-                        if (nameTmp instanceof X500Name) {
-                            nm = (X500Name)nameTmp;
-                        } else if (nameTmp instanceof ASN1Sequence) {
-                            nm = X500Name.getInstance((ASN1Sequence)nameTmp);
+                X500Name x500Name = null;
+                for ( int i = 0; i < gens.length; i++ ) {
+                    if ( gens[i].getTagNo() == GeneralName.directoryName ) {
+                        ASN1Encodable name = gens[i].getName();
+                        if ( name instanceof X500Name ) {
+                            x500Name = (X500Name) name;
+                        } else if ( name instanceof ASN1Sequence ) {
+                            x500Name = X500Name.getInstance((ASN1Sequence) name);
                         } else {
-                            throw new RuntimeException("unknown name type in X509Utils: " + nameTmp);
+                            throw new RuntimeException("unknown name type: " + name);
                         }
                         break;
                     }
                 }
-                if(nm != null) {
-                    if(!(new Name(nm).isEqual(issuer.getIssuerX500Principal()))) {
+                if ( x500Name != null ) {
+                    if ( ! new Name(x500Name).isEqual( issuer.getIssuerX500Principal() ) ) {
                         return V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
                     }
                 }
             }
         }
 
-        if(subject.getExtensionValue("1.3.6.1.5.5.7.1.14") != null) {
-            if(issuer.getKeyUsage() != null && !issuer.getKeyUsage()[0]) { // KU_DIGITAL_SIGNATURE
+        final boolean[] keyUsage = issuer.getKeyUsage();
+        if ( subject.getExtensionValue("1.3.6.1.5.5.7.1.14") != null ) {
+            if ( keyUsage != null && ! keyUsage[0] ) { // KU_DIGITAL_SIGNATURE
                 return V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE;
             }
-        } else if(issuer.getKeyUsage() != null && !issuer.getKeyUsage()[5]) { // KU_KEY_CERT_SIGN
+        }
+        else if ( keyUsage != null && ! keyUsage[5] ) { // KU_KEY_CERT_SIGN
             return V_ERR_KEYUSAGE_NO_CERTSIGN;
         }
+
         return V_OK;
     }
 
@@ -367,9 +378,9 @@ public abstract class X509Utils {
     public static final int VP_FLAG_ONCE = 0x10;
 
     /* Internal use: mask of policy related options */
-    public static final int V_FLAG_POLICY_MASK = (V_FLAG_POLICY_CHECK | 
-                                                  V_FLAG_EXPLICIT_POLICY | 
-                                                  V_FLAG_INHIBIT_ANY | 
+    public static final int V_FLAG_POLICY_MASK = (V_FLAG_POLICY_CHECK |
+                                                  V_FLAG_EXPLICIT_POLICY |
+                                                  V_FLAG_INHIBIT_ANY |
                                                   V_FLAG_INHIBIT_MAP);
 
     public static final int X509_R_BAD_X509_FILETYPE = 100;
@@ -420,7 +431,7 @@ public abstract class X509Utils {
     public static final int X509_PURPOSE_MIN = 1;
     public static final int X509_PURPOSE_MAX = 8;
 
-    public static final int X509_TRUST_DEFAULT = -1;	
+    public static final int X509_TRUST_DEFAULT = -1;
 
     public static final int X509_TRUST_COMPAT = 1;
     public static final int X509_TRUST_SSL_CLIENT = 2;

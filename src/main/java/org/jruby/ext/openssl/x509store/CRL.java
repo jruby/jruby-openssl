@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2006 Ola Bini <ola@ologix.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -35,25 +35,32 @@ import java.security.cert.X509CRL;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class CRL extends X509Object {
+
     public java.security.cert.CRL crl;
 
+    @Override
     public int type() {
         return X509Utils.X509_LU_CRL;
     }
 
-    public boolean isName(Name nm) {
-        return nm.isEqual(((X509CRL)crl).getIssuerX500Principal());
+    @Override
+    public boolean isName(final Name name) {
+        return name.isEqual( ((X509CRL) this.crl).getIssuerX500Principal() );
     }
 
-    public boolean matches(X509Object o) {
-        return o instanceof CRL && ((X509CRL)crl).getIssuerX500Principal().equals(((X509CRL)((CRL)o).crl).getIssuerX500Principal());
+    @Override
+    public boolean matches(final X509Object other) {
+        return other instanceof CRL &&
+        ((X509CRL) crl).getIssuerX500Principal().equals( ((X509CRL)((CRL) other).crl).getIssuerX500Principal() );
     }
 
+    @Override
     public int compareTo(X509Object oth) {
-        int ret1 = super.compareTo(oth);
-        if(ret1 == 0) {
-            ret1 = crl.equals(((CRL)oth).crl) ? 0 : -1;
+        int ret = super.compareTo(oth);
+        if (ret == 0) {
+            ret = crl.equals( ((CRL) oth).crl ) ? 0 : -1;
         }
-        return ret1;
+        return ret;
     }
+
 }// X509_OBJECT_CRL
