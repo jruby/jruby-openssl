@@ -10,38 +10,30 @@
   <properties>
     <tesla.dump.readonly>true</tesla.dump.readonly>
     <jruby.openssl.version>0.9.5</jruby.openssl.version>
-    <gem.path>${basedir}/../pkg/rubygems-gem-maven-plugin</gem.path>
+    <gem.path>${basedir}/../pkg/rubygems</gem.path>
     <jruby.plugins.version>1.0.3</jruby.plugins.version>
-    <gem.home>${basedir}/../pkg/rubygems-gem-maven-plugin</gem.home>
+    <gem.home>${basedir}/../pkg/rubygems</gem.home>
     <bc.version>1.47</bc.version>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
   </properties>
-  <pluginRepositories>
-    <pluginRepository>
+  <repositories>
+    <repository>
       <releases>
         <enabled>false</enabled>
       </releases>
       <snapshots>
         <enabled>true</enabled>
       </snapshots>
-      <id>sonatype</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </pluginRepository>
+      <id>jruby</id>
+      <url>http://ci.jruby.org/snapshots/maven</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
     <pluginRepository>
       <id>rubygems-releases</id>
       <url>http://rubygems-proxy.torquebox.org/releases</url>
     </pluginRepository>
   </pluginRepositories>
-  <repositories>
-    <repository>
-      <id>jruby</id>
-      <url>http://ci.jruby.org/snapshots/maven</url>
-    </repository>
-    <repository>
-      <id>rubygems-releases</id>
-      <url>http://rubygems-proxy.torquebox.org/releases</url>
-    </repository>
-  </repositories>
   <build>
     <plugins>
       <plugin>
@@ -56,6 +48,12 @@
           </execution>
         </executions>
         <dependencies>
+          <dependency>
+            <groupId>rubygems</groupId>
+            <artifactId>jar-dependencies</artifactId>
+            <version>0.0.4</version>
+            <type>gem</type>
+          </dependency>
           <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk15on</artifactId>
@@ -74,21 +72,15 @@
           </dependency>
           <dependency>
             <groupId>rubygems</groupId>
-            <artifactId>jar-dependencies</artifactId>
-            <version>0.0.4</version>
-            <type>gem</type>
-          </dependency>
-          <dependency>
-            <groupId>rubygems</groupId>
             <artifactId>ruby-maven</artifactId>
             <version>3.1.1.0.8</version>
             <type>gem</type>
           </dependency>
         </dependencies>
         <configuration>
-          <gemPathes>
+          <gemHomes>
             <gem-maven-plugin>${gem.home}</gem-maven-plugin>
-          </gemPathes>
+          </gemHomes>
         </configuration>
       </plugin>
       <plugin>

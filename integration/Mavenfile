@@ -6,7 +6,7 @@ packaging :pom
 snapshot_repository :id => 'jruby', :url => 'http://ci.jruby.org/snapshots/maven'
 
 # TODO should be setup whenever a plugin uses gems
-snapshot_repository :id => 'rubygems-releases', :url => 'http://rubygems-proxy.torquebox.org/releases'
+plugin_repository :id => 'rubygems-releases', :url => 'http://rubygems-proxy.torquebox.org/releases'
 
 properties( 'bc.version' => '1.47',# to satisfy maven
             'jruby.openssl.version' => '0.9.5',# to satisfy maven
@@ -29,7 +29,7 @@ jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
   jar  'org.bouncycastle', 'bcprov-jdk15on', '${bc.version}'
   gem 'jruby-openssl', '${jruby.openssl.version}'
 
-  # TODO first it should install ALL ruby-maven dependencies by itself
+  # TODO first jar-dependencies should install ALL ruby-maven dependencies by itself
   # TODO second it should not need ruby-maven since jar-dependencies is a development dep inside jruby-openssl gemspec
   gem 'ruby-maven', '3.1.1.0.8'
 end
