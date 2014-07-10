@@ -14,7 +14,8 @@ properties( 'bc.version' => '1.47',# to satisfy maven
             'gem.home' => '${basedir}/../pkg/rubygems',
             'gem.path' => '${basedir}/../pkg/rubygems',
             'tesla.dump.pom' => 'pom.xml',
-            'tesla.dump.readonly' => true )
+            'tesla.dump.readonly' => true,
+            'jruby.plugins.version' => '1.0.4' )
 
 jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
   execute_goal :initialize
@@ -34,7 +35,7 @@ jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
   gem 'ruby-maven', '3.1.1.0.8'
 end
 
-jruby_plugin :runit, '1.0.4-SNAPSHOT' do
+jruby_plugin :runit do
   execute_goal( :test,
                 :env => { 'BC_VERSION' => '${bc.version}' },
                 :jrubySwitches => '-I../../lib',
