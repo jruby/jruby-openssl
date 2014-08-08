@@ -77,7 +77,7 @@ module PKCS7Test
 
       test_p7 = PKCS7.new
       test_p7.type = ASN1Registry::NID_pkcs7_data
-      test_p7.data = ASN1::OctetString.new("foo".to_java_bytes)
+      test_p7.data = OctetString.new("foo".to_java_bytes)
       sign.contents = test_p7
 
       p7.detached = 2
@@ -94,7 +94,7 @@ module PKCS7Test
 
       test_p7 = PKCS7.new
       test_p7.type = ASN1Registry::NID_pkcs7_data
-      data = ASN1::OctetString.new("foo".to_java_bytes)
+      data = OctetString.new("foo".to_java_bytes)
       test_p7.data = data
       sign.contents = test_p7
 
@@ -112,7 +112,7 @@ module PKCS7Test
 
       test_p7 = PKCS7.new
       test_p7.type = ASN1Registry::NID_pkcs7_data
-      data = ASN1::OctetString.new("foo".to_java_bytes)
+      data = OctetString.new("foo".to_java_bytes)
       test_p7.data = data
       sign.contents = test_p7
 
@@ -159,12 +159,14 @@ module PKCS7Test
       assert_nil p7.get_other
     end
 
+    OctetString = org.bouncycastle.asn1.DEROctetString
+
     def test_set_type_data
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_data
 
       assert p7.data?
-      assert_equal ASN1::OctetString.new("".to_java_bytes), p7.get_data
+      assert_equal OctetString.new("".to_java_bytes), p7.get_data
 
       assert_nil p7.get_sign
       assert_nil p7.get_enveloped
@@ -387,13 +389,15 @@ module PKCS7Test
 
     def create_signer_info_with_algo(algo)
       md5 = AlgorithmIdentifier.new(ASN1Registry.nid2obj(4))
-      SignerInfoWithPkey.new(ASN1Integer.new(BigInteger::ONE),
-                     IssuerAndSerialNumber.new(X500Name.new("C=SE"), BigInteger::ONE),
-                     algo,
-                     DERSet.new,
-                     md5,
-                     DEROctetString.new([].to_java(:byte)),
-                     DERSet.new)
+      SignerInfoWithPkey.new(
+          ASN1Integer.new(BigInteger::ONE),
+          IssuerAndSerialNumber.new(X500Name.new("C=SE"), BigInteger::ONE),
+          algo,
+          DERSet.new,
+          md5,
+          DEROctetString.new([].to_java(:byte)),
+          DERSet.new
+      )
     end
 
     def test_add_signer_to_signed_with_new_algo_should_add_that_algo_to_the_algo_list

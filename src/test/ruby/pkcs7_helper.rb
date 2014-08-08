@@ -1,9 +1,6 @@
 require File.expand_path('test_helper', File.dirname(__FILE__))
 
 module PKCS7Test
-  module ASN1
-    OctetString = org.bouncycastle.asn1.DEROctetString
-  end
 
   PKCS7 = org.jruby.ext.openssl.impl.PKCS7 unless defined?(PKCS7)
   Attribute = org.jruby.ext.openssl.impl.Attribute unless defined?(Attribute)
