@@ -129,17 +129,15 @@ public class X509Cert extends RubyObject {
     }
 
     public static IRubyObject wrap(Ruby runtime, Certificate cert) throws CertificateEncodingException {
-        final RubyClass _Certificate = _X509(runtime).getClass("Certificate");
         final RubyString encoded = RubyString.newString(runtime, cert.getEncoded());
-        return _Certificate.callMethod(runtime.getCurrentContext(), "new", encoded);
+        return _Certificate(runtime).callMethod(runtime.getCurrentContext(), "new", encoded);
     }
 
     // this is the javax.security counterpart of the previous wrap method
     public static IRubyObject wrap(Ruby runtime, javax.security.cert.Certificate cert)
         throws javax.security.cert.CertificateEncodingException {
-        final RubyClass _Certificate = _X509(runtime).getClass("Certificate");
         final RubyString encoded = RubyString.newString(runtime, cert.getEncoded());
-        return _Certificate.callMethod(runtime.getCurrentContext(), "new", encoded);
+        return _Certificate(runtime).callMethod(runtime.getCurrentContext(), "new", encoded);
     }
 
     @JRubyMethod(name="initialize", optional = 1, visibility = Visibility.PRIVATE)
@@ -223,6 +221,10 @@ public class X509Cert extends RubyObject {
 
     private static RubyClass _CertificateError(final Ruby runtime) {
         return _X509(runtime).getClass("CertificateError");
+    }
+
+    static RubyClass _Certificate(final Ruby runtime) {
+        return _X509(runtime).getClass("Certificate");
     }
 
     public static RaiseException newCertificateError(final Ruby runtime, Exception e) {

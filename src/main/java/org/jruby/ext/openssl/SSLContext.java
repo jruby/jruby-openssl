@@ -63,7 +63,6 @@ import org.jruby.runtime.BlockCallback;
 import org.jruby.runtime.CallBlock;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
-import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
@@ -74,6 +73,9 @@ import org.jruby.ext.openssl.x509store.StoreContext;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.X509Object;
 import org.jruby.ext.openssl.x509store.X509Utils;
+
+import static org.jruby.ext.openssl.SSL._SSL;
+import static org.jruby.ext.openssl.X509Cert._Certificate;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -276,25 +278,25 @@ public class SSLContext extends RubyObject {
         }
 
         value = getInstanceVariable("@verify_mode");
-        if (value != null && !value.isNil()) {
+        if ( value != null && ! value.isNil() ) {
             internalContext.verifyMode = RubyNumeric.fix2int(value);
         } else {
             internalContext.verifyMode = SSL.VERIFY_NONE;
         }
         value = getInstanceVariable("@verify_callback");
-        if (value != null && !value.isNil()) {
+        if ( value != null && ! value.isNil() ) {
             internalContext.store.setExtraData(1, value);
         } else {
             internalContext.store.setExtraData(1, null);
         }
 
         value = getInstanceVariable("@timeout");
-        if (value != null && !value.isNil()) {
+        if ( value != null && ! value.isNil() ) {
             internalContext.timeout = RubyNumeric.fix2int(value);
         }
 
         value = getInstanceVariable("@verify_depth");
-        if (value != null && !value.isNil()) {
+        if ( value != null && ! value.isNil() ) {
             internalContext.store.setDepth(RubyNumeric.fix2int(value));
         } else {
             internalContext.store.setDepth(-1);
@@ -350,15 +352,15 @@ public class SSLContext extends RubyObject {
         final ArrayList<RubyArray> cipherList = new ArrayList<RubyArray>();
         try {
             String[] supported = getCipherSuites( createDummySSLEngine() );
-            List<CipherStrings.Def> ciphs = CipherStrings.getMatchingCiphers(ciphers, supported);
-            cipherList.ensureCapacity( ciphs.size() );
+            List<CipherStrings.Def> cipherDefs = CipherStrings.getMatchingCiphers(ciphers, supported);
+            cipherList.ensureCapacity( cipherDefs.size() );
 
-            for ( CipherStrings.Def def : ciphs ) {
+            for ( CipherStrings.Def def : cipherDefs ) {
                 final RubyArray cipher = runtime.newArray(4);
-                cipher.set(0, runtime.newString(def.name));
-                cipher.set(1, runtime.newString(sslVersionString(def.algorithms)));
-                cipher.set(2, runtime.newFixnum(def.strength_bits));
-                cipher.set(3, runtime.newFixnum(def.alg_bits));
+                cipher.store(0, runtime.newString(def.name));
+                cipher.store(1, runtime.newString(sslVersionString(def.algorithms)));
+                cipher.store(2, runtime.newFixnum(def.strength_bits));
+                cipher.store(3, runtime.newFixnum(def.alg_bits));
 
                 cipherList.add(cipher);
             }
@@ -370,27 +372,29 @@ public class SSLContext extends RubyObject {
     }
 
     @JRubyMethod(name = "ciphers=")
-    public IRubyObject set_ciphers(final ThreadContext context, IRubyObject val) {
-        if (val.isNil()) {
-            ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
-        } else if (val instanceof RubyArray) {
+    public IRubyObject set_ciphers(final ThreadContext context, final IRubyObject ciphers) {
+        if ( ciphers.isNil() ) {
+            this.ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
+        }
+        else if ( ciphers instanceof RubyArray ) {
             StringBuilder builder = new StringBuilder();
             String sep = "";
-            for (IRubyObject obj : ((RubyArray) val).toJavaArray()) {
+            for (IRubyObject obj : ((RubyArray) ciphers).toJavaArray()) {
                 builder.append(sep).append(obj.toString());
                 sep = ":";
             }
-            ciphers = builder.toString();
-        } else {
-            ciphers = val.convertToString().toString();
-            if (ciphers.equals("DEFAULT")) {
-                ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
+            this.ciphers = builder.toString();
+        }
+        else {
+            this.ciphers = ciphers.convertToString().toString();
+            if (this.ciphers.equals("DEFAULT")) {
+                this.ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
             }
         }
         if ( matchedCiphers(context).isEmpty() ) {
             throw newSSLError(context.runtime, "no cipher match");
         }
-        return val;
+        return ciphers;
     }
 
     @JRubyMethod(name = "ssl_version=")
@@ -561,10 +565,10 @@ public class SSLContext extends RubyObject {
         return 0;
     }
 
-    private X509Cert[] convertToX509Certs(final ThreadContext context, IRubyObject value) {
+    private List<X509Cert> convertToX509Certs(final ThreadContext context, IRubyObject value) {
         final ArrayList<X509Cert> result = new ArrayList<X509Cert>();
-        final RubyModule _SSLContext = context.runtime.getClassFromPath("OpenSSL::SSL::SSLContext");
-        final RubyModule _Certificate = context.runtime.getClassFromPath("OpenSSL::X509::Certificate");
+        final RubyModule _SSLContext = _SSLContext(context.runtime);
+        final RubyModule _Certificate = _Certificate(context.runtime);
         Utils.invoke(context, value, "each",
             CallBlock.newCallClosure(value, _SSLContext, Arity.NO_ARGUMENTS, new BlockCallback() {
 
@@ -573,13 +577,17 @@ public class SSLContext extends RubyObject {
                     if ( ! ( _Certificate.isInstance(cert) ) ) {
                         throw context.runtime.newTypeError("wrong argument : " + cert.inspect() + " is not a " + _Certificate.getName());
                     }
-                    result.add((X509Cert) cert);
-                    return context.runtime.getNil();
+                    result.add( (X509Cert) cert );
+                    return context.nil;
                 }
 
             }, context)
         );
-        return result.toArray( new X509Cert[ result.size() ] );
+        return result;
+    }
+
+    static RubyModule _SSLContext(final Ruby runtime) {
+        return (RubyModule) _SSL(runtime).getConstant("SSLContext");
     }
 
     /**
