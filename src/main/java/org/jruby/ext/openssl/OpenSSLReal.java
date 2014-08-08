@@ -148,9 +148,15 @@ public class OpenSSLReal {
         ossl.setConstant("OPENSSL_VERSION_NUMBER", runtime.newFixnum(9469999));
 
         OpenSSLModule.setDebug(ossl, runtime.newBoolean( Boolean.getBoolean("jruby.openssl.debug") ) );
+
+        final String warn = System.getProperty("jruby.openssl.warn");
+        if ( warn != null ) OpenSSLReal.warn = Boolean.parseBoolean(warn);
     }
 
     private static boolean debug;
+
+    // on by default, warnings can be disabled using -Djruby.openssl.warn=false
+    private static boolean warn = true;
 
     static boolean isDebug() {
         return debug;
@@ -190,7 +196,7 @@ public class OpenSSLReal {
     }
 
     static void warn(final ThreadContext context, final IRubyObject msg) {
-        context.runtime.getKernel().callMethod(context, "warn", msg);
+        if ( warn ) context.runtime.getModule("OpenSSL").callMethod(context, "warn", msg);
     }
 
     @JRubyModule(name = "OpenSSL")
@@ -227,10 +233,9 @@ public class OpenSSLReal {
         // Added in 2.0; not masked because it does nothing anyway
         @JRubyMethod(name = "fips_mode=", meta = true)
         public static IRubyObject fips_mode_set(ThreadContext context, IRubyObject self, IRubyObject value) {
-            if (value.isTrue()) {
-                context.runtime.getWarnings().warn("FIPS mode not supported on JRuby OpenSSL");
+            if ( value.isTrue() ) {
+                OpenSSLReal.warn(context, "WARNING: FIPS mode not supported on JRuby OpenSSL");
             }
-
             return self;
         }
     }
