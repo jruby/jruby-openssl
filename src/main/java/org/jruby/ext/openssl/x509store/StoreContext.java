@@ -92,13 +92,14 @@ public class StoreContext {
 
     public int explicitPolicy;
 
-    public int errorDepth;
     public int error;
-    public X509AuxCertificate currentCertificate;
-    public X509AuxCertificate currentIssuer;
-    public java.security.cert.CRL currentCRL;
+    public int errorDepth;
 
-    public List<Object> extraData;
+    X509AuxCertificate currentCertificate;
+    X509AuxCertificate currentIssuer;
+    X509CRL currentCRL;
+
+    List<Object> extraData;
 
     public Store getStore() {
         return store;
@@ -115,7 +116,7 @@ public class StoreContext {
      * c: X509_STORE_CTX_set_app_data
      */
     public void setApplicationData(Object data) {
-        setExtraData(0,data);
+        setExtraData(0, data);
     }
 
     /**
@@ -190,10 +191,9 @@ public class StoreContext {
         if ( input == null ) return null;
 
         if ( input instanceof X509AuxCertificate ) {
-            return (X509AuxCertificate)input;
-        } else {
-            return new X509AuxCertificate(input);
+            return (X509AuxCertificate) input;
         }
+        return new X509AuxCertificate(input);
     }
 
     /**
@@ -202,19 +202,19 @@ public class StoreContext {
     public int init(Store store, X509AuxCertificate x509, List<X509AuxCertificate> chain) {
         int ret = 1;
         this.store = store;
-        this.currentMethod=0;
-        this.certificate=x509;
-        this.untrusted=chain;
+        this.currentMethod = 0;
+        this.certificate = x509;
+        this.untrusted = chain;
         this.crls = null;
-        this.lastUntrusted=0;
+        this.lastUntrusted = 0;
         this.otherContext = null;
-        this.isValid=false;
+        this.isValid = false;
         this.chain = null;
-        this.error=0;
-        this.explicitPolicy=0;
-        this.errorDepth=0;
-        this.currentCertificate=null;
-        this.currentIssuer=null;
+        this.error = 0;
+        this.explicitPolicy = 0;
+        this.errorDepth = 0;
+        this.currentCertificate = null;
+        this.currentIssuer = null;
         this.tree = null;
 
         this.verifyParameter = new VerifyParameter();
@@ -279,9 +279,7 @@ public class StoreContext {
 
         this.checkPolicy = defaultCheckPolicy;
 
-        this.extraData = new ArrayList<Object>();
-        this.extraData.add(null); this.extraData.add(null); this.extraData.add(null);
-        this.extraData.add(null); this.extraData.add(null); this.extraData.add(null);
+        // getExtraData();
         return 1;
     }
 
@@ -318,11 +316,19 @@ public class StoreContext {
         return null;
     }
 
+    public List<Object> getExtraData() {
+        if ( this.extraData != null ) return this.extraData;
+        ArrayList<Object> extraData = new ArrayList<Object>(8);
+        extraData.add(null); extraData.add(null); extraData.add(null);
+        extraData.add(null); extraData.add(null); extraData.add(null);
+        return this.extraData = extraData;
+    }
+
     /**
      * c: X509_STORE_CTX_set_ex_data
      */
-    public int setExtraData(int idx,Object data) {
-        extraData.set(idx,data);
+    public int setExtraData(int idx, Object data) {
+        getExtraData().set(idx, data);
         return 1;
     }
 
@@ -330,7 +336,7 @@ public class StoreContext {
      * c: X509_STORE_CTX_get_ex_data
      */
     public Object getExtraData(int idx) {
-        return extraData.get(idx);
+        return getExtraData().get(idx);
     }
 
     /**
@@ -361,6 +367,10 @@ public class StoreContext {
         return currentCertificate;
     }
 
+    public X509CRL getCurrentCRL() {
+        return currentCRL;
+    }
+
     /**
      * c: X509_STORE_CTX_get_chain
      */
@@ -372,9 +382,7 @@ public class StoreContext {
      * c: X509_STORE_CTX_get1_chain
      */
     public List<X509AuxCertificate> getFirstChain() {
-        if(null == chain) {
-            return null;
-        }
+        if ( chain == null ) return null;
         return new ArrayList<X509AuxCertificate>(chain);
     }
 
@@ -392,8 +400,8 @@ public class StoreContext {
     /**
      * c: X509_STORE_CTX_set_chain
      */
-    public void setChain(List<X509Certificate> sk) {
-        this.untrusted = ensureAux(sk);
+    public void setChain(List<X509Certificate> chain) {
+        this.untrusted = ensureAux(chain);
     }
 
     public void setChain(X509Certificate[] sk) {
@@ -627,7 +635,7 @@ public class StoreContext {
         X509AuxCertificate x, xtmp = null, chain_ss = null;
         //X509_NAME xn;
         int bad_chain = 0, depth, i, num;
-        List<X509AuxCertificate> sktmp = null;
+
         if ( certificate == null ) {
             X509Error.addError(X509Utils.X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
             return -1;
@@ -644,22 +652,19 @@ public class StoreContext {
 
         // We use a temporary STACK so we can chop and hack at it
 
+        List<X509AuxCertificate> sktmp = null;
         if ( untrusted != null ) {
             sktmp = new ArrayList<X509AuxCertificate>(untrusted);
         }
         num = chain.size();
-        x = chain.get(num-1);
+        x = chain.get(num - 1);
         depth = verifyParameter.depth;
         for(;;) {
-            if(depth < num) {
-                break;
-            }
+            if ( depth < num ) break;
 
-            if(checkIssued.call(this,x,x) != 0) {
-                break;
-            }
+            if ( checkIssued.call(this, x, x) != 0 ) break;
 
-            if ( untrusted != null ) {
+            if ( sktmp != null ) {
                 xtmp = findIssuer(sktmp, x);
                 if ( xtmp != null ) {
                     chain.add(xtmp);
@@ -680,7 +685,7 @@ public class StoreContext {
         // Examine last certificate in chain and see if it is self signed.
 
         i = chain.size();
-        x = chain.get(i-1);
+        x = chain.get(i - 1);
 
         if ( checkIssued.call(this, x, x) != 0 ) {
             // we have a self signed certificate
@@ -751,9 +756,8 @@ public class StoreContext {
                 lastUntrusted = num;
                 currentCertificate = chain_ss;
                 error = X509Utils.V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
-                chain_ss = null;
             }
-            errorDepth = num-1;
+            errorDepth = num - 1;
             bad_chain = 1;
             int ok = verifyCallback.call(this, Integer.valueOf(0));
             if ( ok == 0 ) return ok;
@@ -792,7 +796,7 @@ public class StoreContext {
     }
 
 
-    private final static Set<String> CRITICAL_EXTENSIONS = new HashSet<String>();
+    private final static Set<String> CRITICAL_EXTENSIONS = new HashSet<String>(8);
     static {
         CRITICAL_EXTENSIONS.add("2.16.840.1.113730.1.1"); // netscape cert type, NID 71
         CRITICAL_EXTENSIONS.add("2.5.29.15"); // key usage, NID 83
@@ -802,18 +806,17 @@ public class StoreContext {
         CRITICAL_EXTENSIONS.add("1.3.6.1.5.5.7.1.14"); // proxy cert info, NID 661
     }
 
-    private static boolean supportsCriticalExtension(String oid) {
+    private static boolean supportsCriticalExtension(final String oid) {
         return CRITICAL_EXTENSIONS.contains(oid);
     }
 
-    private static boolean unhandledCritical(X509Extension xx) {
-        if(xx.getCriticalExtensionOIDs() == null || xx.getCriticalExtensionOIDs().size() == 0) {
+    private static boolean unhandledCritical(final X509Extension ext) {
+        final Set<String> criticalOIDs = ext.getCriticalExtensionOIDs();
+        if ( criticalOIDs == null || criticalOIDs.size() == 0 ) {
             return false;
         }
-        for(String ss : xx.getCriticalExtensionOIDs()) {
-            if(!supportsCriticalExtension(ss)) {
-                return true;
-            }
+        for ( final String oid : criticalOIDs ) {
+            if ( ! supportsCriticalExtension(oid) ) return true;
         }
         return false;
     }
@@ -833,19 +836,20 @@ public class StoreContext {
             if ( allowProxyCerts != null && ! "false".equalsIgnoreCase(allowProxyCerts) ) {
                 allow_proxy_certs = 1;
             }
-        } catch (SecurityException e) { /* ignore if we can't use System.getenv */ }
+        }
+        catch (SecurityException e) { /* ignore if we can't use System.getenv */ }
 
-        for(int i = 0; i<lastUntrusted;i++) {
+        for ( int i = 0; i < lastUntrusted; i++ ) {
             int ret;
             x = chain.get(i);
-            if((verifyParameter.flags & X509Utils.V_FLAG_IGNORE_CRITICAL) == 0 && unhandledCritical(x)) {
+            if ( (verifyParameter.flags & X509Utils.V_FLAG_IGNORE_CRITICAL) == 0 && unhandledCritical(x) ) {
                 error = X509Utils.V_ERR_UNHANDLED_CRITICAL_EXTENSION;
                 errorDepth = i;
                 currentCertificate = x;
                 ok = verifyCallback.call(this, Integer.valueOf(0));
                 if ( ok == 0 ) return ok;
             }
-            if(allow_proxy_certs == 0 && x.getExtensionValue("1.3.6.1.5.5.7.1.14") != null) {
+            if ( allow_proxy_certs == 0 && x.getExtensionValue("1.3.6.1.5.5.7.1.14") != null ) {
                 error = X509Utils.V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED;
                 errorDepth = i;
                 currentCertificate = x;
@@ -1118,7 +1122,7 @@ public class StoreContext {
             n--;
             X509AuxCertificate xi = context.chain.get(n);
             X509AuxCertificate xs = null;
-            int ok = 0;
+            int ok;
 
             if ( context.checkIssued.call(context,xi,xi) != 0 ) {
                 xs = xi;
