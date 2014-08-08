@@ -9,7 +9,7 @@ if model.version.to_s.match /[a-zA-Z]/
   # deploy snapshot versions on sonatype !!!
   model.version = model.version + '-SNAPSHOT'
   plugin :deploy, '2.8.1' do
-    execute_goals( :deploy, 
+    execute_goals( :deploy,
                    :skip => false,
                    :altDeploymentRepository => 'sonatype-nexus-snapshots::default::https://oss.sonatype.org/content/repositories/snapshots/' )
   end
@@ -45,8 +45,8 @@ end
 
 properties( 'jruby.plugins.version' => '1.0.4',
             'bc.versions' => '1.47,1.48,1.49,1.50',
-            'jruby.versions' => '1.6.8,1.7.4,1.7.13,9000.dev-SNAPSHOT',
-            'jruby.modes' => '1.8,1.9,2.1',
+            'jruby.versions' => '1.6.8,1.7.4,1.7.13',
+            'jruby.modes' => '1.8,1.9,2.0',
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
@@ -63,9 +63,22 @@ profile :id => 'test' do
   end
 
   jruby_plugin :runit do
-    execute_goal( :test,
-                  :runitDirectory => 'test/test_*rb' )
+    execute_goal( :test, :runitDirectory => 'test/test_*.rb' )
   end
+
+end
+
+profile :id => 'test-9000' do
+
+  build do
+    default_goal :test
+  end
+
+  jruby_plugin :runit do
+    execute_goal( :test, :runitDirectory => 'test/test_*.rb' )
+  end
+
+  properties 'jruby.versions' => '9000.dev-SNAPSHOT', 'jruby.modes' => '2.1'
 
 end
 
