@@ -100,10 +100,9 @@ public abstract class X509Utils {
     /**
      * c: X509_verify_cert_error_string
      */
-    public static String verifyCertificateErrorString(final int n) {
-        switch (n) {
-        case V_OK:
-            return("ok");
+    public static String verifyCertificateErrorString(final int error) {
+        switch (error) {
+        case V_OK: return("ok");
         case V_ERR_UNABLE_TO_GET_ISSUER_CERT:
                 return("unable to get issuer certificate");
         case V_ERR_UNABLE_TO_GET_CRL:
@@ -191,7 +190,7 @@ public abstract class X509Utils {
         case V_ERR_NO_EXPLICIT_POLICY:
                 return("no explicit policy");
         default:
-                return "error number " + n;
+                return "error number " + error;
         }
     }
 

@@ -52,9 +52,10 @@ import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.Store;
 import org.jruby.ext.openssl.x509store.StoreContext;
 
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
+import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSLReal.warn;
 import static org.jruby.ext.openssl.X509._X509;
+import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorString;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -132,7 +133,7 @@ public class X509StoreContext extends RubyObject {
             return result != 0 ? runtime.getTrue() : runtime.getFalse();
         }
         catch (Exception e) {
-            if ( isDebug(context.runtime) ) e.printStackTrace( context.runtime.getOut() );
+            debugStackTrace(runtime, e);
             // TODO: define suitable exception for jopenssl and catch it.
             throw newStoreError(runtime, e.getMessage());
         }
@@ -171,22 +172,22 @@ public class X509StoreContext extends RubyObject {
 
     @JRubyMethod
     public IRubyObject error_string(final ThreadContext context) {
-        final int err = storeContext.getError();
-        return context.runtime.newString(org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorString(err));
+        final int error = storeContext.getError();
+        return context.runtime.newString( verifyCertificateErrorString(error) );
     }
 
     @JRubyMethod
     public IRubyObject error_depth(final ThreadContext context) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#error_depth");
-        return context.runtime.getNil();
+        final int depth = storeContext.getErrorDepth();
+        return context.runtime.newFixnum(depth);
     }
 
     @JRubyMethod
     public IRubyObject current_cert(final ThreadContext context) {
         final Ruby runtime = context.runtime;
-        final X509AuxCertificate x509 = storeContext.getCurrentCertificate();
+        final RubyClass _Certificate = _Certificate(runtime);
         try {
-            final RubyClass _Certificate = _Certificate(runtime);
+            final X509AuxCertificate x509 = storeContext.getCurrentCertificate();
             return _Certificate.callMethod(context, "new", RubyString.newString(runtime, x509.getEncoded()));
         }
         catch (CertificateEncodingException e) {
@@ -202,25 +203,34 @@ public class X509StoreContext extends RubyObject {
 
     @JRubyMethod
     public IRubyObject cleanup(final ThreadContext context) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#cleanup");
+        try {
+            storeContext.cleanup();
+        }
+        catch (RuntimeException e) {
+            throw e;
+        }
+        catch (Exception e) {
+            debugStackTrace(context.runtime, e);
+            throw newStoreError(context.runtime, e.getMessage());
+        }
         return context.runtime.getNil();
     }
 
     @JRubyMethod(name="flags=")
     public IRubyObject set_flags(final ThreadContext context, final IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#set_flags");
+        warn(context, "WARNING: unimplemented method called: StoreContext#flags=");
         return context.runtime.getNil();
     }
 
     @JRubyMethod(name="purpose=")
     public IRubyObject set_purpose(final ThreadContext context, final IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#set_purpose");
+        warn(context, "WARNING: unimplemented method called: StoreContext#purpose=");
         return context.runtime.getNil();
     }
 
     @JRubyMethod(name="trust=")
     public IRubyObject set_trust(final ThreadContext context, final IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#set_trust");
+        warn(context, "WARNING: unimplemented method called: StoreContext#trust=");
         return context.runtime.getNil();
     }
 
