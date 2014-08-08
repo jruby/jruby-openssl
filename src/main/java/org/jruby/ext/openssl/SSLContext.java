@@ -777,21 +777,18 @@ public class SSLContext extends RubyObject {
 
         @Override
         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-            if (internalContext == null) {
-                return null;
-            }
-            ArrayList<java.security.cert.X509Certificate> chain = new ArrayList<java.security.cert.X509Certificate>();
-            chain.addAll(internalContext.clientCert);
-            return chain.toArray(new java.security.cert.X509Certificate[0]);
+            if ( internalContext == null ) return null;
+
+            final int size = internalContext.clientCert.size();
+            return internalContext.clientCert.toArray( new java.security.cert.X509Certificate[size] );
         }
 
         // c: ssl_verify_cert_chain
-        private void checkTrusted(String purpose, X509Certificate[] chain) throws CertificateException {
-            if (internalContext == null) {
-                throw new CertificateException("uninitialized trust manager");
-            }
-            if (chain != null && chain.length > 0) {
-                if ((internalContext.verifyMode & SSL.VERIFY_PEER) != 0) {
+        private void checkTrusted(final String purpose, final X509Certificate[] chain) throws CertificateException {
+            if ( internalContext == null ) throw new CertificateException("uninitialized trust manager");
+
+            if ( chain != null && chain.length > 0 ) {
+                if ( (internalContext.verifyMode & SSL.VERIFY_PEER) != 0 ) {
                     // verify_peer
                     final StoreContext storeContext = internalContext.createStoreContext(purpose);
                     if ( storeContext == null ) {
@@ -802,7 +799,7 @@ public class SSLContext extends RubyObject {
                     verifyChain(storeContext);
                 }
             } else {
-                if ((internalContext.verifyMode & SSL.VERIFY_FAIL_IF_NO_PEER_CERT) != 0) {
+                if ( (internalContext.verifyMode & SSL.VERIFY_FAIL_IF_NO_PEER_CERT) != 0 ) {
                     // fail if no peer cert
                     throw new CertificateException("no peer certificate");
                 }
@@ -810,18 +807,21 @@ public class SSLContext extends RubyObject {
         }
 
         private void verifyChain(final StoreContext storeContext) throws CertificateException {
+            final int ok;
             try {
-                int ok = storeContext.verifyCertificate();
+                ok = storeContext.verifyCertificate();
+            }
+            catch (Exception e) {
                 internalContext.setLastVerifyResultInternal(storeContext.error);
-                if (ok == 0) {
-                    throw new CertificateException("certificate verify failed");
-                }
-            } catch (Exception e) {
-                internalContext.setLastVerifyResultInternal(storeContext.error);
-                if (storeContext.error == X509Utils.V_OK) {
+                if ( storeContext.error == X509Utils.V_OK ) {
                     internalContext.setLastVerifyResultInternal(X509Utils.V_ERR_CERT_REJECTED);
                 }
                 throw new CertificateException("certificate verify failed", e);
+            }
+
+            internalContext.setLastVerifyResultInternal(storeContext.error);
+            if ( ok == 0 ) {
+                throw new CertificateException("certificate verify failed");
             }
         }
     }
