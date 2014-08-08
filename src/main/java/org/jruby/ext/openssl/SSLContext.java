@@ -536,33 +536,33 @@ public class SSLContext extends RubyObject {
     }
 
     private X509Store getCertStore() {
-        IRubyObject value = getInstanceVariable("@cert_store");
-        if ( value instanceof X509Store ) {
-            return (X509Store) value;
+        IRubyObject cert_store = getInstanceVariable("@cert_store");
+        if ( cert_store instanceof X509Store ) {
+            return (X509Store) cert_store;
         }
         return null;
     }
 
     private String getCaFile() {
-        IRubyObject value = getInstanceVariable("@ca_file");
-        if ( value != null && ! value.isNil() ) {
-            return value.convertToString().toString();
+        IRubyObject ca_file = getInstanceVariable("@ca_file");
+        if ( ca_file != null && ! ca_file.isNil() ) {
+            return ca_file.convertToString().toString();
         }
         return null;
     }
 
     private String getCaPath() {
-        IRubyObject value = getInstanceVariable("@ca_path");
-        if ( value != null && ! value.isNil() ) {
-            return value.convertToString().toString();
+        IRubyObject ca_path = getInstanceVariable("@ca_path");
+        if ( ca_path != null && ! ca_path.isNil() ) {
+            return ca_path.convertToString().toString();
         }
         return null;
     }
 
     private long getOptions() {
-        IRubyObject value = getInstanceVariable("@options");
-        if ( value != null && ! value.isNil() ) {
-            return RubyNumeric.fix2long(value);
+        IRubyObject options = getInstanceVariable("@options");
+        if ( options != null && ! options.isNil() ) {
+            return RubyNumeric.fix2long(options);
         }
         return 0;
     }

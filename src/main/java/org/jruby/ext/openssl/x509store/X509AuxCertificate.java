@@ -77,9 +77,9 @@ public class X509AuxCertificate extends X509Certificate {
 
     public X509AuxCertificate(Certificate wrap) throws IOException, CertificateException {
         super();
-        CertificateFactory cf = SecurityHelper.getCertificateFactory("X.509");
+        CertificateFactory factory = SecurityHelper.getCertificateFactory("X.509");
         ByteArrayInputStream bis = new ByteArrayInputStream(wrap.getEncoded());
-        this.wrap = (X509Certificate) cf.generateCertificate(bis);
+        this.wrap = (X509Certificate) factory.generateCertificate(bis);
         this.aux = null;
     }
 
