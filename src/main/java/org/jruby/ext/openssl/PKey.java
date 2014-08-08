@@ -345,12 +345,7 @@ public abstract class PKey extends RubyObject {
     }
 
     protected static RubyString readInitArg(final ThreadContext context, IRubyObject arg) {
-        arg = OpenSSLImpl.to_der_if_possible(context, arg);
-        if ( arg instanceof RubyFile ) {
-            return (RubyString)( (RubyFile) arg.dup() ).read(context);
-        } else {
-            return arg.convertToString();
-        }
+        return StringHelper.readPossibleDERInput(context, arg);
     }
 
 }// PKey

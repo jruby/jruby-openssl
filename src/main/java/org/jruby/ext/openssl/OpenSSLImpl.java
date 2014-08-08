@@ -27,7 +27,9 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.security.MessageDigest;
 
@@ -38,6 +40,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
+import org.jruby.util.ByteList;
 
 /**
  * Static class that holds various OpenSSL methods that aren't
@@ -66,29 +69,22 @@ public class OpenSSLImpl {
     }
 
     static byte[] readX509PEM(final ThreadContext context, IRubyObject arg) {
-        arg = to_der_if_possible(context, arg);
+        final RubyString str = StringHelper.readPossibleDERInput(context, arg);
+        final ByteList bytes = str.getByteList();
+        return readX509PEM(bytes.unsafeBytes(), bytes.getBegin(), bytes.getRealSize());
+    }
 
-        final RubyString str;
-        if ( arg instanceof RubyIO ) {
-            IRubyObject result = ( (RubyIO) arg ).read(context);
-            if (result instanceof RubyString) {
-                str = (RubyString) result;
-            } else {
-                throw context.runtime.newArgumentError("IO stream `" + arg.inspect() + "' contained no data");
-            }
-        } else {
-            str = arg.asString();
-        }
-
-        StringReader in = new StringReader(str.getUnicodeValue());
+    static byte[] readX509PEM(
+        final byte[] bytes, final int offset, final int length) {
+        InputStreamReader in = new InputStreamReader(new ByteArrayInputStream(bytes, offset, length));
         try {
-            byte[] bytes = PEMInputOutput.readX509PEM(in);
-            if ( bytes != null ) return bytes;
+            byte[] readBytes = PEMInputOutput.readX509PEM(in);
+            if ( readBytes != null ) return readBytes;
         }
         catch (IOException e) {
             // this is not PEM encoded, let's use the default argument
         }
-        return str.getBytes();
+        return bytes;
     }
 
     static interface KeyAndIv {
