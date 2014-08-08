@@ -27,6 +27,7 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl;
 
+import java.security.cert.CRLException;
 import java.security.cert.CertificateEncodingException;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +56,7 @@ import org.jruby.ext.openssl.x509store.StoreContext;
 import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSLReal.warn;
 import static org.jruby.ext.openssl.X509._X509;
+import static org.jruby.ext.openssl.X509CRL._CRL;
 import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorString;
 
 /**
@@ -102,11 +104,15 @@ public class X509StoreContext extends RubyObject {
 
         final Store x509Store = ((X509Store) store).getStore();
         final X509AuxCertificate x509Cert = cert.isNil() ? null : ((X509Cert) cert).getAuxCert();
-        final List<X509AuxCertificate> x509Certs = new ArrayList<X509AuxCertificate>();
+        final List<X509AuxCertificate> x509Certs;
         if ( ! chain.isNil() ) {
-            for (IRubyObject obj : ((RubyArray) chain).toJavaArray()) {
-                x509Certs.add( ((X509Cert) obj).getAuxCert() );
-            }
+            @SuppressWarnings("unchecked")
+            final List<X509Cert> certs = (List<X509Cert>) chain; // RubyArray
+            x509Certs = new ArrayList<X509AuxCertificate>( certs.size() );
+            for ( X509Cert x : certs ) x509Certs.add( x.getAuxCert() );
+        }
+        else {
+            x509Certs = new ArrayList<X509AuxCertificate>(4);
         }
 
         if ( storeContext.init(x509Store, x509Cert, x509Certs) != 1 ) {
@@ -114,9 +120,7 @@ public class X509StoreContext extends RubyObject {
         }
 
         IRubyObject time = store.getInstanceVariables().getInstanceVariable("@time");
-        if ( ! time.isNil() ) {
-            set_time(time);
-        }
+        if ( ! time.isNil() ) set_time(time);
 
         IRubyObject vc = store.getInstanceVariables().getInstanceVariable("@verify_callback");
         this.setInstanceVariable("@verify_callback", vc);
@@ -149,7 +153,7 @@ public class X509StoreContext extends RubyObject {
         final RubyClass _Certificate = _Certificate(runtime);
         try {
             for (X509AuxCertificate x509 : chain) {
-                RubyString encoded = RubyString.newString(runtime, x509.getEncoded());
+                RubyString encoded = StringHelper.newString(runtime, x509.getEncoded());
                 result.append( _Certificate.callMethod( context, "new", encoded ) );
             }
         }
@@ -161,12 +165,12 @@ public class X509StoreContext extends RubyObject {
 
     @JRubyMethod
     public IRubyObject error(final ThreadContext context) {
-        return context.runtime.newFixnum(storeContext.getError());
+        return context.runtime.newFixnum( storeContext.getError() );
     }
 
     @JRubyMethod(name="error=")
     public IRubyObject set_error(final IRubyObject error) {
-        storeContext.setError(RubyNumeric.fix2int(error));
+        storeContext.setError( RubyNumeric.fix2int(error) );
         return error;
     }
 
@@ -179,26 +183,31 @@ public class X509StoreContext extends RubyObject {
     @JRubyMethod
     public IRubyObject error_depth(final ThreadContext context) {
         final int depth = storeContext.getErrorDepth();
-        return context.runtime.newFixnum(depth);
+        return context.runtime.newFixnum( depth );
     }
 
     @JRubyMethod
     public IRubyObject current_cert(final ThreadContext context) {
-        final Ruby runtime = context.runtime;
-        final RubyClass _Certificate = _Certificate(runtime);
+        final X509AuxCertificate x509 = storeContext.getCurrentCertificate();
         try {
-            final X509AuxCertificate x509 = storeContext.getCurrentCertificate();
-            return _Certificate.callMethod(context, "new", RubyString.newString(runtime, x509.getEncoded()));
+            return X509Cert.wrap(context, x509.getEncoded());
         }
         catch (CertificateEncodingException e) {
-            throw newStoreError(runtime, e.getMessage());
+            throw newStoreError(context.runtime, e.getMessage());
         }
     }
 
     @JRubyMethod
     public IRubyObject current_crl(final ThreadContext context) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#current_crl");
-        return context.runtime.getNil();
+        final Ruby runtime = context.runtime;
+        final RubyClass _CRL = _CRL(runtime);
+        try {
+            final java.security.cert.X509CRL crl = storeContext.getCurrentCRL();
+            return _CRL.callMethod(context, "new", StringHelper.newString(runtime, crl.getEncoded()));
+        }
+        catch (CRLException e) {
+            throw newStoreError(runtime, e.getMessage());
+        }
     }
 
     @JRubyMethod
