@@ -156,6 +156,18 @@ public class OpenSSLReal {
         return debug;
     }
 
+    static void debugStackTrace(final Throwable e) {
+        if ( isDebug() ) e.printStackTrace(System.out);
+    }
+
+    static void debug(final String msg) {
+        if ( isDebug() ) System.out.println(msg);
+    }
+
+    static void debug(final String msg, final Throwable e) {
+        if ( isDebug() ) System.out.println(msg + ' ' + e);
+    }
+
     static boolean isDebug(final Ruby runtime) {
         RubyModule ossl = runtime.getModule("OpenSSL");
         return OpenSSLModule.getDebug(ossl).isTrue();

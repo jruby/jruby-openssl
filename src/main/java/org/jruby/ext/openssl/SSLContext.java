@@ -76,6 +76,8 @@ import org.jruby.ext.openssl.x509store.X509Utils;
 
 import static org.jruby.ext.openssl.SSL._SSL;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
+import static org.jruby.ext.openssl.OpenSSLReal.debug;
+import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -697,20 +699,22 @@ public class SSLContext extends RubyObject {
 
         @Override // c: ssl3_output_cert_chain
         public java.security.cert.X509Certificate[] getCertificateChain(String alias) {
-            if (internalContext == null) {
-                return null;
-            }
-            ArrayList<java.security.cert.X509Certificate> chain = new ArrayList<java.security.cert.X509Certificate>();
-            if (internalContext.extraChainCert != null) {
+            if ( internalContext == null ) return null;
+
+            final ArrayList<java.security.cert.X509Certificate> chain =
+                    new ArrayList<java.security.cert.X509Certificate>();
+            if ( internalContext.extraChainCert != null ) {
                 chain.addAll(internalContext.extraChainCert);
-            } else if (internalContext.cert != null) {
+            }
+            else if ( internalContext.cert != null ) {
                 StoreContext storeCtx = internalContext.createStoreContext(null);
                 X509AuxCertificate x = internalContext.cert;
                 while (true) {
+
                     chain.add(x);
-                    if (x.getIssuerDN().equals(x.getSubjectDN())) {
-                        break;
-                    }
+
+                    if ( x.getIssuerDN().equals(x.getSubjectDN()) ) break;
+
                     try {
                         Name xn = new Name(x.getIssuerX500Principal());
                         X509Object[] s_obj = new X509Object[1];
@@ -718,12 +722,18 @@ public class SSLContext extends RubyObject {
                             break;
                         }
                         x = ((Certificate) s_obj[0]).x509;
-                    } catch (Exception e) {
+                    }
+                    catch (RuntimeException e) {
+                        debugStackTrace(e);
+                        break;
+                    }
+                    catch (Exception e) {
+                        debug("KeyManagerImpl bySubject failed", e);
                         break;
                     }
                 }
             }
-            return chain.toArray(new java.security.cert.X509Certificate[0]);
+            return chain.toArray( new java.security.cert.X509Certificate[chain.size()] );
         }
 
         @Override
