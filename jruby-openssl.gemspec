@@ -14,16 +14,17 @@ Gem::Specification.new do |s|
                   'Ruby OpenSSL native library.'
   s.licenses = [ 'EPL-1.0', 'GPL-2.0', 'LGPL-2.1' ]
 
-  s.require_paths = ["lib"]
+  s.require_paths = ['lib']
 
   s.files = `git ls-files`.split("\n").
-    select { |f| f =~ /^(lib)/ || f =~ /^History|License|README|Rakefile/i } +
+    select { |f| f =~ /^(lib)/ || f =~ /^History|LICENSE|README|Rakefile/i } +
     Dir.glob('lib/**/*.jar') # 'lib/jopenssl.jar' and potentially BC jars
 
   s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
   s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
 
   s.add_development_dependency 'jar-dependencies', '0.0.4'
+  # s.add_development_dependency 'test-unit', '~> 2.5.5'
 end
 
 # vim: syntax=Ruby
