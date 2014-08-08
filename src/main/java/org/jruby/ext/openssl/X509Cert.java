@@ -129,32 +129,45 @@ public class X509Cert extends RubyObject {
     }
 
     public static IRubyObject wrap(Ruby runtime, Certificate cert) throws CertificateEncodingException {
-        final RubyString encoded = RubyString.newString(runtime, cert.getEncoded());
+        final RubyString encoded = StringHelper.newString(runtime, cert.getEncoded());
         return _Certificate(runtime).callMethod(runtime.getCurrentContext(), "new", encoded);
     }
 
     // this is the javax.security counterpart of the previous wrap method
     public static IRubyObject wrap(Ruby runtime, javax.security.cert.Certificate cert)
         throws javax.security.cert.CertificateEncodingException {
-        final RubyString encoded = RubyString.newString(runtime, cert.getEncoded());
-        return _Certificate(runtime).callMethod(runtime.getCurrentContext(), "new", encoded);
+        return wrap(runtime.getCurrentContext(), cert.getEncoded());
+    }
+
+    static IRubyObject wrap(final ThreadContext context, final byte[] encodedCert) {
+        final RubyString encoded = StringHelper.newString(context.runtime, encodedCert);
+        return _Certificate(context.runtime).callMethod(context, "new", encoded);
     }
 
     @JRubyMethod(name="initialize", optional = 1, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context,
         final IRubyObject[] args, final Block unusedBlock) {
-        final Ruby runtime = context.runtime;
 
         if ( args.length == 0 ) return this;
 
-        byte[] bytes = OpenSSLImpl.readX509PEM(context, args[0]);
-        ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+        final RubyString str = StringHelper.readPossibleDERInput(context, args[0]);
+        final ByteList bytes = str.getByteList();
+        initialize(context, bytes.unsafeBytes(), bytes.getBegin(), bytes.getRealSize());
 
-        final RubyModule _OpenSSL = runtime.getModule("OpenSSL");
-        final RubyModule _X509 = (RubyModule) _OpenSSL.getConstant("X509");
-        final RubyClass _Name = _X509.getClass("Name");
+        return this;
+    }
+
+    void initialize(final ThreadContext context, final byte[] encoded) {
+        initialize(context, encoded, 0, encoded.length);
+    }
+
+    void initialize(final ThreadContext context, final byte[] encoded, final int offset, final int length) {
+        final Ruby runtime = context.runtime;
+
+        byte[] bytes = OpenSSLImpl.readX509PEM(encoded, offset, length);
 
         try {
+            final ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
             cert = (X509Certificate) SecurityHelper.getCertificateFactory("X.509").generateCertificate(bis);
         }
         catch (CertificateException e) {
@@ -165,13 +178,17 @@ public class X509Cert extends RubyObject {
             throw newCertificateError(runtime, (String) null);
         }
 
+        final RubyModule _OpenSSL = runtime.getModule("OpenSSL");
+        final RubyModule _X509 = (RubyModule) _OpenSSL.getConstant("X509");
+        final RubyClass _Name = _X509.getClass("Name");
+
         set_serial( RubyNumeric.str2inum(runtime, runtime.newString(cert.getSerialNumber().toString()), 10) );
         set_not_before( context, RubyTime.newTime( runtime, cert.getNotBefore().getTime() ) );
         set_not_after( context, RubyTime.newTime( runtime, cert.getNotAfter().getTime() ) );
         bytes = cert.getSubjectX500Principal().getEncoded();
-        set_subject( _Name.callMethod(context, "new", RubyString.newString(runtime, bytes) ) );
+        set_subject( _Name.callMethod(context, "new", StringHelper.newString(runtime, bytes) ) );
         bytes = cert.getIssuerX500Principal().getEncoded();
-        set_issuer( _Name.callMethod(context, "new", RubyString.newString(runtime, bytes) ) );
+        set_issuer( _Name.callMethod(context, "new", StringHelper.newString(runtime, bytes) ) );
 
         final String algorithm = cert.getPublicKey().getAlgorithm();
         set_public_key( algorithm, cert.getPublicKey().getEncoded() );
@@ -196,8 +213,6 @@ public class X509Cert extends RubyObject {
             }
         }
         changed = false;
-
-        return this;
     }
 
     private void addExtension(final ThreadContext context, final RubyModule _ASN1,
@@ -247,7 +262,7 @@ public class X509Cert extends RubyObject {
     @JRubyMethod
     public IRubyObject to_der() {
         try {
-            return RubyString.newString(getRuntime(), cert.getEncoded());
+            return StringHelper.newString(getRuntime(), cert.getEncoded());
         }
         catch (CertificateEncodingException ex) {
             throw newCertificateError(getRuntime(), ex);

@@ -796,7 +796,7 @@ public class X509Extensions {
                     }
                 }
                 else {
-                    IRubyObject decoded = RubyString.newString(runtime, getRealValueBytes());
+                    IRubyObject decoded = StringHelper.newString(runtime, getRealValueBytes());
                     try {
                         decoded = ASN1.decodeImpl(context, decoded);
                         return decoded.callMethod(context, "value").asString();
@@ -842,7 +842,7 @@ public class X509Extensions {
                     vec.add( DERBoolean.TRUE );
                 }
                 vec.add( new DEROctetString(getRealValueBytes()) );
-                return RubyString.newString(getRuntime(), new DLSequence(vec).getEncoded(ASN1Encoding.DER));
+                return StringHelper.newString(getRuntime(), new DLSequence(vec).getEncoded(ASN1Encoding.DER));
             }
             catch (IOException e) {
                 throw newExtensionError(getRuntime(), e.getMessage());

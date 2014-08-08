@@ -631,7 +631,7 @@ public class PEMInputOutput {
         }
         return null;
     }
-    
+
     public static X509CRL readX509CRL(final Reader in, final char[] passwd) throws IOException {
         final BufferedReader reader = makeBuffered(in); String line;
         while ( ( line = reader.readLine() ) != null ) {
@@ -1010,21 +1010,16 @@ public class PEMInputOutput {
     }
 
     private static byte[] readBytes(BufferedReader in, String endMarker) throws IOException {
-        String          line;
-        StringBuffer    buf = new StringBuffer();
+        String line; final StringBuilder buffer = new StringBuilder();
 
-        while ((line = in.readLine()) != null) {
-            if (line.indexOf(endMarker) != -1) {
-                break;
-            }
-            buf.append(line.trim());
+        while ( ( line = in.readLine() ) != null ) {
+            if ( line.indexOf(endMarker) != -1 ) break;
+            buffer.append( line.trim() );
         }
 
-        if (line == null) {
-            throw new IOException(endMarker + " not found");
-        }
+        if ( line == null ) throw new IOException(endMarker + " not found");
 
-        return Base64.decode(buf.toString());
+        return Base64.decode(buffer.toString());
     }
 
     private static RSAPublicKey readRSAPublicKey(BufferedReader in, String endMarker) throws IOException {

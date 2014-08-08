@@ -463,7 +463,7 @@ else
             seq = new DLSequence();
         }
         try {
-            return RubyString.newString(getRuntime(), seq.getEncoded(ASN1Encoding.DER));
+            return StringHelper.newString(getRuntime(), seq.getEncoded(ASN1Encoding.DER));
         }
         catch (IOException e) {
             throw newNameError(getRuntime(), e);
