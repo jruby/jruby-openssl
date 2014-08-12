@@ -32,7 +32,6 @@ import java.io.IOException;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
-import org.jruby.RubyObject;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.internal.runtime.methods.DynamicMethod;
 import org.jruby.internal.runtime.methods.UndefinedMethod;
@@ -46,60 +45,6 @@ import org.jruby.runtime.builtin.IRubyObject;
 public class Utils {
 
     private Utils() {}
-
-    /**
-     * @deprecated no longer used
-     */
-    @Deprecated
-    public static String toHex(byte[] val) {
-        final StringBuilder out = new StringBuilder();
-        for ( int i=0,j=val.length; i<j; i++ ) {
-            String ve = Integer.toString( ( ((int)((char)val[i])) & 0xFF ) , 16);
-            if (ve.length() == 1) {
-                out.append('0'); // "0#{ve}"
-            }
-            out.append(ve);
-        }
-        return out.toString();
-    }
-
-    /**
-     * @deprecated no longer used
-     */
-    @Deprecated
-    public static String toHex(byte[] val, char sep) {
-        final StringBuilder out = new StringBuilder();
-        final String sepStr = Character.toString(sep);
-        String separator = "";
-        for ( int i=0,j=val.length; i<j; i++ ) {
-            out.append(separator);
-            String ve = Integer.toString( ( ((int)((char) val[i])) & 0xFF ) , 16);
-            if (ve.length() == 1) {
-                out.append('0'); // "0#{ve}"
-            }
-            out.append(ve);
-            separator = sepStr;
-        }
-        return out.toString().toUpperCase();
-    }
-
-    /**
-     * @deprecated no longer used, please avoid
-     */
-    @Deprecated
-    public static void checkKind(Ruby rt, IRubyObject obj, String path) {
-        if (((RubyObject) obj).kind_of_p(rt.getCurrentContext(), rt.getClassFromPath(path)).isFalse()) {
-            throw rt.newTypeError(String.format("wrong argument (%s)! (Expected kind of %s)", obj.getMetaClass().getName(), path));
-        }
-    }
-
-    /**
-     * @deprecated no longer used, please avoid
-     */
-    @Deprecated
-    public static RubyClass getClassFromPath(Ruby rt, String path) {
-        return (RubyClass) rt.getClassFromPath(path);
-    }
 
     static RaiseException newIOError(Ruby runtime, IOException e) {
         return new RaiseException(runtime, runtime.getIOError(), e.getMessage(), true);
@@ -119,49 +64,6 @@ public class Utils {
 
     static RaiseException newError(Ruby runtime, RubyClass errorClass, String msg) {
         return new RaiseException(runtime, errorClass, msg, true);
-    }
-
-    @Deprecated
-    public static RaiseException newError(Ruby rt, String path, String message) {
-        return new RaiseException(rt, (RubyClass) rt.getClassFromPath(path), message, true);
-    }
-
-    @Deprecated
-    public static RaiseException newError(Ruby rt, String path, String message, boolean nativeException) {
-        return new RaiseException(rt, (RubyClass) rt.getClassFromPath(path), message, nativeException);
-    }
-
-    @Deprecated
-    public static IRubyObject newRubyInstance(Ruby rt, String path) {
-        return rt.getClassFromPath(path).callMethod(rt.getCurrentContext(), "new");
-    }
-
-    @Deprecated
-    public static IRubyObject newRubyInstance(Ruby rt, String path, IRubyObject arg) {
-        return rt.getClassFromPath(path).callMethod(rt.getCurrentContext(), "new", arg);
-    }
-
-    @Deprecated
-    public static IRubyObject newRubyInstance(Ruby rt, String path, IRubyObject... args) {
-        return rt.getClassFromPath(path).callMethod(rt.getCurrentContext(), "new", args);
-    }
-
-    @Deprecated
-    static IRubyObject newRubyInstance(final ThreadContext context, final String path) {
-        final RubyModule klass = context.runtime.getClassFromPath(path);
-        return klass.callMethod(context, "new");
-    }
-
-    @Deprecated
-    static IRubyObject newRubyInstance(final ThreadContext context, final String path, IRubyObject arg) {
-        final RubyModule klass = context.runtime.getClassFromPath(path);
-        return klass.callMethod(context, "new", arg);
-    }
-
-    @Deprecated
-    static IRubyObject newRubyInstance(final ThreadContext context, final String path, IRubyObject... args) {
-        final RubyModule klass = context.runtime.getClassFromPath(path);
-        return klass.callMethod(context, "new", args);
     }
 
     // reinvented parts of org.jruby.runtime.Helpers for compatibility with "older" JRuby :

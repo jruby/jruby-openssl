@@ -100,11 +100,6 @@ public class SSL {
         _SSL.setConstant("OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG", runtime.newFixnum(OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG));
     }
 
-    @Deprecated // confusing since it throws instead of returning
-    public static RaiseException newSSLError(Ruby runtime, Throwable t) {
-        throw Utils.newError(runtime, "OpenSSL::SSL::SSLError", t.getMessage());
-    }
-
     public static RaiseException newSSLError(Ruby runtime, Exception exception) {
         return Utils.newError(runtime, _SSL(runtime).getClass("SSLError"), exception);
     }
