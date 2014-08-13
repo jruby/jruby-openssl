@@ -65,7 +65,6 @@ import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.runtime.Visibility;
 import org.jruby.util.ByteList;
 
 import org.jruby.ext.openssl.impl.ASN1Registry;

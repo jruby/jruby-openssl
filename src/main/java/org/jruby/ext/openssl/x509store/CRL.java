@@ -45,7 +45,7 @@ public class CRL extends X509Object {
 
     @Override
     public boolean isName(final Name name) {
-        return name.isEqual( ((X509CRL) this.crl).getIssuerX500Principal() );
+        return name.equalTo( ((X509CRL) this.crl).getIssuerX500Principal() );
     }
 
     @Override

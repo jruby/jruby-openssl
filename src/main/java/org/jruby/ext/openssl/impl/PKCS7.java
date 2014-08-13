@@ -191,10 +191,12 @@ public class PKCS7 {
     /* c: X509_find_by_issuer_and_serial
      *
      */
-    public static X509AuxCertificate findByIssuerAndSerial(Collection<X509AuxCertificate> certs, X500Name issuer, BigInteger serial) {
-        Name name = new Name(issuer);
-        for(X509AuxCertificate cert : certs) {
-            if(name.isEqual(cert.getIssuerX500Principal()) && serial.equals(cert.getSerialNumber())) {
+    public static X509AuxCertificate findByIssuerAndSerial(
+        final Collection<X509AuxCertificate> certs,
+        final X500Name issuer, final BigInteger serial) {
+        final Name name = new Name(issuer);
+        for ( X509AuxCertificate cert : certs ) {
+            if ( name.equalTo(cert.getIssuerX500Principal()) && serial.equals(cert.getSerialNumber()) ) {
                 return cert;
             }
         }

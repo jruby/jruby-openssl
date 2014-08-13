@@ -160,7 +160,7 @@ public class StoreContext {
                 return 0;
             }
             final X509AuxCertificate x509 = ((Certificate) pobj).x509;
-            if ( ! xn.isEqual( x509.getSubjectX500Principal() ) ) {
+            if ( ! xn.equalTo( x509.getSubjectX500Principal() ) ) {
                 return 0;
             }
             if ( checkIssued.call(this, x, x509) != 0 ) {
@@ -1046,7 +1046,7 @@ public class StoreContext {
         X509CRL bestCrl = null;
         if ( crls != null ) {
             for ( final X509CRL crl : crls ) {
-                if( ! name.isEqual( crl.getIssuerX500Principal() ) ) {
+                if( ! name.equalTo( crl.getIssuerX500Principal() ) ) {
                     continue;
                 }
                 if ( checkCRLTime(crl, 0) != 0 ) {

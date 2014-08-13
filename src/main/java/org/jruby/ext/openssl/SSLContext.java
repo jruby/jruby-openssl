@@ -716,9 +716,9 @@ public class SSLContext extends RubyObject {
                     if ( x.getIssuerDN().equals(x.getSubjectDN()) ) break;
 
                     try {
-                        Name xn = new Name(x.getIssuerX500Principal());
+                        final Name name = new Name(x.getIssuerX500Principal());
                         X509Object[] s_obj = new X509Object[1];
-                        if (storeCtx.getBySubject(X509Utils.X509_LU_X509, xn, s_obj) <= 0) {
+                        if (storeCtx.getBySubject(X509Utils.X509_LU_X509, name, s_obj) <= 0) {
                             break;
                         }
                         x = ((Certificate) s_obj[0]).x509;

@@ -202,11 +202,11 @@ public class RecipInfo {
     /* c: static pkcs7_cmp_ri
      *
      */
-    public boolean compare(final X509AuxCertificate pcert) {
-        if ( ! new Name( issuerAndSerial.getName() ).isEqual( pcert.getIssuerX500Principal() ) ) {
+    public boolean compare(final X509AuxCertificate other) {
+        if ( ! new Name( issuerAndSerial.getName() ).equalTo( other.getIssuerX500Principal() ) ) {
             return false;
         }
-        return pcert.getSerialNumber().compareTo( issuerAndSerial.getCertificateSerialNumber().getValue() ) == 0;
+        return other.getSerialNumber().compareTo( issuerAndSerial.getCertificateSerialNumber().getValue() ) == 0;
     }
 
     /**

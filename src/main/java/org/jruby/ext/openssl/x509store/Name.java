@@ -46,35 +46,28 @@ public class Name {
 
     final X500Name name;
 
-    public Name(final X500Principal nm) {
-        X500Name name;
-        try {
-            name = X500Name.getInstance(nm.getEncoded());
-        }
-        catch (RuntimeException e) {
-            name = null;
-        }
-        this.name = name;
+    public Name(final X500Principal principal) {
+        this.name = X500Name.getInstance( principal.getEncoded() );
     }
 
     public Name(final X500Name name) {
         this.name = name;
     }
 
-    /**
-     * c: X509_NAME_hash
-     */
-    public long hash() {
+    private transient int hash = 0;
+
+    public int hash() {
+        if ( hash != 0 ) return hash;
         try {
-            byte[] bytes = name.getEncoded();
+            final byte[] bytes = name.getEncoded();
             MessageDigest md5 = SecurityHelper.getMessageDigest("MD5");
             final byte[] digest = md5.digest(bytes);
-            long result = 0;
+            int result = 0;
             result |= digest[3] & 0xff; result <<= 8;
             result |= digest[2] & 0xff; result <<= 8;
             result |= digest[1] & 0xff; result <<= 8;
             result |= digest[0] & 0xff;
-            return result & 0xffffffff;
+            return hash = result & 0xffffffff;
         }
         catch (NoSuchAlgorithmException e) {
             return 0;
@@ -87,13 +80,39 @@ public class Name {
         }
     }
 
-    public boolean isEqual(X500Principal oname) {
-        try {
-            return new X500Principal(name.getEncoded(ASN1Encoding.DER)).equals(oname);
+    /**
+     * c: X509_NAME_hash
+     */
+    @Override
+    public int hashCode() { return hash(); }
+
+    @Override
+    public boolean equals(final Object that) {
+        //if ( that instanceof X500Principal ) {
+        //    return equals( (X500Principal) that );
+        //}
+        if ( that instanceof Name ) {
+            return this.name.equals( ((Name) that).name );
         }
-        catch(IOException e) {
+        return false;
+    }
+
+    public boolean equalTo(final X500Name name) {
+        return this.name.equals(name);
+    }
+
+    public boolean equalTo(final X500Principal principal) {
+        try {
+            return new X500Principal(this.name.getEncoded(ASN1Encoding.DER)).equals(principal);
+        }
+        catch (IOException e) {
             return false;
         }
+    }
+
+    @Deprecated
+    public boolean isEqual(final X500Principal principal) {
+        return equalTo(principal);
     }
 
 }// X509_NAME

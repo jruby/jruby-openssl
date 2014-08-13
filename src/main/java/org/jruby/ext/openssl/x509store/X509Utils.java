@@ -262,7 +262,7 @@ public abstract class X509Utils {
                     }
                 }
                 if ( x500Name != null ) {
-                    if ( ! new Name(x500Name).isEqual( issuer.getIssuerX500Principal() ) ) {
+                    if ( ! new Name(x500Name).equalTo( issuer.getIssuerX500Principal() ) ) {
                         return V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
                     }
                 }
