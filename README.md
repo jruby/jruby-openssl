@@ -13,13 +13,15 @@ the JRuby [mailing list][1] or the [bug tracker][2].
 Since version **0.9.5** jruby-openssl aims to be compatible with all JRuby versions
 **>= 1.6.8** (including 1.7 and 9k), if it's not we consider that a bug, report.
 
-We (currently - for 0.9.x) require the Bouncy Castle Java API to be **>= 1.47**.
+We (currently - for 0.9.x) require the Bouncy Castle Java API to be **>= 1.47**,
+for jruby-openssl gem <= 0.9.6 you also need to make sure BC jars **<= 1.50** !
 
 ## Testing
 
 [![Build Status][0]](http://travis-ci.org/jruby/jruby-openssl)
 
-    mvn -P test # currently broken
+    rake jar # creates pom.xml and generates jopenssl.jar under lib
+    mvn verify
 
 will run junit tests and a (very) few ruby tests with a set of jruby versions.
 pick a single jruby version and/or jruby modes (1.8, 1.9, 2.0, 2.1) with
@@ -31,7 +33,7 @@ tests as above run for each possible bouncy-castle version (see [listing][3]).
 
 run all with
 
-    mvn verify
+    mvn verify -P test-1.6.8,test-1.7.13
 
 or pick a bouncy-castle version
 

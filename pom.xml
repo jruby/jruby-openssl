@@ -34,10 +34,11 @@
     <url>https://github.com/jruby/jruby-openssl</url>
   </scm>
   <properties>
-    <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+    <bc.versions>1.50</bc.versions>
     <jruby.plugins.version>1.0.5</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <jruby.version>1.7.13</jruby.version>
+    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
     <jruby.versions>1.7.13</jruby.versions>
     <project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
@@ -95,7 +96,7 @@
         <enabled>true</enabled>
       </snapshots>
       <id>sonatype</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
     </repository>
   </repositories>
   <build>
@@ -210,6 +211,8 @@
                 <jruby.versions>${jruby.versions}</jruby.versions>
                 <jruby.modes>${jruby.modes}</jruby.modes>
                 <jruby.openssl.version>${project.version}</jruby.openssl.version>
+                <bc.versions>${bc.versions}</bc.versions>
+                <runit.dir>${runit.dir}</runit.dir>
               </properties>
             </configuration>
           </execution>
@@ -220,29 +223,7 @@
   <profiles>
     <profile>
       <id>test-1.6.8</id>
-      <properties>
-        <jruby.modes>1.8,1.9</jruby.modes>
-        <jruby.versions>1.6.8</jruby.versions>
-      </properties>
-    </profile>
-    <profile>
-      <id>test-1.7.4</id>
-      <properties>
-        <jruby.modes>1.8,1.9,2.0</jruby.modes>
-        <jruby.versions>1.7.4</jruby.versions>
-      </properties>
-    </profile>
-    <profile>
-      <id>test-1.7.13</id>
-      <properties>
-        <jruby.modes>1.8,1.9,2.0</jruby.modes>
-        <jruby.versions>1.7.13</jruby.versions>
-      </properties>
-    </profile>
-    <profile>
-      <id>test-9000</id>
       <build>
-        <defaultGoal>test</defaultGoal>
         <plugins>
           <plugin>
             <groupId>de.saumya.mojo</groupId>
@@ -254,7 +235,7 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <runitDirectory>src/test/ruby/**/test_*.rb</runitDirectory>
+                  <runitDirectory>${runit.dir}</runitDirectory>
                 </configuration>
               </execution>
             </executions>
@@ -262,6 +243,88 @@
         </plugins>
       </build>
       <properties>
+        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <jruby.modes>1.8,1.9</jruby.modes>
+        <jruby.versions>1.6.8</jruby.versions>
+      </properties>
+    </profile>
+    <profile>
+      <id>test-1.7.4</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>de.saumya.mojo</groupId>
+            <artifactId>runit-maven-plugin</artifactId>
+            <version>${jruby.plugins.version}</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <runitDirectory>${runit.dir}</runitDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <properties>
+        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <jruby.modes>1.8,1.9,2.0</jruby.modes>
+        <jruby.versions>1.7.4</jruby.versions>
+      </properties>
+    </profile>
+    <profile>
+      <id>test-1.7.13</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>de.saumya.mojo</groupId>
+            <artifactId>runit-maven-plugin</artifactId>
+            <version>${jruby.plugins.version}</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <runitDirectory>${runit.dir}</runitDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <properties>
+        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <jruby.modes>1.8,1.9,2.0</jruby.modes>
+        <jruby.versions>1.7.13</jruby.versions>
+      </properties>
+    </profile>
+    <profile>
+      <id>test-9000</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>de.saumya.mojo</groupId>
+            <artifactId>runit-maven-plugin</artifactId>
+            <version>${jruby.plugins.version}</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <runitDirectory>${runit.dir}</runitDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <properties>
+        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
         <jruby.version>9000.dev-SNAPSHOT</jruby.version>
         <jruby.versions>9000.dev-SNAPSHOT</jruby.versions>
       </properties>
