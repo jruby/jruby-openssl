@@ -1,17 +1,12 @@
-require File.expand_path( '../setup.rb', __FILE__ )
-begin
-  require "openssl"
-rescue LoadError
-end
-p Java::OrgBouncycastleJceProvider::BouncyCastleProvider.new.info
+# coding: US-ASCII
+require File.expand_path('../test_helper', File.dirname(__FILE__))
 
-require "digest/md5"
-require "test/unit"
+class TestDigest < Test::Unit::TestCase
 
-if defined?(OpenSSL)
-
-class OpenSSL::TestDigest < Test::Unit::TestCase
   def setup
+    require 'digest/md5'
+    require 'jopenssl/load'
+
     @d1 = OpenSSL::Digest::Digest::new("MD5")
     @d2 = OpenSSL::Digest::MD5.new
     @md = Digest::MD5.new
@@ -86,6 +81,5 @@ class OpenSSL::TestDigest < Test::Unit::TestCase
       assert_equal(sha512_a, encode16(OpenSSL::Digest::SHA512.digest("a")))
     end
   end
-end
 
-end
+end if defined? OpenSSL
