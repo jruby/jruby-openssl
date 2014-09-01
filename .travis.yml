@@ -5,4 +5,5 @@ jdk:
   - openjdk6
   - oraclejdk7
   - oraclejdk8
-script: mvn -Ptest
+before_script: rake maven
+script: mvn verify
