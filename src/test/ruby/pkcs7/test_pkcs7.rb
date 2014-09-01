@@ -777,7 +777,16 @@ PKCS7STR
     private
 
     def assert_raise_pkcs7_exception(&block)
-      assert_raise(NativeException, PKCS7Exception, &block)
+      if JRUBY_VERSION < '1.7.0'
+        begin
+          yield
+          fail 'expected PKCS7Exception to be raised but did not'
+        rescue PKCS7Exception => e
+          assert e
+        end
+      else
+        assert_raise(NativeException, PKCS7Exception, &block)
+      end
     end
 
   end
