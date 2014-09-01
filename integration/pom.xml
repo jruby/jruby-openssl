@@ -11,7 +11,7 @@
     <tesla.dump.readonly>true</tesla.dump.readonly>
     <jruby.openssl.version>0.9.5</jruby.openssl.version>
     <gem.path>${basedir}/../pkg/rubygems</gem.path>
-    <jruby.plugins.version>1.0.4</jruby.plugins.version>
+    <jruby.plugins.version>1.0.5</jruby.plugins.version>
     <gem.home>${basedir}/../pkg/rubygems</gem.home>
     <bc.version>1.47</bc.version>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
@@ -51,7 +51,7 @@
           <dependency>
             <groupId>rubygems</groupId>
             <artifactId>jar-dependencies</artifactId>
-            <version>0.0.4</version>
+            <version>0.0.9</version>
             <type>gem</type>
           </dependency>
           <dependency>
@@ -97,7 +97,7 @@
                 <BC_VERSION>${bc.version}</BC_VERSION>
               </env>
               <jrubySwitches>-I../../lib</jrubySwitches>
-              <runitDirectory>../../test/test_*rb</runitDirectory>
+              <runitDirectory>../../src/test/ruby/**/test_*.rb</runitDirectory>
               <versions>${jruby.versions}</versions>
               <modes>${jruby.modes}</modes>
             </configuration>

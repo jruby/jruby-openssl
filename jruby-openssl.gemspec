@@ -1,6 +1,6 @@
 #-*- mode: ruby -*-
 
-require File.dirname(__FILE__) + "/lib/jopenssl/version.rb"
+require "#{File.dirname(__FILE__)}/lib/jopenssl/version.rb"
 
 Gem::Specification.new do |s|
   s.name = 'jruby-openssl'
