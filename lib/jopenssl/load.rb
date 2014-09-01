@@ -16,7 +16,7 @@ end
 # Load extension
 require 'jruby'
 require 'jopenssl.jar'
-org.jruby.ext.openssl.OSSLLibrary.new.load(JRuby.runtime, false)
+org.jruby.ext.openssl.OSSLLibrary.load(JRuby.runtime)
 
 if RUBY_VERSION >= '2.1.0'
   load('jopenssl21/openssl.rb')
