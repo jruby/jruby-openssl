@@ -1,8 +1,9 @@
 # coding: US-ASCII
 require File.expand_path('../test_helper', File.dirname(__FILE__))
-require 'jopenssl/load'
 
 class TestX509Extension < Test::Unit::TestCase
+
+  def setup; require 'jopenssl/load' end
 
   def test_attrs
     ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')

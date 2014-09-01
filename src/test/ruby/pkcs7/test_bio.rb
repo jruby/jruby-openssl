@@ -3,9 +3,7 @@ require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
 module PKCS7Test
   class TestBIO < Test::Unit::TestCase
 
-    def setup
-      require 'jopenssl/load'
-    end
+    def setup; require 'jopenssl/load' end
 
     def test_string_bio_simple
       bio = BIO::from_string("abc")

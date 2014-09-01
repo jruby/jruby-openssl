@@ -1,11 +1,11 @@
 # coding: US-ASCII
-require File.expand_path('test_helper', File.dirname(__FILE__))
+require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestHMAC < Test::Unit::TestCase
 
   def setup
     require 'jopenssl/load'
-    
+
     @digest = OpenSSL::Digest::MD5
     @key = "KEY"
     @data = "DATA"
