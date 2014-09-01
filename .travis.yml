@@ -5,5 +5,9 @@ jdk:
   - openjdk6
   - oraclejdk7
   - oraclejdk8
-#before_script: rake maven
-script: mvn verify
+env:
+  - TEST_PROFILE=test-1.6.8
+  - TEST_PROFILE=test-1.7.4
+  - TEST_PROFILE=test-1.7.13
+before_script: mvn package -Dmaven.test.skip=true # jopenssl.jar + include bc jars
+script: mvn verify -P $TEST_PROFILE
