@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Vector;
 
 import org.bouncycastle.asn1.ASN1Object;
@@ -65,17 +64,15 @@ import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
-import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.x509store.Name;
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
+import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 import static org.jruby.ext.openssl.X509._X509;
 
 /**
@@ -199,6 +196,7 @@ public class X509Name extends RubyObject {
         types.add(getRuntime().newFixnum( ASN1.idForJava(typeAndValue.getObjectAt(1))) );
     }
 
+    @Override
     @JRubyMethod(visibility = Visibility.PRIVATE)
     public IRubyObject initialize(ThreadContext context) {
         return this;
@@ -407,31 +405,30 @@ else
         return RubyFixnum.one(getRuntime());
     }
 
+    @Deprecated
     org.bouncycastle.asn1.x509.X509Name getRealName() {
-        return new org.bouncycastle.asn1.x509.X509Name(new Vector<Object>(oids),new Vector<Object>(values));
+        return new org.bouncycastle.asn1.x509.X509Name(new Vector<Object>(oids), new Vector<Object>(values));
     }
 
     X500Name getX500Name() {
-        return X500Name.getInstance(getRealName().toASN1Primitive());
+        return X500Name.getInstance( getRealName().toASN1Primitive() );
     }
 
     @Override
     @JRubyMethod(name = "eql?")
-    public IRubyObject eql_p(IRubyObject other) {
-        if(!(other instanceof X509Name)) {
-            return getRuntime().getFalse();
-        }
-        X509Name o = (X509Name)other;
-        org.bouncycastle.asn1.x509.X509Name nm = new org.bouncycastle.asn1.x509.X509Name(new Vector<Object>(oids),new Vector<Object>(values));
-        org.bouncycastle.asn1.x509.X509Name o_nm = new org.bouncycastle.asn1.x509.X509Name(new Vector<Object>(o.oids),new Vector<Object>(o.values));
-        return nm.equals(o_nm) ? getRuntime().getTrue() : getRuntime().getFalse();
+    public IRubyObject eql_p(final IRubyObject other) {
+        if ( ! (other instanceof X509Name) ) return getRuntime().getFalse();
+        X509Name that = (X509Name) other;
+        org.bouncycastle.asn1.x509.X509Name thisName = this.getRealName();
+        org.bouncycastle.asn1.x509.X509Name thatName = that.getRealName();
+        return thisName.equals(thatName) ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
     @Override
     @JRubyMethod
     public RubyFixnum hash() {
-        Name name = new Name( getX500Name() );
-        return getRuntime().newFixnum(name.hash());
+        final Name name = new Name( getX500Name() );
+        return getRuntime().newFixnum( name.hashCode() );
     }
 
     @JRubyMethod
@@ -497,7 +494,7 @@ else
             throw newNameError(getRuntime(), e.getTargetException());
         }
         catch (RuntimeException e) {
-            if ( isDebug(getRuntime()) ) e.printStackTrace(getRuntime().getOut());
+            debugStackTrace(getRuntime(), e);
             throw newNameError(getRuntime(), e);
         }
     }

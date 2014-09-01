@@ -30,10 +30,8 @@ package org.jruby.ext.openssl;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.StringReader;
 import java.security.MessageDigest;
 
-import org.jruby.RubyIO;
 import org.jruby.RubyString;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
