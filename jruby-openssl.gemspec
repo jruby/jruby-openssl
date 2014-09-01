@@ -10,8 +10,8 @@ Gem::Specification.new do |s|
   s.email = "ola.bini@gmail.com"
   s.summary = "JRuby OpenSSL"
   s.homepage = 'https://github.com/jruby/jruby-openssl'
-  s.description = 'JRuby-OpenSSL is an add-on gem for JRuby that emulates the ' <<
-                  'Ruby OpenSSL native library.'
+  s.description = 'JRuby-OpenSSL is an add-on gem for JRuby that emulates the' <<
+                  ' Ruby OpenSSL native library.'
   s.licenses = [ 'EPL-1.0', 'GPL-2.0', 'LGPL-2.1' ]
 
   s.require_paths = ['lib']
@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
   s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
 
-  s.add_development_dependency 'jar-dependencies', '0.0.4'
+  s.add_development_dependency 'jar-dependencies', '0.0.9'
   # s.add_development_dependency 'test-unit', '~> 2.5.5'
 end
 
