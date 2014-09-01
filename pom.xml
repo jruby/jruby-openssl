@@ -35,10 +35,10 @@
   </scm>
   <properties>
     <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
-    <jruby.plugins.version>1.0.4</jruby.plugins.version>
+    <jruby.plugins.version>1.0.5</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <jruby.version>1.7.13</jruby.version>
-    <jruby.versions>1.6.8,1.7.4,1.7.13</jruby.versions>
+    <jruby.versions>1.7.13</jruby.versions>
     <project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
     <tesla.dump.readonly>true</tesla.dump.readonly>
@@ -56,13 +56,6 @@
       <groupId>rubygems</groupId>
       <artifactId>mocha</artifactId>
       <version>[1.1.0,1.1.99999]</version>
-      <type>gem</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>rubygems</groupId>
-      <artifactId>test-unit</artifactId>
-      <version>[2.5.5,2.5.5.0.0.0.0.1)</version>
       <type>gem</type>
       <scope>test</scope>
     </dependency>
@@ -226,29 +219,24 @@
   </build>
   <profiles>
     <profile>
-      <id>test</id>
-      <build>
-        <defaultGoal>test</defaultGoal>
-        <plugins>
-          <plugin>
-            <groupId>de.saumya.mojo</groupId>
-            <artifactId>runit-maven-plugin</artifactId>
-            <version>${jruby.plugins.version}</version>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>test</goal>
-                </goals>
-                <configuration>
-                  <runitDirectory>src/test/ruby/**/test_*.rb</runitDirectory>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
+      <id>test-1.6.8</id>
+      <properties>
+        <jruby.modes>1.8,1.9</jruby.modes>
+        <jruby.versions>1.6.8</jruby.versions>
+      </properties>
+    </profile>
+    <profile>
+      <id>test-1.7.4</id>
       <properties>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
+        <jruby.versions>1.7.4</jruby.versions>
+      </properties>
+    </profile>
+    <profile>
+      <id>test-1.7.13</id>
+      <properties>
+        <jruby.modes>1.8,1.9,2.0</jruby.modes>
+        <jruby.versions>1.7.13</jruby.versions>
       </properties>
     </profile>
     <profile>

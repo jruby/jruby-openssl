@@ -43,9 +43,9 @@ plugin :invoker, '1.8' do
                    'jruby.openssl.version' => '${project.version}' }, )
 end
 
-properties( 'jruby.plugins.version' => '1.0.4',
+properties( 'jruby.plugins.version' => '1.0.5',
+            'jruby.versions' => '1.7.13',
             'bc.versions' => '1.47,1.48,1.49,1.50',
-            'jruby.versions' => '1.6.8,1.7.4,1.7.13',
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
@@ -55,18 +55,16 @@ properties( 'jruby.plugins.version' => '1.0.4',
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true )
 
-profile :id => 'test' do
+profile :id => 'test-1.6.8' do
+  properties 'jruby.versions' => '1.6.8', 'jruby.modes' => '1.8,1.9'
+end
 
-  build do
-    default_goal :test
-  end
+profile :id => 'test-1.7.4' do
+  properties 'jruby.versions' => '1.7.4', 'jruby.modes' => '1.8,1.9,2.0'
+end
 
-  jruby_plugin :runit do
-    execute_goal( :test, :runitDirectory => 'src/test/ruby/**/test_*.rb' )
-  end
-
-  properties 'jruby.modes' => '1.8,1.9,2.0'
-
+profile :id => 'test-1.7.13' do
+  properties 'jruby.versions' => '1.7.13', 'jruby.modes' => '1.8,1.9,2.0'
 end
 
 profile :id => 'test-9000' do
