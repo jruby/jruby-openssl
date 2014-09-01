@@ -8,7 +8,8 @@ snapshot_repository :id => 'jruby', :url => 'http://ci.jruby.org/snapshots/maven
 # TODO should be setup whenever a plugin uses gems
 plugin_repository :id => 'rubygems-releases', :url => 'http://rubygems-proxy.torquebox.org/releases'
 
-load "#{File.dirname(__FILE__)}/../lib/jopenssl/version.rb"
+base_path = File.expand_path('..', File.dirname(__FILE__))
+require "#{base_path}/lib/jopenssl/version.rb" unless defined? Jopenssl::Version
 bc_version = Jopenssl::Version::BOUNCY_CASTLE_VERSION
 jruby_openssl_version = Jopenssl::Version::VERSION
 
@@ -24,19 +25,25 @@ properties( 'bc.version' => bc_version, # to satisfy maven
 jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
   execute_goal :initialize
 
-  gem 'jar-dependencies', '0.0.9'
+  #gem 'jar-dependencies', '0.0.9'
+  spec = Gem::Specification.load "#{base_path}/jruby-openssl.gemspec"
+  spec.development_dependencies.each do |dev_spec|
+    gem dev_spec.name, *dev_spec.requirements_list
+  end
 
   # make sure we have those in the local repo
   # BUT not be part of the runit-classloader
   # otherwise jruby-1.7.x and jruby-1.6.x will not use those
   # required in the test_*.rb files
-  jar  'org.bouncycastle', 'bcpkix-jdk15on', '${bc.version}'
-  jar  'org.bouncycastle', 'bcprov-jdk15on', '${bc.version}'
+  #jar  'org.bouncycastle', 'bcpkix-jdk15on', '${bc.version}'
+  #jar  'org.bouncycastle', 'bcprov-jdk15on', '${bc.version}'
+  spec.requirements.each do |req|
+    req = req.sub('jar', '').split(',').each(&:strip!)
+    jar req[0], req[1]
+  end
+
   gem 'jruby-openssl', '${jruby.openssl.version}'
 
-  # TODO first jar-dependencies should install ALL ruby-maven dependencies by itself
-  # TODO second it should not need ruby-maven since jar-dependencies is a development dep inside jruby-openssl gemspec
-  gem 'ruby-maven', '3.1.1.0.8'
 end
 
 jruby_plugin :runit do
