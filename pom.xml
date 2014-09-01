@@ -43,7 +43,6 @@
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
     <tesla.dump.readonly>true</tesla.dump.readonly>
     <invoker.test>${bc.versions}</invoker.test>
-    <jruby.modes>1.8,1.9,2.0</jruby.modes>
   </properties>
   <dependencies>
     <dependency>
@@ -227,13 +226,16 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <runitDirectory>test/test_*.rb</runitDirectory>
+                  <runitDirectory>src/test/ruby/**/test_*.rb</runitDirectory>
                 </configuration>
               </execution>
             </executions>
           </plugin>
         </plugins>
       </build>
+      <properties>
+        <jruby.modes>1.8,1.9,2.0</jruby.modes>
+      </properties>
     </profile>
     <profile>
       <id>test-9000</id>
@@ -250,7 +252,7 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <runitDirectory>test/test_*.rb</runitDirectory>
+                  <runitDirectory>src/test/ruby/**/test_*.rb</runitDirectory>
                 </configuration>
               </execution>
             </executions>
@@ -258,17 +260,8 @@
         </plugins>
       </build>
       <properties>
-        <jruby.modes>2.1</jruby.modes>
+        <jruby.version>9000.dev-SNAPSHOT</jruby.version>
         <jruby.versions>9000.dev-SNAPSHOT</jruby.versions>
-      </properties>
-    </profile>
-    <profile>
-      <id>jdk6</id>
-      <activation>
-        <jdk>1.6</jdk>
-      </activation>
-      <properties>
-        <jruby.versions>1.6.8,1.7.4,1.7.13</jruby.versions>
       </properties>
     </profile>
   </profiles>

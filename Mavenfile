@@ -46,7 +46,6 @@ end
 properties( 'jruby.plugins.version' => '1.0.4',
             'bc.versions' => '1.47,1.48,1.49,1.50',
             'jruby.versions' => '1.6.8,1.7.4,1.7.13',
-            'jruby.modes' => '1.8,1.9,2.0',
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
@@ -63,8 +62,10 @@ profile :id => 'test' do
   end
 
   jruby_plugin :runit do
-    execute_goal( :test, :runitDirectory => 'test/test_*.rb' )
+    execute_goal( :test, :runitDirectory => 'src/test/ruby/**/test_*.rb' )
   end
+
+  properties 'jruby.modes' => '1.8,1.9,2.0'
 
 end
 
@@ -75,19 +76,19 @@ profile :id => 'test-9000' do
   end
 
   jruby_plugin :runit do
-    execute_goal( :test, :runitDirectory => 'test/test_*.rb' )
+    execute_goal( :test, :runitDirectory => 'src/test/ruby/**/test_*.rb' )
   end
 
-  properties 'jruby.versions' => '9000.dev-SNAPSHOT', 'jruby.modes' => '2.1'
+  properties 'jruby.version' => '9000.dev-SNAPSHOT', 'jruby.versions' => '9000.dev-SNAPSHOT'
 
 end
 
-profile :id => :jdk6 do
-  activation do
-    jdk '1.6'
-  end
-
-  properties 'jruby.versions' => '1.6.8,1.7.4,1.7.13'
-end
+#profile :id => :jdk6 do
+#  activation do
+#    jdk '1.6'
+#  end
+#
+#  properties 'jruby.versions' => '1.6.8,1.7.4,1.7.13'
+#end
 
 # vim: syntax=Ruby
