@@ -544,6 +544,7 @@ public class Lookup {
             for ( final String dir : context.dirs ) {
                 final int dirType = iter.next();
                 for ( int k = 0; ; k++ ) {
+                    buffer.setLength(0); // reset - clear buffer
                     buffer.append(dir).append(File.separatorChar);
                     buffer.append(hash);
                     buffer.append('.').append(postfix).append(k);
