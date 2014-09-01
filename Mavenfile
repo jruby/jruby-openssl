@@ -48,41 +48,50 @@ properties( 'jruby.plugins.version' => '1.0.5',
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true )
 
-plugin :invoker, '1.8' do
-  execute_goals( :install, :run,
-                 :id => 'tests-with-different-bc-versions',
-                 :projectsDirectory => 'integration',
-                 :pomIncludes => [ '*/pom.xml' ],
-                 :streamLogs => true,
-                 # pass those properties on to the test project
-                 :properties => {
-                   'jruby.versions' => '${jruby.versions}',
-                   'jruby.modes' => '${jruby.modes}',
-                   'jruby.openssl.version' => '${project.version}',
-                   'bc.versions' => '${bc.versions}',
-                   'runit.dir' => '${runit.dir}' } )
-end
+jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
+
+invoker_run_options = {
+    :id => 'tests-with-different-bc-versions',
+    :projectsDirectory => 'integration',
+    :pomIncludes => [ '*/pom.xml' ],
+    :streamLogs => true,
+    # pass those properties on to the test project
+    :properties => {
+      'jruby.versions' => '${jruby.versions}',
+      'jruby.modes' => '${jruby.modes}',
+      'jruby.openssl.version' => '${project.version}',
+      'bc.versions' => '${bc.versions}',
+      'runit.dir' => '${runit.dir}' }
+}
 
 profile :id => 'test-1.6.8' do
-  jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
+  plugin :invoker, '1.8' do
+    execute_goals( :install, :run, invoker_run_options )
+  end
   properties 'jruby.versions' => '1.6.8', 'jruby.modes' => '1.8,1.9',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
 profile :id => 'test-1.7.4' do
-  jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
+  plugin :invoker, '1.8' do
+    execute_goals( :install, :run, invoker_run_options )
+  end
   properties 'jruby.versions' => '1.7.4', 'jruby.modes' => '1.8,1.9,2.0',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
 profile :id => 'test-1.7.13' do
-  jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
+  plugin :invoker, '1.8' do
+    execute_goals( :install, :run, invoker_run_options )
+  end
   properties 'jruby.versions' => '1.7.13', 'jruby.modes' => '1.8,1.9,2.0',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
 profile :id => 'test-9000' do
-  jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
+  plugin :invoker, '1.8' do
+    execute_goals( :install, :run, invoker_run_options )
+  end
   properties 'jruby.version' => '9000.dev-SNAPSHOT',
              'jruby.versions' => '9000.dev-SNAPSHOT',
              # 'jruby.modes' => '2.1',

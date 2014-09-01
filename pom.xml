@@ -192,28 +192,16 @@
         </configuration>
       </plugin>
       <plugin>
-        <artifactId>maven-invoker-plugin</artifactId>
-        <version>1.8</version>
+        <groupId>de.saumya.mojo</groupId>
+        <artifactId>runit-maven-plugin</artifactId>
+        <version>${jruby.plugins.version}</version>
         <executions>
           <execution>
-            <id>tests-with-different-bc-versions</id>
             <goals>
-              <goal>install</goal>
-              <goal>run</goal>
+              <goal>test</goal>
             </goals>
             <configuration>
-              <projectsDirectory>integration</projectsDirectory>
-              <pomIncludes>
-                <pomInclude>*/pom.xml</pomInclude>
-              </pomIncludes>
-              <streamLogs>true</streamLogs>
-              <properties>
-                <jruby.versions>${jruby.versions}</jruby.versions>
-                <jruby.modes>${jruby.modes}</jruby.modes>
-                <jruby.openssl.version>${project.version}</jruby.openssl.version>
-                <bc.versions>${bc.versions}</bc.versions>
-                <runit.dir>${runit.dir}</runit.dir>
-              </properties>
+              <runitDirectory>${runit.dir}</runitDirectory>
             </configuration>
           </execution>
         </executions>
@@ -226,16 +214,28 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>de.saumya.mojo</groupId>
-            <artifactId>runit-maven-plugin</artifactId>
-            <version>${jruby.plugins.version}</version>
+            <artifactId>maven-invoker-plugin</artifactId>
+            <version>1.8</version>
             <executions>
               <execution>
+                <id>tests-with-different-bc-versions</id>
                 <goals>
-                  <goal>test</goal>
+                  <goal>install</goal>
+                  <goal>run</goal>
                 </goals>
                 <configuration>
-                  <runitDirectory>${runit.dir}</runitDirectory>
+                  <projectsDirectory>integration</projectsDirectory>
+                  <pomIncludes>
+                    <pomInclude>*/pom.xml</pomInclude>
+                  </pomIncludes>
+                  <streamLogs>true</streamLogs>
+                  <properties>
+                    <jruby.versions>${jruby.versions}</jruby.versions>
+                    <jruby.modes>${jruby.modes}</jruby.modes>
+                    <jruby.openssl.version>${project.version}</jruby.openssl.version>
+                    <bc.versions>${bc.versions}</bc.versions>
+                    <runit.dir>${runit.dir}</runit.dir>
+                  </properties>
                 </configuration>
               </execution>
             </executions>
@@ -253,16 +253,27 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>de.saumya.mojo</groupId>
-            <artifactId>runit-maven-plugin</artifactId>
-            <version>${jruby.plugins.version}</version>
+            <artifactId>maven-invoker-plugin</artifactId>
+            <version>1.8</version>
             <executions>
               <execution>
                 <goals>
-                  <goal>test</goal>
+                  <goal>install</goal>
+                  <goal>run</goal>
                 </goals>
                 <configuration>
-                  <runitDirectory>${runit.dir}</runitDirectory>
+                  <projectsDirectory>integration</projectsDirectory>
+                  <pomIncludes>
+                    <pomInclude>*/pom.xml</pomInclude>
+                  </pomIncludes>
+                  <streamLogs>true</streamLogs>
+                  <properties>
+                    <jruby.versions>${jruby.versions}</jruby.versions>
+                    <jruby.modes>${jruby.modes}</jruby.modes>
+                    <jruby.openssl.version>${project.version}</jruby.openssl.version>
+                    <bc.versions>${bc.versions}</bc.versions>
+                    <runit.dir>${runit.dir}</runit.dir>
+                  </properties>
                 </configuration>
               </execution>
             </executions>
@@ -280,16 +291,27 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>de.saumya.mojo</groupId>
-            <artifactId>runit-maven-plugin</artifactId>
-            <version>${jruby.plugins.version}</version>
+            <artifactId>maven-invoker-plugin</artifactId>
+            <version>1.8</version>
             <executions>
               <execution>
                 <goals>
-                  <goal>test</goal>
+                  <goal>install</goal>
+                  <goal>run</goal>
                 </goals>
                 <configuration>
-                  <runitDirectory>${runit.dir}</runitDirectory>
+                  <projectsDirectory>integration</projectsDirectory>
+                  <pomIncludes>
+                    <pomInclude>*/pom.xml</pomInclude>
+                  </pomIncludes>
+                  <streamLogs>true</streamLogs>
+                  <properties>
+                    <jruby.versions>${jruby.versions}</jruby.versions>
+                    <jruby.modes>${jruby.modes}</jruby.modes>
+                    <jruby.openssl.version>${project.version}</jruby.openssl.version>
+                    <bc.versions>${bc.versions}</bc.versions>
+                    <runit.dir>${runit.dir}</runit.dir>
+                  </properties>
                 </configuration>
               </execution>
             </executions>
@@ -307,16 +329,27 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>de.saumya.mojo</groupId>
-            <artifactId>runit-maven-plugin</artifactId>
-            <version>${jruby.plugins.version}</version>
+            <artifactId>maven-invoker-plugin</artifactId>
+            <version>1.8</version>
             <executions>
               <execution>
                 <goals>
-                  <goal>test</goal>
+                  <goal>install</goal>
+                  <goal>run</goal>
                 </goals>
                 <configuration>
-                  <runitDirectory>${runit.dir}</runitDirectory>
+                  <projectsDirectory>integration</projectsDirectory>
+                  <pomIncludes>
+                    <pomInclude>*/pom.xml</pomInclude>
+                  </pomIncludes>
+                  <streamLogs>true</streamLogs>
+                  <properties>
+                    <jruby.versions>${jruby.versions}</jruby.versions>
+                    <jruby.modes>${jruby.modes}</jruby.modes>
+                    <jruby.openssl.version>${project.version}</jruby.openssl.version>
+                    <bc.versions>${bc.versions}</bc.versions>
+                    <runit.dir>${runit.dir}</runit.dir>
+                  </properties>
                 </configuration>
               </execution>
             </executions>
