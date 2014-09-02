@@ -1,7 +1,7 @@
 require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
 
 module PKCS7Test
-  class TestMIME < Test::Unit::TestCase
+  class TestMIME < TestCase
     def test_find_header_returns_null_on_nonexisting_header
       headers = []
       assert_nil Mime::DEFAULT.find_header(headers, "foo")

@@ -1,7 +1,7 @@
 # coding: US-ASCII
 require File.expand_path('../test_helper', File.dirname(__FILE__))
 
-class TestHMAC < Test::Unit::TestCase
+class TestHMAC < TestCase
 
   def setup
     require 'jopenssl/load'

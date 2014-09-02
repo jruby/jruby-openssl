@@ -1,7 +1,7 @@
 # coding: US-ASCII
 require File.expand_path('../test_helper', File.dirname(__FILE__))
 
-class TestDigest < Test::Unit::TestCase
+class TestDigest < TestCase
 
   def setup
     require 'digest/md5'

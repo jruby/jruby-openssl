@@ -1,7 +1,7 @@
 require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
 
 module PKCS7Test
-  class TestSMIME < Test::Unit::TestCase
+  class TestSMIME < TestCase
     def test_read_pkcs7_should_raise_error_when_parsing_headers_fails
       bio = BIO.new
       mime = Mime.new

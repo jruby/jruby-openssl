@@ -1,7 +1,7 @@
 require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 module PKCS7Test
-  class TestAttribute < Test::Unit::TestCase
+  class TestAttribute < TestCase
 
     OctetString = org.bouncycastle.asn1.DEROctetString
     Attribute = org.jruby.ext.openssl.impl.Attribute

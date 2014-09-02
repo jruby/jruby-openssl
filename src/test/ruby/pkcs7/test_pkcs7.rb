@@ -2,7 +2,7 @@
 require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
 
 module PKCS7Test
-  class TestPKCS7 < Test::Unit::TestCase
+  class TestPKCS7 < TestCase
     def test_is_signed
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signed

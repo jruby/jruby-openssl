@@ -1,7 +1,7 @@
 require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
 
 module PKCS7Test
-  class TestBIO < Test::Unit::TestCase
+  class TestBIO < TestCase
 
     def setup; require 'jopenssl/load' end
 
