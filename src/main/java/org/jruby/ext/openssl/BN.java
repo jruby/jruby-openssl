@@ -29,6 +29,7 @@ package org.jruby.ext.openssl;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.Collections;
 import java.util.Random;
 
 import org.jruby.Ruby;
@@ -104,17 +105,10 @@ public class BN extends RubyObject {
         return value;
     }
 
-    // TODO: check whether this is really needed for JRuby 1.0x (not used in 1.1x)
-    public IRubyObject doClone() {
-        return newBN(getRuntime(), this.value);
-    }
-
     @Override
-    public IRubyObject initialize_copy(IRubyObject that) {
+    public synchronized IRubyObject initialize_copy(final IRubyObject that) {
         super.initialize_copy(that);
-        if (this != that) {
-            this.value = ((BN) that).value;
-        }
+        if ( this != that ) this.value = ((BN) that).value;
         return this;
     }
 
@@ -126,7 +120,7 @@ public class BN extends RubyObject {
         }
         int argc = Arity.checkArgumentCount(runtime, args, 1, 2);
         int base = argc == 2 ? RubyNumeric.num2int(args[1]) : 10;
-        RubyString str = RubyString.stringValue(args[0]);
+        final RubyString str = args[0].asString();
         switch (base) {
         case 0:
             byte[] bytes = str.getBytes();
@@ -224,6 +218,13 @@ public class BN extends RubyObject {
         default:
             throw runtime.newArgumentError("illegal radix: " + base);
         }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    @JRubyMethod
+    public IRubyObject inspect() {
+        return ObjectSupport.inspect(this, Collections.EMPTY_LIST);
     }
 
     private static final BigInteger MIN_LONG = BigInteger.valueOf(Long.MIN_VALUE);
