@@ -1,3 +1,4 @@
+# coding: US-ASCII
 require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
 
 module PKCS7Test
@@ -387,11 +388,13 @@ module PKCS7Test
       assert_equal si, p7.get_signed_and_enveloped.signer_info.iterator.next
     end
 
+    BIG_ONE = BigInteger::ONE.to_java
+
     def create_signer_info_with_algo(algo)
       md5 = AlgorithmIdentifier.new(ASN1Registry.nid2obj(4))
       SignerInfoWithPkey.new(
-          ASN1Integer.new(BigInteger::ONE),
-          IssuerAndSerialNumber.new(X500Name.new("C=SE"), BigInteger::ONE),
+          ASN1Integer.new(BIG_ONE),
+          IssuerAndSerialNumber.new(X500Name.new("C=SE"), BIG_ONE),
           algo,
           DERSet.new,
           md5,
@@ -702,10 +705,6 @@ module PKCS7Test
       cipher = CipherSpec.new(c, "AES-128-CBC", 128)
       data = "aaaaa\nbbbbb\nccccc\n".to_java_bytes
       PKCS7::encrypt(certs, data, cipher, PKCS7::BINARY)
-#       puts
-#       puts PKCS7::encrypt(certs, data, cipher, PKCS7::BINARY)
-#       puts
-#       puts EXISTING_PKCS7_1
     end
 
     EXISTING_PKCS7_PEM = <<PKCS7STR
