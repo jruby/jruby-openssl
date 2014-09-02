@@ -45,7 +45,6 @@ import java.security.cert.X509Certificate;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -80,7 +79,6 @@ import org.jruby.util.ByteList;
 import static org.jruby.ext.openssl.X509._X509;
 import org.jruby.runtime.builtin.Variable;
 import org.jruby.runtime.component.VariableEntry;
-import org.jruby.util.IdUtil;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -105,11 +103,12 @@ public class X509Cert extends RubyObject {
         super(runtime,type);
     }
 
-    private IRubyObject serial;
+    private IRubyObject subject;
+    private IRubyObject issuer;
+    private BigInteger serial = BigInteger.ZERO;
     private RubyTime not_before;
     private RubyTime not_after;
-    private IRubyObject issuer;
-    private IRubyObject subject;
+
     private IRubyObject public_key;
 
     private IRubyObject sig_alg;
@@ -152,7 +151,11 @@ public class X509Cert extends RubyObject {
     public IRubyObject initialize(final ThreadContext context,
         final IRubyObject[] args, final Block unusedBlock) {
 
-        if ( args.length == 0 ) return this;
+        if ( args.length == 0 ) {
+            this.subject = X509Name.newInstance(context.runtime);
+            this.issuer = X509Name.newInstance(context.runtime);
+            return this;
+        }
 
         final RubyString str = StringHelper.readPossibleDERInput(context, args[0]);
         final ByteList bytes = str.getByteList();
@@ -273,7 +276,7 @@ public class X509Cert extends RubyObject {
         }
     }
 
-    @JRubyMethod(name={"to_pem","to_s"})
+    @JRubyMethod(name={"to_pem", "to_s"})
     public IRubyObject to_pem() {
         final StringWriter str = new StringWriter();
         try {
@@ -293,16 +296,17 @@ public class X509Cert extends RubyObject {
     @Override
     @JRubyMethod
     public IRubyObject inspect() {
-        return ObjectSupport.inspect(this);
+        return ObjectSupport.inspect(this, getInstanceVariableList());
     }
 
     @Override // FAKE'em to include "instance" variables in inspect
     public List<Variable<IRubyObject>> getInstanceVariableList() {
-        final ArrayList<Variable<IRubyObject>> list = new ArrayList<Variable<IRubyObject>>(4);
-        list.add(new VariableEntry<IRubyObject>("issuer", this.issuer == null ? getRuntime().getNil() : this.issuer));
-        list.add(new VariableEntry<IRubyObject>("serial", this.serial == null ? getRuntime().getNil() : this.serial));
-        list.add(new VariableEntry<IRubyObject>("not_before", this.not_before == null ? getRuntime().getNil() : this.not_before));
-        list.add(new VariableEntry<IRubyObject>("not_after", this.not_after == null ? getRuntime().getNil() : this.not_after));
+        final ArrayList<Variable<IRubyObject>> list = new ArrayList<Variable<IRubyObject>>(5);
+        list.add(new VariableEntry<IRubyObject>( "subject", subject() ));
+        list.add(new VariableEntry<IRubyObject>( "issuer", issuer() ));
+        list.add(new VariableEntry<IRubyObject>( "serial", serial() ));
+        list.add(new VariableEntry<IRubyObject>( "not_before", not_before() ));
+        list.add(new VariableEntry<IRubyObject>( "not_after", not_after() ));
         return list;
     }
 
@@ -326,7 +330,7 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod
     public IRubyObject serial() {
-        return serial;
+        return BN.newBN(getRuntime(), serial);
     }
 
     @JRubyMethod(name="serial=")
@@ -342,8 +346,8 @@ public class X509Cert extends RubyObject {
         } else {
             serialInt = new BigInteger(serialStr);
         }
-        generator.setSerialNumber(new BigInteger(1, serialInt.toByteArray()));
-        return this.serial = serial;
+        generator.setSerialNumber( serialInt.abs() );
+        this.serial = serialInt; return serial;
     }
 
     @JRubyMethod
@@ -353,9 +357,7 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod(name="subject=")
     public IRubyObject set_subject(final IRubyObject subject) {
-        if ( ! subject.equals(this.subject) ) {
-            this.changed = true;
-        }
+        if ( ! subject.equals(this.subject) ) this.changed = true;
         generator.setSubjectDN( ((X509Name) subject).getRealName() );
         return this.subject = subject;
     }
@@ -367,16 +369,15 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod(name="issuer=")
     public IRubyObject set_issuer(final IRubyObject issuer) {
-        if ( ! issuer.equals(this.issuer) ) {
-            this.changed = true;
-        }
+        if ( ! issuer.equals(this.issuer) ) this.changed = true;
         generator.setIssuerDN( ((X509Name) issuer).getRealName() );
         return this.issuer = issuer;
     }
 
     @JRubyMethod
     public IRubyObject not_before() {
-        return not_before;
+        return not_before == null ? getRuntime().getNil() : not_before;
+
     }
 
     @JRubyMethod(name="not_before=")
@@ -390,7 +391,7 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod
     public IRubyObject not_after() {
-        return not_after;
+        return not_after == null ? getRuntime().getNil() : not_after;
     }
 
     @JRubyMethod(name="not_after=")

@@ -379,6 +379,13 @@ else
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    @JRubyMethod
+    public IRubyObject inspect() {
+        return ObjectSupport.inspect(this, Collections.EMPTY_LIST);
+    }
+
+    @Override
     @JRubyMethod
     public RubyArray to_a() {
         final Ruby runtime = getRuntime();
