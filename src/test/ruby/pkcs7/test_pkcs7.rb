@@ -127,7 +127,7 @@ module PKCS7Test
       assert !p7.detached?
     end
 
-    def _test_encrypt_generates_enveloped_PKCS7_object
+    def _test_encrypt_generates_enveloped_pkcs7_object
       p7 = PKCS7.encrypt([], "".to_java_bytes, nil, 0)
       assert !p7.signed?
       assert !p7.encrypted?
@@ -279,7 +279,7 @@ module PKCS7Test
     end
 
 
-    def test_set_cipher_on_signedAndEnveloped_object
+    def test_set_cipher_on_signed_and_enveloped_object
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
 
@@ -328,7 +328,7 @@ module PKCS7Test
     end
 
 
-    def test_add_recipient_info_to_signedAndEnveloped_should_add_that_to_stack
+    def test_add_recipient_info_to_signed_and_enveloped_should_add_that_to_stack
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
 
@@ -376,7 +376,7 @@ module PKCS7Test
     end
 
 
-    def test_add_signer_to_signedAndEnveloped_should_add_that_to_stack
+    def test_add_signer_to_signed_and_enveloped_should_add_that_to_stack
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
 
@@ -429,7 +429,7 @@ module PKCS7Test
     end
 
 
-    def test_add_signer_to_signedAndEnveloped_with_new_algo_should_add_that_algo_to_the_algo_list
+    def test_add_signer_to_signed_and_enveloped_with_new_algo_should_add_that_algo_to_the_algo_list
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
 
@@ -473,7 +473,7 @@ module PKCS7Test
       end
     end
 
-    def test_set_content_on_signedAndEnveloped_throws_exception
+    def test_set_content_on_signed_and_enveloped_throws_exception
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
       assert_raise_pkcs7_exception do
@@ -537,7 +537,7 @@ module PKCS7Test
       assert_equal p7.get_sign.signer_info.object_id, p7.signer_info.object_id
     end
 
-    def test_get_signer_info_on_signedAndEnveloped_returns_signer_info
+    def test_get_signer_info_on_signed_and_enveloped_returns_signer_info
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
       assert_equal p7.get_signed_and_enveloped.signer_info.object_id, p7.signer_info.object_id
@@ -567,7 +567,7 @@ module PKCS7Test
       end
     end
 
-    def test_content_new_on_signedAndEnveloped_raises_exception
+    def test_content_new_on_signed_and_enveloped_raises_exception
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
       assert_raise_pkcs7_exception do
@@ -636,7 +636,7 @@ module PKCS7Test
       assert_equal X509Cert, p7.get_sign.cert.iterator.next
     end
 
-    def test_add_certificate_on_signedAndEnveloped_adds_the_certificate
+    def test_add_certificate_on_signed_and_enveloped_adds_the_certificate
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
       p7.add_certificate(X509Cert)
@@ -684,7 +684,7 @@ module PKCS7Test
       assert_equal X509CRL, p7.get_sign.crl.iterator.next
     end
 
-    def test_add_crl_on_signedAndEnveloped_adds_the_crl
+    def test_add_crl_on_signed_and_enveloped_adds_the_crl
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
       p7.add_crl(X509CRL)
@@ -731,7 +731,7 @@ PKCS7STR
 
     PKCS7_PEM_SECOND_KEY = "=\240W\320\2437K\355\243r\264+\235\313\265\216\273\346\324\365\027\225K\314|R\006\332\200_>C!\212\240\201\276C\234\267U^\302\315a\306\361\255\262\254\243\001I\364\331\214u\372\004\t\2053x%\226G6\251\037\213D\3607}\247\227\002\361rR\234\255\261}n\373L\211Q\361Wr\353K(\e\227\034I\260\027\374\255\352\025\343$\311E\255\360\367\306\304\2408cS\b\337\313\234S\232]\234\002~"
 
-    def test_PEM_read_pkcs7_bio
+    def test_pem_read_pkcs7_bio
       bio = BIO::mem_buf(EXISTING_PKCS7_PEM.to_java_bytes)
       p7 = PKCS7.read_pem(bio)
 
@@ -776,16 +776,12 @@ PKCS7STR
 
     private
 
-    def assert_raise_pkcs7_exception(&block)
-      if JRUBY_VERSION < '1.7.0'
-        begin
-          yield
-          fail 'expected PKCS7Exception to be raised but did not'
-        rescue PKCS7Exception => e
-          assert e
-        end
-      else
-        assert_raise(NativeException, PKCS7Exception, &block)
+    def assert_raise_pkcs7_exception
+      begin
+        yield
+        fail 'expected PKCS7Exception to be raised but did not'
+      rescue PKCS7Exception => e
+        assert e
       end
     end
 
