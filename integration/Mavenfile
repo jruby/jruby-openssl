@@ -35,12 +35,12 @@ jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
   # BUT not be part of the runit-classloader
   # otherwise jruby-1.7.x and jruby-1.6.x will not use those
   # required in the test_*.rb files
-  #jar  'org.bouncycastle', 'bcpkix-jdk15on', '${bc.version}'
-  #jar  'org.bouncycastle', 'bcprov-jdk15on', '${bc.version}'
-  spec.requirements.each do |req|
-    req = req.sub('jar', '').split(',').each(&:strip!)
-    jar req[0], req[1]
-  end
+  jar  'org.bouncycastle', 'bcpkix-jdk15on', '${bc.version}'
+  jar  'org.bouncycastle', 'bcprov-jdk15on', '${bc.version}'
+  #spec.requirements.each do |req|
+  #  req = req.sub('jar', '').split(',').each(&:strip!)
+  #  jar req[0], req[1]
+  #end
 
   gem 'jruby-openssl', '${jruby.openssl.version}'
 
