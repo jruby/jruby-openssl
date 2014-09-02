@@ -1,3 +1,13 @@
+== 0.9.6 (pending)
+
+* update to using BC 1.49 by default (still compatible with older versions)
+* implement X509::StoreContext#current_crl method
+* support X509::StoreContext cleanup and error_depth instance methods
+* support disabling of warnings using system property -Djruby.openssl.warn
+* Throw error when chain certs are *not* OpenSSL::X509::Certificate (#3)
+* avoid using JRuby IO APIs (will likely not work in 9k)
+* make 'jopenssl/load' also work on jruby-1.6.8 mode 1.9
+
 == 0.9.5
 
 MASSIVE internal "rewrite" to avoid depending on a registered (BC) security
