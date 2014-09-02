@@ -36,6 +36,12 @@ else
   TestCase = Test::Unit::TestCase
 end
 
+TestCase.class_eval do
+
+  alias assert_raise assert_raises unless method_defined?(:assert_raise)
+
+end
+
 begin
   gem 'mocha'
 rescue LoadError => e

@@ -14,9 +14,11 @@ class TestX509Certificate < TestCase
     empty_name = OpenSSL::X509::Name.new
     assert_equal empty_name, cert.issuer
     assert_equal empty_name, cert.subject
-    assert_equal OpenSSL::BN.new(0), cert.serial
+    bn = OpenSSL::BN.new('0') unless defined? JRUBY_VERSION
+    assert_equal bn || OpenSSL::BN.new(0), cert.serial
     assert_equal nil, cert.not_before
     assert_equal nil, cert.not_after
+    assert_raise(OpenSSL::X509::CertificateError) { cert.public_key }
   end
 
 end
