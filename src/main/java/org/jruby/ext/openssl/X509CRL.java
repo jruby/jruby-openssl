@@ -43,6 +43,8 @@ import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.cert.CRLException;
 import java.security.cert.CertificateFactory;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -80,6 +82,8 @@ import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
 import static org.jruby.ext.openssl.OpenSSLReal.warn;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Extensions.Extension;
+import org.jruby.runtime.builtin.Variable;
+import org.jruby.runtime.component.VariableEntry;
 import org.jruby.util.ByteList;
 
 /**
@@ -300,6 +304,18 @@ public class X509CRL extends RubyObject {
     131
         */
         return runtime.newString( text.toString() );
+    }
+
+    @Override
+    @JRubyMethod
+    public IRubyObject inspect() {
+        return ObjectSupport.inspect(this, getInstanceVariableList());
+    }
+
+    @Override // FAKE'em to include "instance" variables in inspect
+    public List<Variable<IRubyObject>> getInstanceVariableList() {
+        final ArrayList<Variable<IRubyObject>> list = new ArrayList<Variable<IRubyObject>>(6);
+        return list;
     }
 
     @JRubyMethod

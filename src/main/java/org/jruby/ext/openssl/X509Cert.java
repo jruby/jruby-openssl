@@ -45,6 +45,7 @@ import java.security.cert.X509Certificate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -77,6 +78,9 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 
 import static org.jruby.ext.openssl.X509._X509;
+import org.jruby.runtime.builtin.Variable;
+import org.jruby.runtime.component.VariableEntry;
+import org.jruby.util.IdUtil;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -289,7 +293,17 @@ public class X509Cert extends RubyObject {
     @Override
     @JRubyMethod
     public IRubyObject inspect() {
-        return getRuntime().getNil();
+        return ObjectSupport.inspect(this);
+    }
+
+    @Override // FAKE'em to include "instance" variables in inspect
+    public List<Variable<IRubyObject>> getInstanceVariableList() {
+        final ArrayList<Variable<IRubyObject>> list = new ArrayList<Variable<IRubyObject>>(4);
+        list.add(new VariableEntry<IRubyObject>("issuer", this.issuer == null ? getRuntime().getNil() : this.issuer));
+        list.add(new VariableEntry<IRubyObject>("serial", this.serial == null ? getRuntime().getNil() : this.serial));
+        list.add(new VariableEntry<IRubyObject>("not_before", this.not_before == null ? getRuntime().getNil() : this.not_before));
+        list.add(new VariableEntry<IRubyObject>("not_after", this.not_after == null ? getRuntime().getNil() : this.not_after));
+        return list;
     }
 
     @JRubyMethod
