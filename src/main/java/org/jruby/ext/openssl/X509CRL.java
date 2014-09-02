@@ -136,11 +136,12 @@ public class X509CRL extends RubyObject {
         final IRubyObject[] args, final Block block) {
         final Ruby runtime = context.runtime;
 
+        this.version = runtime.newFixnum(0);
+        //this.issuer = new X509Name(runtime, X509Name._Name(runtime));
         this.extensions = runtime.newArray();
         this.revoked = runtime.newArray();
 
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) {
-            issuer = version = runtime.getNil();
             next_update = last_update = runtime.getNil();
             return this;
         }
@@ -339,7 +340,7 @@ public class X509CRL extends RubyObject {
 
     @JRubyMethod
     public IRubyObject issuer() {
-        return this.issuer;
+        return this.issuer == null ? this.issuer = X509Name.newInstance(getRuntime()) : this.issuer;
     }
 
     @JRubyMethod(name="issuer=")

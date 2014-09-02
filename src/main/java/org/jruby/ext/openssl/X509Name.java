@@ -118,6 +118,10 @@ public class X509Name extends RubyObject {
         _Name.setConstant("OBJECT_TYPE_TEMPLATE", hash);
     }
 
+    static X509Name newInstance(final Ruby runtime) {
+        return new X509Name(runtime, _Name(runtime));
+    }
+
     static RubyClass _Name(final Ruby runtime) {
         return _X509(runtime).getClass("Name");
     }
