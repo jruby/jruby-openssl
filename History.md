@@ -1,5 +1,6 @@
 == 0.9.6 (pending)
 
+* handle OpenSSL::X509::Store.add error messages correctly (fix based on #6)
 * update to using BC 1.49 by default (still compatible with older versions)
 * implement X509::StoreContext#current_crl method
 * support X509::StoreContext cleanup and error_depth instance methods

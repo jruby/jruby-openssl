@@ -28,6 +28,8 @@
 package org.jruby.ext.openssl.x509store;
 
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.jruby.ext.openssl.x509store.X509Utils.*;
@@ -111,9 +113,28 @@ public class X509Error {
         }
     }
 
+    public static Integer getLastError() {
+        Map<Integer, String> errorsMap = getErrorsImpl(false);
+        if ( errorsMap == null || errorsMap.isEmpty() ) return null;
+        final Iterator<Integer> i = errorsMap.keySet().iterator();
+        Integer lastError = null;
+        while ( i.hasNext() ) lastError = i.next();
+        if ( lastError != null ) i.remove(); // remove last
+        return lastError;
+    }
+
+    public static String getLastErrorMessage() {
+        final Integer lastError = getLastError();
+        return lastError == null ? null : getMessage(lastError);
+    }
+
     public static Map<Integer, String> getErrors() {
+        return getErrorsImpl(true);
+    }
+
+    public static Map<Integer, String> getErrorsImpl(boolean required) {
         Map<Integer, String> errorsMap = errors.get();
-        if ( errorsMap == null ) {
+        if ( errorsMap == null && required ) {
             synchronized (errors) {
                 errorsMap = errors.get();
                 if ( errorsMap == null ) errorsMap = newErrorsMap();
@@ -123,7 +144,7 @@ public class X509Error {
     }
 
     private static Map<Integer, String> newErrorsMap() {
-        Map<Integer, String> map = new HashMap<Integer, String>(8);
+        Map<Integer, String> map = new LinkedHashMap<Integer, String>(8);
         errors.set(map); return map;
     }
 

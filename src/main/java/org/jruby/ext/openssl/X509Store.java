@@ -48,6 +48,7 @@ import org.jruby.runtime.Visibility;
 
 import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
 import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import org.jruby.ext.openssl.x509store.X509Error;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -170,7 +171,7 @@ public class X509Store extends RubyObject {
     public IRubyObject add_cert(final ThreadContext context, final IRubyObject _cert) {
         X509AuxCertificate cert = (_cert instanceof X509Cert) ? ((X509Cert)_cert).getAuxCert() : (X509AuxCertificate)null;
         if ( store.addCertificate(cert) != 1 ) {
-            raiseStoreError(context, null);
+            raiseStoreError(context, X509Error.getLastErrorMessage());
         }
         return this;
     }
@@ -179,7 +180,7 @@ public class X509Store extends RubyObject {
     public IRubyObject add_crl(final ThreadContext context, final IRubyObject arg) {
         java.security.cert.X509CRL crl = (arg instanceof X509CRL) ? ((X509CRL) arg).getCRL() : null;
         if ( store.addCRL(crl) != 1 ) {
-            raiseStoreError(context, null);
+            raiseStoreError(context, X509Error.getLastErrorMessage());
         }
         return this;
     }
