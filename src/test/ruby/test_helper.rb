@@ -23,19 +23,27 @@ end if defined? JRUBY_VERSION
 #rescue LoadError
 #  puts "gem 'test-unit' not available, will load built-in 'test/unit'"
 #end
-require 'test/unit'
+begin
+  gem 'minitest'
+  require 'minitest/autorun'
+rescue LoadError
+end
+
+if defined? Minitest::Test
+  TestCase = Minitest::Test
+else
+  require 'test/unit'
+  TestCase = Test::Unit::TestCase
+end
 
 begin
   gem 'mocha'
 rescue LoadError => e
-  warn "#{e.inspect} to run all tests please `gem install mocha'"
-end
-
-begin
+  warn "#{e} to run all tests please `gem install mocha'"
+else
   if defined? MiniTest
     require 'mocha/mini_test'
   else
     require 'mocha/test_unit'
   end
-rescue LoadError
 end
