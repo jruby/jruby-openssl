@@ -16,6 +16,7 @@ class TestX509Context < TestCase
     assert_equal nil, crl.last_update
     assert_equal nil, crl.next_update
     assert_equal [], crl.revoked
+    assert_equal "itu-t", crl.signature_algorithm
   end
 
 end

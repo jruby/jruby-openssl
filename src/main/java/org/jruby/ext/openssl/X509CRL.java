@@ -112,7 +112,7 @@ public class X509CRL extends RubyObject {
     private IRubyObject revoked; // RubyArray
     private RubyArray extensions;
 
-    private IRubyObject signatureAlgorithm;
+    private IRubyObject signature_algorithm;
 
     private boolean changed = true;
 
@@ -335,7 +335,7 @@ public class X509CRL extends RubyObject {
 
     @JRubyMethod
     public IRubyObject signature_algorithm() {
-        return signatureAlgorithm;
+        return signature_algorithm == null ? signature_algorithm = getRuntime().newString("itu-t") : signature_algorithm;
     }
 
     @JRubyMethod
@@ -426,7 +426,7 @@ public class X509CRL extends RubyObject {
             throw newCRLError(runtime, "unsupported key / digest algorithm ("+ key +" / "+ digAlg +")");
         }
 
-        signatureAlgorithm = runtime.newString(digAlg);
+        signature_algorithm = runtime.newString(digAlg);
         generator.setSignatureAlgorithm(digAlg + "WITH" + keyAlg);
 
         final RubyArray revoked = (RubyArray) this.revoked;
