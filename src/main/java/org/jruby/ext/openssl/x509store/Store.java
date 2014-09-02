@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.net.ssl.X509TrustManager;
 
+import static org.jruby.ext.openssl.x509store.X509Utils.*;
+
 /**
  * c: X509_STORE
  *
@@ -263,9 +265,9 @@ public class Store implements X509TrustManager {
         certObj.x509 = StoreContext.ensureAux(cert);
 
         int ret = 1;
-        synchronized(X509Utils.CRYPTO_LOCK_X509_STORE) {
+        synchronized (CRYPTO_LOCK_X509_STORE) {
             if ( X509Object.retrieveMatch(objects,certObj) != null ) {
-                X509Error.addError(X509Utils.X509_R_CERT_ALREADY_IN_HASH_TABLE);
+                X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
                 ret = 0;
             }
             else {
@@ -284,9 +286,9 @@ public class Store implements X509TrustManager {
         final CRL crlObj = new CRL(); crlObj.crl = crl;
 
         int ret = 1;
-        synchronized(X509Utils.CRYPTO_LOCK_X509_STORE) {
+        synchronized (CRYPTO_LOCK_X509_STORE) {
             if ( X509Object.retrieveMatch(objects,crlObj) != null ) {
-                X509Error.addError(X509Utils.X509_R_CERT_ALREADY_IN_HASH_TABLE);
+                X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
                 ret = 0;
             }
             else {
@@ -305,7 +307,7 @@ public class Store implements X509TrustManager {
             if ( lookup == null ) {
                 return 0;
             }
-            if ( lookup.loadFile(new CertificateFile.Path(file,X509Utils.X509_FILETYPE_PEM)) != 1 ) {
+            if ( lookup.loadFile(new CertificateFile.Path(file, X509_FILETYPE_PEM)) != 1 ) {
                 return 0;
             }
         }
@@ -315,7 +317,7 @@ public class Store implements X509TrustManager {
             if ( lookup == null ) {
                 return 0;
             }
-            if ( lookup.addDir(new CertificateHashDir.Dir(path,X509Utils.X509_FILETYPE_PEM)) != 1 ) {
+            if ( lookup.addDir(new CertificateHashDir.Dir(path, X509_FILETYPE_PEM)) != 1 ) {
                 return 0;
             }
         }
@@ -333,7 +335,7 @@ public class Store implements X509TrustManager {
         //if ( lookup == null ) return 0;
 
         try {
-            lookup.loadFile(new CertificateFile.Path(null, X509Utils.X509_FILETYPE_DEFAULT));
+            lookup.loadFile(new CertificateFile.Path(null, X509_FILETYPE_DEFAULT));
         }
         catch (FileNotFoundException e) {
             // set_default_paths ignores FileNotFound
@@ -343,7 +345,7 @@ public class Store implements X509TrustManager {
         //if ( lookup == null ) return 0;
 
         try {
-            lookup.addDir(new CertificateHashDir.Dir(null, X509Utils.X509_FILETYPE_DEFAULT));
+            lookup.addDir(new CertificateHashDir.Dir(null, X509_FILETYPE_DEFAULT));
         }
         catch(FileNotFoundException e) {
             // set_default_paths ignores FileNotFound
@@ -354,12 +356,15 @@ public class Store implements X509TrustManager {
     }
 
 
+    @Override
     public void checkClientTrusted(X509Certificate[] chain, String authType) {
     }
 
+    @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType) {
     }
 
+    @Override
     public X509Certificate[] getAcceptedIssuers() {
         ArrayList<X509Certificate> issuers = new ArrayList<X509Certificate>(objects.size());
         for ( X509Object object : objects ) {

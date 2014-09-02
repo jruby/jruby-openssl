@@ -27,8 +27,10 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+
+import static org.jruby.ext.openssl.x509store.X509Utils.*;
 
 /**
  * Provide a dynamically-growing list of X509 error messages.
@@ -36,61 +38,60 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class X509Error {
-    private static ThreadLocal<Map<Integer, String>> errors = new ThreadLocal<Map<Integer, String>>();
 
     public static String getMessage(int reason) {
         switch (reason) {
-            case X509Utils.X509_R_BAD_X509_FILETYPE:
+            case X509_R_BAD_X509_FILETYPE:
                 return "bad x509 filetype";
-            case X509Utils.X509_R_BASE64_DECODE_ERROR:
+            case X509_R_BASE64_DECODE_ERROR:
                 return "base64 decode error";
-            case X509Utils.X509_R_CANT_CHECK_DH_KEY:
+            case X509_R_CANT_CHECK_DH_KEY:
                 return "cant check dh key";
-            case X509Utils.X509_R_CERT_ALREADY_IN_HASH_TABLE:
+            case X509_R_CERT_ALREADY_IN_HASH_TABLE:
                 return "cert already in hash table";
-            case X509Utils.X509_R_ERR_ASN1_LIB:
+            case X509_R_ERR_ASN1_LIB:
                 return "err asn1 lib";
-            case X509Utils.X509_R_INVALID_DIRECTORY:
+            case X509_R_INVALID_DIRECTORY:
                 return "invalid directory";
-            case X509Utils.X509_R_INVALID_FIELD_NAME:
+            case X509_R_INVALID_FIELD_NAME:
                 return "invalid field name";
-            case X509Utils.X509_R_INVALID_TRUST:
+            case X509_R_INVALID_TRUST:
                 return "invalid trust";
-            case X509Utils.X509_R_KEY_TYPE_MISMATCH:
+            case X509_R_KEY_TYPE_MISMATCH:
                 return "key type mismatch";
-            case X509Utils.X509_R_KEY_VALUES_MISMATCH:
+            case X509_R_KEY_VALUES_MISMATCH:
                 return "key values mismatch";
-            case X509Utils.X509_R_LOADING_CERT_DIR:
+            case X509_R_LOADING_CERT_DIR:
                 return "loading cert dir";
-            case X509Utils.X509_R_LOADING_DEFAULTS:
+            case X509_R_LOADING_DEFAULTS:
                 return "loading defaults";
-            case X509Utils.X509_R_METHOD_NOT_SUPPORTED:
+            case X509_R_METHOD_NOT_SUPPORTED:
                 return "method not supported";
-            case X509Utils.X509_R_NO_CERT_SET_FOR_US_TO_VERIFY:
+            case X509_R_NO_CERT_SET_FOR_US_TO_VERIFY:
                 return "no cert set for us to verify";
-            case X509Utils.X509_R_PUBLIC_KEY_DECODE_ERROR:
+            case X509_R_PUBLIC_KEY_DECODE_ERROR:
                 return "public key decode error";
-            case X509Utils.X509_R_PUBLIC_KEY_ENCODE_ERROR:
+            case X509_R_PUBLIC_KEY_ENCODE_ERROR:
                 return "public key encode error";
-            case X509Utils.X509_R_SHOULD_RETRY:
+            case X509_R_SHOULD_RETRY:
                 return "should retry";
-            case X509Utils.X509_R_UNABLE_TO_FIND_PARAMETERS_IN_CHAIN:
+            case X509_R_UNABLE_TO_FIND_PARAMETERS_IN_CHAIN:
                 return "unable to find parameters in chain";
-            case X509Utils.X509_R_UNABLE_TO_GET_CERTS_PUBLIC_KEY:
+            case X509_R_UNABLE_TO_GET_CERTS_PUBLIC_KEY:
                 return "unable to get certs public key";
-            case X509Utils.X509_R_UNKNOWN_KEY_TYPE:
+            case X509_R_UNKNOWN_KEY_TYPE:
                 return "unknown key type";
-            case X509Utils.X509_R_UNKNOWN_NID:
+            case X509_R_UNKNOWN_NID:
                 return "unknown nid";
-            case X509Utils.X509_R_UNKNOWN_PURPOSE_ID:
+            case X509_R_UNKNOWN_PURPOSE_ID:
                 return "unknown purpose id";
-            case X509Utils.X509_R_UNKNOWN_TRUST_ID:
+            case X509_R_UNKNOWN_TRUST_ID:
                 return "unknown trust id";
-            case X509Utils.X509_R_UNSUPPORTED_ALGORITHM:
+            case X509_R_UNSUPPORTED_ALGORITHM:
                 return "unsupported algorithm";
-            case X509Utils.X509_R_WRONG_LOOKUP_TYPE:
+            case X509_R_WRONG_LOOKUP_TYPE:
                 return "wrong lookup type";
-            case X509Utils.X509_R_WRONG_TYPE:
+            case X509_R_WRONG_TYPE:
                 return "wrong type";
 
             default:
@@ -98,32 +99,32 @@ public class X509Error {
         }
     }
 
+    private static ThreadLocal<Map<Integer, String>> errors = new ThreadLocal<Map<Integer, String>>();
+
     public static void addError(int reason) {
-        Map<Integer, String> errs = errors.get();
-        if (errs == null) {
-            errs = new ConcurrentHashMap<Integer, String>(40, 0.75f, 1);
-            errors.set(errs);
-        }
-        errs.put(reason, getMessage(reason));
+        getErrors().put(reason, getMessage(reason));
     }
 
     public static void clearErrors() {
         synchronized (errors) {
-            Map<Integer, String> errs = errors.get();
-            if (errs != null) {
-                errs.clear();
-            }
+            if ( errors.get() != null ) newErrorsMap();
         }
     }
 
     public static Map<Integer, String> getErrors() {
-        synchronized (errors) {
-            Map<Integer, String> errs = errors.get();
-            if (errs == null) {
-                errs = new ConcurrentHashMap<Integer, String>(40, 0.75f, 1);
-                errors.set(errs);
+        Map<Integer, String> errorsMap = errors.get();
+        if ( errorsMap == null ) {
+            synchronized (errors) {
+                errorsMap = errors.get();
+                if ( errorsMap == null ) errorsMap = newErrorsMap();
             }
-            return errs;
         }
+        return errorsMap;
     }
+
+    private static Map<Integer, String> newErrorsMap() {
+        Map<Integer, String> map = new HashMap<Integer, String>(8);
+        errors.set(map); return map;
+    }
+
 }// Err
