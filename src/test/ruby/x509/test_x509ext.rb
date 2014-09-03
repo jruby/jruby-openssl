@@ -37,9 +37,14 @@ class TestX509Extension < TestCase
 
     assert_equal '1.1.1.1.1.1', ext.oid
 
-    # TODO ASN1 needs to fallback to ASN1Registry
-    #ext.oid = '1.2'
-    #assert_equal 'member-body', ext.oid
+    ext.oid = '1.2'
+    assert_equal 'member-body', ext.oid
+  end
+
+  def test_sym_name
+    ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
+    ext.oid = '1.2'
+    assert_equal 'member-body', ext.oid
   end
 
   def test_to_der # reproducing #389

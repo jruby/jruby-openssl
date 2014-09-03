@@ -625,7 +625,7 @@ public class X509Extensions {
 
         @JRubyMethod
         public IRubyObject oid(final ThreadContext context) {
-            String name = ASN1.oid2Sym(context.runtime, oid);
+            String name = ASN1.oid2Sym(context.runtime, oid, true);
             if ( name == null ) name = oid.toString();
             return context.runtime.newString(name);
         }
@@ -833,7 +833,7 @@ public class X509Extensions {
                         return decoded.callMethod(context, "value").asString();
                     }
                     catch (IOException e) {
-                        if ( isDebug(runtime) ) e.printStackTrace(runtime.getOut());
+                        // debugStackTrace(runtime, e);
                         return runtime.newString( getRealValue().toString() ); // throw e;
                     }
                     catch (IllegalArgumentException e) {

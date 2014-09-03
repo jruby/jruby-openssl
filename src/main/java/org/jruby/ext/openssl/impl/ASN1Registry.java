@@ -53,8 +53,17 @@ public class ASN1Registry {
         return obj2nid(new ASN1ObjectIdentifier(oid));
     }
 
+    @Deprecated
     public static Integer obj2nid(final ASN1ObjectIdentifier oid) {
+        return oid2nid(oid);
+    }
+
+    public static Integer oid2nid(final ASN1ObjectIdentifier oid) {
         return OID_TO_NID.get(oid);
+    }
+
+    public static String oid2sym(final ASN1ObjectIdentifier oid) {
+        return OID_TO_SYM.get(oid);
     }
 
     // seems no longer used
