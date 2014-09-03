@@ -29,6 +29,7 @@ package org.jruby.ext.openssl;
 
 import java.io.IOException;
 import java.math.BigInteger;
+
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Extension;
 
@@ -589,7 +590,7 @@ public class X509Extensions {
         }
 
         @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
-        public IRubyObject _initialize(final ThreadContext context, final IRubyObject[] args) {
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
             byte[] octets = null;
             if ( args.length == 1 ) {
                 try {
@@ -609,6 +610,10 @@ public class X509Extensions {
                 setRealOid( ASN1.getObjectIdentifier( context.runtime, args[0].toString() ) );
                 setRealValue( args[1] );
             }
+            else { // args.length < 1
+                throw context.runtime.newArgumentError("wrong number of arguments (0 for 1..3)");
+            }
+
             if ( args.length > 2 ) {
                 setRealCritical( args[2].isTrue() );
             }
@@ -879,6 +884,11 @@ public class X509Extensions {
             vec.add( new DEROctetString(getRealValueBytes()) );
             return new DLSequence(vec);
         }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        @JRubyMethod
+        public IRubyObject inspect() { return ObjectSupport.inspect(this); }
 
     }
 

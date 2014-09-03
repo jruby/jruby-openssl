@@ -120,8 +120,7 @@ public class X509Revoked extends RubyObject {
     }
 
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args,
-        final Block unusedBlock) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         serial = BN.newInstance(context.runtime, BigInteger.ZERO);
         return this;
     }

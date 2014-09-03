@@ -3,7 +3,22 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestX509Extension < TestCase
 
-  def setup; require 'jopenssl/load' end
+  if defined? JRUBY_VERSION
+    def setup; require 'jopenssl/load' end
+  else
+    def setup; require 'openssl' end
+  end
+
+  def test_new
+    assert_raise(ArgumentError) { OpenSSL::X509::Extension.new }
+    # OpenSSL::X509::ExtensionError: nested asn1 error
+    assert_raise(OpenSSL::X509::ExtensionError) { OpenSSL::X509::Extension.new '1' }
+    ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
+    if RUBY_VERSION >= '2.0.0' || defined? JRUBY_VERSION
+      assert ext.inspect.index('#<OpenSSL::X509::Extension:') == 0, ext.inspect
+    end
+    assert_equal '1.1.1.1.1.1 = foo', ext.to_s
+  end
 
   def test_attrs
     ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
@@ -65,7 +80,7 @@ class TestX509Extension < TestCase
 
     ext1.critical = true
 
-    assert_not_equal ext1.to_der, ext2.to_der
+    assert ext1.to_der != ext2.to_der
   end
 
 end
