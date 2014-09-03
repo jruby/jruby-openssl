@@ -46,23 +46,6 @@ module OpenSSL
       end
     end
 
-    class Extension
-      def to_s # "oid = critical, value"
-        str = self.oid
-        str << " = "
-        str << "critical, " if self.critical?
-        str << self.value.gsub(/\n/, ", ")
-      end
-
-      def to_h # {"oid"=>sn|ln, "value"=>value, "critical"=>true|false}
-        {"oid"=>self.oid,"value"=>self.value,"critical"=>self.critical?}
-      end
-
-      def to_a
-        [ self.oid, self.value, self.critical? ]
-      end
-    end
-
     class Name
       module RFC2253DN
         Special = ',=+<>#;'
