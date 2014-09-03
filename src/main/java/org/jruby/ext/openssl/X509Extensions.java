@@ -30,6 +30,7 @@ package org.jruby.ext.openssl;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
+import java.security.cert.X509Extension;
 
 import org.bouncycastle.asn1.ASN1Boolean;
 import org.bouncycastle.asn1.ASN1Encodable;
@@ -497,6 +498,24 @@ public class X509Extensions {
         }
     }
 
+    static Extension newExtension(final ThreadContext context,
+        final RubyModule _ASN1, final RubyClass _Extension,
+        final String oid, final X509Extension ext, final boolean critical) {
+        final byte[] extValue = ext.getExtensionValue(oid);
+        // TODO: wired. J9 returns null for an OID given in getNonCriticalExtensionOIDs()
+        if ( extValue == null ) return null;
+
+        RubyString extValueStr = context.runtime.newString( new ByteList(extValue, false) );
+        IRubyObject rValue = ASN1.decode(context, _ASN1, extValueStr).callMethod(context, "value");
+
+        Extension extension = new Extension(context.runtime, _Extension);
+        extension.setRealOid(oid);
+        extension.setRealCritical(critical);
+        extension.setRealValue(rValue);
+
+        return extension;
+    }
+
     public static class Extension extends RubyObject {
         private static final long serialVersionUID = -1160318458085651926L;
 
@@ -520,6 +539,10 @@ public class X509Extensions {
 
         void setRealOid(ASN1ObjectIdentifier oid) {
             this.oid = oid;
+        }
+
+        private void setRealOid(final String oid) {
+            setRealOid( ASN1.getObjectIdentifier( getRuntime(), oid ) );
         }
 
         Object getRealValue() {
@@ -834,18 +857,23 @@ public class X509Extensions {
 
         @JRubyMethod
         public IRubyObject to_der() {
-            final ASN1EncodableVector vec = new ASN1EncodableVector();
             try {
-                vec.add( getRealOid() );
-                if ( critical != null && critical.booleanValue() ) {
-                    vec.add( DERBoolean.TRUE );
-                }
-                vec.add( new DEROctetString(getRealValueBytes()) );
-                return StringHelper.newString(getRuntime(), new DLSequence(vec).getEncoded(ASN1Encoding.DER));
+                final byte[] enc = toASN1Sequence().getEncoded(ASN1Encoding.DER);
+                return StringHelper.newString(getRuntime(), enc);
             }
             catch (IOException e) {
                 throw newExtensionError(getRuntime(), e.getMessage());
             }
+        }
+
+        ASN1Sequence toASN1Sequence() throws IOException {
+            final ASN1EncodableVector vec = new ASN1EncodableVector();
+            vec.add( getRealOid() );
+            if ( critical != null && critical.booleanValue() ) {
+                vec.add( DERBoolean.TRUE );
+            }
+            vec.add( new DEROctetString(getRealValueBytes()) );
+            return new DLSequence(vec);
         }
 
     }

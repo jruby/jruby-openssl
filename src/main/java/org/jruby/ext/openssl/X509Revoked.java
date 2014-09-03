@@ -27,16 +27,27 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl;
 
+import java.math.BigInteger;
+import java.security.cert.X509CRLEntry;
+
+import java.util.Collections;
+import java.util.Set;
+
+import org.joda.time.DateTime;
 import org.jruby.Ruby;
+import org.jruby.RubyArray;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
+import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
+
+import static org.jruby.ext.openssl.X509._X509;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -51,27 +62,72 @@ public class X509Revoked extends RubyObject {
         }
     };
 
-    public static void createX509Revoked(Ruby runtime, RubyModule mX509) {
-        RubyClass cX509Rev = mX509.defineClassUnder("Revoked",runtime.getObject(),X509REVOKED_ALLOCATOR);
-        RubyClass openSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        mX509.defineClassUnder("RevokedError",openSSLError,openSSLError.getAllocator());
+    public static void createX509Revoked(final Ruby runtime, final RubyModule _X509) {
+        RubyClass _Revoked = _X509.defineClassUnder("Revoked", runtime.getObject(), X509REVOKED_ALLOCATOR);
+        RubyClass _OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
+        _X509.defineClassUnder("RevokedError", _OpenSSLError, _OpenSSLError.getAllocator());
 
-        cX509Rev.defineAnnotatedMethods(X509Revoked.class);
+        _Revoked.defineAnnotatedMethods(X509Revoked.class);
+    }
+
+    static RubyClass _Revoked(final Ruby runtime) {
+        return _X509(runtime).getClass("Revoked");
+    }
+
+    static X509Revoked newInstance(final ThreadContext context, final X509CRLEntry entry) {
+        final Ruby runtime = context.runtime;
+
+        final X509Revoked revoked = new X509Revoked(runtime, _Revoked(runtime));
+        revoked.serial = BN.newInstance(runtime, entry.getSerialNumber());
+        revoked.time = RubyTime.newTime(runtime, entry.getRevocationDate().getTime());
+
+        if ( entry.hasExtensions() ) {
+            final RubyModule _OpenSSL = runtime.getModule("OpenSSL");
+            final RubyModule _X509 = (RubyModule) _OpenSSL.getConstant("X509");
+            final RubyModule _ASN1 = (RubyModule) _OpenSSL.getConstant("ASN1");
+            final RubyClass _Extension = _X509.getClass("Extension");
+
+            final Set<String> criticalExtOIDs = entry.getCriticalExtensionOIDs();
+            if ( criticalExtOIDs != null ) {
+                for ( final String extOID : criticalExtOIDs ) {
+                    revoked.addExtension(context, _ASN1, _Extension, entry, extOID, true);
+                }
+            }
+            final Set<String> nonCriticalExtOIDs = entry.getNonCriticalExtensionOIDs();
+            if ( nonCriticalExtOIDs != null ) {
+                for ( final String extOID : nonCriticalExtOIDs ) {
+                    revoked.addExtension(context, _ASN1, _Extension, entry, extOID, false);
+                }
+            }
+        }
+        return revoked;
+    }
+
+    private void addExtension(final ThreadContext context, final RubyModule _ASN1,
+        final RubyClass _Extension, final X509CRLEntry entry,
+        final String extOID, final boolean critical) {
+        final IRubyObject extension =
+            X509Extensions.newExtension(context, _ASN1, _Extension, extOID, entry, critical);
+        if ( extension != null ) extensions().append( extension );
     }
 
     private IRubyObject serial;
-    private IRubyObject extensions;
-    private IRubyObject time;
+    private RubyArray extensions;
+    private RubyTime time;
 
     public X509Revoked(Ruby runtime, RubyClass type) {
         super(runtime,type);
     }
 
-    @JRubyMethod(name="initialize",rest=true, visibility = Visibility.PRIVATE)
-    public IRubyObject _initialize(final ThreadContext context, final IRubyObject[] args, final Block unusedBlock) {
-        serial = time = context.runtime.getNil();
-        extensions = context.runtime.newArray();
+    @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args,
+        final Block unusedBlock) {
+        serial = BN.newInstance(context.runtime, BigInteger.ZERO);
         return this;
+    }
+
+    BigInteger getSerial() {
+        return ((BN) this.serial).getValue();
     }
 
     @JRubyMethod
@@ -79,37 +135,50 @@ public class X509Revoked extends RubyObject {
         return this.serial;
     }
 
-    @JRubyMethod(name="serial=")
-    public IRubyObject set_serial(IRubyObject val) {
-        this.serial = val;
-        return val;
+    @JRubyMethod(name = "serial=")
+    public IRubyObject set_serial(final IRubyObject serial) {
+        return this.serial = serial;
+    }
+
+    DateTime getTime() {
+        if ( time == null ) return null;
+        return time.getDateTime();
     }
 
     @JRubyMethod
     public IRubyObject time() {
-        return this.time;
+        return time == null ? getRuntime().getNil() : time;
     }
 
-    @JRubyMethod(name="time=")
-    public IRubyObject set_time(IRubyObject val) {
-        this.time = val;
-        return val;
+    @JRubyMethod(name = "time=")
+    public IRubyObject set_time(final IRubyObject time) {
+        return this.time = (RubyTime) time;
     }
 
-    @JRubyMethod
-    public IRubyObject extensions() {
-        return this.extensions;
-    }
-
-    @JRubyMethod(name="extensions=")
-    public IRubyObject set_extensions(IRubyObject val) {
-        this.extensions = val;
-        return val;
+    boolean hasExtensions() {
+        return extensions != null && extensions.size() > 0;
     }
 
     @JRubyMethod
-    public IRubyObject add_extension(final ThreadContext context, final IRubyObject val) {
-        this.extensions.callMethod(context, "<<", val);
-        return val;
+    public RubyArray extensions() {
+        return extensions == null ? extensions = RubyArray.newArray(getRuntime(), 4) : extensions;
     }
+
+    @JRubyMethod(name = "extensions=")
+    public IRubyObject set_extensions(final IRubyObject extensions) {
+        return this.extensions = (RubyArray) extensions;
+    }
+
+    @JRubyMethod
+    public IRubyObject add_extension(final ThreadContext context, final IRubyObject ext) {
+        return extensions().callMethod(context, "<<", ext);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    @JRubyMethod
+    public IRubyObject inspect() {
+        return ObjectSupport.inspect(this, Collections.EMPTY_LIST);
+    }
+
 }// X509Revoked

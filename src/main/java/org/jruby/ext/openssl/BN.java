@@ -76,7 +76,12 @@ public class BN extends RubyObject {
         }
     };
 
+    //@Deprecated
     public static BN newBN(Ruby runtime, BigInteger value) {
+        return newInstance(runtime, value);
+    }
+
+    static BN newInstance(final Ruby runtime, BigInteger value) {
         return new BN(runtime, value != null ? value : BigInteger.ZERO);
     }
 
