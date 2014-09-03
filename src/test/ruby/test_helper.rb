@@ -54,7 +54,6 @@ else
   end
 end
 
-if defined? JRUBY_VERSION
-  # make sure our OpenSSL lib gets used not JRuby's
+if defined? JRUBY_VERSION # make sure our OpenSSL lib gets used not JRuby's
   $LOAD_PATH.unshift(File.expand_path('../../../lib', File.dirname(__FILE__)))
 end

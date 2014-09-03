@@ -54,14 +54,12 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
-import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyHash;
 import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
-import org.jruby.RubyRange;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
@@ -262,7 +260,7 @@ public class X509Extensions {
             catch (IOException e) {
                 throw newExtensionError(runtime, "Unable to create extension: " + e.getMessage());
             }
-            
+
             return newExtension(runtime, objectId, value, critical.isNil() ? null : critical.isTrue());
         }
 
@@ -979,13 +977,15 @@ public class X509Extensions {
         public RubyString to_s(final ThreadContext context) {
             final Ruby runtime = context.runtime;
             final RubyString str = RubyString.newString(runtime, oidSym(runtime));
-            str.getByteList().append(' ').append('=');
+            str.getByteList().append(' ').append('=').append(' ');
             if ( isRealCritical() ) str.getByteList().append(critical__);
             // self.value.gsub(/\n/, ", ")
-            str.callMethod(context, "gsub!", new IRubyObject[] {
+            final RubyString value = value(context);
+            value.callMethod(context, "gsub!", new IRubyObject[] {
                 RubyString.newStringShared(runtime, StringHelper.NEW_LINE),
                 RubyString.newStringShared(runtime, StringHelper.COMMA_SPACE)
             });
+            str.getByteList().append(value.getByteList());
             return str;
         }
 
