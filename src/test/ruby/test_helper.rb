@@ -55,5 +55,7 @@ else
 end
 
 if defined? JRUBY_VERSION # make sure our OpenSSL lib gets used not JRuby's
-  $LOAD_PATH.unshift(File.expand_path('../../../lib', File.dirname(__FILE__)))
+  unless ENV['BC_VERSION']
+    $LOAD_PATH.unshift(File.expand_path('../../../lib', File.dirname(__FILE__)))
+  end
 end
