@@ -18,6 +18,9 @@ class TestX509Extension < TestCase
       assert ext.inspect.index('#<OpenSSL::X509::Extension:') == 0, ext.inspect
     end
     assert_equal '1.1.1.1.1.1 = foo', ext.to_s
+
+    ext.critical = true
+    assert_equal '1.1.1.1.1.1 = critical, foo', ext.to_s
   end
 
   def test_attrs
@@ -45,6 +48,17 @@ class TestX509Extension < TestCase
     ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
     ext.oid = '1.2'
     assert_equal 'member-body', ext.oid
+  end
+
+  def test_to_a
+    ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
+    assert_equal [ '1.1.1.1.1.1', 'foo', false ], ext.to_a
+  end
+
+  def test_to_h
+    ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo', true)
+    hash = { 'oid' => '1.1.1.1.1.1', 'value' => 'foo', 'critical' => true }
+    assert_equal hash, ext.to_h
   end
 
   def test_to_der # reproducing #389

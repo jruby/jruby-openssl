@@ -55,6 +55,7 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
+import org.jruby.RubyHash;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
@@ -522,6 +523,7 @@ public class X509Extensions {
     }
 
     public static class Extension extends RubyObject {
+
         private static final long serialVersionUID = -1160318458085651926L;
 
         static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
@@ -625,9 +627,12 @@ public class X509Extensions {
 
         @JRubyMethod
         public IRubyObject oid(final ThreadContext context) {
-            String name = ASN1.oid2Sym(context.runtime, oid, true);
-            if ( name == null ) name = oid.toString();
-            return context.runtime.newString(name);
+            return context.runtime.newString( oidSym(context.runtime) );
+        }
+
+        private String oidSym(final Ruby runtime) {
+            final String name = ASN1.oid2Sym(runtime, oid, true);
+            return name == null ? oid.toString() : name;
         }
 
         @JRubyMethod(name="oid=")
@@ -671,7 +676,7 @@ public class X509Extensions {
         private static final byte[] keyid_ = { 'k','e','y','i','d',':' };
 
         @JRubyMethod
-        public IRubyObject value(final ThreadContext context) {
+        public RubyString value(final ThreadContext context) {
             final Ruby runtime = context.runtime;
             try {
                 final String realOid = getRealOid().getId();
@@ -855,8 +860,8 @@ public class X509Extensions {
         }
 
         @JRubyMethod(name="critical?")
-        public IRubyObject critical_p() {
-            return getRuntime().newBoolean( isRealCritical() );
+        public IRubyObject critical_p(final ThreadContext context) {
+            return context.runtime.newBoolean( isRealCritical() );
         }
 
         @JRubyMethod(name="critical=")
@@ -883,6 +888,43 @@ public class X509Extensions {
             }
             vec.add( new DEROctetString(getRealValueBytes()) );
             return new DLSequence(vec);
+        }
+
+        @JRubyMethod // [ self.oid, self.value, self.critical? ]
+        public RubyArray to_a(final ThreadContext context) {
+            RubyArray array= RubyArray.newArray(context.runtime, 3);
+            array.append( oid(context) );
+            array.append( value(context) );
+            array.append( critical_p(context) );
+            return array;
+        }
+
+        @JRubyMethod // {"oid"=>self.oid,"value"=>self.value,"critical"=>self.critical?
+        public RubyHash to_h(final ThreadContext context) {
+            final Ruby runtime = context.runtime;
+            RubyHash hash = RubyHash.newHash(runtime);
+            hash.op_aset( context, StringHelper.newStringFrozen(runtime, "oid"), oid(context) );
+            hash.op_aset( context, StringHelper.newStringFrozen(runtime, "value"), value(context) );
+            hash.op_aset( context, StringHelper.newStringFrozen(runtime, "critical"), critical_p(context) );
+            return hash;
+        }
+
+        private static final byte[] critical__ = new byte[] {
+            'c','r','i','t','i','c','a','l',',',' '
+        };
+
+        @JRubyMethod // "oid = critical, value"
+        public RubyString to_s(final ThreadContext context) {
+            final Ruby runtime = context.runtime;
+            final RubyString str = RubyString.newString(runtime, oidSym(runtime));
+            str.getByteList().append(' ').append('=');
+            if ( isRealCritical() ) str.getByteList().append(critical__);
+            // self.value.gsub(/\n/, ", ")
+            str.callMethod(context, "gsub!", new IRubyObject[] {
+                RubyString.newStringShared(runtime, StringHelper.NEW_LINE),
+                RubyString.newStringShared(runtime, StringHelper.COMMA_SPACE)
+            });
+            return str;
         }
 
         @Override

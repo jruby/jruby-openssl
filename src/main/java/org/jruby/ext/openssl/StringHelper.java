@@ -42,6 +42,16 @@ abstract class StringHelper {
         return RubyString.newString(runtime, byteList);
     }
 
+    static RubyString newStringFrozen(final Ruby runtime, final ByteList bytes) {
+        final RubyString str = RubyString.newStringShared(runtime, bytes);
+        str.setFrozen(true); return str;
+    }
+
+    static RubyString newStringFrozen(final Ruby runtime, final CharSequence chars) {
+        final RubyString str = RubyString.newString(runtime, chars);
+        str.setFrozen(true); return str;
+    }
+
     static RubyString readPossibleDERInput(final ThreadContext context, final IRubyObject arg) {
         return readInput(context, OpenSSLImpl.to_der_if_possible(context, arg));
     }
@@ -59,6 +69,18 @@ abstract class StringHelper {
             throw context.runtime.newArgumentError("IO `" + arg.inspect() + "' contained no data");
         }
         return arg.asString();
+    }
+
+    static final ByteList NEW_LINE = new ByteList(new byte[] { '\n' }, false);
+    static final ByteList COMMA_SPACE = new ByteList(new byte[] { ',',' ' }, false);
+
+    static void gsub(final Ruby runtime, final ByteList str, final byte match, final byte replace) {
+        final int begin = str.getBegin();
+        final int slen = str.getRealSize();
+        final byte[] bytes = str.getUnsafeBytes();
+        for ( int i = begin; i < begin + slen; i++ ) {
+            if ( bytes[i] == match ) bytes[i] = replace;
+        }
     }
 
 }
