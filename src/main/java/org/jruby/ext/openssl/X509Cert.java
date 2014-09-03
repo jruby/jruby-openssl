@@ -209,30 +209,24 @@ public class X509Cert extends RubyObject {
         final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
         if ( criticalExtOIDs != null ) {
             for ( final String extOID : criticalExtOIDs ) {
-                addExtension(context, _ASN1, _Extension, extOID, runtime.getTrue());
+                addExtension(context, _ASN1, _Extension, extOID, true);
             }
         }
-
+        
         final Set<String> nonCriticalExtOIDs = cert.getNonCriticalExtensionOIDs();
         if ( nonCriticalExtOIDs != null ) {
             for ( final String extOID : nonCriticalExtOIDs ) {
-                addExtension(context, _ASN1, _Extension, extOID, runtime.getFalse());
+                addExtension(context, _ASN1, _Extension, extOID, false);
             }
         }
         changed = false;
     }
 
     private void addExtension(final ThreadContext context, final RubyModule _ASN1,
-        final RubyClass _Extension, final String extOID, final RubyBoolean critical) {
-        final byte[] extValue = cert.getExtensionValue(extOID);
-        // TODO: wired. J9 returns null for an OID given in getNonCriticalExtensionOIDs()
-        if ( extValue == null ) return;
-
-        RubyString extValueStr = context.runtime.newString( new ByteList(extValue, false) );
-        IRubyObject rValue = ASN1.decode(context, _ASN1, extValueStr).callMethod(context, "value");
-        IRubyObject extension = _Extension.callMethod(context, "new",
-            new IRubyObject[] { context.runtime.newString(extOID), rValue, critical });
-        add_extension(extension);
+        final RubyClass _Extension, final String extOID, final boolean critical) {
+        final IRubyObject extension =
+            X509Extensions.newExtension(context, _ASN1, _Extension, extOID, cert, critical);
+        if ( extension != null ) add_extension(extension);
     }
 
     //Lazy method for public key instantiation
