@@ -33,7 +33,7 @@ import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -823,19 +823,12 @@ public class ASN1 {
                 return klass.callMethod(context, "new", BN.newBN(context.runtime, ((ASN1Integer) obj).getValue()));
             }
             else if ( obj instanceof DERUTCTime ) {
-                final Calendar calendar = Calendar.getInstance();
+                final Date adjustedTime;
                 try {
-                    calendar.setTime( dateFormat.parse(((DERUTCTime) obj).getAdjustedTime()) );
-                } catch (ParseException e) { throw new IOException(e); }
-                IRubyObject[] argv = new IRubyObject[] {
-                    context.runtime.newFixnum(calendar.get(Calendar.YEAR)),
-                    context.runtime.newFixnum(calendar.get(Calendar.MONTH) + 1),
-                    context.runtime.newFixnum(calendar.get(Calendar.DAY_OF_MONTH)),
-                    context.runtime.newFixnum(calendar.get(Calendar.HOUR_OF_DAY)),
-                    context.runtime.newFixnum(calendar.get(Calendar.MINUTE)),
-                    context.runtime.newFixnum(calendar.get(Calendar.SECOND)),
-                };
-                return klass.callMethod(context, "new", context.runtime.getClass("Time").callMethod(context, "local", argv));
+                    adjustedTime = dateFormat.parse( ((DERUTCTime) obj).getAdjustedTime() );
+                }
+                catch (ParseException e) { throw new IOException(e); }
+                return RubyTime.newTime(context.runtime, adjustedTime.getTime());
             }
             else if ( obj instanceof ASN1ObjectIdentifier ) {
                 final String objId = ((ASN1ObjectIdentifier) obj).getId();
