@@ -74,6 +74,7 @@ import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.OpenSSLReal.debug;
 import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
+import static org.jruby.ext.openssl.OpenSSLReal.warn;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -503,7 +504,10 @@ public class X509Extensions {
         final String oid, final X509Extension ext, final boolean critical) {
         final byte[] extValue = ext.getExtensionValue(oid);
         // TODO: wired. J9 returns null for an OID given in getNonCriticalExtensionOIDs()
-        if ( extValue == null ) return null;
+        if ( extValue == null ) {
+            warn(context, ext + " getExtensionValue returns null for '"+ oid +"'");
+            return null;
+        }
 
         RubyString extValueStr = context.runtime.newString( new ByteList(extValue, false) );
         IRubyObject rValue = ASN1.decode(context, _ASN1, extValueStr).callMethod(context, "value");
