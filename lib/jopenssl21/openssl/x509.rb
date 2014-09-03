@@ -20,32 +20,6 @@
 
 module OpenSSL
   module X509
-    class ExtensionFactory
-      def create_extension(*arg)
-        if arg.size > 1
-          create_ext(*arg)
-        else
-          send("create_ext_from_"+arg[0].class.name.downcase, arg[0])
-        end
-      end
-
-      def create_ext_from_array(ary)
-        raise ExtensionError, "unexpected array form" if ary.size > 3
-        create_ext(ary[0], ary[1], ary[2])
-      end
-
-      def create_ext_from_string(str) # "oid = critical, value"
-        oid, value = str.split(/=/, 2)
-        oid.strip!
-        value.strip!
-        create_ext(oid, value)
-      end
-
-      def create_ext_from_hash(hash)
-        create_ext(hash["oid"], hash["value"], hash["critical"])
-      end
-    end
-
     class Name
       module RFC2253DN
         Special = ',=+<>#;'

@@ -81,6 +81,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
 import static org.jruby.ext.openssl.OpenSSLReal.warn;
 import static org.jruby.ext.openssl.X509._X509;
+import static org.jruby.ext.openssl.X509Extensions.newExtension;
 import static org.jruby.ext.openssl.X509Extensions.Extension;
 import org.jruby.runtime.builtin.Variable;
 import org.jruby.runtime.component.VariableEntry;
@@ -206,11 +207,8 @@ public class X509CRL extends RubyObject {
                     realValue = RubyString.newString(runtime, valueBytes);
                 }
 
-                Extension ext = (Extension) _Extension.callMethod(context, "new");
-                ext.setRealOid( ASN1.getObjectIdentifier(context.runtime, oid) );
-                ext.setRealValue(realValue);
-                ext.setRealCritical(critical);
-                this.extensions.append(ext);
+                ASN1ObjectIdentifier objectId = ASN1.getObjectIdentifier(context.runtime, oid);
+                this.extensions.append( newExtension(runtime, objectId, realValue, critical) );
             }
         }
 

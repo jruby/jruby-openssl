@@ -54,11 +54,14 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
+import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyHash;
+import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
+import org.jruby.RubyRange;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
@@ -75,8 +78,8 @@ import static org.jruby.ext.openssl.ASN1._ASN1;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.OpenSSLReal.debug;
 import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
 import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.StringHelper.*;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -94,6 +97,14 @@ public class X509Extensions {
         RubyClass _Extension = _X509.defineClassUnder("Extension", runtime.getObject(), Extension.ALLOCATOR);
         _Extension.defineAnnotatedMethods(Extension.class);
     }
+
+    static RubyClass _Extension(final Ruby runtime) {
+        return _X509(runtime).getClass("Extension");
+    }
+
+    private static final byte[] critical__ = new byte[] {
+        'c','r','i','t','i','c','a','l',',',' '
+    };
 
     public static class ExtensionFactory extends RubyObject {
 
@@ -251,14 +262,60 @@ public class X509Extensions {
             catch (IOException e) {
                 throw newExtensionError(runtime, "Unable to create extension: " + e.getMessage());
             }
+            
+            return newExtension(runtime, objectId, value, critical.isNil() ? null : critical.isTrue());
+        }
 
-            Extension ext = (Extension) _X509(runtime).getClass("Extension").callMethod(context, "new");
+        @JRubyMethod(rest = true)
+        public IRubyObject create_extension(final ThreadContext context, final IRubyObject[] args) {
+            if ( args.length > 1 ) return create_ext(context, args);
+            final IRubyObject arg = args[0];
+            if ( arg instanceof RubyArray ) {
+                return create_ext_from_array(context, arg);
+            }
+            if ( arg instanceof RubyHash ) {
+                return create_ext_from_hash(context, arg);
+            }
+            if ( arg instanceof RubyString ) {
+                return create_ext_from_string(context, arg);
+            }
+            throw context.runtime.newArgumentError("unexpected argument: " + arg.inspect());
+        }
 
-            ext.setRealOid(objectId);
-            ext.setRealValue(value);
-            ext.setRealCritical(critical.isNil() ? null : critical.isTrue());
+        @JRubyMethod
+        public IRubyObject create_ext_from_array(final ThreadContext context, final IRubyObject arg) {
+            final RubyArray ary = (RubyArray) arg;
+            if ( ary.size() > 3 ) throw newExtensionError(context.runtime, "unexpected array form");
+            return create_ext(context, ary.toJavaArrayUnsafe());
+        }
 
-            return ext;
+        @JRubyMethod
+        public IRubyObject create_ext_from_hash(final ThreadContext context, final IRubyObject arg) {
+            final RubyHash hash = (RubyHash) arg; final Ruby runtime = context.runtime;
+            final IRubyObject oid = hash.op_aref(context, newStringFrozen(runtime, "oid"));
+            final IRubyObject value = hash.op_aref(context, newStringFrozen(runtime, "value"));
+            final IRubyObject critical = hash.op_aref(context, newStringFrozen(runtime, "critical"));
+            return create_ext(context, new IRubyObject[] { oid, value, critical });
+        }
+
+        @JRubyMethod // "oid = critical, value"
+        public IRubyObject create_ext_from_string(final ThreadContext context, final IRubyObject arg) {
+            final RubyString str = (RubyString) arg; final Ruby runtime = context.runtime;
+            RubyInteger i = str.index19(context, newString(runtime, new byte[] { '=' })).convertToInteger("to_i");
+            final int ind = (int) i.getLongValue();
+            RubyString oid = (RubyString) str.substr19(runtime, 0, ind);
+            oid.strip_bang19(context);
+            final int len = (int) str.length19().getLongValue() - ind;
+            RubyString value = (RubyString) str.substr19(runtime, ind + 1, len);
+            value.lstrip_bang19(context);
+
+            IRubyObject critical = context.nil;
+            if ( value.start_with_p( context, newString(runtime, critical__) ).isTrue() ) {
+                critical = runtime.newBoolean(true); // value[ 0, 'critical, '.length ] = ''
+                value.op_aset19(context, runtime.newFixnum(0), runtime.newFixnum(critical__.length), RubyString.newEmptyString(runtime));
+            }
+            value.strip_bang19(context);
+            return create_ext(context, new IRubyObject[] { oid, value, critical });
         }
 
         private DERBitString parseKeyUsage(final String oid, final String valuex) {
@@ -520,6 +577,15 @@ public class X509Extensions {
         extension.setRealValue(rValue);
 
         return extension;
+    }
+
+    static Extension newExtension(final Ruby runtime, ASN1ObjectIdentifier objectId,
+        final Object value, final Boolean critical) {
+        Extension ext = new Extension(runtime, _Extension(runtime));
+        ext.setRealOid(objectId);
+        ext.setRealValue(value);
+        ext.setRealCritical(critical);
+        return ext;
     }
 
     public static class Extension extends RubyObject {
@@ -903,15 +969,11 @@ public class X509Extensions {
         public RubyHash to_h(final ThreadContext context) {
             final Ruby runtime = context.runtime;
             RubyHash hash = RubyHash.newHash(runtime);
-            hash.op_aset( context, StringHelper.newStringFrozen(runtime, "oid"), oid(context) );
-            hash.op_aset( context, StringHelper.newStringFrozen(runtime, "value"), value(context) );
-            hash.op_aset( context, StringHelper.newStringFrozen(runtime, "critical"), critical_p(context) );
+            hash.op_aset( context, newStringFrozen(runtime, "oid"), oid(context) );
+            hash.op_aset( context, newStringFrozen(runtime, "value"), value(context) );
+            hash.op_aset( context, newStringFrozen(runtime, "critical"), critical_p(context) );
             return hash;
         }
-
-        private static final byte[] critical__ = new byte[] {
-            'c','r','i','t','i','c','a','l',',',' '
-        };
 
         @JRubyMethod // "oid = critical, value"
         public RubyString to_s(final ThreadContext context) {
