@@ -16,15 +16,59 @@ if model.version.to_s.match /[a-zA-Z]/
   end
 end
 
-plugin( :compiler, '3.1', :target => '1.6', :source => '1.6',
-        :debug => true, :verbose => false, :showWarnings => true, :showDeprecation => true )
+java_target = '1.6'
+gen_sources = '${basedir}/target/generated-sources' # hard-coded in AnnotationBinder
 
-# we need the jruby API here. use the oldest jruby we want to support
-jar 'org.jruby:jruby-core', '1.6.8', :scope => :provided
-
-scope :test do
-  jar 'junit:junit:4.11'
+plugin( :compiler, '3.1',
+        :source => java_target, :target => java_target,
+        :debug => true, :verbose => true, :fork => true,
+        :showWarnings => true, :showDeprecation => true,
+        :encoding => 'UTF-8', :useIncrementalCompilation => false ) do
+  execute_goal :compile, :id => 'default-compile', :phase => 'compile',
+      :generatedSourcesDirectory => gen_sources, #:outputDirectory => gen_sources,
+      :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ],
+      :compilerArgs => [ '-XDignore.symbol.file=true', '-J-Dfile.encoding=UTF-8' ]
 end
+
+plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '1.9' ) do
+  execute_goal 'add-source', :phase => 'process-classes', :sources => [ gen_sources ]
+end
+
+plugin( 'org.codehaus.mojo:exec-maven-plugin', '1.3.2' ) do
+
+=begin
+  invoker_main  = '-Djruby.bytecode.version=${compiler.target}'
+  #invoker_main << ' -classpath '
+  invoker_main << ' org.jruby.anno.InvokerGenerator'
+  invoker_main << " #{gen_sources}/annotated_classes.txt ${project.build.outputDirectory}"
+
+  dependency 'org.jruby', 'jruby-core', '1.7.13'
+
+  execute_goal :java, :id => 'invoker-generator', :phase => 'process-classes',
+      :mainClass => 'org.jruby.anno.InvokerGenerator', :classpathScope => 'compile',
+      #:arguments => [ '${gen.sources}/annotated_classes.txt', '${project.build.outputDirectory}' ] do
+      :commandlineArgs => "#{gen_sources}/annotated_classes.txt ${project.build.outputDirectory}",
+      :classpathScope => 'runtime', :additionalClasspathElements => [ '${project.build.outputDirectory}' ],
+      :includeProjectDependencies => false, :includePluginDependencies => true do
+
+    #systemProperties do
+    #  property '-Djruby.bytecode.version=${compiler.target}'
+    #end
+=end
+
+  execute_goal :exec, :id => 'invoker-generator', :phase => 'process-classes',
+      :executable => 'java', :classpathScope => 'compile',
+      :arguments => [ "-Djruby.bytecode.version=#{java_target}",
+                      '-classpath', xml( '<classpath/>' ),
+                      'org.jruby.anno.InvokerGenerator',
+                      "#{gen_sources}/annotated_classes.txt",
+                      '${project.build.outputDirectory}' ]
+end
+
+# NOTE: unfortunately we can not use 1.6.8 to generate invokers ...
+# although we'd like to compile against 1.6 to make sure all is well
+jar 'org.jruby:jruby-core', '1.7.13', :scope => :provided   # 1.6.8
+jar 'junit:junit', '4.11', :scope => :test
 
 jruby_plugin! :gem do
   # when installing dependent gems we want to use the built in openssl
