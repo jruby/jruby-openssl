@@ -284,10 +284,10 @@ public abstract class X509Utils {
 
     public static final String OPENSSLDIR = "/usr/local/openssl";
 
-    public static final String X509_CERT_AREA = OPENSSLDIR;
-    public static final String X509_CERT_DIR = OPENSSLDIR+"/certs";
-    public static final String X509_CERT_FILE = OPENSSLDIR+"/cert.pem";
-    public static final String X509_PRIVATE_DIR = OPENSSLDIR+"/private";
+    public static final String X509_CERT_AREA = System.getProperty("java.home") + "/lib/security";
+    public static final String X509_CERT_DIR = System.getProperty("java.home") + "/lib/security";
+    public static final String X509_CERT_FILE = System.getProperty("java.home") + "/lib/security" + "/cacerts";
+    public static final String X509_PRIVATE_DIR = "/usr/lib/ssl/private";
 
     public static final String X509_CERT_DIR_EVP = "SSL_CERT_DIR";
     public static final String X509_CERT_FILE_EVP = "SSL_CERT_FILE";

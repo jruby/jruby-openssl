@@ -29,6 +29,7 @@ package org.jruby.ext.openssl;
 
 import org.jruby.Ruby;
 import org.jruby.RubyModule;
+import org.jruby.ext.openssl.x509store.X509Utils;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -99,12 +100,12 @@ public class X509 {
         _X509.setConstant("TRUST_OCSP_REQUEST",runtime.newFixnum(7));
 
         // These should eventually point to correct things.
-        _X509.setConstant("DEFAULT_CERT_AREA", runtime.newString("/usr/lib/ssl"));
-        _X509.setConstant("DEFAULT_CERT_DIR", runtime.newString("/usr/lib/ssl/certs"));
-        _X509.setConstant("DEFAULT_CERT_FILE", runtime.newString("/usr/lib/ssl/cert.pem"));
-        _X509.setConstant("DEFAULT_CERT_DIR_ENV", runtime.newString("SSL_CERT_DIR"));
-        _X509.setConstant("DEFAULT_CERT_FILE_ENV", runtime.newString("SSL_CERT_FILE"));
-        _X509.setConstant("DEFAULT_PRIVATE_DIR", runtime.newString("/usr/lib/ssl/private"));
+        _X509.setConstant("DEFAULT_CERT_AREA", runtime.newString(X509Utils.X509_CERT_AREA));
+        _X509.setConstant("DEFAULT_CERT_DIR", runtime.newString(X509Utils.X509_CERT_DIR));
+        _X509.setConstant("DEFAULT_CERT_FILE", runtime.newString(X509Utils.X509_CERT_FILE));
+        _X509.setConstant("DEFAULT_CERT_DIR_ENV", runtime.newString(X509Utils.X509_CERT_DIR_EVP));
+        _X509.setConstant("DEFAULT_CERT_FILE_ENV", runtime.newString(X509Utils.X509_CERT_FILE_EVP));
+        _X509.setConstant("DEFAULT_PRIVATE_DIR", runtime.newString(X509Utils.X509_PRIVATE_DIR));
     }
 
     static RubyModule _X509(final Ruby runtime) {
