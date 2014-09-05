@@ -391,6 +391,44 @@
       </properties>
     </profile>
     <profile>
+      <id>test-1.7.15</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-invoker-plugin</artifactId>
+            <version>1.8</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>install</goal>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <projectsDirectory>integration</projectsDirectory>
+                  <pomIncludes>
+                    <pomInclude>*/pom.xml</pomInclude>
+                  </pomIncludes>
+                  <streamLogs>true</streamLogs>
+                  <properties>
+                    <jruby.versions>${jruby.versions}</jruby.versions>
+                    <jruby.modes>${jruby.modes}</jruby.modes>
+                    <jruby.openssl.version>${project.version}</jruby.openssl.version>
+                    <bc.versions>${bc.versions}</bc.versions>
+                    <runit.dir>${runit.dir}</runit.dir>
+                  </properties>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <properties>
+        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <jruby.modes>1.8,1.9,2.0</jruby.modes>
+        <jruby.versions>1.7.15</jruby.versions>
+      </properties>
+    </profile>
+    <profile>
       <id>test-9000</id>
       <build>
         <plugins>

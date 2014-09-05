@@ -132,6 +132,14 @@ profile :id => 'test-1.7.13' do
              'bc.versions' => supported_bc_versions.join(',')
 end
 
+profile :id => 'test-1.7.15' do
+  plugin :invoker, '1.8' do
+    execute_goals( :install, :run, invoker_run_options )
+  end
+  properties 'jruby.versions' => '1.7.15', 'jruby.modes' => '1.8,1.9,2.0',
+             'bc.versions' => supported_bc_versions.join(',')
+end
+
 profile :id => 'test-9000' do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
