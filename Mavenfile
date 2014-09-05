@@ -19,21 +19,6 @@ end
 java_target = '1.6'
 gen_sources = '${basedir}/target/generated-sources' # hard-coded in AnnotationBinder
 
-plugin( :compiler, '3.1',
-        :source => java_target, :target => java_target,
-        :debug => true, :verbose => true, :fork => true,
-        :showWarnings => true, :showDeprecation => true,
-        :encoding => 'UTF-8', :useIncrementalCompilation => false ) do
-  execute_goal :compile, :id => 'default-compile', :phase => 'compile',
-      :generatedSourcesDirectory => gen_sources, #:outputDirectory => gen_sources,
-      :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ],
-      :compilerArgs => [ '-XDignore.symbol.file=true', '-J-Dfile.encoding=UTF-8' ]
-end
-
-plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '1.9' ) do
-  execute_goal 'add-source', :phase => 'process-classes', :sources => [ gen_sources ]
-end
-
 plugin( 'org.codehaus.mojo:exec-maven-plugin', '1.3.2' ) do
 
 =begin
@@ -63,6 +48,32 @@ plugin( 'org.codehaus.mojo:exec-maven-plugin', '1.3.2' ) do
                       'org.jruby.anno.InvokerGenerator',
                       "#{gen_sources}/annotated_classes.txt",
                       '${project.build.outputDirectory}' ]
+end
+
+plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '1.9' ) do
+  execute_goal 'add-source', :phase => 'process-classes', :sources => [ gen_sources ]
+end
+
+plugin( :compiler, '3.1',
+        :source => java_target, :target => java_target,
+        :encoding => 'UTF-8', :debug => true,
+        :showWarnings => true, :showDeprecation => true,
+
+        :generatedSourcesDirectory => gen_sources,
+        :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ],
+        :compilerArgs => [ '-XDignore.symbol.file=true' ] ) do
+
+  #execute_goal :compile, :id => 'annotation-binder', :phase => 'compile',
+  #    :generatedSourcesDirectory => gen_sources, #:outputDirectory => gen_sources,
+  #    :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ],
+  #    :proc => 'only', # :compilerReuseStrategy => 'alwaysNew',
+  #    :useIncrementalCompilation => false, :fork => true, :verbose => true,
+  #    :compilerArgs => [ '-XDignore.symbol.file=true', '-J-Dfile.encoding=UTF-8' ]
+
+  execute_goal :compile, :id => 'compile-populators', :phase => 'process-classes',
+      :includes => [ 'org/jruby/gen/**/*.java' ], :optimize => true,
+      :compilerArgs => [ '-XDignore.symbol.file=true' ]
+      # NOTE: maybe '-J-Xbootclasspath/p:${unsafe.jar}' ... as well ?!
 end
 
 # NOTE: unfortunately we can not use 1.6.8 to generate invokers ...
@@ -146,7 +157,6 @@ profile :id => 'test-9000' do
   end
   properties 'jruby.version' => '9000.dev-SNAPSHOT',
              'jruby.versions' => '9000.dev-SNAPSHOT',
-             # 'jruby.modes' => '2.1',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
