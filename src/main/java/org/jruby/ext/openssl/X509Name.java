@@ -37,6 +37,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
 
+import javax.security.auth.x500.X500Principal;
+
 import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -118,8 +120,20 @@ public class X509Name extends RubyObject {
         _Name.setConstant("OBJECT_TYPE_TEMPLATE", hash);
     }
 
-    static X509Name newInstance(final Ruby runtime) {
+    static X509Name newName(final Ruby runtime) {
         return new X509Name(runtime, _Name(runtime));
+    }
+
+    static X509Name newName(final Ruby runtime, final X500Principal principal) {
+        final X509Name name = newName(runtime);
+        name.fromASN1Sequence( principal.getEncoded() );
+        return name;
+    }
+
+    public static X509Name create(final Ruby runtime, org.bouncycastle.asn1.x500.X500Name realName) {
+        final X509Name name = newName(runtime);
+        name.fromASN1Sequence((ASN1Sequence) realName.toASN1Primitive());
+        return name;
     }
 
     static RubyClass _Name(final Ruby runtime) {
@@ -142,16 +156,20 @@ public class X509Name extends RubyObject {
     private final List<String> values;
     private final List<RubyInteger> types;
 
+    private void fromASN1Sequence(final byte[] encoded) {
+        try {
+            ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(encoded).readObject();
+            fromASN1Sequence(seq);
+        }
+        catch (IOException e) {
+            throw newNameError(getRuntime(), e.getClass().getName() + ":" + e.getMessage());
+        }
+    }
+
     void addEntry(ASN1ObjectIdentifier oid, String value, RubyInteger type) {
         oids.add(oid);
         values.add(value);
         types.add(type);
-    }
-
-    public static X509Name create(Ruby runtime, org.bouncycastle.asn1.x500.X500Name realName) {
-        final X509Name name = new X509Name( runtime, _Name(runtime) );
-        name.fromASN1Sequence((ASN1Sequence) realName.toASN1Primitive());
-        return name;
     }
 
     void fromASN1Sequence(final ASN1Sequence seq) {
@@ -171,33 +189,36 @@ public class X509Name extends RubyObject {
     }
 
     private void fromRDNElement(final RDN rdn) {
+        final Ruby runtime = getRuntime();
         for( AttributeTypeAndValue tv: rdn.getTypesAndValues() ) {
-            oids.add(tv.getType());
-            if (tv.getValue() instanceof ASN1String) {
-                values.add(((ASN1String) tv.getValue()).getString());
+            oids.add( tv.getType() );
+            final ASN1Encodable val = tv.getValue();
+            if ( val instanceof ASN1String ) {
+                values.add( ((ASN1String) val).getString() );
             } else {
                 values.add(null); //TODO really?
             }
-            types.add(getRuntime().newFixnum( ASN1.idForJava(tv.getValue())) );
+            types.add( runtime.newFixnum( ASN1.idForJava(val) ) );
         }
     }
 
     private void fromASN1Set(Object element) {
         ASN1Set typeAndValue = ASN1Set.getInstance(element);
-        for (Enumeration enumRdn = typeAndValue.getObjects(); enumRdn.hasMoreElements();) {
-            fromASN1Sequence(enumRdn.nextElement());
+        for (Enumeration e = typeAndValue.getObjects(); e.hasMoreElements();) {
+            fromASN1Sequence( e.nextElement() );
         }
     }
 
     private void fromASN1Sequence(Object element) {
         ASN1Sequence typeAndValue = ASN1Sequence.getInstance(element);
-        oids.add((ASN1ObjectIdentifier) typeAndValue.getObjectAt(0));
-        if (typeAndValue.getObjectAt(1) instanceof ASN1String) {
-            values.add(((ASN1String) typeAndValue.getObjectAt(1)).getString());
+        oids.add( (ASN1ObjectIdentifier) typeAndValue.getObjectAt(0) );
+        final ASN1Encodable val = typeAndValue.getObjectAt(1);
+        if ( val instanceof ASN1String ) {
+            values.add( ((ASN1String) val).getString() );
         } else {
             values.add(null);
         }
-        types.add(getRuntime().newFixnum( ASN1.idForJava(typeAndValue.getObjectAt(1))) );
+        types.add( getRuntime().newFixnum( ASN1.idForJava(val) ) );
     }
 
     @Override
@@ -216,7 +237,7 @@ public class X509Name extends RubyObject {
         final Ruby runtime = context.runtime;
 
         if ( dn instanceof RubyArray ) {
-            RubyArray ary = (RubyArray)dn;
+            RubyArray ary = (RubyArray) dn;
 
             final RubyClass _Name = _Name(runtime);
 
@@ -225,7 +246,7 @@ public class X509Name extends RubyObject {
             for (int i = 0; i < ary.size(); i++) {
                 IRubyObject obj = ary.eltOk(i);
 
-                if (!(obj instanceof RubyArray)) {
+                if ( ! (obj instanceof RubyArray) ) {
                     throw runtime.newTypeError(obj, runtime.getArray());
                 }
 
@@ -241,22 +262,13 @@ public class X509Name extends RubyObject {
 
                 add_entry(context, entry0, entry1, entry2);
             }
-        } else {
-            try {
-                byte[] bytes = OpenSSLImpl.to_der_if_possible(context, dn).asString().getBytes();
-                ASN1InputStream is = new ASN1InputStream(bytes);
-                ASN1Sequence seq = (ASN1Sequence)is.readObject();
-                //StringBuilder b = new StringBuilder();
-                //printASN(seq, b);
-                fromASN1Sequence(seq);
-            }
-            catch (IOException e) { //Do not catch Exception. Want to see nullpointer stacktrace.
-                throw newNameError(runtime, e.getClass().getName() + ":" + e.getLocalizedMessage());
-            }
+        }
+        else {
+            IRubyObject enc = OpenSSLImpl.to_der_if_possible(context, dn);
+            fromASN1Sequence( enc.asString().getBytes() );
         }
         return this;
     }
-
 
     private static void printASN(final ASN1Encodable obj, final StringBuilder out) {
         printASN(obj, 0, out);

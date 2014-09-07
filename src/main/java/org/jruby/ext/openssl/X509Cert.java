@@ -152,8 +152,8 @@ public class X509Cert extends RubyObject {
         final IRubyObject[] args, final Block unusedBlock) {
 
         if ( args.length == 0 ) {
-            this.subject = X509Name.newInstance(context.runtime);
-            this.issuer = X509Name.newInstance(context.runtime);
+            this.subject = X509Name.newName(context.runtime);
+            this.issuer = X509Name.newName(context.runtime);
             return this;
         }
 
@@ -212,7 +212,7 @@ public class X509Cert extends RubyObject {
                 addExtension(context, _ASN1, _Extension, extOID, true);
             }
         }
-        
+
         final Set<String> nonCriticalExtOIDs = cert.getNonCriticalExtensionOIDs();
         if ( nonCriticalExtOIDs != null ) {
             for ( final String extOID : nonCriticalExtOIDs ) {
