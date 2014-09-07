@@ -1,4 +1,4 @@
-require 'rubygems'
+require 'rubygems' unless defined? Gem
 
 require 'java' if defined? JRUBY_VERSION
 
