@@ -34,6 +34,7 @@ import java.util.Random;
 
 import org.jruby.Ruby;
 import org.jruby.RubyBignum;
+import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyInteger;
@@ -68,6 +69,10 @@ public class BN extends RubyObject {
 
     private static final BigInteger MAX_INT = BigInteger.valueOf(Integer.MAX_VALUE);
     private static final BigInteger TWO = BigInteger.valueOf(2);
+    
+    private static final BigInteger MIN_LONG = BigInteger.valueOf(Long.MIN_VALUE);
+    private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
+
     private static final int DEFAULT_CERTAINTY = 100;
 
     private static ObjectAllocator BN_ALLOCATOR = new ObjectAllocator() {
@@ -76,7 +81,6 @@ public class BN extends RubyObject {
         }
     };
 
-    //@Deprecated
     public static BN newBN(Ruby runtime, BigInteger value) {
         return newInstance(runtime, value);
     }
@@ -106,20 +110,14 @@ public class BN extends RubyObject {
         this.value = value;
     }
 
-    public BigInteger getValue() {
+    public final BigInteger getValue() {
         return value;
     }
 
-    @Override
-    public synchronized IRubyObject initialize_copy(final IRubyObject that) {
-        super.initialize_copy(that);
-        if ( this != that ) this.value = ((BN) that).value;
-        return this;
-    }
-
     @JRubyMethod(name="initialize", required=1, optional=1, visibility = Visibility.PRIVATE)
-    public synchronized IRubyObject _initialize(IRubyObject[] args) {
-        Ruby runtime = getRuntime();
+    public synchronized IRubyObject initialize(final ThreadContext context,
+        final IRubyObject[] args) {
+        final Ruby runtime = context.runtime;
         if (this.value != BigInteger.ZERO) { // already initialized
             throw newBNError(runtime, "illegal initialization");
         }
@@ -128,13 +126,14 @@ public class BN extends RubyObject {
         final RubyString str = args[0].asString();
         switch (base) {
         case 0:
-            byte[] bytes = str.getBytes();
-            if ((bytes[0] & 0x80) != 0) {
-                bytes[0] &= 0x7f;
-                this.value = new BigInteger(-1, bytes);
-            } else {
-                this.value = new BigInteger(1, bytes);
+            final byte[] bytes = str.getBytes(); final int signum;
+            if ( ( bytes[0] & 0x80 ) != 0 ) {
+                bytes[0] &= 0x7f; signum = -1;
             }
+            else {
+                signum = 1;
+            }
+            this.value = new BigInteger(signum, bytes);
             break;
         case 2:
             // this seems wrong to me, but is the behavior of the
@@ -160,6 +159,13 @@ public class BN extends RubyObject {
         return this;
     }
 
+    @Override
+    public synchronized IRubyObject initialize_copy(final IRubyObject that) {
+        super.initialize_copy(that);
+        if ( this != that ) this.value = ((BN) that).value;
+        return this;
+    }
+
     @JRubyMethod(name = "copy")
     public synchronized IRubyObject copy(IRubyObject other) {
         if (this != other) {
@@ -168,12 +174,18 @@ public class BN extends RubyObject {
         return this;
     }
 
-    @JRubyMethod(name = "to_s", rest = true)
-    public RubyString to_s(IRubyObject[] args) {
+    @Override
+    @JRubyMethod(name = "to_s")
+    public RubyString to_s() { return to_s(10); }
+
+    @JRubyMethod(name = "to_s")
+    public RubyString to_s(IRubyObject base) {
+        return to_s( RubyNumeric.num2int(base) );
+    }
+
+    private RubyString to_s(final int base) {
         final Ruby runtime = getRuntime();
 
-        int argc = Arity.checkArgumentCount(runtime, args, 0, 1);
-        int base = argc == 1 ? RubyNumeric.num2int(args[0]) : 10;
         byte[] bytes;
         switch (base) {
         case 0:
@@ -209,17 +221,23 @@ public class BN extends RubyObject {
             // again, following MRI implementation, wherein base 2 deals
             // with strings as byte arrays rather than ASCII-encoded binary
             // digits.  note that negative values are returned as though positive:
-
             bytes = this.value.abs().toByteArray();
-
             // suppress leading 0 byte to conform to MRI behavior
             if (bytes[0] == 0) {
-                return runtime.newString(new ByteList(bytes, 1, bytes.length - 1));
+                return runtime.newString(new ByteList(bytes, 1, bytes.length - 1, false));
             }
             return runtime.newString(new ByteList(bytes, false));
         case 10:
+            return runtime.newString(value.toString(10));
         case 16:
-            return runtime.newString(value.toString(base).toUpperCase());
+            final String hex = value.toString(16);
+            final int len = hex.length();
+            final ByteList val = new ByteList(len + 1);
+            if ( value.signum() == 1 && len % 2 != 0 ) val.append('0');
+            for ( int i = 0; i < len ; i++ ) {
+                val.append( Character.toUpperCase(hex.charAt(i)) );
+            }
+            return runtime.newString(val);
         default:
             throw runtime.newArgumentError("illegal radix: " + base);
         }
@@ -231,9 +249,6 @@ public class BN extends RubyObject {
     public IRubyObject inspect() {
         return ObjectSupport.inspect(this, Collections.EMPTY_LIST);
     }
-
-    private static final BigInteger MIN_LONG = BigInteger.valueOf(Long.MIN_VALUE);
-    private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
 
     @JRubyMethod(name = "to_i")
     public IRubyObject to_i() {
@@ -269,98 +284,100 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name="zero?")
-    public IRubyObject bn_is_zero() {
-        return getRuntime().newBoolean(value.equals(BigInteger.ZERO));
+    public RubyBoolean zero_p(final ThreadContext context) {
+        return context.runtime.newBoolean( value.equals(BigInteger.ZERO) );
     }
 
     @JRubyMethod(name="one?")
-    public IRubyObject bn_is_one() {
-        return getRuntime().newBoolean(value.equals(BigInteger.ONE));
+    public RubyBoolean one_p(final ThreadContext context) {
+        return context.runtime.newBoolean( value.equals(BigInteger.ONE) );
     }
 
     @JRubyMethod(name="odd?")
-    public IRubyObject bn_is_odd() {
-        return getRuntime().newBoolean(value.testBit(0));
+    public RubyBoolean odd_p(final ThreadContext context) {
+        return context.runtime.newBoolean( value.testBit(0) );
     }
 
     @JRubyMethod(name={"cmp", "<=>"})
-    public IRubyObject bn_cmp(IRubyObject other) {
-        return getRuntime().newFixnum(value.compareTo(getBigInteger(other)));
+    public IRubyObject cmp(final ThreadContext context, IRubyObject other) {
+        return context.runtime.newFixnum( value.compareTo( getBigInteger(other) ) );
     }
 
     @JRubyMethod(name="ucmp")
-    public IRubyObject bn_ucmp(IRubyObject other) {
-        return getRuntime().newFixnum(value.abs().compareTo(getBigInteger(other).abs()));
+    public IRubyObject ucmp(final ThreadContext context, IRubyObject other) {
+        return context.runtime.newFixnum( value.abs().compareTo( getBigInteger(other).abs() ) );
     }
 
     @JRubyMethod(name={"eql?", "==", "==="})
-    public IRubyObject bn_eql(IRubyObject other) {
-        return getRuntime().newBoolean(value.equals(getBigInteger(other)));
+    public RubyBoolean eql_p(final ThreadContext context, IRubyObject other) {
+        return context.runtime.newBoolean( value.equals( getBigInteger(other) ) );
     }
 
     @JRubyMethod(name="sqr")
-    public IRubyObject bn_sqr() {
+    public BN sqr(final ThreadContext context) {
         // TODO: check whether mult n * n is faster
-        return newBN(getRuntime(), value.pow(2));
+        return newBN(context.runtime, value.pow(2));
     }
 
     @JRubyMethod(name="~")
-    public IRubyObject bn_not() {
-        return newBN(getRuntime(), value.not());
+    public BN not(final ThreadContext context) {
+        return newBN(context.runtime, value.not());
     }
 
     @JRubyMethod(name="+")
-    public IRubyObject bn_add(IRubyObject other) {
-        return newBN(getRuntime(), value.add(getBigInteger(other)));
+    public BN add(final ThreadContext context, IRubyObject other) {
+        return newBN(context.runtime, value.add(getBigInteger(other)));
     }
 
     @JRubyMethod(name="-")
-    public IRubyObject bn_sub(IRubyObject other) {
-        return newBN(getRuntime(), value.subtract(getBigInteger(other)));
+    public BN sub(final ThreadContext context, IRubyObject other) {
+        return newBN(context.runtime, value.subtract(getBigInteger(other)));
     }
 
     @JRubyMethod(name="*")
-    public IRubyObject bn_mul(IRubyObject other) {
-        return newBN(getRuntime(), value.multiply(getBigInteger(other)));
+    public BN mul(final ThreadContext context, IRubyObject other) {
+        return newBN(context.runtime, value.multiply(getBigInteger(other)));
     }
 
     @JRubyMethod(name="%")
-    public IRubyObject bn_mod(IRubyObject other) {
+    public BN mod(final ThreadContext context, IRubyObject other) {
         try {
-            return newBN(getRuntime(), value.mod(getBigInteger(other)));
-        } catch (ArithmeticException e) {
-            throw getRuntime().newZeroDivisionError();
+            return newBN(context.runtime, value.mod(getBigInteger(other)));
+        }
+        catch (ArithmeticException e) {
+            throw context.runtime.newZeroDivisionError();
         }
     }
 
     @JRubyMethod(name="/")
-    public IRubyObject bn_div(IRubyObject other) {
-        Ruby runtime = getRuntime();
+    public IRubyObject div(final ThreadContext context, IRubyObject other) {
+        final Ruby runtime = context.runtime;
         try {
             BigInteger[] result = value.divideAndRemainder(getBigInteger(other));
             return runtime.newArray(newBN(runtime, result[0]), newBN(runtime, result[1]));
-        } catch (ArithmeticException e) {
+        }
+        catch (ArithmeticException e) {
             throw runtime.newZeroDivisionError();
         }
     }
 
     @JRubyMethod(name="&")
-    public IRubyObject bn_and(IRubyObject other) {
-        return newBN(getRuntime(), value.and(getBigInteger(other)));
+    public BN and(final ThreadContext context, IRubyObject other) {
+        return newBN(context.runtime, value.and(getBigInteger(other)));
     }
 
     @JRubyMethod(name="|")
-    public IRubyObject bn_or(IRubyObject other) {
-        return newBN(getRuntime(), value.or(getBigInteger(other)));
+    public BN or(final ThreadContext context, IRubyObject other) {
+        return newBN(context.runtime, value.or(getBigInteger(other)));
     }
 
     @JRubyMethod(name="^")
-    public IRubyObject bn_xor(IRubyObject other) {
-        return newBN(getRuntime(), value.xor(getBigInteger(other)));
+    public BN xor(final ThreadContext context, IRubyObject other) {
+        return newBN(context.runtime, value.xor(getBigInteger(other)));
     }
 
     @JRubyMethod(name="**")
-    public IRubyObject bn_exp(final ThreadContext context, IRubyObject other) {
+    public BN exp(final ThreadContext context, IRubyObject other) {
         // somewhat strangely, BigInteger takes int rather than BigInteger
         // as the argument to pow.  so we'll have to narrow the value, and
         // raise an exception if data would be lost. (on the other hand, an
@@ -400,66 +417,72 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name="gcd")
-    public IRubyObject bn_gcd(IRubyObject other) {
-        return newBN(getRuntime(), value.gcd(getBigInteger(other)));
+    public BN gcd(final ThreadContext context, IRubyObject other) {
+        return newBN(context.runtime, value.gcd(getBigInteger(other)));
     }
 
     @JRubyMethod(name="mod_sqr")
-    public IRubyObject bn_mod_sqr(IRubyObject other) {
+    public BN mod_sqr(final ThreadContext context, IRubyObject other) {
         try {
-            return newBN(getRuntime(), value.modPow(TWO, getBigInteger(other)));
-        } catch (ArithmeticException e) {
-            throw getRuntime().newZeroDivisionError();
+            return newBN(context.runtime, value.modPow(TWO, getBigInteger(other)));
+        }
+        catch (ArithmeticException e) {
+            throw context.runtime.newZeroDivisionError();
         }
     }
 
     @JRubyMethod(name="mod_inverse")
-    public IRubyObject bn_mod_inverse(IRubyObject other) {
+    public BN mod_inverse(final ThreadContext context, IRubyObject other) {
         try {
-            return newBN(getRuntime(), value.modInverse(getBigInteger(other)));
-        } catch (ArithmeticException e) {
-            throw getRuntime().newZeroDivisionError();
+            return newBN(context.runtime, value.modInverse(getBigInteger(other)));
+        }
+        catch (ArithmeticException e) {
+            throw context.runtime.newZeroDivisionError();
         }
     }
 
     @JRubyMethod(name="mod_add")
-    public IRubyObject bn_mod_add(IRubyObject other, IRubyObject mod) {
+    public BN mod_add(final ThreadContext context, IRubyObject other, IRubyObject mod) {
         try {
-            return newBN(getRuntime(), value.add(getBigInteger(other)).mod(getBigInteger(mod)));
-        } catch (ArithmeticException e) {
-            throw getRuntime().newZeroDivisionError();
+            return newBN(context.runtime, value.add(getBigInteger(other)).mod(getBigInteger(mod)));
+        }
+        catch (ArithmeticException e) {
+            throw context.runtime.newZeroDivisionError();
         }
     }
 
     @JRubyMethod(name="mod_sub")
-    public IRubyObject bn_mod_sub(IRubyObject other, IRubyObject mod) {
+    public BN mod_sub(final ThreadContext context, IRubyObject other, IRubyObject mod) {
         try {
-            return newBN(getRuntime(), value.subtract(getBigInteger(other)).mod(getBigInteger(mod)));
-        } catch (ArithmeticException e) {
-            throw getRuntime().newZeroDivisionError();
+            return newBN(context.runtime, value.subtract(getBigInteger(other)).mod(getBigInteger(mod)));
+        }
+        catch (ArithmeticException e) {
+            throw context.runtime.newZeroDivisionError();
         }
     }
 
     @JRubyMethod(name="mod_mul")
-    public IRubyObject bn_mod_mul(IRubyObject other, IRubyObject mod) {
+    public BN mod_mul(final ThreadContext context, IRubyObject other, IRubyObject mod) {
         try {
-            return newBN(getRuntime(), value.multiply(getBigInteger(other)).mod(getBigInteger(mod)));
-        } catch (ArithmeticException e) {
-            throw getRuntime().newZeroDivisionError();
+            return newBN(context.runtime, value.multiply(getBigInteger(other)).mod(getBigInteger(mod)));
+        }
+        catch (ArithmeticException e) {
+            throw context.runtime.newZeroDivisionError();
         }
     }
 
     @JRubyMethod(name="mod_exp")
-    public IRubyObject bn_mod_exp(IRubyObject other, IRubyObject mod) {
+    public BN mod_exp(final ThreadContext context, IRubyObject other, IRubyObject mod) {
         try {
-            return newBN(getRuntime(), value.modPow(getBigInteger(other), getBigInteger(mod)));
-        } catch (ArithmeticException e) {
-            throw getRuntime().newZeroDivisionError();
+            return newBN(context.runtime, value.modPow(getBigInteger(other), getBigInteger(mod)));
+        }
+        catch (ArithmeticException e) {
+            throw context.runtime.newZeroDivisionError();
         }
     }
 
     @JRubyMethod(name="set_bit!")
-    public synchronized IRubyObject bn_set_bit(IRubyObject n) {
+    public synchronized IRubyObject set_bit(IRubyObject n) {
         // evil mutable BN
         int pos = RubyNumeric.num2int(n);
         BigInteger oldValue = this.value;
@@ -482,7 +505,7 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name="clear_bit!")
-    public synchronized IRubyObject bn_clear_bit(IRubyObject n) {
+    public synchronized IRubyObject clear_bit(IRubyObject n) {
         // evil mutable BN
         int pos = RubyNumeric.num2int(n);
         BigInteger oldValue = this.value;
@@ -502,7 +525,7 @@ public class BN extends RubyObject {
      * Truncates value to n bits
      */
     @JRubyMethod(name="mask_bits!")
-    public synchronized IRubyObject bn_mask_bits(IRubyObject n) {
+    public synchronized IRubyObject mask_bits(IRubyObject n) {
         // evil mutable BN
 
         int pos = RubyNumeric.num2int(n);
@@ -524,55 +547,53 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name="bit_set?")
-    public IRubyObject bn_is_bit_set(IRubyObject n) {
+    public RubyBoolean bit_set_p(final ThreadContext context, IRubyObject n) {
         int pos = RubyNumeric.num2int(n);
         BigInteger val = this.value;
         try {
             if (val.signum() >= 0) {
-                return getRuntime().newBoolean(val.testBit(pos));
-            } else {
-                return getRuntime().newBoolean(val.abs().testBit(pos));
+                return context.runtime.newBoolean(val.testBit(pos));
             }
-        } catch (ArithmeticException e) {
-            throw newBNError(getRuntime(), "invalid pos");
+            return context.runtime.newBoolean(val.abs().testBit(pos));
+        }
+        catch (ArithmeticException e) {
+            throw newBNError(context.runtime, "invalid pos");
         }
     }
 
     @JRubyMethod(name="<<")
-    public IRubyObject bn_lshift(IRubyObject n) {
+    public BN lshift(final ThreadContext context, IRubyObject n) {
         int nbits = RubyNumeric.num2int(n);
         BigInteger val = this.value;
         if (val.signum() >= 0) {
-            return newBN(getRuntime(), val.shiftLeft(nbits));
-        } else {
-            return newBN(getRuntime(), val.abs().shiftLeft(nbits).negate());
+            return newBN(context.runtime, val.shiftLeft(nbits));
         }
+        return newBN(context.runtime, val.abs().shiftLeft(nbits).negate());
     }
 
     @JRubyMethod(name=">>")
-    public IRubyObject bn_rshift(IRubyObject n) {
+    public BN rshift(final ThreadContext context, IRubyObject n) {
         int nbits = RubyNumeric.num2int(n);
         BigInteger val = this.value;
         if (val.signum() >= 0) {
-            return newBN(getRuntime(), val.shiftRight(nbits));
-        } else {
-            return newBN(getRuntime(), val.abs().shiftRight(nbits).negate());
+            return newBN(context.runtime, val.shiftRight(nbits));
         }
+        return newBN(context.runtime, val.abs().shiftRight(nbits).negate());
     }
 
     @JRubyMethod(name="num_bits")
-    public IRubyObject bn_num_bits() {
-        return getRuntime().newFixnum(this.value.abs().bitLength());
+    public RubyFixnum num_bits(final ThreadContext context) {
+        return context.runtime.newFixnum( this.value.abs().bitLength() );
     }
 
     @JRubyMethod(name="num_bytes")
-    public IRubyObject bn_num_bytes() {
-        return getRuntime().newFixnum((this.value.abs().bitLength() + 7) / 8);
+    public RubyFixnum num_bytes(final ThreadContext context) {
+        return context.runtime.newFixnum( (this.value.abs().bitLength() + 7) / 8 );
     }
 
     @JRubyMethod(name="num_bits_set")
-    public IRubyObject bn_num_bits_set() {
-        return getRuntime().newFixnum(this.value.abs().bitCount());
+    public RubyFixnum num_bits_set(final ThreadContext context) {
+        return context.runtime.newFixnum( this.value.abs().bitCount() );
     }
 
     // note that there is a bug in the MRI version, in argument handling,
