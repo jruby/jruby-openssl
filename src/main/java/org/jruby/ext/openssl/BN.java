@@ -69,7 +69,7 @@ public class BN extends RubyObject {
 
     private static final BigInteger MAX_INT = BigInteger.valueOf(Integer.MAX_VALUE);
     private static final BigInteger TWO = BigInteger.valueOf(2);
-    
+
     private static final BigInteger MIN_LONG = BigInteger.valueOf(Long.MIN_VALUE);
     private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
 
@@ -174,14 +174,22 @@ public class BN extends RubyObject {
         return this;
     }
 
+    @JRubyMethod(name = "to_s", rest = true, optional = 1)
+    public RubyString to_s(IRubyObject[] args) {
+        int argc = Arity.checkArgumentCount(getRuntime(), args, 0, 1);
+        return to_s( argc == 1 ? RubyNumeric.num2int(args[0]) : 10 );
+    }
+
+    // 1.6.8 can not handle - this way :
+
     @Override
-    @JRubyMethod(name = "to_s")
+    //@JRubyMethod(name = "to_s")
     public RubyString to_s() { return to_s(10); }
 
-    @JRubyMethod(name = "to_s")
-    public RubyString to_s(IRubyObject base) {
-        return to_s( RubyNumeric.num2int(base) );
-    }
+    //@JRubyMethod(name = "to_s")
+    //public RubyString to_s(IRubyObject base) {
+    //    return to_s( RubyNumeric.num2int(base) );
+    //}
 
     private RubyString to_s(final int base) {
         final Ruby runtime = getRuntime();
