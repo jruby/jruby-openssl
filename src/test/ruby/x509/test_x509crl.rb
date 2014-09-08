@@ -57,26 +57,26 @@ Revoked Certificates:
          37:44:56:9a:01:2a:92:12:c2:60
 EOF
 
-#  def test_revoked_to_text
-#    crl_data = File.read(File.expand_path('../revoked.crl', __FILE__))
-#    crl = OpenSSL::X509::CRL.new crl_data
-#
-#    #puts "CRL (revoked) text = \n#{crl.to_text}"
-#
-#    expected_text = REVOKED_TEXT.split("\n")[0, 12]
-#
-#    expected_text.each_with_index do |line, i|
-#      actual = crl.to_text.split("\n")[i]
-#      assert_equal line, actual
-#    end
-#
-#    expected_text = REVOKED_TEXT.split("\n")[12..-1]
-#
-#    expected_text.each_with_index do |line, i|
-#      actual = crl.to_text.split("\n")[12 + i]
-#      assert_equal line, actual
-#    end
-#  end
+  def test_revoked_to_text
+    crl_data = File.read(File.expand_path('../revoked.crl', __FILE__))
+    crl = OpenSSL::X509::CRL.new crl_data
+
+    #puts "CRL (revoked) text = \n#{crl.to_text}"
+
+    expected_text = REVOKED_TEXT.split("\n")[0, 12]
+
+    expected_text.each_with_index do |line, i|
+      actual = crl.to_text.split("\n")[i]
+      assert_equal line, actual
+    end
+
+    expected_text = REVOKED_TEXT.split("\n")[12..-1]
+
+    expected_text.each_with_index do |line, i|
+      actual = crl.to_text.split("\n")[12 + i]
+      assert_equal line, actual
+    end
+  end
 
   def test_revoked_crl_loading
     crl_data = File.read(File.expand_path('../revoked.crl', __FILE__))
@@ -89,6 +89,7 @@ EOF
     assert_equal 2, crl.extensions.size
 
     assert_equal 'crlNumber = 6', crl.extensions[0].to_s
+    assert_equal "keyid:98:36:77:24:CA:8D:A9:FF:AC:FA:D2:D9:D5:5D:D5:50:E6:F7:6A:51\n", crl.extensions[1].value
 
     assert ! crl.revoked.empty?, "Expected CRL revoked list to not be empty."
     assert_equal 6, crl.revoked.size

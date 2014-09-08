@@ -303,7 +303,17 @@ public class X509CRL extends RubyObject {
             text.append("No Revoked Certificates.\n");
         }
 
-        // TODO X509_signature_print(out, x->sig_alg, x->signature);
+        // TODO we shall parse / use crlValue when != null :
+        text.append(S16,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
+
+        final StringBuilder signature = lowerHexBytes( crl.getSignature() );
+        final int len = signature.length(); int left = len;
+        while ( left > 0 ) {
+            int print = 54; if ( left < 54 ) print = left;
+            final int start = len - left;
+            text.append(S16,0,9).append( signature, start, start + print ).append('\n');
+            left -= print;
+        }
 
         return RubyString.newString( runtime, text );
     }
@@ -331,8 +341,22 @@ public class X509CRL extends RubyObject {
             text.append(S16,0,indent).append( no ).append(": ");
             if ( ext.isRealCritical() ) text.append("critical");
             text.append('\n');
-            text.append(S16).append( ext.value(context) ).append('\n');
+            final String value = ext.value(context).toString();
+            text.append(S16).append( value );
+            if ( value.charAt(value.length() - 1) != '\n' ) text.append('\n');
         }
+    }
+
+    private static StringBuilder lowerHexBytes(final byte[] bytes) {
+        final int len = bytes.length;
+        final StringBuilder hex = new StringBuilder(len * 3);
+        for (int i = 0; i < bytes.length; i++ ) {
+            final String h = Integer.toHexString( bytes[i] & 0xFF );
+            if ( h.length() == 1 ) hex.append('0');
+            hex.append( h ).append(':');
+        }
+        if ( len > 0 ) hex.setLength( hex.length() - 1 );
+        return hex;
     }
 
     @Override
