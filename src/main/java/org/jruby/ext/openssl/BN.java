@@ -89,6 +89,10 @@ public class BN extends RubyObject {
         return new BN(runtime, value != null ? value : BigInteger.ZERO);
     }
 
+    //static BN newInstance(final Ruby runtime, long value) {
+    //    return new BN(runtime, BigInteger.valueOf(value));
+    //}
+
     public static void createBN(Ruby runtime, RubyModule ossl) {
         RubyClass openSSLError = ossl.getClass("OpenSSLError");
         ossl.defineClassUnder("BNError", openSSLError, openSSLError.getAllocator());

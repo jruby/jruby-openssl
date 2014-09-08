@@ -135,7 +135,11 @@ public class X509Revoked extends RubyObject {
 
     @JRubyMethod(name = "serial=")
     public IRubyObject set_serial(final IRubyObject serial) {
-        return this.serial = (BN) serial;
+        if ( serial instanceof BN ) {
+            return this.serial = (BN) serial;
+        }
+        BigInteger value = serial.convertToInteger("to_i").getBigIntegerValue();
+        return this.serial = BN.newInstance(getRuntime(), value);
     }
 
     DateTime getTime() {
