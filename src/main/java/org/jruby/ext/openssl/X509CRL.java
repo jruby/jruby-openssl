@@ -143,7 +143,6 @@ public class X509CRL extends RubyObject {
         final IRubyObject[] args, final Block block) {
         final Ruby runtime = context.runtime;
 
-        this.version = runtime.newFixnum(0);
         this.extensions = runtime.newArray(8);
 
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) return this;
@@ -165,7 +164,7 @@ public class X509CRL extends RubyObject {
         set_issuer( X509Name.newName(runtime, crl.getIssuerX500Principal()) );
 
         final int version = crl.getVersion();
-        this.version = runtime.newFixnum( version > 0 ? version : 2 );
+        this.version = runtime.newFixnum( version > 0 ? version - 1 : 2 );
 
 
         final RubyModule _ASN1 = _ASN1(runtime);
@@ -263,8 +262,8 @@ public class X509CRL extends RubyObject {
 
         text.append("Certificate Revocation List (CRL):\n");
         final int version = RubyNumeric.fix2int(this.version);
-        text.append(S16,0,8).append("Version ").append( version ).
-             append(" (0x").append( Integer.toString( version - 1, 16 ) ).append(")\n");
+        text.append(S16,0,8).append("Version ").append( version + 1 ).
+             append(" (0x").append( Integer.toString( version, 16 ) ).append(")\n");
         text.append(S16,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
         text.append(S16,0,8).append("Issuer: ").append( issuer() ).append('\n');
         text.append(S16,0,8).append("Last Update: ");
@@ -372,7 +371,7 @@ public class X509CRL extends RubyObject {
 
     @JRubyMethod
     public IRubyObject version() {
-        return this.version;
+        return version == null ? version = getRuntime().newFixnum(0) : version;
     }
 
     @JRubyMethod(name="version=")
