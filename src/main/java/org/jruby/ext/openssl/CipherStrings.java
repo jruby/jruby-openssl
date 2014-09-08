@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2008 Ola Bini <ola.bini@gmail.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -41,6 +41,7 @@ import java.util.Set;
  * @author <a href="mailto:ola.bini@gmail.com">Ola Bini</a>
  */
 public class CipherStrings {
+
     public final static String SSL2_TXT_DES_64_CFB64_WITH_MD5_1 = "DES-CFB-M1";
     public final static String SSL2_TXT_NULL_WITH_MD5 = "NULL-MD5";
     public final static String SSL2_TXT_RC4_128_WITH_MD5 = "RC4-MD5";
@@ -110,7 +111,7 @@ public class CipherStrings {
     public final static String SSL_TXT_DES_64_CBC_WITH_SHA = SSL2_TXT_DES_64_CBC_WITH_SHA;
     public final static String SSL_TXT_DES_192_EDE3_CBC_WITH_MD5 = SSL2_TXT_DES_192_EDE3_CBC_WITH_MD5;
     public final static String SSL_TXT_DES_192_EDE3_CBC_WITH_SHA = SSL2_TXT_DES_192_EDE3_CBC_WITH_SHA;
-    
+
     public final static String SSL_TXT_KRB5_DES_64_CBC_SHA = SSL3_TXT_KRB5_DES_64_CBC_SHA;
     public final static String SSL_TXT_KRB5_DES_192_CBC3_SHA = SSL3_TXT_KRB5_DES_192_CBC3_SHA;
     public final static String SSL_TXT_KRB5_RC4_128_SHA = SSL3_TXT_KRB5_RC4_128_SHA;
@@ -381,7 +382,8 @@ public class CipherStrings {
     public final static String TLS1_TXT_ECDH_anon_WITH_AES_128_CBC_SHA = "AECDH-AES128-SHA";
     public final static String TLS1_TXT_ECDH_anon_WITH_AES_256_CBC_SHA = "AECDH-AES256-SHA";
 
-    public static class Def {
+    final static class Def implements Comparable<Def> {
+
         public final int valid;
         public final String name;
         public final long id;
@@ -392,7 +394,9 @@ public class CipherStrings {
         public final int alg_bits;
         public final long mask;
         public final long mask_strength;
+
         public String cipherSuite;
+
         public Def(int valid, String name, long id, long algorithms, long algo_strength, long algorithm2, int strength_bits, int alg_bits, long mask, long mask_strength) {
             this.valid = valid;
             this.name = name;
@@ -413,11 +417,16 @@ public class CipherStrings {
 
         @Override
         public boolean equals(Object other) {
-            boolean ret = this == other;
-            if(!ret && (other instanceof Def)) {
-                ret = this.name.equals(((Def)other).name);
+            if ( this == other ) return true;
+            if ( other instanceof Def ) {
+                return this.name.equals(((Def) other).name);
             }
-            return ret;
+            return false;
+        }
+
+        @Override
+        public int compareTo(final Def that) {
+            return this.strength_bits - that.strength_bits;
         }
 
         @Override
@@ -447,26 +456,22 @@ public class CipherStrings {
             }
             return true;
         }
+
     }
 
-    public final static Map<String, Def> Definitions = new HashMap<String, Def>();
-    public final static List<Def> Ciphers = new ArrayList<Def>();
-    public final static Map<String, Def> CipherNames = new HashMap<String, Def>();
-    public final static Map<String, String> SuiteToOSSL = new HashMap<String, String>();
+    private final static Map<String, Def> Definitions = new HashMap<String, Def>();
+    private final static List<Def> Ciphers = new ArrayList<Def>();
+    private final static Map<String, Def> CipherNames = new HashMap<String, Def>();
+    private final static Map<String, String> SuiteToOSSL = new HashMap<String, String>();
 
-    public static List<Def> getMatchingCiphers(String str, String[] all) {
-        String[] parts = str.split("[:, ]+");
+    static List<Def> getMatchingCiphers(String str, String[] all) {
+        final String[] parts = str.split("[:, ]+");
         List<Def> currentList = new ArrayList<Def>();
         Set<Def> removed = new HashSet<Def>();
 
         for (String part : parts) {
-            if (part.equals("@STRENGTH")) {
-                Collections.sort(currentList, new Comparator<Def>() {
-
-                    public int compare(Def first, Def second) {
-                        return second.strength_bits - first.strength_bits;
-                    }
-                });
+            if ( part.equals("@STRENGTH") ) {
+                Collections.sort(currentList);
                 continue;
             }
             int index = 0;
@@ -533,7 +538,7 @@ public class CipherStrings {
         }
         return matching;
     }
-    
+
     private static List<Def> getMatchingPattern(Def pattern, String[] all) {
         List<Def> matching = new ArrayList<Def>();
         for (String entry : all) {
