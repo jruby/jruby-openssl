@@ -301,6 +301,15 @@ public class ASN1 {
         addObject(runtime, 186, "AES-256-CFB", "aes-256-cfb","2.16.840.1.101.3.4.1.44");
     }
 
+    static ASN1ObjectIdentifier asOID(final String oid) {
+        try {
+            return new ASN1ObjectIdentifier(oid);
+        }
+        catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     private static void addObject(final Ruby runtime, final int nid,
         final String sn, final String ln, final String oid) {
         if ( oid != null && ( sn != null || ln != null ) ) {
@@ -420,14 +429,18 @@ public class ASN1 {
     }
 
     static String o2a(final Ruby runtime, final ASN1ObjectIdentifier oid) {
+        return o2a(runtime, oid, false);
+    }
+
+    static String o2a(final Ruby runtime, final ASN1ObjectIdentifier oid, final boolean silent) {
         final Integer nid = obj2nid(runtime, oid);
         if ( nid == null ) {
+            if ( silent ) return null;
             throw new NullPointerException("nid not found for oid = '" + oid + "' (" + runtime + ")");
         }
         String one = nidToLn(runtime).get(nid);
-        if (one == null) {
-            one = nidToSn(runtime).get(nid);
-        }
+        if ( one == null ) one = nidToSn(runtime).get(nid);
+        if ( one == null ) ASN1Registry.o2a(oid);
         return one;
     }
 

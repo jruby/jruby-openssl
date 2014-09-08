@@ -252,6 +252,15 @@ public class BN extends RubyObject {
     }
 
     @Override
+    public String toString() {
+        return to_s().toString();
+    }
+
+    public String toString(int base) {
+        return to_s(base).toString();
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     @JRubyMethod
     public IRubyObject inspect() {

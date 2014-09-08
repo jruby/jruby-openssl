@@ -110,9 +110,9 @@ public class X509Revoked extends RubyObject {
         if ( extension != null ) extensions().append( extension );
     }
 
-    private IRubyObject serial;
-    private RubyArray extensions;
-    private RubyTime time;
+    BN serial;
+    RubyArray extensions;
+    RubyTime time;
 
     public X509Revoked(Ruby runtime, RubyClass type) {
         super(runtime,type);
@@ -125,7 +125,7 @@ public class X509Revoked extends RubyObject {
     }
 
     BigInteger getSerial() {
-        return ((BN) this.serial).getValue();
+        return this.serial.getValue();
     }
 
     @JRubyMethod
@@ -135,7 +135,7 @@ public class X509Revoked extends RubyObject {
 
     @JRubyMethod(name = "serial=")
     public IRubyObject set_serial(final IRubyObject serial) {
-        return this.serial = serial;
+        return this.serial = (BN) serial;
     }
 
     DateTime getTime() {
