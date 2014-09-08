@@ -830,30 +830,33 @@ public class X509Extensions {
                 }
                 else if ( realOid.equals("2.5.29.35") ) { // authorityKeyIdentifier
                     ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(getRealValueBytes()).readObject();
-                    if ( seq.size() == 0 ) return runtime.newString();
-                    final ByteList val = new ByteList(32);
-                    val.append( keyid_ );
+                    if ( seq.size() == 0 ) return RubyString.newEmptyString(runtime);
+                    final ByteList val = new ByteList(72); val.append( keyid_ );
                     ASN1Primitive keyid = seq.getObjectAt(0).toASN1Primitive();
+                    if ( keyid instanceof ASN1TaggedObject ) {
+                        keyid = ((ASN1TaggedObject) keyid).getObject();
+                    }
                     final byte[] bytes;
                     if ( keyid instanceof DEROctetString ) {
                         bytes = ((DEROctetString) keyid).getOctets();
-                    } else {
+                    }
+                    else {
                         bytes = keyid.getEncoded(ASN1Encoding.DER);
                     }
-                    return runtime.newString( hexBytes(bytes, val) );
+                    return runtime.newString( hexBytes(bytes, val).append('\n') );
                 }
                 else if ( realOid.equals("2.5.29.21") ) { // CRLReason
                     IRubyObject val = ( (IRubyObject) value ).callMethod(context, "value");
                     switch ( RubyNumeric.fix2int(val) ) {
                         case 0: return runtime.newString(new ByteList(Unspecified));
-                        case 1: return runtime.newString("Key Compromise");
-                        case 2: return runtime.newString("CA Compromise");
-                        case 3: return runtime.newString("Affiliation Changed");
-                        case 4: return runtime.newString("Superseded");
-                        case 5: return runtime.newString("Cessation Of Operation");
-                        case 6: return runtime.newString("Certificate Hold");
-                        case 8: return runtime.newString("Remove From CRL");
-                        case 9: return runtime.newString("Privilege Withdrawn");
+                        case 1: return RubyString.newString(runtime, "Key Compromise");
+                        case 2: return RubyString.newString(runtime, "CA Compromise");
+                        case 3: return RubyString.newString(runtime, "Affiliation Changed");
+                        case 4: return RubyString.newString(runtime, "Superseded");
+                        case 5: return RubyString.newString(runtime, "Cessation Of Operation");
+                        case 6: return RubyString.newString(runtime, "Certificate Hold");
+                        case 8: return RubyString.newString(runtime, "Remove From CRL");
+                        case 9: return RubyString.newString(runtime, "Privilege Withdrawn");
                         default: return runtime.newString(new ByteList(Unspecified));
                     }
                 }
