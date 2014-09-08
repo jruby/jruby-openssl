@@ -130,10 +130,15 @@ public class X509Name extends RubyObject {
         return name;
     }
 
-    public static X509Name create(final Ruby runtime, org.bouncycastle.asn1.x500.X500Name realName) {
+    static X509Name newName(final Ruby runtime, org.bouncycastle.asn1.x500.X500Name realName) {
         final X509Name name = newName(runtime);
         name.fromASN1Sequence((ASN1Sequence) realName.toASN1Primitive());
         return name;
+    }
+
+    @Deprecated
+    public static X509Name create(final Ruby runtime, org.bouncycastle.asn1.x500.X500Name realName) {
+        return newName(runtime, realName);
     }
 
     static RubyClass _Name(final Ruby runtime) {
@@ -167,9 +172,9 @@ public class X509Name extends RubyObject {
     }
 
     void addEntry(ASN1ObjectIdentifier oid, String value, RubyInteger type) {
-        oids.add(oid);
-        values.add(value);
-        types.add(type);
+        this.oids.add(oid);
+        this.values.add(value);
+        this.types.add(type);
     }
 
     void fromASN1Sequence(final ASN1Sequence seq) {
@@ -194,11 +199,13 @@ public class X509Name extends RubyObject {
             oids.add( tv.getType() );
             final ASN1Encodable val = tv.getValue();
             if ( val instanceof ASN1String ) {
-                values.add( ((ASN1String) val).getString() );
+                this.values.add( ((ASN1String) val).getString() );
             } else {
-                values.add(null); //TODO really?
+
+                this.values.add(null); //TODO really?
+
             }
-            types.add( runtime.newFixnum( ASN1.idForJava(val) ) );
+            addType( runtime, val );
         }
     }
 
@@ -214,11 +221,17 @@ public class X509Name extends RubyObject {
         oids.add( (ASN1ObjectIdentifier) typeAndValue.getObjectAt(0) );
         final ASN1Encodable val = typeAndValue.getObjectAt(1);
         if ( val instanceof ASN1String ) {
-            values.add( ((ASN1String) val).getString() );
+            this.values.add( ((ASN1String) val).getString() );
         } else {
-            values.add(null);
+
+            this.values.add(null);
+
         }
-        types.add( getRuntime().newFixnum( ASN1.idForJava(val) ) );
+        addType( getRuntime(), val );
+    }
+
+    private void addType(final Ruby runtime, final ASN1Encodable value) {
+        this.types.add( runtime.newFixnum( ASN1.idForJava(value) ) );
     }
 
     @Override
@@ -270,6 +283,7 @@ public class X509Name extends RubyObject {
         return this;
     }
 
+    /*
     private static void printASN(final ASN1Encodable obj, final StringBuilder out) {
         printASN(obj, 0, out);
     }
@@ -298,7 +312,7 @@ public class X509Name extends RubyObject {
                     append('[').append( obj.getClass().getName() ).append(']');
             }
         }
-    }
+    } */
 
     @JRubyMethod
     public IRubyObject add_entry(ThreadContext context, IRubyObject oid, IRubyObject value) {
@@ -337,26 +351,25 @@ public class X509Name extends RubyObject {
     @JRubyMethod(name = "to_s", rest = true)
     public IRubyObject to_s(IRubyObject[] args) {
         final Ruby runtime = getRuntime();
-        /*
-Should follow parameters like this:
-if 0 (COMPAT):
-irb(main):025:0> x.to_s(OpenSSL::X509::Name::COMPAT)
-=> "CN=ola.bini, O=sweden/streetAddress=sweden, O=sweden/2.5.4.43343=sweden"
-irb(main):026:0> x.to_s(OpenSSL::X509::Name::ONELINE)
-=> "CN = ola.bini, O = sweden, streetAddress = sweden, O = sweden, 2.5.4.43343 = sweden"
-irb(main):027:0> x.to_s(OpenSSL::X509::Name::MULTILINE)
-=> "commonName                = ola.bini\norganizationName          = sweden\nstreetAddress             = sweden\norganizationName          = sweden\n2.5.4.43343 = sweden"
-irb(main):028:0> x.to_s(OpenSSL::X509::Name::RFC2253)
-=> "2.5.4.43343=#0C0673776564656E,O=sweden,streetAddress=sweden,O=sweden,CN=ola.bini"
-else
-=> /CN=ola.bini/O=sweden/streetAddress=sweden/O=sweden/2.5.4.43343=sweden
 
-         */
-
-        int flag = -1;
+        int flag = 0;
         if ( args.length > 0 && ! args[0].isNil() ) {
             flag = RubyNumeric.fix2int( args[0] );
         }
+
+        /* Should follow parameters like this:
+        if 0 (COMPAT):
+        irb(main):025:0> x.to_s(OpenSSL::X509::Name::COMPAT)
+        => "CN=ola.bini, O=sweden/streetAddress=sweden, O=sweden/2.5.4.43343=sweden"
+        irb(main):026:0> x.to_s(OpenSSL::X509::Name::ONELINE)
+        => "CN = ola.bini, O = sweden, streetAddress = sweden, O = sweden, 2.5.4.43343 = sweden"
+        irb(main):027:0> x.to_s(OpenSSL::X509::Name::MULTILINE)
+        => "commonName                = ola.bini\norganizationName          = sweden\nstreetAddress             = sweden\norganizationName          = sweden\n2.5.4.43343 = sweden"
+        irb(main):028:0> x.to_s(OpenSSL::X509::Name::RFC2253)
+        => "2.5.4.43343=#0C0673776564656E,O=sweden,streetAddress=sweden,O=sweden,CN=ola.bini"
+        else
+        => /CN=ola.bini/O=sweden/streetAddress=sweden/O=sweden/2.5.4.43343=sweden
+         */
 
         final Iterator<ASN1ObjectIdentifier> oidsIter;
         final Iterator<String> valuesIter;
@@ -379,11 +392,27 @@ else
             if ( name == null ) name = oid.toString();
             final String value = valuesIter.next();
 
-            if ( flag == RFC2253 ) {
-                str.append(sep).append(name).append('=').append(value);
-                sep = ",";
-            } else {
-                str.append('/').append(name).append('=').append(value);
+            switch(flag) {
+                case RFC2253:
+                    str.append(sep).append(name).append('=').append(value);
+                    sep = ",";
+                    break;
+                case ONELINE:
+                    str.append(sep).append(name).append(" = ").append(value);
+                    sep = ",";
+                    break;
+                case MULTILINE:
+                    final Integer nid = ASN1.obj2nid(runtime, oid);
+                    if ( nid != null ) {
+                        final String ln = ASN1.nid2ln(runtime, nid);
+                        if ( ln != null ) name = ln;
+                    } // TODO need indention :
+                    str.append(sep).append(name).append(" = ").append(value);
+                    sep = "\n";
+                    break;
+                case COMPAT:
+                default:
+                    str.append('/').append(name).append('=').append(value);
             }
         }
 
@@ -450,8 +479,16 @@ else
     @Override
     @JRubyMethod
     public RubyFixnum hash() {
-        final Name name = new Name( getX500Name() );
-        return getRuntime().newFixnum( name.hashCode() );
+        final Ruby runtime = getRuntime();
+        try {
+            return runtime.newFixnum( Name.hash( getX500Name() ) );
+        }
+        catch (IOException e) {
+            debugStackTrace(runtime, e); return runtime.newFixnum(0);
+        }
+        catch (RuntimeException e) {
+            debugStackTrace(runtime, e); return runtime.newFixnum(0);
+        }
     }
 
     @JRubyMethod

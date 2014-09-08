@@ -719,7 +719,7 @@ public class PKCS7 extends RubyObject {
 
         @JRubyMethod(name={"issuer","name"})
         public IRubyObject issuer() {
-            return X509Name.create(getRuntime(), info.getIssuerAndSerialNumber().getName());
+            return X509Name.newName(getRuntime(), info.getIssuerAndSerialNumber().getName());
         }
 
         @JRubyMethod
@@ -773,7 +773,7 @@ public class PKCS7 extends RubyObject {
 
         @JRubyMethod
         public IRubyObject issuer() {
-            return X509Name.create(getRuntime(), info.getIssuerAndSerial().getName());
+            return X509Name.newName(getRuntime(), info.getIssuerAndSerial().getName());
         }
 
         @JRubyMethod

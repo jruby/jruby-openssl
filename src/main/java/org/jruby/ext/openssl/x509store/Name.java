@@ -54,10 +54,7 @@ public class Name {
         this.name = name;
     }
 
-    private transient int hash = 0;
-
-    public int hash() {
-        if ( hash != 0 ) return hash;
+    public static int hash(final X500Name name) throws IOException {
         try {
             final byte[] bytes = name.getEncoded();
             MessageDigest md5 = SecurityHelper.getMessageDigest("MD5");
@@ -67,10 +64,18 @@ public class Name {
             result |= digest[2] & 0xff; result <<= 8;
             result |= digest[1] & 0xff; result <<= 8;
             result |= digest[0] & 0xff;
-            return hash = result & 0xffffffff;
+            return result & 0xffffffff;
         }
         catch (NoSuchAlgorithmException e) {
-            return 0;
+            throw new RuntimeException(e);
+        }
+    }
+
+    private transient int hash = 0;
+
+    public int hash() {
+        try {
+            return hash == 0 ? hash = hash(name) : hash;
         }
         catch (IOException e) {
             return 0;
