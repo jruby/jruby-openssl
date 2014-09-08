@@ -63,16 +63,16 @@ public class X509Store extends RubyObject {
         }
     };
 
-    public static void createX509Store(Ruby runtime, RubyModule mX509) {
-        RubyClass cX509Store = mX509.defineClassUnder("Store",runtime.getObject(),X509STORE_ALLOCATOR);
-        RubyClass openSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        mX509.defineClassUnder("StoreError",openSSLError,openSSLError.getAllocator());
-        cX509Store.addReadWriteAttribute(runtime.getCurrentContext(), "verify_callback");
-        cX509Store.addReadWriteAttribute(runtime.getCurrentContext(), "error");
-        cX509Store.addReadWriteAttribute(runtime.getCurrentContext(), "error_string");
-        cX509Store.addReadWriteAttribute(runtime.getCurrentContext(), "chain");
-        cX509Store.defineAnnotatedMethods(X509Store.class);
-        X509StoreContext.createX509StoreContext(runtime, mX509);
+    public static void createX509Store(final Ruby runtime, final RubyModule _X509) {
+        RubyClass _Store = _X509.defineClassUnder("Store", runtime.getObject(), X509STORE_ALLOCATOR);
+        RubyClass _OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
+        _X509.defineClassUnder("StoreError", _OpenSSLError, _OpenSSLError.getAllocator());
+        _Store.addReadWriteAttribute(runtime.getCurrentContext(), "verify_callback");
+        _Store.addReadWriteAttribute(runtime.getCurrentContext(), "error");
+        _Store.addReadWriteAttribute(runtime.getCurrentContext(), "error_string");
+        _Store.addReadWriteAttribute(runtime.getCurrentContext(), "chain");
+        _Store.defineAnnotatedMethods(X509Store.class);
+        X509StoreContext.createX509StoreContext(runtime, _X509);
     }
 
     public X509Store(Ruby runtime, RubyClass type) {

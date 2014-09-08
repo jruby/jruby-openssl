@@ -73,11 +73,12 @@ import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.runtime.builtin.Variable;
+import org.jruby.runtime.component.VariableEntry;
 import org.jruby.util.ByteList;
 
 import static org.jruby.ext.openssl.X509._X509;
-import org.jruby.runtime.builtin.Variable;
-import org.jruby.runtime.component.VariableEntry;
+import static org.jruby.ext.openssl.X509Extension.newExtension;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -113,7 +114,7 @@ public class X509Cert extends RubyObject {
     private IRubyObject sig_alg;
     private IRubyObject version;
 
-    private final List<X509Extensions.Extension> extensions = new ArrayList<X509Extensions.Extension>();
+    private final List<X509Extension> extensions = new ArrayList<X509Extension>();
 
     private boolean changed = true;
 
@@ -223,8 +224,7 @@ public class X509Cert extends RubyObject {
 
     private void addExtension(final ThreadContext context, final RubyModule _ASN1,
         final RubyClass _Extension, final String extOID, final boolean critical) {
-        final IRubyObject extension =
-            X509Extensions.newExtension(context, _ASN1, _Extension, extOID, cert, critical);
+        final IRubyObject extension = newExtension(context, _ASN1, _Extension, extOID, cert, critical);
         if ( extension != null ) add_extension(extension);
     }
 
@@ -459,7 +459,7 @@ public class X509Cert extends RubyObject {
             throw newCertificateError(runtime, "signature_algorithm not supported");
         }
 
-        for ( X509Extensions.Extension ext : extensions ) {
+        for ( X509Extension ext : extensions ) {
             try {
                 final byte[] bytes = ext.getRealValueBytes();
                 generator.addExtension(ext.getRealOid(), ext.isRealCritical(), bytes);
@@ -536,18 +536,18 @@ public class X509Cert extends RubyObject {
     @JRubyMethod(name="extensions=")
     public IRubyObject set_extensions(final IRubyObject array) {
         extensions.clear(); // RubyArray is a List :
-        extensions.addAll( (List<X509Extensions.Extension>) array );
+        extensions.addAll( (List<X509Extension>) array );
         return array;
     }
 
     @JRubyMethod
     public IRubyObject add_extension(final IRubyObject ext) {
         changed = true;
-        final X509Extensions.Extension newExtension = (X509Extensions.Extension) ext;
+        final X509Extension newExtension = (X509Extension) ext;
         final ASN1ObjectIdentifier oid = newExtension.getRealOid();
         if ( oid.getId().equals( "2.5.29.17" ) ) {
             boolean one = true;
-            for ( final X509Extensions.Extension curExtension : extensions ) {
+            for ( final X509Extension curExtension : extensions ) {
                 if ( curExtension.getRealOid().equals( oid ) ) {
                     final ASN1EncodableVector v1 = new ASN1EncodableVector();
                     try {

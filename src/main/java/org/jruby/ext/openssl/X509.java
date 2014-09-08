@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import org.jruby.Ruby;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.ext.openssl.x509store.X509Utils;
 
@@ -36,26 +37,35 @@ import org.jruby.ext.openssl.x509store.X509Utils;
  */
 public class X509 {
 
-    public static void createX509(Ruby runtime, RubyModule ossl) {
-        final RubyModule _X509 = ossl.defineModuleUnder("X509");
+    public static void createX509(final Ruby runtime, final RubyModule _OpenSSL) {
+        final RubyModule _X509 = _OpenSSL.defineModuleUnder("X509");
 
         X509Name.createX509Name(runtime,_X509);
         X509Cert.createX509Cert(runtime,_X509);
-        X509Extensions.createX509Ext(runtime,_X509);
+        X509Extension.createX509Extension(runtime,_X509);
         X509CRL.createX509CRL(runtime,_X509);
         X509Revoked.createX509Revoked(runtime,_X509);
         X509Store.createX509Store(runtime,_X509);
         Request.createRequest(runtime,_X509);
         Attribute.createAttribute(runtime,_X509);
 
+        final RubyFixnum _1 = runtime.newFixnum(1);
+        final RubyFixnum _2 = runtime.newFixnum(2);
+        final RubyFixnum _3 = runtime.newFixnum(3);
+        final RubyFixnum _4 = runtime.newFixnum(4);
+        final RubyFixnum _5 = runtime.newFixnum(5);
+        final RubyFixnum _6 = runtime.newFixnum(6);
+        final RubyFixnum _7 = runtime.newFixnum(7);
+        final RubyFixnum _8 = runtime.newFixnum(8);
+
         _X509.setConstant("V_OK",runtime.newFixnum(0));
-        _X509.setConstant("V_ERR_UNABLE_TO_GET_ISSUER_CERT",runtime.newFixnum(2));
-        _X509.setConstant("V_ERR_UNABLE_TO_GET_CRL",runtime.newFixnum(3));
-        _X509.setConstant("V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE",runtime.newFixnum(4));
-        _X509.setConstant("V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE",runtime.newFixnum(5));
-        _X509.setConstant("V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY",runtime.newFixnum(6));
-        _X509.setConstant("V_ERR_CERT_SIGNATURE_FAILURE",runtime.newFixnum(7));
-        _X509.setConstant("V_ERR_CRL_SIGNATURE_FAILURE",runtime.newFixnum(8));
+        _X509.setConstant("V_ERR_UNABLE_TO_GET_ISSUER_CERT",_2);
+        _X509.setConstant("V_ERR_UNABLE_TO_GET_CRL",_3);
+        _X509.setConstant("V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE",_4);
+        _X509.setConstant("V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE",_5);
+        _X509.setConstant("V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY",_6);
+        _X509.setConstant("V_ERR_CERT_SIGNATURE_FAILURE",_7);
+        _X509.setConstant("V_ERR_CRL_SIGNATURE_FAILURE",_8);
         _X509.setConstant("V_ERR_CERT_NOT_YET_VALID",runtime.newFixnum(9));
         _X509.setConstant("V_ERR_CERT_HAS_EXPIRED",runtime.newFixnum(10));
         _X509.setConstant("V_ERR_CRL_NOT_YET_VALID",runtime.newFixnum(11));
@@ -81,23 +91,23 @@ public class X509 {
         _X509.setConstant("V_ERR_AKID_ISSUER_SERIAL_MISMATCH",runtime.newFixnum(31));
         _X509.setConstant("V_ERR_KEYUSAGE_NO_CERTSIGN",runtime.newFixnum(32));
         _X509.setConstant("V_ERR_APPLICATION_VERIFICATION",runtime.newFixnum(50));
-        _X509.setConstant("V_FLAG_CRL_CHECK",runtime.newFixnum(4));
-        _X509.setConstant("V_FLAG_CRL_CHECK_ALL",runtime.newFixnum(8));
-        _X509.setConstant("PURPOSE_SSL_CLIENT",runtime.newFixnum(1));
-        _X509.setConstant("PURPOSE_SSL_SERVER",runtime.newFixnum(2));
-        _X509.setConstant("PURPOSE_NS_SSL_SERVER",runtime.newFixnum(3));
-        _X509.setConstant("PURPOSE_SMIME_SIGN",runtime.newFixnum(4));
-        _X509.setConstant("PURPOSE_SMIME_ENCRYPT",runtime.newFixnum(5));
-        _X509.setConstant("PURPOSE_CRL_SIGN",runtime.newFixnum(6));
-        _X509.setConstant("PURPOSE_ANY",runtime.newFixnum(7));
-        _X509.setConstant("PURPOSE_OCSP_HELPER",runtime.newFixnum(8));
-        _X509.setConstant("TRUST_COMPAT",runtime.newFixnum(1));
-        _X509.setConstant("TRUST_SSL_CLIENT",runtime.newFixnum(2));
-        _X509.setConstant("TRUST_SSL_SERVER",runtime.newFixnum(3));
-        _X509.setConstant("TRUST_EMAIL",runtime.newFixnum(4));
-        _X509.setConstant("TRUST_OBJECT_SIGN",runtime.newFixnum(5));
-        _X509.setConstant("TRUST_OCSP_SIGN",runtime.newFixnum(6));
-        _X509.setConstant("TRUST_OCSP_REQUEST",runtime.newFixnum(7));
+        _X509.setConstant("V_FLAG_CRL_CHECK",_4);
+        _X509.setConstant("V_FLAG_CRL_CHECK_ALL",_8);
+        _X509.setConstant("PURPOSE_SSL_CLIENT",_1);
+        _X509.setConstant("PURPOSE_SSL_SERVER",_2);
+        _X509.setConstant("PURPOSE_NS_SSL_SERVER",_3);
+        _X509.setConstant("PURPOSE_SMIME_SIGN",_4);
+        _X509.setConstant("PURPOSE_SMIME_ENCRYPT",_5);
+        _X509.setConstant("PURPOSE_CRL_SIGN",_6);
+        _X509.setConstant("PURPOSE_ANY",_7);
+        _X509.setConstant("PURPOSE_OCSP_HELPER",_8);
+        _X509.setConstant("TRUST_COMPAT",_1);
+        _X509.setConstant("TRUST_SSL_CLIENT",_2);
+        _X509.setConstant("TRUST_SSL_SERVER",_3);
+        _X509.setConstant("TRUST_EMAIL",_4);
+        _X509.setConstant("TRUST_OBJECT_SIGN",_5);
+        _X509.setConstant("TRUST_OCSP_SIGN",_6);
+        _X509.setConstant("TRUST_OCSP_REQUEST",_7);
 
         // These should eventually point to correct things.
         _X509.setConstant("DEFAULT_CERT_AREA", runtime.newString(X509Utils.X509_CERT_AREA));

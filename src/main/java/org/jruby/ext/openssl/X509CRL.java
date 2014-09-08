@@ -87,8 +87,8 @@ import static org.jruby.ext.openssl.OpenSSLReal.debug;
 import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 import static org.jruby.ext.openssl.ASN1._ASN1;
 import static org.jruby.ext.openssl.X509._X509;
-import static org.jruby.ext.openssl.X509Extensions._Extension;
-import static org.jruby.ext.openssl.X509Extensions.Extension;
+import static org.jruby.ext.openssl.X509Extension._Extension;
+import static org.jruby.ext.openssl.X509Extension.newExtension;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -205,8 +205,7 @@ public class X509CRL extends RubyObject {
 
     private void addExtension(final ThreadContext context, final RubyModule _ASN1,
         final RubyClass _Extension, final String extOID, final boolean critical) {
-        final IRubyObject extension =
-            X509Extensions.newExtension(context, _ASN1, _Extension, extOID, crl, critical);
+        final IRubyObject extension = newExtension(context, _ASN1, _Extension, extOID, crl, critical);
         if ( extension != null ) this.extensions.append(extension);
     }
 
@@ -335,7 +334,7 @@ public class X509CRL extends RubyObject {
     private static void extensions_to_text(final ThreadContext context,
         final RubyArray exts, final StringBuilder text, final int indent) {
         for ( int i = 0; i < exts.size(); i++ ) {
-            final Extension ext = (Extension) exts.entry(i);
+            final X509Extension ext = (X509Extension) exts.entry(i);
             final ASN1ObjectIdentifier oid = ext.getRealOid();
             final String no = ASN1.o2a(context.runtime, oid);
             text.append(S16,0,indent).append( no ).append(": ");
@@ -522,7 +521,7 @@ public class X509CRL extends RubyObject {
                     final RubyArray exts = rev.extensions();
                     final Vector<ASN1Sequence> vec = new Vector<ASN1Sequence>(exts.size());
                     for ( int j = 0; j < exts.size(); j++ ) {
-                        final Extension ext = (Extension) exts.entry(j);
+                        final X509Extension ext = (X509Extension) exts.entry(j);
                         try {
                             vec.add( ext.toASN1Sequence() );
                         }
@@ -540,7 +539,7 @@ public class X509CRL extends RubyObject {
 
         try {
             for ( int i = 0; i < extensions.size(); i++ ) {
-                Extension ext = (Extension) extensions.entry(i);
+                X509Extension ext = (X509Extension) extensions.entry(i);
                 generator.addExtension(ext.getRealOid(), ext.isRealCritical(), ext.getRealValueBytes());
             }
         }
