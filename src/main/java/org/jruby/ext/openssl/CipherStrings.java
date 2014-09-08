@@ -28,10 +28,12 @@
 package org.jruby.ext.openssl;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -382,7 +384,7 @@ public class CipherStrings {
     public final static String TLS1_TXT_ECDH_anon_WITH_AES_128_CBC_SHA = "AECDH-AES128-SHA";
     public final static String TLS1_TXT_ECDH_anon_WITH_AES_256_CBC_SHA = "AECDH-AES256-SHA";
 
-    final static class Def implements Comparable<Def> {
+    final static class Def implements Comparable<Def>, Cloneable {
 
         public final int valid;
         public final String name;
@@ -395,7 +397,7 @@ public class CipherStrings {
         public final long mask;
         public final long mask_strength;
 
-        public String cipherSuite;
+        private volatile String cipherSuite;
 
         public Def(int valid, String name, long id, long algorithms, long algo_strength, long algorithm2, int strength_bits, int alg_bits, long mask, long mask_strength) {
             this.valid = valid;
@@ -408,6 +410,29 @@ public class CipherStrings {
             this.alg_bits = alg_bits;
             this.mask = mask;
             this.mask_strength = mask_strength;
+        }
+
+        public String getCipherSuite() {
+            return cipherSuite;
+        }
+
+        Def setCipherSuite(final String suite) {
+            if ( this.cipherSuite == null ) {
+                synchronized (this) {
+                    if ( this.cipherSuite == null ) {
+                        this.cipherSuite = suite; return this;
+                    }
+                }
+            }
+            if ( suite.equals(this.cipherSuite) ) return this;
+            try {
+                Def clone = (Def) super.clone();
+                clone.cipherSuite = suite;
+                return clone;
+            }
+            catch (CloneNotSupportedException e) {
+                throw new RuntimeException(e); // won't happen
+            }
         }
 
         @Override
@@ -459,108 +484,95 @@ public class CipherStrings {
 
     }
 
-    private final static Map<String, Def> Definitions = new HashMap<String, Def>();
-    private final static List<Def> Ciphers = new ArrayList<Def>();
-    private final static Map<String, Def> CipherNames = new HashMap<String, Def>();
-    private final static Map<String, String> SuiteToOSSL = new HashMap<String, String>();
+    private final static Map<String, Def> Definitions;
+    private final static List<Def> Ciphers = new ArrayList<Def>( 100 );
+    private final static Map<String, Def> CipherNames;
+    private final static Map<String, String> SuiteToOSSL;
 
-    static List<Def> getMatchingCiphers(String str, String[] all) {
-        final String[] parts = str.split("[:, ]+");
-        List<Def> currentList = new ArrayList<Def>();
-        Set<Def> removed = new HashSet<Def>();
+    static Collection<Def> matchingCiphers(final String cipherString, final String[] all) {
+        final List<Def> matchedList = new LinkedList<Def>(); Set<Def> removed = null;
 
-        for (String part : parts) {
+        for ( final String part : cipherString.split("[:, ]+") ) {
             if ( part.equals("@STRENGTH") ) {
-                Collections.sort(currentList);
+                Collections.sort(matchedList);
                 continue;
             }
+
             int index = 0;
-            switch (part.charAt(0)) {
-                case '!':
-                    index++;
-                    break;
-                case '+':
-                    index++;
-                    break;
-                case '-':
-                    index++;
-                    break;
+            switch ( part.charAt(0) ) {
+                case '!': case '+': case '-': index++; break;
             }
-            List<Def> matching = getMatching(part.substring(index), all);
-            if (matching != null) {
-                if (index > 0) {
-                    switch (part.charAt(0)) {
+
+            Collection<Def> matching = matching(part.substring(index), all);
+            if ( matching != null ) {
+                if ( index > 0 ) {
+                    switch ( part.charAt(0) ) {
                         case '!':
-                            currentList.removeAll(matching);
+                            matchedList.removeAll(matching);
+                            if ( removed == null ) removed = new HashSet<Def>();
                             removed.addAll(matching);
                             break;
-                        case '+':   // '+' is for moving entry in the list.
-                            for (Def ele : matching) {
-                                if (!removed.contains(ele) && currentList.contains(ele)) {
-                                    currentList.remove(ele);
-                                    currentList.add(ele);
+                        case '+': // '+' is for moving entry in the list
+                            for ( final Def def : matching ) {
+                                if ( removed == null || ! removed.contains(def) ) {
+                                    if ( matchedList.remove(def) ) matchedList.add(def);
                                 }
                             }
                             break;
                         case '-':
-                            currentList.removeAll(matching);
+                            matchedList.removeAll(matching);
                             break;
                     }
-                } else {
-                    for (Def ele : matching) {
-                        if (!removed.contains(ele) && !currentList.contains(ele)) {
-                            currentList.add(ele);
+                }
+                else {
+                    for ( final Def def : matching ) {
+                        if ( removed == null || ! removed.contains(def) ) {
+                            if ( ! matchedList.contains(def) ) matchedList.add(def);
                         }
                     }
                 }
             }
         }
-        return currentList;
+
+        return matchedList;
     }
 
-    private static List<Def> getMatching(String definition, String[] all) {
-        List<Def> matching = null;
-        for (String name : definition.split("[+]")) {
-            Def pattern = Definitions.get(name);
-            if (pattern != null) {
-                if (matching == null) {
-                    matching = getMatchingPattern(pattern, all);
-                } else {
-                    List<Def> updated = new ArrayList<Def>();
-                    for (Def ele : getMatchingPattern(pattern, all)) {
-                        if (matching.contains(ele)) {
-                            updated.add(ele);
-                        }
-                    }
-                    matching = updated;
+    private static Collection<Def> matching(final String definition, final String[] all) {
+        Collection<Def> matching = null;
+        for ( final String name : definition.split("[+]") ) {
+            final Def pattern = Definitions.get(name);
+            if ( pattern != null ) {
+                if ( matching == null ) {
+                    matching = matchingPattern(pattern, all, true);
+                }
+                else {
+                    matching.retainAll( matchingPattern(pattern, all, false) );
                 }
             }
         }
         return matching;
     }
 
-    private static List<Def> getMatchingPattern(Def pattern, String[] all) {
-        List<Def> matching = new ArrayList<Def>();
-        for (String entry : all) {
-            String ossl = SuiteToOSSL.get(entry);
-            if (ossl != null) {
-                Def def = CipherNames.get(ossl);
-                if (def != null) {
-                    def.cipherSuite = entry;
-                    if (pattern.matches(def)) {
-                        matching.add(def);
-                    }
+    private static Collection<Def> matchingPattern(
+        final Def pattern, final String[] all, final boolean set) {
+        final Collection<Def> matching;
+        if ( set ) matching = new LinkedHashSet<Def>();
+        else matching = new ArrayList<Def>(all.length);
+
+        for ( final String entry : all ) {
+            final String ossl = SuiteToOSSL.get(entry);
+            if ( ossl != null ) {
+                final Def def = CipherNames.get(ossl);
+                if ( def != null && pattern.matches(def) ) {
+                    matching.add( def.setCipherSuite(entry) );
                 }
             }
         }
         return matching;
-    }
-
-    private static void addAlias(String cipherSuite, String ossl) {
-        SuiteToOSSL.put(cipherSuite, ossl);
     }
 
     static {
+        Definitions = new HashMap<String, Def>(48);
         Definitions.put(SSL_TXT_ALL,new Def(0,SSL_TXT_ALL, 0,SSL_ALL & ~SSL_eNULL & ~SSL_kECDH & ~SSL_kECDHE, SSL_ALL ,0,0,0,SSL_ALL,SSL_ALL));
         Definitions.put(SSL_TXT_CMPALL,new Def(0,SSL_TXT_CMPALL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_CMPDEF,new Def(0,SSL_TXT_CMPDEF,0,SSL_ADH, 0,0,0,0,SSL_AUTH_MASK,0));
@@ -1787,75 +1799,77 @@ public class CipherStrings {
                             SSL_ALL_STRENGTHS
                             ));
 
-        for(Def def : Ciphers) {
-            CipherNames.put(def.name, def);
-        }
+        CipherNames = new HashMap<String, Def>(Ciphers.size());
+        for ( Def def : Ciphers ) CipherNames.put(def.name, def);
 
-        addAlias("SSL_RSA_WITH_NULL_MD5","NULL-MD5");
-        addAlias("SSL_RSA_WITH_NULL_SHA","NULL-SHA");
-        addAlias("SSL_RSA_EXPORT_WITH_RC4_40_MD5","EXP-RC4-MD5");
-        addAlias("SSL_RSA_WITH_RC4_128_MD5","RC4-MD5");
-        addAlias("SSL_RSA_WITH_RC4_128_SHA","RC4-SHA");
-        addAlias("SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5","EXP-RC2-CBC-MD5");
-        addAlias("SSL_RSA_WITH_IDEA_CBC_SHA","IDEA-CBC-SHA");
-        addAlias("SSL_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-DES-CBC-SHA");
-        addAlias("SSL_RSA_WITH_DES_CBC_SHA","DES-CBC-SHA");
-        addAlias("SSL_RSA_WITH_3DES_EDE_CBC_SHA","DES-CBC3-SHA");
-        addAlias("SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-DSS-DES-CBC-SHA");
-        addAlias("SSL_DHE_DSS_WITH_DES_CBC_SHA","EDH-DSS-CBC-SHA");
-        addAlias("SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA","EDH-DSS-DES-CBC3-SHA");
-        addAlias("SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-RSA-DES-CBC-SHA");
-        addAlias("SSL_DHE_RSA_WITH_DES_CBC_SHA","EDH-RSA-DES-CBC-SHA");
-        addAlias("SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA","EDH-RSA-DES-CBC3-SHA");
-        addAlias("SSL_DH_anon_EXPORT_WITH_RC4_40_MD5","EXP-ADH-RC4-MD5");
-        addAlias("SSL_DH_anon_WITH_RC4_128_MD5","ADH-RC4-MD5");
-        addAlias("SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA","EXP-ADH-DES-CBC-SHA");
-        addAlias("SSL_DH_anon_WITH_DES_CBC_SHA","ADH-DES-CBC-SHA");
-        addAlias("SSL_DH_anon_WITH_3DES_EDE_CBC_SHA","ADH-DES-CBC3-SHA");
-        addAlias("TLS_RSA_WITH_NULL_MD5","NULL-MD5");
-        addAlias("TLS_RSA_WITH_NULL_SHA","NULL-SHA");
-        addAlias("TLS_RSA_EXPORT_WITH_RC4_40_MD5","EXP-RC4-MD5");
-        addAlias("TLS_RSA_WITH_RC4_128_MD5","RC4-MD5");
-        addAlias("TLS_RSA_WITH_RC4_128_SHA","RC4-SHA");
-        addAlias("TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5","EXP-RC2-CBC-MD5");
-        addAlias("TLS_RSA_WITH_IDEA_CBC_SHA","IDEA-CBC-SHA");
-        addAlias("TLS_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-DES-CBC-SHA");
-        addAlias("TLS_RSA_WITH_DES_CBC_SHA","DES-CBC-SHA");
-        addAlias("TLS_RSA_WITH_3DES_EDE_CBC_SHA","DES-CBC3-SHA");
-        addAlias("TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-DSS-DES-CBC-SHA");
-        addAlias("TLS_DHE_DSS_WITH_DES_CBC_SHA","EDH-DSS-CBC-SHA");
-        addAlias("TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA","EDH-DSS-DES-CBC3-SHA");
-        addAlias("TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-RSA-DES-CBC-SHA");
-        addAlias("TLS_DHE_RSA_WITH_DES_CBC_SHA","EDH-RSA-DES-CBC-SHA");
-        addAlias("TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA","EDH-RSA-DES-CBC3-SHA");
-        addAlias("TLS_DH_anon_EXPORT_WITH_RC4_40_MD5","EXP-ADH-RC4-MD5");
-        addAlias("TLS_DH_anon_WITH_RC4_128_MD5","ADH-RC4-MD5");
-        addAlias("TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA","EXP-ADH-DES-CBC-SHA");
-        addAlias("TLS_DH_anon_WITH_DES_CBC_SHA","ADH-DES-CBC-SHA");
-        addAlias("TLS_DH_anon_WITH_3DES_EDE_CBC_SHA","ADH-DES-CBC3-SHA");
-        addAlias("TLS_RSA_WITH_AES_128_CBC_SHA","AES128-SHA");
-        addAlias("TLS_RSA_WITH_AES_256_CBC_SHA","AES256-SHA");
-        addAlias("TLS_DH_DSS_WITH_AES_128_CBC_SHA","DH-DSS-AES128-SHA");
-        addAlias("TLS_DH_DSS_WITH_AES_256_CBC_SHA","DH-DSS-AES256-SHA");
-        addAlias("TLS_DH_RSA_WITH_AES_128_CBC_SHA","DH-RSA-AES128-SHA");
-        addAlias("TLS_DH_RSA_WITH_AES_256_CBC_SHA","DH-RSA-AES256-SHA");
-        addAlias("TLS_DHE_DSS_WITH_AES_128_CBC_SHA","DHE-DSS-AES128-SHA");
-        addAlias("TLS_DHE_DSS_WITH_AES_256_CBC_SHA","DHE-DSS-AES256-SHA");
-        addAlias("TLS_DHE_RSA_WITH_AES_128_CBC_SHA","DHE-RSA-AES128-SHA");
-        addAlias("TLS_DHE_RSA_WITH_AES_256_CBC_SHA","DHE-RSA-AES256-SHA");
-        addAlias("TLS_DH_anon_WITH_AES_128_CBC_SHA","ADH-AES128-SHA");
-        addAlias("TLS_DH_anon_WITH_AES_256_CBC_SHA","ADH-AES256-SHA");
-        addAlias("TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA","EXP1024-DES-CBC-SHA");
-        addAlias("TLS_RSA_EXPORT1024_WITH_RC4_56_SHA","EXP1024-RC4-SHA");
-        addAlias("TLS_DHE_DSS_EXPORT1024_WITH_DES_CBC_SHA","EXP1024-DHE-DSS-DES-CBC-SHA");
-        addAlias("TLS_DHE_DSS_EXPORT1024_WITH_RC4_56_SHA","EXP1024-DHE-DSS-RC4-SHA");
-        addAlias("TLS_DHE_DSS_WITH_RC4_128_SHA","DHE-DSS-RC4-SHA");
-        addAlias("SSL_CK_RC4_128_WITH_MD5","RC4-MD5");
-        addAlias("SSL_CK_RC4_128_EXPORT40_WITH_MD5","EXP-RC4-MD5");
-        addAlias("SSL_CK_RC2_128_CBC_WITH_MD5","RC2-MD5");
-        addAlias("SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5","EXP-RC2-MD5");
-        addAlias("SSL_CK_IDEA_128_CBC_WITH_MD5","IDEA-CBC-MD5");
-        addAlias("SSL_CK_DES_64_CBC_WITH_MD5","DES-CBC-MD5");
-        addAlias("SSL_CK_DES_192_EDE3_CBC_WITH_MD5","DES-CBC3-MD5");
+        SuiteToOSSL = new HashMap<String, String>(80);
+        SuiteToOSSL.put("SSL_RSA_WITH_NULL_MD5","NULL-MD5");
+        SuiteToOSSL.put("SSL_RSA_WITH_NULL_SHA","NULL-SHA");
+        SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_RC4_40_MD5","EXP-RC4-MD5");
+        SuiteToOSSL.put("SSL_RSA_WITH_RC4_128_MD5","RC4-MD5");
+        SuiteToOSSL.put("SSL_RSA_WITH_RC4_128_SHA","RC4-SHA");
+        SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5","EXP-RC2-CBC-MD5");
+        SuiteToOSSL.put("SSL_RSA_WITH_IDEA_CBC_SHA","IDEA-CBC-SHA");
+        SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_RSA_WITH_DES_CBC_SHA","DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_RSA_WITH_3DES_EDE_CBC_SHA","DES-CBC3-SHA");
+        SuiteToOSSL.put("SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-DSS-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_DES_CBC_SHA","EDH-DSS-CBC-SHA");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA","EDH-DSS-DES-CBC3-SHA");
+        SuiteToOSSL.put("SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-RSA-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_DES_CBC_SHA","EDH-RSA-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA","EDH-RSA-DES-CBC3-SHA");
+        SuiteToOSSL.put("SSL_DH_anon_EXPORT_WITH_RC4_40_MD5","EXP-ADH-RC4-MD5");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_RC4_128_MD5","ADH-RC4-MD5");
+        SuiteToOSSL.put("SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA","EXP-ADH-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_DES_CBC_SHA","ADH-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_3DES_EDE_CBC_SHA","ADH-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_NULL_MD5","NULL-MD5");
+        SuiteToOSSL.put("TLS_RSA_WITH_NULL_SHA","NULL-SHA");
+        SuiteToOSSL.put("TLS_RSA_EXPORT_WITH_RC4_40_MD5","EXP-RC4-MD5");
+        SuiteToOSSL.put("TLS_RSA_WITH_RC4_128_MD5","RC4-MD5");
+        SuiteToOSSL.put("TLS_RSA_WITH_RC4_128_SHA","RC4-SHA");
+        SuiteToOSSL.put("TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5","EXP-RC2-CBC-MD5");
+        SuiteToOSSL.put("TLS_RSA_WITH_IDEA_CBC_SHA","IDEA-CBC-SHA");
+        SuiteToOSSL.put("TLS_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_DES_CBC_SHA","DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_3DES_EDE_CBC_SHA","DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-DSS-DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_DES_CBC_SHA","EDH-DSS-CBC-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA","EDH-DSS-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-RSA-DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_DES_CBC_SHA","EDH-RSA-DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA","EDH-RSA-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_DH_anon_EXPORT_WITH_RC4_40_MD5","EXP-ADH-RC4-MD5");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_RC4_128_MD5","ADH-RC4-MD5");
+        SuiteToOSSL.put("TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA","EXP-ADH-DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_DES_CBC_SHA","ADH-DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_3DES_EDE_CBC_SHA","ADH-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_128_CBC_SHA","AES128-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_256_CBC_SHA","AES256-SHA");
+        SuiteToOSSL.put("TLS_DH_DSS_WITH_AES_128_CBC_SHA","DH-DSS-AES128-SHA");
+        SuiteToOSSL.put("TLS_DH_DSS_WITH_AES_256_CBC_SHA","DH-DSS-AES256-SHA");
+        SuiteToOSSL.put("TLS_DH_RSA_WITH_AES_128_CBC_SHA","DH-RSA-AES128-SHA");
+        SuiteToOSSL.put("TLS_DH_RSA_WITH_AES_256_CBC_SHA","DH-RSA-AES256-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_128_CBC_SHA","DHE-DSS-AES128-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_256_CBC_SHA","DHE-DSS-AES256-SHA");
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_128_CBC_SHA","DHE-RSA-AES128-SHA");
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_256_CBC_SHA","DHE-RSA-AES256-SHA");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_128_CBC_SHA","ADH-AES128-SHA");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_256_CBC_SHA","ADH-AES256-SHA");
+        SuiteToOSSL.put("TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA","EXP1024-DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_RSA_EXPORT1024_WITH_RC4_56_SHA","EXP1024-RC4-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_EXPORT1024_WITH_DES_CBC_SHA","EXP1024-DHE-DSS-DES-CBC-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_EXPORT1024_WITH_RC4_56_SHA","EXP1024-DHE-DSS-RC4-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_RC4_128_SHA","DHE-DSS-RC4-SHA");
+        SuiteToOSSL.put("SSL_CK_RC4_128_WITH_MD5","RC4-MD5");
+        SuiteToOSSL.put("SSL_CK_RC4_128_EXPORT40_WITH_MD5","EXP-RC4-MD5");
+        SuiteToOSSL.put("SSL_CK_RC2_128_CBC_WITH_MD5","RC2-MD5");
+        SuiteToOSSL.put("SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5","EXP-RC2-MD5");
+        SuiteToOSSL.put("SSL_CK_IDEA_128_CBC_WITH_MD5","IDEA-CBC-MD5");
+        SuiteToOSSL.put("SSL_CK_DES_64_CBC_WITH_MD5","DES-CBC-MD5");
+        SuiteToOSSL.put("SSL_CK_DES_192_EDE3_CBC_WITH_MD5","DES-CBC3-MD5");
+
 	}
+
 }// CipherStrings
