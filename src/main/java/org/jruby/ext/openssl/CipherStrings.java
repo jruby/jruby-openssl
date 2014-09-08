@@ -484,18 +484,14 @@ public class CipherStrings {
 
     }
 
-    private final static Map<String, Def> Definitions;
-    private final static List<Def> Ciphers = new ArrayList<Def>( 100 );
-    private final static Map<String, Def> CipherNames;
-    private final static Map<String, String> SuiteToOSSL;
-
-    static Collection<Def> matchingCiphers(final String cipherString, final String[] all) {
-        final List<Def> matchedList = new LinkedList<Def>(); Set<Def> removed = null;
+    static Collection<Def> matchingCiphers(final String cipherString, final String[] all,
+        final boolean setSuite) {
+        final List<Def> matchedList = new LinkedList<Def>();
+        Set<Def> removed = null;
 
         for ( final String part : cipherString.split("[:, ]+") ) {
             if ( part.equals("@STRENGTH") ) {
-                Collections.sort(matchedList);
-                continue;
+                Collections.sort(matchedList); continue;
             }
 
             int index = 0;
@@ -503,7 +499,7 @@ public class CipherStrings {
                 case '!': case '+': case '-': index++; break;
             }
 
-            Collection<Def> matching = matching(part.substring(index), all);
+            Collection<Def> matching = matching(part.substring(index), all, setSuite);
             if ( matching != null ) {
                 if ( index > 0 ) {
                     switch ( part.charAt(0) ) {
@@ -537,16 +533,17 @@ public class CipherStrings {
         return matchedList;
     }
 
-    private static Collection<Def> matching(final String definition, final String[] all) {
+    private static Collection<Def> matching(final String definition, final String[] all,
+        final boolean setSuite) {
         Collection<Def> matching = null;
         for ( final String name : definition.split("[+]") ) {
             final Def pattern = Definitions.get(name);
             if ( pattern != null ) {
                 if ( matching == null ) {
-                    matching = matchingPattern(pattern, all, true);
+                    matching = matchingPattern(pattern, all, true, setSuite);
                 }
                 else {
-                    matching.retainAll( matchingPattern(pattern, all, false) );
+                    matching.retainAll( matchingPattern(pattern, all, false, setSuite) );
                 }
             }
         }
@@ -554,9 +551,10 @@ public class CipherStrings {
     }
 
     private static Collection<Def> matchingPattern(
-        final Def pattern, final String[] all, final boolean set) {
+        final Def pattern, final String[] all, final boolean useSet,
+        final boolean setSuite) {
         final Collection<Def> matching;
-        if ( set ) matching = new LinkedHashSet<Def>();
+        if ( useSet ) matching = new LinkedHashSet<Def>();
         else matching = new ArrayList<Def>(all.length);
 
         for ( final String entry : all ) {
@@ -564,12 +562,22 @@ public class CipherStrings {
             if ( ossl != null ) {
                 final Def def = CipherNames.get(ossl);
                 if ( def != null && pattern.matches(def) ) {
-                    matching.add( def.setCipherSuite(entry) );
+                    if ( setSuite ) {
+                        matching.add( def.setCipherSuite(entry) );
+                    }
+                    else {
+                        matching.add( def );
+                    }
                 }
             }
         }
         return matching;
     }
+
+    private final static Map<String, Def> Definitions;
+    private final static ArrayList<Def> Ciphers;
+    private final static Map<String, Def> CipherNames;
+    private final static Map<String, String> SuiteToOSSL;
 
     static {
         Definitions = new HashMap<String, Def>(48);
@@ -619,6 +627,7 @@ public class CipherStrings {
         Definitions.put(SSL_TXT_MEDIUM,new Def(0,SSL_TXT_MEDIUM,0, 0,SSL_MEDIUM, 0,0,0,0,SSL_STRONG_MASK));
         Definitions.put(SSL_TXT_HIGH,new Def(0,SSL_TXT_HIGH,  0, 0,  SSL_HIGH, 0,0,0,0,SSL_STRONG_MASK));
 
+        Ciphers = new ArrayList<Def>( 100 );
         /* Cipher 01 */
         Ciphers.add(new Def(
                             1,

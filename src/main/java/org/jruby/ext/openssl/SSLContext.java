@@ -354,8 +354,9 @@ public class SSLContext extends RubyObject {
         final Ruby runtime = context.runtime;
         try {
             final String[] supported = getSupportedCipherSuites(this.protocol);
+            @SuppressWarnings("unchecked")
             final Collection<CipherStrings.Def> cipherDefs =
-                    CipherStrings.matchingCiphers(this.ciphers, supported);
+                    CipherStrings.matchingCiphers(this.ciphers, supported, false);
 
             final RubyArray cipherList = runtime.newArray(cipherDefs.size());
 
@@ -480,7 +481,7 @@ public class SSLContext extends RubyObject {
 
     private String[] getCipherSuites(final String[] supported) {
         Collection<CipherStrings.Def> cipherDefs =
-                CipherStrings.matchingCiphers(this.ciphers, supported);
+                CipherStrings.matchingCiphers(this.ciphers, supported, true);
         final String[] result = new String[ cipherDefs.size() ]; int i = 0;
         for ( CipherStrings.Def def : cipherDefs ) {
             result[ i++ ] = def.getCipherSuite();
