@@ -191,6 +191,9 @@ public class X509ExtensionFactory extends RubyObject {
             else if (id.equals("2.5.29.35")) { //authorityKeyIdentifier
                 value = parseAuthorityKeyIdentifier(context, valuex);
             }
+            else if (id.equals("2.5.29.17")) { //subjectAltName
+                value = parseSubjectAltName(valuex);
+            }
             else if (id.equals("2.5.29.18")) { //issuerAltName
                 value = parseIssuerAltName(context, valuex);
             }
@@ -202,9 +205,6 @@ public class X509ExtensionFactory extends RubyObject {
             }
             else if (id.equals("2.16.840.1.113730.1.1")) { //nsCertType
                 value = parseNsCertType(oid, valuex);
-            }
-            else if (id.equals("2.5.29.17")) { //subjectAltName
-                value = parseSubjectAltName(valuex);
             }
             else if (id.equals("2.5.29.37")) { //extendedKeyUsage
                 value = parseExtendedKeyUsage(valuex);
@@ -478,12 +478,11 @@ public class X509ExtensionFactory extends RubyObject {
         }
         if ( valuex.startsWith("IP:") || valuex.startsWith("IP Address:") ) {
             final int idx = valuex.charAt(2) == ':' ? 3 : 11;
-            String[] numbers = valuex.substring(idx).split("\\.");
-            final byte[] ip = new byte[4];
-            ip[0] = (byte) (Integer.parseInt(numbers[0]) & 0xff);
-            ip[1] = (byte) (Integer.parseInt(numbers[1]) & 0xff);
-            ip[2] = (byte) (Integer.parseInt(numbers[2]) & 0xff);
-            ip[3] = (byte) (Integer.parseInt(numbers[3]) & 0xff);
+            String[] vals = valuex.substring(idx).split("\\.|::");
+            final byte[] ip = new byte[vals.length];
+            for ( int i = 0; i < vals.length; i++ ) {
+                ip[i] = (byte) (Integer.parseInt(vals[i]) & 0xff);
+            }
             return new GeneralName(GeneralName.iPAddress, new DEROctetString(ip));
         }
         if ( valuex.startsWith("other") ) { // otherName || othername
