@@ -1,5 +1,6 @@
 warn 'Loading jruby-openssl in a non-JRuby interpreter' unless defined? JRUBY_VERSION
 
+require 'java'
 require 'jopenssl/version'
 begin
   version = Jopenssl::Version::BOUNCY_CASTLE_VERSION
@@ -10,7 +11,7 @@ begin
 rescue LoadError
   load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
   load "org/bouncycastle/bcprov-jdk15on/#{version}/bcprov-jdk15on-#{version}.jar"
-end unless org.jruby.ext.openssl.OSSLLibrary.provider_available?
+end if java.security.Security.getProvider('BC').nil?
 # user set up BC security provider in the JVM - probably knows what he's doing
 
 # Load extension
