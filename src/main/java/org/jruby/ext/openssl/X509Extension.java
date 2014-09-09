@@ -215,8 +215,14 @@ public class X509Extension extends RubyObject {
             try {
                 ASN1Sequence seq = (ASN1Sequence) ASN1.readObject(bytes);
                 setRealObjectID( (ASN1ObjectIdentifier) seq.getObjectAt(0) );
-                setRealCritical( ((DERBoolean) seq.getObjectAt(1)).isTrue() );
-                this.value = ( (DEROctetString) seq.getObjectAt(2) ).getOctets(); // byte[]
+                final ASN1Encodable criticalOrValue = seq.getObjectAt(1);
+                if ( criticalOrValue instanceof DERBoolean ) {
+                    setRealCritical( ((DERBoolean) criticalOrValue).isTrue() );
+                    this.value = ( (DEROctetString) seq.getObjectAt(2) ).getOctets(); // byte[]
+                }
+                else {
+                    this.value = ( (DEROctetString) criticalOrValue ).getOctets(); // byte[]
+                }
             }
             catch (IOException e) {
                 throw newExtensionError(context.runtime, e);
