@@ -85,7 +85,6 @@ import org.jruby.util.ByteList;
 
 import static org.jruby.ext.openssl.OpenSSLReal.debug;
 import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
-import static org.jruby.ext.openssl.ASN1._ASN1;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Extension._Extension;
 import static org.jruby.ext.openssl.X509Extension.newExtension;
@@ -167,20 +166,19 @@ public class X509CRL extends RubyObject {
         this.version = runtime.newFixnum( version > 0 ? version - 1 : 2 );
 
 
-        final RubyModule _ASN1 = _ASN1(runtime);
         final RubyClass _Extension = _Extension(runtime);
 
         final Set<String> criticalExtOIDs = crl.getCriticalExtensionOIDs();
         if ( criticalExtOIDs != null ) {
             for ( final String extOID : criticalExtOIDs ) {
-                addExtension(context, _ASN1, _Extension, extOID, true);
+                addExtension(context, _Extension, extOID, true);
             }
         }
 
         final Set<String> nonCriticalExtOIDs = crl.getNonCriticalExtensionOIDs();
         if ( nonCriticalExtOIDs != null ) {
             for ( final String extOID : nonCriticalExtOIDs ) {
-                addExtension(context, _ASN1, _Extension, extOID, false);
+                addExtension(context, _Extension, extOID, false);
             }
         }
 
@@ -202,10 +200,13 @@ public class X509CRL extends RubyObject {
         return this;
     }
 
-    private void addExtension(final ThreadContext context, final RubyModule _ASN1,
+    private void addExtension(final ThreadContext context,
         final RubyClass _Extension, final String extOID, final boolean critical) {
-        final IRubyObject extension = newExtension(context, _ASN1, _Extension, extOID, crl, critical);
-        if ( extension != null ) this.extensions.append(extension);
+        try {
+            final IRubyObject extension = newExtension(context, _Extension, extOID, crl, critical);
+            if ( extension != null ) this.extensions.append(extension);
+        }
+        catch (IOException e) { throw newCRLError(context.runtime, e); }
     }
 
     @Override

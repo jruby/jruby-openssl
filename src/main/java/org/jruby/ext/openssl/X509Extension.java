@@ -34,7 +34,6 @@ import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1String;
@@ -61,7 +60,9 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 
+import static org.jruby.ext.openssl.ASN1._ASN1;
 import static org.jruby.ext.openssl.X509._X509;
+import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSLReal.warn;
 
 /**
@@ -104,25 +105,20 @@ public class X509Extension extends RubyObject {
     };
 
     static X509Extension newExtension(final ThreadContext context,
-        final RubyModule _ASN1, final RubyClass _Extension,
-        final String oid, final java.security.cert.X509Extension ext, final boolean critical) {
-        final byte[] extValue = ext.getExtensionValue(oid);
+        final RubyClass _Extension, final String oid,
+        final java.security.cert.X509Extension ext, final boolean critical)
+        throws IOException {
+
+        final byte[] extValue = ext.getExtensionValue(oid); // DER encoded
         // TODO: wired. J9 returns null for an OID given in getNonCriticalExtensionOIDs()
         if ( extValue == null ) {
             warn(context, ext + " getExtensionValue returns null for '"+ oid +"'");
             return null;
         }
 
-        //RubyString extValueStr = context.runtime.newString( new ByteList(extValue, false) );
-        //IRubyObject rValue = ASN1.decode(context, _ASN1, extValueStr).callMethod(context, "value");
-
-        X509Extension extension = new X509Extension(context.runtime, _Extension);
-        extension.setRealOid(oid);
-        extension.setRealCritical(critical);
-        //extension.value = rValue;
-        extension.value = extValue;
-
-        return extension;
+        final Ruby runtime = context.runtime;
+        final ASN1Encodable value = ASN1.readObject(extValue);
+        return newExtension(runtime, ASN1.getObjectIdentifier(runtime, oid), value, critical);
     }
 
     static X509Extension newExtension(final Ruby runtime, ASN1ObjectIdentifier objectId,
@@ -154,33 +150,9 @@ public class X509Extension extends RubyObject {
             return ((ASN1.ASN1Data) value).toASN1(getRuntime().getCurrentContext());
         }
 
-        final byte[] bytes;
-        if (value instanceof byte[]) {
-            bytes = (byte[]) value;
-        }
-        else if (value instanceof RubyString) {
-            bytes = ((RubyString) value).getBytes();
-        }
-        else if (value instanceof String) {
-            bytes = ByteList.plain((String) value);
-        }
-        else {
-            if ( value == null ) throw new IllegalStateException("null extension value");
-            throw new IllegalStateException("extension value of type: " + value.getClass());
-        }
+        if ( value == null ) throw new IllegalStateException("null extension value");
 
-        return ASN1.readObject(bytes);
-    }
-
-    void setRealValue(ASN1Encodable value) {
-        if ( value == null ) {
-            throw new IllegalStateException("null extension value");
-        }
-        this.value = value;
-    }
-
-    void setRealValueBytes(byte[] value) {
-        this.value = value;
+        return ASN1.readObject( getRealValueBytes() );
     }
 
     byte[] getRealValueBytes() throws IOException {
@@ -188,11 +160,29 @@ public class X509Extension extends RubyObject {
         if ( value instanceof RubyString ) return ((RubyString) value).getBytes();
         if ( value instanceof String ) return ByteList.plain((String) value);
 
-        if (value instanceof ASN1OctetString) {
-            return ((ASN1OctetString) value).getOctets();
+        if ( value instanceof DEROctetString ) { // initialize
+            return ((DEROctetString) value).getOctets();
         }
 
         return getRealValue().toASN1Primitive().getEncoded(ASN1Encoding.DER);
+    }
+
+    private RubyString getValueString(final Ruby runtime) throws IOException {
+        if ( value instanceof RubyString ) {
+            return (RubyString) value; // explicitly set value
+        }
+        final ThreadContext context = runtime.getCurrentContext();
+        final byte[] bytes = getRealValueBytes();
+        IRubyObject extValue = context.runtime.newString( new ByteList(bytes, false) );
+        extValue = ASN1.decodeImpl(context, _ASN1(runtime), extValue);
+        return extValue.callMethod(context, "value").asString();
+    }
+
+    void setRealValue(ASN1Encodable value) {
+        if ( value == null ) {
+            throw new IllegalStateException("null extension value");
+        }
+        this.value = value;
     }
 
     boolean isRealCritical() {
@@ -235,7 +225,7 @@ public class X509Extension extends RubyObject {
         }
 
         if ( args.length > 2 ) {
-            setRealCritical(args[2].isTrue());
+            setRealCritical( args[2].isTrue() );
         }
         if ( args.length > 0 && octets != null ) {
             this.value = octets;
@@ -294,8 +284,7 @@ public class X509Extension extends RubyObject {
         final Ruby runtime = context.runtime;
         try {
             final String realOid = getRealOid().getId();
-            if (realOid.equals("2.5.29.19")) {
-                //basicConstraints
+            if (realOid.equals("2.5.29.19")) { //basicConstraints
                 ASN1Sequence seq2 = (ASN1Sequence) ASN1.readObject( getRealValueBytes() );
                 final ByteList val = new ByteList(32);
                 if (seq2.size() > 0) {
@@ -307,8 +296,8 @@ public class X509Extension extends RubyObject {
                     val.append(seq2.getObjectAt(1).toString().getBytes());
                 }
                 return runtime.newString(val);
-            } else if (realOid.equals("2.5.29.15")) {
-                //keyUsage
+            }
+            if (realOid.equals("2.5.29.15")) { //keyUsage
                 final byte[] bytes = getRealValueBytes();
                 byte b1 = 0;
                 byte b2 = bytes[2];
@@ -318,52 +307,35 @@ public class X509Extension extends RubyObject {
                 final ByteList val = new ByteList(64);
                 byte[] sep = _;
                 if ((b2 & (byte) 128) != 0) {
-                    val.append(sep);
-                    val.append(Decipher_Only);
-                    sep = SEP;
+                    val.append(sep); val.append(Decipher_Only); sep = SEP;
                 }
                 if ((b1 & (byte) 128) != 0) {
-                    val.append(sep);
-                    val.append(Digital_Signature);
-                    sep = SEP;
+                    val.append(sep); val.append(Digital_Signature); sep = SEP;
                 }
                 if ((b1 & (byte) 64) != 0) {
-                    val.append(sep);
-                    val.append(Non_Repudiation);
-                    sep = SEP;
+                    val.append(sep); val.append(Non_Repudiation); sep = SEP;
                 }
                 if ((b1 & (byte) 32) != 0) {
-                    val.append(sep);
-                    val.append(Key_Encipherment);
-                    sep = SEP;
+                    val.append(sep); val.append(Key_Encipherment); sep = SEP;
                 }
                 if ((b1 & (byte) 16) != 0) {
-                    val.append(sep);
-                    val.append(Data_Encipherment);
-                    sep = SEP;
+                    val.append(sep); val.append(Data_Encipherment); sep = SEP;
                 }
                 if ((b1 & (byte) 8) != 0) {
-                    val.append(sep);
-                    val.append(Key_Agreement);
-                    sep = SEP;
+                    val.append(sep); val.append(Key_Agreement); sep = SEP;
                 }
                 if ((b1 & (byte) 4) != 0) {
-                    val.append(sep);
-                    val.append(Certificate_Sign);
-                    sep = SEP;
+                    val.append(sep); val.append(Certificate_Sign); sep = SEP;
                 }
                 if ((b1 & (byte) 2) != 0) {
-                    val.append(sep);
-                    val.append(CRL_Sign);
-                    sep = SEP;
+                    val.append(sep); val.append(CRL_Sign); sep = SEP;
                 }
                 if ((b1 & (byte) 1) != 0) {
-                    val.append(sep);
-                    val.append(Encipher_Only); // sep = SEP;
+                    val.append(sep); val.append(Encipher_Only); // sep = SEP;
                 }
                 return runtime.newString(val);
-            } else if (realOid.equals("2.16.840.1.113730.1.1")) {
-                //nsCertType
+            }
+            if (realOid.equals("2.16.840.1.113730.1.1")) { //nsCertType
                 final byte b = getRealValueBytes()[0];
                 final ByteList val = new ByteList(64);
                 byte[] sep = _;
@@ -407,19 +379,18 @@ public class X509Extension extends RubyObject {
                     val.append(Object_Signing_CA);
                 }
                 return runtime.newString(val);
-            } else if (realOid.equals("2.5.29.14")) {
-                //subjectKeyIdentifier
+            }
+            if (realOid.equals("2.5.29.14")) { //subjectKeyIdentifier
                 final byte[] bytes = getRealValueBytes();
                 return runtime.newString(hexBytes(bytes, 2));
-            } else if (realOid.equals("2.5.29.35")) {
-                // authorityKeyIdentifier
-                ASN1Sequence seq = (ASN1Sequence) ASN1.readObject( getRealValueBytes() );
-                if (seq.size() == 0) {
-                    return RubyString.newEmptyString(runtime);
+            }
+            if (realOid.equals("2.5.29.35")) { // authorityKeyIdentifier
+                ASN1Primitive keyid = ASN1.readObject( getRealValueBytes() );
+                if ( keyid instanceof ASN1Sequence ) {
+                    final ASN1Sequence seq = (ASN1Sequence) keyid;
+                    if ( seq.size() == 0 ) return RubyString.newEmptyString(runtime);
+                    keyid = seq.getObjectAt(0).toASN1Primitive();
                 }
-                final ByteList val = new ByteList(72);
-                val.append(keyid_);
-                ASN1Primitive keyid = seq.getObjectAt(0).toASN1Primitive();
                 if (keyid instanceof ASN1TaggedObject) {
                     keyid = ((ASN1TaggedObject) keyid).getObject();
                 }
@@ -429,9 +400,10 @@ public class X509Extension extends RubyObject {
                 } else {
                     bytes = keyid.getEncoded(ASN1Encoding.DER);
                 }
+                final ByteList val = new ByteList(72); val.append(keyid_);
                 return runtime.newString(hexBytes(bytes, val).append('\n'));
-            } else if (realOid.equals("2.5.29.21")) {
-                // CRLReason
+            }
+            if (realOid.equals("2.5.29.21")) { // CRLReason
                 IRubyObject val = ((IRubyObject) value).callMethod(context, "value");
                 switch (RubyNumeric.fix2int(val)) {
                     case 0:
@@ -455,8 +427,8 @@ public class X509Extension extends RubyObject {
                     default:
                         return runtime.newString(new ByteList(Unspecified));
                 }
-            } else if (realOid.equals("2.5.29.17")) {
-                //subjectAltName
+            }
+            if (realOid.equals("2.5.29.17")) { //subjectAltName
                 try {
                     ASN1Primitive seq = ASN1.readObject( getRealValueBytes() );
                     final GeneralName[] names;
@@ -487,25 +459,18 @@ public class X509Extension extends RubyObject {
                         sep = ", ";
                     }
                     return runtime.newString(val.toString());
-                } catch (RuntimeException e) {
-                    OpenSSLReal.debugStackTrace(runtime, e);
-                    return runtime.newString(getRealValue().toString());
                 }
-            } else {
-                IRubyObject decoded = StringHelper.newString(runtime, getRealValueBytes());
-                try {
-                    decoded = ASN1.decodeImpl(context, decoded);
-                    return decoded.callMethod(context, "value").asString();
-                } catch (IOException e) {
-                    // debugStackTrace(runtime, e);
-                    return runtime.newString(getRealValue().toString()); // throw e;
-                } catch (IllegalArgumentException e) {
+                catch (RuntimeException e) {
+                    debugStackTrace(runtime, e);
                     return runtime.newString(getRealValue().toString());
                 }
             }
+
+            return getValueString(runtime);
         }
         catch (IOException e) {
-            throw newExtensionError(runtime, e.getMessage());
+            debugStackTrace(runtime, e);
+            throw newExtensionError(runtime, e);
         }
     }
 
@@ -591,6 +556,10 @@ public class X509Extension extends RubyObject {
     @JRubyMethod
     public IRubyObject inspect() {
         return ObjectSupport.inspect(this);
+    }
+
+    static RaiseException newExtensionError(Ruby runtime, Exception e) {
+        return Utils.newError(runtime, _X509(runtime).getClass("ExtensionError"), e);
     }
 
     static RaiseException newExtensionError(Ruby runtime, String message) {

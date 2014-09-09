@@ -30,6 +30,7 @@ package org.jruby.ext.openssl;
 import java.math.BigInteger;
 import java.security.cert.X509CRLEntry;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
 
@@ -47,6 +48,8 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
 import static org.jruby.ext.openssl.X509._X509;
+import static org.jruby.ext.openssl.X509Extension.newExtension;
+import static org.jruby.ext.openssl.X509Extension.newExtensionError;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -83,31 +86,32 @@ public class X509Revoked extends RubyObject {
         if ( entry.hasExtensions() ) {
             final RubyModule _OpenSSL = runtime.getModule("OpenSSL");
             final RubyModule _X509 = (RubyModule) _OpenSSL.getConstant("X509");
-            final RubyModule _ASN1 = (RubyModule) _OpenSSL.getConstant("ASN1");
             final RubyClass _Extension = _X509.getClass("Extension");
 
             final Set<String> criticalExtOIDs = entry.getCriticalExtensionOIDs();
             if ( criticalExtOIDs != null ) {
                 for ( final String extOID : criticalExtOIDs ) {
-                    revoked.addExtension(context, _ASN1, _Extension, entry, extOID, true);
+                    revoked.addExtension(context, _Extension, entry, extOID, true);
                 }
             }
             final Set<String> nonCriticalExtOIDs = entry.getNonCriticalExtensionOIDs();
             if ( nonCriticalExtOIDs != null ) {
                 for ( final String extOID : nonCriticalExtOIDs ) {
-                    revoked.addExtension(context, _ASN1, _Extension, entry, extOID, false);
+                    revoked.addExtension(context, _Extension, entry, extOID, false);
                 }
             }
         }
         return revoked;
     }
 
-    private void addExtension(final ThreadContext context, final RubyModule _ASN1,
+    private void addExtension(final ThreadContext context,
         final RubyClass _Extension, final X509CRLEntry entry,
         final String extOID, final boolean critical) {
-        final IRubyObject extension =
-            X509Extension.newExtension(context, _ASN1, _Extension, extOID, entry, critical);
-        if ( extension != null ) extensions().append( extension );
+        try {
+            final IRubyObject extension = newExtension(context, _Extension, extOID, entry, critical);
+            if ( extension != null ) extensions().append( extension );
+        }
+        catch (IOException e) { throw newExtensionError(context.runtime, e); }
     }
 
     BN serial;

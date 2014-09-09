@@ -203,29 +203,31 @@ public class X509Cert extends RubyObject {
         IRubyObject extFact = ((RubyClass)(_X509.getConstant("ExtensionFactory"))).callMethod(context,"new");
         extFact.callMethod(context, "subject_certificate=", this);
 
-        final RubyModule _ASN1 = (RubyModule) _OpenSSL.getConstant("ASN1");
         final RubyClass _Extension = _X509.getClass("Extension");
 
         final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
         if ( criticalExtOIDs != null ) {
             for ( final String extOID : criticalExtOIDs ) {
-                addExtension(context, _ASN1, _Extension, extOID, true);
+                addExtension(context, _Extension, extOID, true);
             }
         }
 
         final Set<String> nonCriticalExtOIDs = cert.getNonCriticalExtensionOIDs();
         if ( nonCriticalExtOIDs != null ) {
             for ( final String extOID : nonCriticalExtOIDs ) {
-                addExtension(context, _ASN1, _Extension, extOID, false);
+                addExtension(context, _Extension, extOID, false);
             }
         }
         changed = false;
     }
 
-    private void addExtension(final ThreadContext context, final RubyModule _ASN1,
+    private void addExtension(final ThreadContext context,
         final RubyClass _Extension, final String extOID, final boolean critical) {
-        final IRubyObject extension = newExtension(context, _ASN1, _Extension, extOID, cert, critical);
-        if ( extension != null ) add_extension(extension);
+        try {
+            final IRubyObject extension = newExtension(context, _Extension, extOID, cert, critical);
+            if ( extension != null ) add_extension(extension);
+        }
+        catch (IOException e) { throw newCertificateError(context.runtime, e); }
     }
 
     //Lazy method for public key instantiation
@@ -549,16 +551,15 @@ public class X509Cert extends RubyObject {
             boolean one = true;
             for ( final X509Extension curExtension : extensions ) {
                 if ( curExtension.getRealOid().equals( oid ) ) {
-                    final ASN1EncodableVector v1 = new ASN1EncodableVector();
+                    final ASN1EncodableVector vec = new ASN1EncodableVector();
                     try {
                         GeneralName[] n1 = GeneralNames.getInstance(new ASN1InputStream(curExtension.getRealValueBytes()).readObject()).getNames();
                         GeneralName[] n2 = GeneralNames.getInstance(new ASN1InputStream(newExtension.getRealValueBytes()).readObject()).getNames();
 
-                        for ( int i = 0; i < n1.length; i++ ) v1.add( n1[i] );
-                        for ( int i = 0; i < n2.length; i++ ) v1.add( n2[i] );
+                        for ( int i = 0; i < n1.length; i++ ) vec.add( n1[i] );
+                        for ( int i = 0; i < n2.length; i++ ) vec.add( n2[i] );
 
-                        GeneralNames v1Names = GeneralNames.getInstance(new DLSequence(v1));
-                        curExtension.setRealValueBytes( v1Names.getEncoded(ASN1Encoding.DER) );
+                        curExtension.setRealValue( GeneralNames.getInstance(new DLSequence(vec)) );
                     }
                     catch (IOException ex) {
                         throw getRuntime().newIOErrorFromException(ex);

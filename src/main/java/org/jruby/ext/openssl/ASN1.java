@@ -1150,16 +1150,16 @@ public class ASN1 {
             if ( impl == ASN1ObjectIdentifier.class ) {
                 return getObjectIdentifier(context.runtime, val.toString());
             }
-            else if ( impl == DERNull.class || impl == ASN1Null.class ) {
+            if ( impl == DERNull.class || impl == ASN1Null.class ) {
                 return DERNull.INSTANCE;
             }
-            else if ( impl == DERBoolean.class || impl == ASN1Boolean.class ) {
+            if ( impl == DERBoolean.class || impl == ASN1Boolean.class ) {
                 return ASN1Boolean.getInstance(val.isTrue());
             }
-            else if ( impl == DERUTCTime.class ) {
+            if ( impl == DERUTCTime.class ) {
                 return new DERUTCTime(((RubyTime) val).getJavaDate());
             }
-            else if ( impl == ASN1Integer.class ) {
+            if ( impl == ASN1Integer.class ) {
                 if ( val instanceof RubyBignum ) {
                     return new ASN1Integer(((RubyBignum) val).getValue());
                 }
@@ -1168,13 +1168,13 @@ public class ASN1 {
                 }
                 return new ASN1Integer(new BigInteger(val.toString()));
             }
-            else if ( impl == DEREnumerated.class ) {
+            if ( impl == DEREnumerated.class ) {
                 return new DEREnumerated(val.asString().getBytes());
             }
-            else if ( impl == DEROctetString.class ) {
+            if ( impl == DEROctetString.class ) {
                 return new DEROctetString(val.asString().getBytes());
             }
-            else if ( impl == DERBitString.class ) {
+            if ( impl == DERBitString.class ) {
                 final byte[] bs = val.asString().getBytes();
                 int unused = 0;
                 for ( int i = (bs.length - 1); i > -1; i-- ) {
@@ -1192,7 +1192,7 @@ public class ASN1 {
                 }
                 return new DERBitString(bs,unused);
             }
-            else if ( val instanceof RubyString ) {
+            if ( val instanceof RubyString ) {
                 try {
                     return impl.getConstructor(String.class).newInstance(val.toString());
                 }
