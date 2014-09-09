@@ -149,7 +149,7 @@ public class OpenSSLReal {
         RubyModule _Version = (RubyModule) runtime.getModule("Jopenssl").getConstantAt("Version");
         RubyString jopensslVersion = (RubyString) _Version.getConstantAt("VERSION");
         final byte[] jruby_ossl = new byte[] { 'j','r','u','b','y','-','o','s','s','l',' ' };
-        ByteList opensslVersion = new ByteList( jopensslVersion.size() + jruby_ossl.length );
+        ByteList opensslVersion = new ByteList( jopensslVersion.getByteList().length() + jruby_ossl.length );
         opensslVersion.setEncoding( jopensslVersion.getEncoding() );
         opensslVersion.append( jruby_ossl );
         opensslVersion.append( jopensslVersion.getByteList() );

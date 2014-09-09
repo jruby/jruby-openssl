@@ -23,8 +23,9 @@
  */
 package org.jruby.ext.openssl;
 
-// import org.jcodings.specific.UTF8Encoding;
+import org.jcodings.specific.UTF8Encoding;
 import org.jruby.Ruby;
+import org.jruby.RubyEncoding;
 import org.jruby.RubyFile;
 import org.jruby.RubyIO;
 import org.jruby.RubyString;
@@ -44,12 +45,13 @@ abstract class StringHelper {
     }
 
     static RubyString newUTF8String(final Ruby runtime, final ByteList bytes) {
-        // bytes.setEncoding( UTF8Encoding.INSTANCE );
-        return RubyString.newUTF8String(runtime, bytes);
+        ByteList byteList = new ByteList(RubyEncoding.encodeUTF8(bytes), UTF8Encoding.INSTANCE, false);
+        return new RubyString(runtime, runtime.getString(), byteList);
     }
 
     static RubyString newUTF8String(final Ruby runtime, final CharSequence chars) {
-        return RubyString.newUTF8String(runtime, chars);
+        ByteList byteList = new ByteList(RubyEncoding.encodeUTF8(chars), UTF8Encoding.INSTANCE, false);
+        return new RubyString(runtime, runtime.getString(), byteList);
     }
 
     static RubyString newStringFrozen(final Ruby runtime, final ByteList bytes) {
