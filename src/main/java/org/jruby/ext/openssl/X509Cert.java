@@ -558,7 +558,7 @@ public class X509Cert extends RubyObject {
                         for ( int i = 0; i < n2.length; i++ ) v1.add( n2[i] );
 
                         GeneralNames v1Names = GeneralNames.getInstance(new DLSequence(v1));
-                        curExtension.setRealValue( new String( ByteList.plain( v1Names.getEncoded(ASN1Encoding.DER) ) ) );
+                        curExtension.setRealValueBytes( v1Names.getEncoded(ASN1Encoding.DER) );
                     }
                     catch (IOException ex) {
                         throw getRuntime().newIOErrorFromException(ex);
