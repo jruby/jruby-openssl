@@ -1,4 +1,5 @@
+pom-jruby-openssl.gemspec.xml
 pkg
-*jar
+*.jar
 target
 build.log

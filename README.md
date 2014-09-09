@@ -20,7 +20,7 @@ for JRuby-OpenSSL gem <= 0.9.6 you also need to make sure BC jars **<= 1.50** !
 
 [![Build Status][0]](http://travis-ci.org/jruby/jruby-openssl)
 
-    rake jar # creates pom.xml and generates jopenssl.jar under lib
+    rake jar:all # creates pom.xml and generates jopenssl.jar under lib
     mvn test
 
 will run (junit as well as ruby) tests and a some ruby tests against the default
