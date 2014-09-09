@@ -83,7 +83,7 @@ public class Attribute extends RubyObject {
     private IRubyObject value;
 
     private ASN1ObjectIdentifier getObjectIdentifier(final String nameOrOid) {
-        return ASN1.getObjectIdentifier(getRuntime(), nameOrOid);
+        return ASN1.getObjectID(getRuntime(), nameOrOid);
     }
 
     ASN1Primitive toASN1() {

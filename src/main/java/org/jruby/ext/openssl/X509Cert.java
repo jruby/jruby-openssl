@@ -48,8 +48,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
-import org.bouncycastle.asn1.ASN1Encoding;
-import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x509.GeneralName;
@@ -463,8 +461,8 @@ public class X509Cert extends RubyObject {
 
         for ( X509Extension ext : extensions ) {
             try {
-                final byte[] bytes = ext.getRealValueBytes();
-                generator.addExtension(ext.getRealOid(), ext.isRealCritical(), bytes);
+                final byte[] bytes = ext.getRealValueEncoded();
+                generator.addExtension(ext.getRealObjectID(), ext.isRealCritical(), bytes);
             }
             catch (IOException ioe) {
                 throw runtime.newIOErrorFromException(ioe);
@@ -546,15 +544,15 @@ public class X509Cert extends RubyObject {
     public IRubyObject add_extension(final IRubyObject ext) {
         changed = true;
         final X509Extension newExtension = (X509Extension) ext;
-        final ASN1ObjectIdentifier oid = newExtension.getRealOid();
+        final ASN1ObjectIdentifier oid = newExtension.getRealObjectID();
         if ( oid.getId().equals( "2.5.29.17" ) ) {
             boolean one = true;
             for ( final X509Extension curExtension : extensions ) {
-                if ( curExtension.getRealOid().equals( oid ) ) {
+                if ( curExtension.getRealObjectID().equals( oid ) ) {
                     final ASN1EncodableVector vec = new ASN1EncodableVector();
                     try {
-                        GeneralName[] n1 = GeneralNames.getInstance(new ASN1InputStream(curExtension.getRealValueBytes()).readObject()).getNames();
-                        GeneralName[] n2 = GeneralNames.getInstance(new ASN1InputStream(newExtension.getRealValueBytes()).readObject()).getNames();
+                        GeneralName[] n1 = GeneralNames.getInstance(curExtension.getRealValue()).getNames();
+                        GeneralName[] n2 = GeneralNames.getInstance(newExtension.getRealValue()).getNames();
 
                         for ( int i = 0; i < n1.length; i++ ) vec.add( n1[i] );
                         for ( int i = 0; i < n2.length; i++ ) vec.add( n2[i] );

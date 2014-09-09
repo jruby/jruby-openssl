@@ -172,7 +172,7 @@ public class X509ExtensionFactory extends RubyObject {
         String valuex = args[1].toString();
         final ASN1ObjectIdentifier objectId;
         try {
-            objectId = ASN1.getObjectIdentifier(runtime, oid);
+            objectId = ASN1.getObjectID(runtime, oid);
         } catch (IllegalArgumentException e) {
             OpenSSLReal.debug(runtime, "ASN1.getObjectIdentifier() at ExtensionFactory.create_ext", e);
             throw newExtensionError(runtime, "unknown OID `" + oid + "'");
@@ -438,11 +438,10 @@ public class X509ExtensionFactory extends RubyObject {
         throws IOException {
         if ( valuex.startsWith("issuer:copy") ) {
             RubyArray exts = (RubyArray) getInstanceVariable("@issuer_certificate").callMethod(context, "extensions");
-            for (int i = 0; i < exts.size(); i++) {
+            for ( int i = 0; i < exts.size(); i++ ) {
                 X509Extension ext = (X509Extension) exts.entry(i);
-                if (ext.getRealOid().equals(new ASN1ObjectIdentifier("2.5.29.17"))) {
-                    return ext.getRealValue();
-                }
+                final String oid = ext.getRealObjectID().getId();
+                if ( "2.5.29.17".equals(oid) ) return ext.getRealValue();
             }
         }
         throw new IOException("Malformed IssuerAltName: " + valuex);

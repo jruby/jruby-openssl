@@ -331,7 +331,7 @@ public class X509Name extends RubyObject {
         final ASN1ObjectIdentifier objectId;
         try {
             String oidStr = oid.asString().toString();
-            objectId = ASN1.getObjectIdentifier(runtime, oidStr);
+            objectId = ASN1.getObjectID(runtime, oidStr);
         }
         catch (IllegalArgumentException e) {
             throw newNameError(runtime, "invalid field name: " + e.getMessage());

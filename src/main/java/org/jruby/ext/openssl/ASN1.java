@@ -629,7 +629,7 @@ public class ASN1 {
     }
 
     private static String getNameFor(final Ruby runtime, final String nameOrOid, final boolean shortName) {
-        ASN1ObjectIdentifier oid = getObjectIdentifier(runtime, nameOrOid);
+        ASN1ObjectIdentifier oid = getObjectID(runtime, nameOrOid);
         Map<String, ASN1ObjectIdentifier> lookup = getOIDLookup(runtime);
         String name = null;
         for ( final String key : lookup.keySet() ) {
@@ -643,7 +643,7 @@ public class ASN1 {
         return name;
     }
 
-    static ASN1ObjectIdentifier getObjectIdentifier(final Ruby runtime, final String nameOrOid)
+    static ASN1ObjectIdentifier getObjectID(final Ruby runtime, final String nameOrOid)
         throws IllegalArgumentException {
         ASN1ObjectIdentifier objectId = getOIDLookup(runtime).get( nameOrOid.toLowerCase() );
         if ( objectId != null ) return objectId;
@@ -802,7 +802,7 @@ public class ASN1 {
         @JRubyMethod
         public static IRubyObject oid(final ThreadContext context, final IRubyObject self) {
             final Ruby runtime = context.runtime;
-            return runtime.newString( getObjectIdentifier(runtime, self.callMethod(context, "value").toString()).getId() );
+            return runtime.newString( getObjectID(runtime, self.callMethod(context, "value").toString()).getId() );
         }
 
     }
@@ -951,7 +951,7 @@ public class ASN1 {
 
     static org.bouncycastle.asn1.ASN1Primitive readObject(final byte[] bytes)
         throws IOException {
-        return new ASN1InputStream(new ByteArrayInputStream(bytes), true).readObject();
+        return new ASN1InputStream(new ByteArrayInputStream(bytes)).readObject();
     }
 
     public static class ASN1Data extends RubyObject {
@@ -1129,7 +1129,7 @@ public class ASN1 {
                 tag_class = runtime.newSymbol("UNIVERSAL");
             }
             if ( "ObjectId".equals( getMetaClass().getRealClass().getBaseName() ) ) {
-                String name = oid2Sym( runtime, getObjectIdentifier(runtime, value.toString()) );
+                String name = oid2Sym( runtime, getObjectID(runtime, value.toString()) );
                 if ( name != null ) value = runtime.newString(name);
             }
 
@@ -1148,7 +1148,7 @@ public class ASN1 {
 
             final IRubyObject val = callMethod(context, "value");
             if ( impl == ASN1ObjectIdentifier.class ) {
-                return getObjectIdentifier(context.runtime, val.toString());
+                return getObjectID(context.runtime, val.toString());
             }
             if ( impl == DERNull.class || impl == ASN1Null.class ) {
                 return DERNull.INSTANCE;
