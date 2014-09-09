@@ -33,16 +33,15 @@ import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 
 import org.bouncycastle.asn1.ASN1Boolean;
+import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERBitString;
-import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x509.GeneralName;
-import org.bouncycastle.asn1.x509.GeneralNames;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -62,7 +61,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 
 import org.jruby.ext.openssl.impl.ASN1Registry;
-import static org.jruby.ext.openssl.X509Extension.newExtensionError;
+import static org.jruby.ext.openssl.X509Extension.*;
 
 /**
  * OpenSSL::X509::ExtensionFactory
@@ -171,55 +170,53 @@ public class X509ExtensionFactory extends RubyObject {
         }
         final String oid = args[0].toString();
         String valuex = args[1].toString();
-        Object value = valuex;
         final ASN1ObjectIdentifier objectId;
         try {
             objectId = ASN1.getObjectIdentifier(runtime, oid);
         } catch (IllegalArgumentException e) {
             OpenSSLReal.debug(runtime, "ASN1.getObjectIdentifier() at ExtensionFactory.create_ext", e);
-            throw X509Extension.newExtensionError(runtime, "unknown OID `" + oid + "'");
+            throw newExtensionError(runtime, "unknown OID `" + oid + "'");
         }
-        if (valuex.startsWith("critical,")) {
+        final String critical_ = "critical,";
+        if ( valuex.startsWith(critical_) ) {
             critical = runtime.getTrue();
-            valuex = valuex.substring(9).trim();
+            valuex = valuex.substring(critical_.length()).trim();
         }
+        final ASN1Encodable value;
         try {
             final String id = objectId.getId();
-            if (id.equals("2.5.29.14")) {
-                //subjectKeyIdentifier
-                DEROctetString inp = parseSubjectKeyIdentifier(context, oid, valuex);
-                value = new String(ByteList.plain(inp.getEncoded(ASN1Encoding.DER)));
-            } else if (id.equals("2.5.29.35")) {
-                //authorityKeyIdentifier
-                DLSequence inp = parseAuthorityKeyIdentifier(context, valuex);
-                value = new String(ByteList.plain(inp.getEncoded(ASN1Encoding.DER)));
-            } else if (id.equals("2.5.29.18")) {
-                //issuerAltName
+            if (id.equals("2.5.29.14")) { //subjectKeyIdentifier
+                value = parseSubjectKeyIdentifier(context, oid, valuex);
+            }
+            else if (id.equals("2.5.29.35")) { //authorityKeyIdentifier
+                value = parseAuthorityKeyIdentifier(context, valuex);
+            }
+            else if (id.equals("2.5.29.18")) { //issuerAltName
                 value = parseIssuerAltName(context, valuex);
-            } else if (id.equals("2.5.29.19")) {
-                //basicConstraints
-                DLSequence inp = parseBasicConstrains(valuex);
-                value = new String(ByteList.plain(inp.getEncoded(ASN1Encoding.DER)));
-            } else if (id.equals("2.5.29.15")) {
-                //keyUsage
-                DERBitString inp = parseKeyUsage(oid, valuex);
-                value = new String(ByteList.plain(inp.getEncoded(ASN1Encoding.DER)));
-            } else if (id.equals("2.16.840.1.113730.1.1")) {
-                //nsCertType
+            }
+            else if (id.equals("2.5.29.19")) { //basicConstraints
+                value = parseBasicConstrains(valuex);
+            }
+            else if (id.equals("2.5.29.15")) { //keyUsage
+                value = parseKeyUsage(oid, valuex);
+            }
+            else if (id.equals("2.16.840.1.113730.1.1")) { //nsCertType
                 value = parseNsCertType(oid, valuex);
-            } else if (id.equals("2.5.29.17")) {
-                //subjectAltName
+            }
+            else if (id.equals("2.5.29.17")) { //subjectAltName
                 value = parseSubjectAltName(valuex);
-            } else if (id.equals("2.5.29.37")) {
-                //extendedKeyUsage
+            }
+            else if (id.equals("2.5.29.37")) { //extendedKeyUsage
                 value = parseExtendedKeyUsage(valuex);
-            } else {
+            }
+            else {
                 value = new DEROctetString(new DEROctetString(ByteList.plain(valuex)).getEncoded(ASN1Encoding.DER));
             }
-        } catch (IOException e) {
-            throw X509Extension.newExtensionError(runtime, "Unable to create extension: " + e.getMessage());
         }
-        return X509Extension.newExtension(runtime, objectId, value, critical.isNil() ? null : critical.isTrue());
+        catch (IOException e) {
+            throw newExtensionError(runtime, "Unable to create extension: " + e.getMessage());
+        }
+        return newExtension(runtime, objectId, value, critical.isNil() ? null : critical.isTrue());
     }
 
     @JRubyMethod(rest = true)
@@ -243,9 +240,7 @@ public class X509ExtensionFactory extends RubyObject {
     @JRubyMethod
     public IRubyObject create_ext_from_array(final ThreadContext context, final IRubyObject arg) {
         final RubyArray ary = (RubyArray) arg;
-        if (ary.size() > 3) {
-            throw X509Extension.newExtensionError(context.runtime, "unexpected array form");
-        }
+        if ( ary.size() > 3 ) throw newExtensionError(context.runtime, "unexpected array form");
         return create_ext(context, ary.toJavaArrayUnsafe());
     }
 
@@ -272,9 +267,9 @@ public class X509ExtensionFactory extends RubyObject {
         RubyString value = (RubyString) str.substr19(runtime, ind + 1, len);
         value.lstrip_bang19(context);
         IRubyObject critical = context.nil;
-        if (value.start_with_p(context, StringHelper.newString(runtime, X509Extension.critical__)).isTrue()) {
+        if (value.start_with_p(context, StringHelper.newString(runtime, critical__)).isTrue()) {
             critical = runtime.newBoolean(true); // value[ 0, 'critical, '.length ] = ''
-            value.op_aset19(context, runtime.newFixnum(0), runtime.newFixnum(X509Extension.critical__.length), RubyString.newEmptyString(runtime));
+            value.op_aset19(context, runtime.newFixnum(0), runtime.newFixnum(critical__.length), RubyString.newEmptyString(runtime));
         }
         value.strip_bang19(context);
         return create_ext(context, new IRubyObject[]{oid, value, critical});
@@ -319,7 +314,7 @@ public class X509ExtensionFactory extends RubyObject {
                 } else if ("encipherOnly".equals(value) || "Encipher Only".equals(value)) {
                     v1 |= (byte) 1;
                 } else {
-                    throw X509Extension.newExtensionError(getRuntime(), oid + " = " + valuex + ": unknown bit string argument");
+                    throw newExtensionError(getRuntime(), oid + " = " + valuex + ": unknown bit string argument");
                 }
             }
             inp = (v2 == 0) ? new byte[]{v1} : new byte[]{v1, v2};
@@ -368,7 +363,7 @@ public class X509ExtensionFactory extends RubyObject {
                 } else if ("Object Signing CA".equals(value) || "objCA".equals(value)) {
                     v |= (byte) 1;
                 } else {
-                    throw X509Extension.newExtensionError(getRuntime(), oid + " = " + valuex + ": unknown bit string argument");
+                    throw newExtensionError(getRuntime(), oid + " = " + valuex + ": unknown bit string argument");
                 }
             }
         }
@@ -409,9 +404,9 @@ public class X509ExtensionFactory extends RubyObject {
 
     private DLSequence parseAuthorityKeyIdentifier(final ThreadContext context, final String valuex) {
         final ASN1EncodableVector vec = new ASN1EncodableVector();
-        if (valuex.startsWith("keyid:always")) {
+        if ( valuex.startsWith("keyid:always") ) {
             vec.add(new DEROctetString(derDigest(context)));
-        } else if (valuex.startsWith("keyid")) {
+        } else if ( valuex.startsWith("keyid") ) {
             vec.add(new DEROctetString(derDigest(context)));
         }
         return new DLSequence(vec);
@@ -439,8 +434,9 @@ public class X509ExtensionFactory extends RubyObject {
         }
     }
 
-    private Object parseIssuerAltName(final ThreadContext context, final String valuex) throws IOException {
-        if (valuex.startsWith("issuer:copy")) {
+    private ASN1Encodable parseIssuerAltName(final ThreadContext context, final String valuex)
+        throws IOException {
+        if ( valuex.startsWith("issuer:copy") ) {
             RubyArray exts = (RubyArray) getInstanceVariable("@issuer_certificate").callMethod(context, "extensions");
             for (int i = 0; i < exts.size(); i++) {
                 X509Extension ext = (X509Extension) exts.entry(i);
@@ -452,11 +448,36 @@ public class X509ExtensionFactory extends RubyObject {
         throw new IOException("Malformed IssuerAltName: " + valuex);
     }
 
-    private String parseSubjectAltName(final String valuex) throws IOException {
-        if (valuex.startsWith("DNS:")) {
-            final String dns = valuex.substring(4);
-            return derEncoded(new GeneralName(GeneralName.dNSName, new DERIA5String(dns)));
-        } else if (valuex.startsWith("IP:") || valuex.startsWith("IP Address:")) {
+    private static final String DNS_ = "DNS:";
+    private static final String DNS_Name_ = "DNS Name:";
+    private static final String URI_ = "URI:";
+    private static final String RID_ = "RID:";
+    private static final String email_ = "email:";
+    private static final String dirName_ = "dirName:";
+    private static final String otherName_ = "otherName:";
+
+    private static ASN1Encodable parseSubjectAltName(final String valuex) throws IOException {
+        if ( valuex.startsWith(DNS_) ) {
+            final String dns = valuex.substring(DNS_.length());
+            return new GeneralName(GeneralName.dNSName, dns);
+        }
+        if ( valuex.startsWith(DNS_Name_) ) {
+            final String dns = valuex.substring(DNS_Name_.length());
+            return new GeneralName(GeneralName.dNSName, dns);
+        }
+        if ( valuex.startsWith(URI_) ) {
+            final String uri = valuex.substring(URI_.length());
+            return new GeneralName(GeneralName.uniformResourceIdentifier, uri);
+        }
+        if ( valuex.startsWith(RID_) ) {
+            final String rid = valuex.substring(RID_.length());
+            return new GeneralName(GeneralName.registeredID, rid);
+        }
+        if ( valuex.startsWith(email_) ) {
+            final String mail = valuex.substring(email_.length());
+            return new GeneralName(GeneralName.rfc822Name, mail);
+        }
+        if ( valuex.startsWith("IP:") || valuex.startsWith("IP Address:") ) {
             final int idx = valuex.charAt(2) == ':' ? 3 : 11;
             String[] numbers = valuex.substring(idx).split("\\.");
             final byte[] ip = new byte[4];
@@ -464,44 +485,49 @@ public class X509ExtensionFactory extends RubyObject {
             ip[1] = (byte) (Integer.parseInt(numbers[1]) & 0xff);
             ip[2] = (byte) (Integer.parseInt(numbers[2]) & 0xff);
             ip[3] = (byte) (Integer.parseInt(numbers[3]) & 0xff);
-            return derEncoded(new GeneralName(GeneralName.iPAddress, new DEROctetString(ip)));
-        } else {
-            return valuex;
+            return new GeneralName(GeneralName.iPAddress, new DEROctetString(ip));
         }
-    }
+        if ( valuex.startsWith("other") ) { // otherName || othername
+            final String other = valuex.substring(otherName_.length());
+            return new GeneralName(GeneralName.otherName, other);
+        }
+        if ( valuex.startsWith("dir") ) { // dirName || dirname
+            final String dir = valuex.substring(dirName_.length());
+            return new GeneralName(GeneralName.directoryName, dir);
+        }
 
-    private static String derEncoded(final GeneralName name) throws IOException {
-        final GeneralNames names = new GeneralNames(name);
-        return new String(ByteList.plain(names.getEncoded(ASN1Encoding.DER)));
+        throw new IOException("could not parse SubjectAltName: " + valuex);
+
     }
 
     private DEROctetString parseSubjectKeyIdentifier(final ThreadContext context, final String oid, final String valuex) {
-        if ("hash".equalsIgnoreCase(valuex)) {
+        if ( "hash".equalsIgnoreCase(valuex) ) {
             return new DEROctetString(derDigest(context));
-        } else if (valuex.length() == 20 || !X509Extension.isHex(valuex)) {
-            return new DEROctetString(ByteList.plain(valuex));
-        } else {
-            final int len = valuex.length();
-            final ByteList hex = new ByteList(len / 2 + 1);
-            for (int i = 0; i < len; i += 2) {
-                if (i + 1 >= len) {
-                    throw X509Extension.newExtensionError(context.runtime, oid + " = " + valuex + ": odd number of digits");
-                }
-                final int c1 = X509Extension.upHex(valuex.charAt(i));
-                final int c2 = X509Extension.upHex(valuex.charAt(i + 1));
-                if (c1 != -1 && c2 != -1) {
-                    hex.append(((c1 << 4) & 0xF0) | (c2 & 0xF));
-                } else {
-                    throw X509Extension.newExtensionError(context.runtime, oid + " = " + valuex + ": illegal hex digit");
-                }
-                while ((i + 2) < len && valuex.charAt(i + 2) == ':') {
-                    i++;
-                }
-            }
-            final byte[] hexBytes = new byte[hex.length()];
-            System.arraycopy(hex.getUnsafeBytes(), hex.getBegin(), hexBytes, 0, hexBytes.length);
-            return new DEROctetString(hexBytes);
         }
+        if ( valuex.length() == 20 || ! isHex(valuex) ) {
+            return new DEROctetString(ByteList.plain(valuex));
+        }
+
+        final int len = valuex.length();
+        final ByteList hex = new ByteList(len / 2 + 1);
+        for (int i = 0; i < len; i += 2) {
+            if (i + 1 >= len) {
+                throw newExtensionError(context.runtime, oid + " = " + valuex + ": odd number of digits");
+            }
+            final int c1 = upHex( valuex.charAt(i) );
+            final int c2 = upHex( valuex.charAt(i + 1) );
+            if (c1 != -1 && c2 != -1) {
+                hex.append(((c1 << 4) & 0xF0) | (c2 & 0xF));
+            } else {
+                throw newExtensionError(context.runtime, oid + " = " + valuex + ": illegal hex digit");
+            }
+            while ((i + 2) < len && valuex.charAt(i + 2) == ':') {
+                i++;
+            }
+        }
+        final byte[] hexBytes = new byte[hex.length()];
+        System.arraycopy(hex.getUnsafeBytes(), hex.getBegin(), hexBytes, 0, hexBytes.length);
+        return new DEROctetString(hexBytes);
     }
 
     private static DLSequence parseExtendedKeyUsage(final String valuex) {
