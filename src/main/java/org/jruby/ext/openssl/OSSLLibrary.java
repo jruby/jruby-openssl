@@ -16,4 +16,8 @@ public class OSSLLibrary implements Library {
         load(runtime);
     }
 
+    public static boolean isProviderAvailable() {
+        return SecurityHelper.isProviderAvailable("BC");
+    }
+
 }

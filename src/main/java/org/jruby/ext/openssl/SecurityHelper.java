@@ -116,6 +116,15 @@ public abstract class SecurityHelper {
         registerProvider = Boolean.valueOf(register); doRegisterProvider();
     }
 
+    static boolean isProviderAvailable(final String name) {
+        return Security.getProvider(name) != null;
+    }
+
+    static boolean isProviderRegistered() {
+        if ( securityProvider == null ) return false;
+        return Security.getProvider(securityProvider.getName()) != null;
+    }
+
     private static void doRegisterProvider() {
         if ( registerProvider != null ) {
             synchronized(SecurityHelper.class) {
