@@ -27,6 +27,7 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.math.BigInteger;
@@ -53,6 +54,7 @@ import org.bouncycastle.asn1.DERBoolean;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Null;
 import org.bouncycastle.asn1.ASN1TaggedObject;
+import org.bouncycastle.asn1.DEREnumerated;
 import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DLSequence;
@@ -947,6 +949,11 @@ public class ASN1 {
         return (RubyModule) runtime.getModule("OpenSSL").getConstant("ASN1");
     }
 
+    static org.bouncycastle.asn1.ASN1Primitive readObject(final byte[] bytes)
+        throws IOException {
+        return new ASN1InputStream(new ByteArrayInputStream(bytes), true).readObject();
+    }
+
     public static class ASN1Data extends RubyObject {
         private static final long serialVersionUID = 6117598347932209839L;
 
@@ -1160,6 +1167,9 @@ public class ASN1 {
                     return new ASN1Integer(((BN) val).getValue());
                 }
                 return new ASN1Integer(new BigInteger(val.toString()));
+            }
+            else if ( impl == DEREnumerated.class ) {
+                return new DEREnumerated(val.asString().getBytes());
             }
             else if ( impl == DEROctetString.class ) {
                 return new DEROctetString(val.asString().getBytes());
