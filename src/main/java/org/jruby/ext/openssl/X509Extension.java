@@ -35,11 +35,12 @@ import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.ASN1String;
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.DERBoolean;
+import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 
@@ -58,6 +59,7 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
+import org.jruby.util.ConvertBytes;
 
 import static org.jruby.ext.openssl.ASN1._ASN1;
 import static org.jruby.ext.openssl.X509._X509;
@@ -272,9 +274,9 @@ public class X509Extension extends RubyObject {
     @JRubyMethod
     public RubyString value(final ThreadContext context) {
         final Ruby runtime = context.runtime;
+        final String oid = getRealObjectID().getId();
         try {
-            final String realOid = getRealObjectID().getId();
-            if (realOid.equals("2.5.29.19")) { //basicConstraints
+            if ( oid.equals("2.5.29.19") ) { //basicConstraints
                 ASN1Sequence seq2 = (ASN1Sequence) ASN1.readObject( getRealValueEncoded() );
                 final ByteList val = new ByteList(32);
                 if (seq2.size() > 0) {
@@ -287,7 +289,7 @@ public class X509Extension extends RubyObject {
                 }
                 return runtime.newString(val);
             }
-            if (realOid.equals("2.5.29.15")) { //keyUsage
+            if ( oid.equals("2.5.29.15") ) { //keyUsage
                 final byte[] enc = getRealValueEncoded();
                 byte b1 = 0; byte b2 = enc[2]; if ( enc.length > 3 ) b1 = enc[3];
                 final ByteList val = new ByteList(64); byte[] sep = _;
@@ -320,7 +322,7 @@ public class X509Extension extends RubyObject {
                 }
                 return runtime.newString(val);
             }
-            if (realOid.equals("2.16.840.1.113730.1.1")) { //nsCertType
+            if ( oid.equals("2.16.840.1.113730.1.1") ) { //nsCertType
                 final byte b = getRealValueEncoded()[0];
                 final ByteList val = new ByteList(64); byte[] sep = _;
                 if ((b & (byte) 128) != 0) {
@@ -349,11 +351,11 @@ public class X509Extension extends RubyObject {
                 }
                 return runtime.newString(val);
             }
-            if (realOid.equals("2.5.29.14")) { //subjectKeyIdentifier
+            if ( oid.equals("2.5.29.14") ) { //subjectKeyIdentifier
                 final byte[] bytes = getRealValueEncoded();
                 return runtime.newString(hexBytes(bytes, 2));
             }
-            if (realOid.equals("2.5.29.35")) { // authorityKeyIdentifier
+            if ( oid.equals("2.5.29.35") ) { // authorityKeyIdentifier
                 ASN1Primitive keyid = ASN1.readObject( getRealValueEncoded() );
                 if ( keyid instanceof ASN1Sequence ) {
                     final ASN1Sequence seq = (ASN1Sequence) keyid;
@@ -372,7 +374,7 @@ public class X509Extension extends RubyObject {
                 final ByteList val = new ByteList(72); val.append(keyid_);
                 return runtime.newString(hexBytes(bytes, val).append('\n'));
             }
-            if (realOid.equals("2.5.29.21")) { // CRLReason
+            if ( oid.equals("2.5.29.21") ) { // CRLReason
                 IRubyObject val = ((IRubyObject) value).callMethod(context, "value");
                 switch (RubyNumeric.fix2int(val)) {
                     case 0:
@@ -397,37 +399,20 @@ public class X509Extension extends RubyObject {
                         return runtime.newString(new ByteList(Unspecified));
                 }
             }
-            if (realOid.equals("2.5.29.17")) { //subjectAltName
+            if ( oid.equals("2.5.29.17") || oid.equals("2.5.29.18") ) { // subjectAltName || issuerAltName
                 try {
                     ASN1Primitive seq = ASN1.readObject( getRealValueEncoded() );
-                    final GeneralName[] names;
-                    if (seq instanceof ASN1TaggedObject) {
-                        names = new GeneralName[]{GeneralName.getInstance(seq)};
-                    } else {
-                        names = GeneralNames.getInstance(seq).getNames();
+                    final ByteList val = new ByteList(64);
+                    if ( seq instanceof ASN1TaggedObject ) {
+                        formatGeneralName(GeneralName.getInstance(seq), val);
                     }
-                    final StringBuilder val = new StringBuilder(48);
-                    String sep = "";
-                    for (int i = 0; i < names.length; i++) {
-                        final GeneralName name = names[i];
-                        val.append(sep);
-                        if (name.getTagNo() == GeneralName.dNSName) {
-                            val.append("DNS:");
-                            val.append(((ASN1String) name.getName()).getString());
-                        } else if (name.getTagNo() == GeneralName.iPAddress) {
-                            val.append("IP Address:");
-                            byte[] bs = ((DEROctetString) name.getName()).getOctets();
-                            String sep2 = "";
-                            for (int j = 0; j < bs.length; j++) {
-                                val.append(sep2).append(((int) bs[j]) & 0xff);
-                                sep2 = ".";
-                            }
-                        } else {
-                            val.append(name.toString());
+                    else {
+                        GeneralName[] names = GeneralNames.getInstance(seq).getNames();
+                        for ( int i = 0; i < names.length; i++ ) {
+                            formatGeneralName(names[i], val);
                         }
-                        sep = ", ";
                     }
-                    return runtime.newString(val.toString());
+                    return runtime.newString( val );
                 }
                 catch (RuntimeException e) {
                     debugStackTrace(runtime, e);
@@ -440,6 +425,56 @@ public class X509Extension extends RubyObject {
         catch (IOException e) {
             debugStackTrace(runtime, e);
             throw newExtensionError(runtime, e);
+        }
+    }
+
+    private static void formatGeneralName(final GeneralName name, final ByteList out) {
+        final ASN1Encodable obj = name.getName();
+        String val; boolean tagged = false;
+        switch ( name.getTagNo() ) {
+        case GeneralName.rfc822Name:
+            if ( ! tagged ) out.append('e').append('m').append('a').append('i').append('l').
+                append(':');
+            tagged = true;
+        case GeneralName.dNSName:
+            if ( ! tagged ) out.append('D').append('N').append('S').
+                append(':');
+            tagged = true;
+        case GeneralName.uniformResourceIdentifier:
+            if ( ! tagged ) out.append('U').append('R').append('I').
+                append(':');
+            val = DERIA5String.getInstance(obj).getString();
+            out.append( ByteList.plain(val) );
+            break;
+        case GeneralName.directoryName:
+            out.append('d').append('i').append('r').append('N').append('a').append('m').append('e').
+                append(':');
+            val = X500Name.getInstance(obj).toString();
+            out.append( ByteList.plain(val) );
+            break;
+        case GeneralName.iPAddress:
+            out.append('I').append('P').
+                append(':');
+            byte[] ip = ((DEROctetString) name.getName()).getOctets();
+            int len = ip.length; boolean ip4 = len == 4;
+            for ( int i = 0; i < ip.length; i++ ) {
+                out.append( ConvertBytes.intToCharBytes( ((int) ip[i]) & 0xff ) );
+                if ( i != len - 1 ) {
+                    if ( ip4 ) out.append('.');
+                    else out.append(':').append(':');
+                }
+            }
+            break;
+        case GeneralName.otherName:
+            out.append('o').append('t').append('h').append('e').append('r').append('N').append('a').append('m').append('e').
+                append(':');
+            //tagged = true;
+        case GeneralName.registeredID:
+            out.append('R').append('I').append('D').
+                append(':');
+            //tagged = true;
+        default:
+            out.append( ByteList.plain( obj.toString() ) );
         }
     }
 
