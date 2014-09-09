@@ -45,6 +45,7 @@ import org.jruby.anno.JRubyModule;
 import org.jruby.ext.openssl.x509store.X509Error;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.ByteList;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -142,9 +143,17 @@ public class OpenSSLReal {
         SSL.createSSL(runtime, ossl);
 
         runtime.getLoadService().require("jopenssl/version");
-        String jopensslVersion = runtime.getClassFromPath("Jopenssl::Version").getConstant("VERSION").toString();
-        ossl.setConstant("VERSION", runtime.newString("1.0.0"));
-        ossl.setConstant("OPENSSL_VERSION", runtime.newString("jruby-ossl " + jopensslVersion));
+
+        ossl.setConstant("VERSION", StringHelper.newString(runtime, new byte[] { '1','.','0','.','0' }));
+
+        RubyModule _Version = (RubyModule) runtime.getModule("Jopenssl").getConstantAt("Version");
+        RubyString jopensslVersion = (RubyString) _Version.getConstantAt("VERSION");
+        final byte[] jruby_ossl = new byte[] { 'j','r','u','b','y','-','o','s','s','l',' ' };
+        ByteList opensslVersion = new ByteList( jopensslVersion.size() + jruby_ossl.length );
+        opensslVersion.setEncoding( jopensslVersion.getEncoding() );
+        opensslVersion.append( jruby_ossl );
+        opensslVersion.append( jopensslVersion.getByteList() );
+        ossl.setConstant("OPENSSL_VERSION", runtime.newString(opensslVersion));
         ossl.setConstant("OPENSSL_VERSION_NUMBER", runtime.newFixnum(9469999));
 
         OpenSSLModule.setDebug(ossl, runtime.newBoolean( Boolean.getBoolean("jruby.openssl.debug") ) );
