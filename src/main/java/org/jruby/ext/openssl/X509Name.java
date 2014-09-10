@@ -78,7 +78,7 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
 import org.jruby.ext.openssl.x509store.Name;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
+import static org.jruby.ext.openssl.OpenSSLReal.*;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.StringHelper.newString;
 
@@ -211,10 +211,10 @@ public class X509Name extends RubyObject {
             final ASN1Encodable val = tv.getValue();
             if ( val instanceof ASN1String ) {
                 this.values.add( ((ASN1String) val).getString() );
-            } else {
-
-                this.values.add(null); //TODO really?
-
+            }
+            else {
+                warn(runtime.getCurrentContext(), this + " fromRDNElement() value not an ASN1 string = '" + val + "' " + ( val == null ? "" : val.getClass()));
+                this.values.add( val == null ? null : val.toString() ); // TODO should not happen?!
             }
             addType( runtime, val );
         }
@@ -235,7 +235,8 @@ public class X509Name extends RubyObject {
             this.values.add( ((ASN1String) val).getString() );
         }
         else {
-            this.values.add(null);
+            warn(getRuntime().getCurrentContext(), this + " fromASN1Sequence() value not an ASN1 string = '" + val + "' " + ( val == null ? "" : val.getClass()));
+            this.values.add( val == null ? null : val.toString() ); // TODO should not happen?!
         }
         addType( getRuntime(), val );
     }
