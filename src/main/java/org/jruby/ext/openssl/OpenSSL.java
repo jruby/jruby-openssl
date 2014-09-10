@@ -26,6 +26,7 @@ package org.jruby.ext.openssl;
 import java.security.NoSuchProviderException;
 import java.util.Map;
 
+import org.jruby.CompatVersion;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
@@ -89,7 +90,9 @@ public final class OpenSSL {
 
         final byte[] version = { '1','.','1','.','0' };
 
-        if ( runtime.is1_8() ) version[2] = '0'; // 1.0.0 compatible on 1.8
+        if ( runtime.getInstanceConfig().getCompatVersion() == CompatVersion.RUBY1_8 ) {
+            version[2] = '0';
+        } // 1.0.0 compatible on 1.8
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
         final RubyModule _Jopenssl = runtime.getModule("Jopenssl");
