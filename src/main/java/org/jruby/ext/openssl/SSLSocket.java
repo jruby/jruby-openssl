@@ -70,9 +70,7 @@ import org.jruby.runtime.Visibility;
 import static org.jruby.ext.openssl.SSL._SSL;
 import static org.jruby.ext.openssl.SSL.newSSLErrorWaitReadable;
 import static org.jruby.ext.openssl.SSL.newSSLErrorWaitWritable;
-import static org.jruby.ext.openssl.OpenSSLReal.debug;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.*;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>

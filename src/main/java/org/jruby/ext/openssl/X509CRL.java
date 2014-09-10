@@ -83,8 +83,7 @@ import org.jruby.runtime.builtin.Variable;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 
-import static org.jruby.ext.openssl.OpenSSLReal.debug;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
+import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Extension._Extension;
 import static org.jruby.ext.openssl.X509Extension.newExtension;

@@ -50,7 +50,6 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.impl.Base64;
 import org.jruby.runtime.ObjectAllocator;
-import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
@@ -61,8 +60,7 @@ import org.jruby.ext.openssl.impl.NetscapeCertRequest;
 
 import static org.jruby.ext.openssl.PKeyDSA._DSA;
 import static org.jruby.ext.openssl.PKeyRSA._RSA;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.*;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>

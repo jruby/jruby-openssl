@@ -70,7 +70,7 @@ import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.CertificateList;
 import org.bouncycastle.jce.provider.X509CRLObject;
 
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 
 /**
  * Java Security (and JCE) helpers.
@@ -332,7 +332,7 @@ public abstract class SecurityHelper {
         catch (SecurityException e) {
             // java.lang.SecurityException: JCE cannot authenticate the provider BC
             if ( tryCipherInternal != null ) tryCipherInternal = Boolean.TRUE;
-            if ( OpenSSLReal.isDebug() ) e.printStackTrace();
+            debugStackTrace(e);
         }
         if ( tryCipherInternal == Boolean.TRUE ) {
             try {
@@ -346,7 +346,7 @@ public abstract class SecurityHelper {
                 // likely javax.crypto.JceSecurityManager.isCallerTrusted gets
                 // us a NPE from javax.crypto.Cipher.<init>(Cipher.java:264)
                 tryCipherInternal = null; // do not try BC at all
-                if ( OpenSSLReal.isDebug() ) e.printStackTrace();
+                debugStackTrace(e);
             }
         }
         return Cipher.getInstance(transformation);
@@ -469,9 +469,7 @@ public abstract class SecurityHelper {
             if ( provider != null ) return getKeyGenerator(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
-        catch (SecurityException e) {
-            if ( OpenSSLReal.isDebug() ) e.printStackTrace();
-        }
+        catch (SecurityException e) { debugStackTrace(e); }
         return KeyGenerator.getInstance(algorithm);
     }
 
@@ -495,9 +493,7 @@ public abstract class SecurityHelper {
             if ( provider != null ) return getSecretKeyFactory(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
-        catch (SecurityException e) {
-            if ( OpenSSLReal.isDebug() ) e.printStackTrace();
-        }
+        catch (SecurityException e) { debugStackTrace(e); }
         return SecretKeyFactory.getInstance(algorithm);
     }
 
@@ -578,7 +574,7 @@ public abstract class SecurityHelper {
             if ( silent ) return false; throw ex;
         }
         catch (NoSuchProviderException e) {
-            if ( isDebug() ) e.printStackTrace();
+            debugStackTrace(e);
             throw new RuntimeException(e); // unexpected - might hide a bug
         }
     }
@@ -589,9 +585,8 @@ public abstract class SecurityHelper {
             cField.setAccessible(true);
             return cField.get(crl);
         }
-        catch (NoSuchFieldException ex) {
-            if ( isDebug() ) ex.printStackTrace(System.out);
-            return null;
+        catch (NoSuchFieldException e) {
+            debugStackTrace(e); return null;
         }
         catch (IllegalAccessException e) { return null; }
         catch (SecurityException e) { return null; }

@@ -64,15 +64,13 @@ import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
-import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
+import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.PKey._PKey;
-import static org.jruby.ext.openssl.OpenSSLReal.debug;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPublicKey;
 import static org.jruby.ext.openssl.impl.PKey.toDerRSAKey;
@@ -330,7 +328,7 @@ public class PKeyRSA extends PKey {
             bytes = toDerRSAKey(pubKey, privKey);
         }
         catch (NoClassDefFoundError e) {
-            throw newRSAError(getRuntime(), OpenSSLReal.bcExceptionMessage(e));
+            throw newRSAError(getRuntime(), bcExceptionMessage(e));
         }
         catch (IOException e) {
             throw newRSAError(getRuntime(), e.getMessage());
@@ -425,7 +423,7 @@ public class PKeyRSA extends PKey {
             w.close();
             return getRuntime().newString(w.toString());
         } catch (NoClassDefFoundError ncdfe) {
-            throw newRSAError(getRuntime(), OpenSSLReal.bcExceptionMessage(ncdfe));
+            throw newRSAError(getRuntime(), bcExceptionMessage(ncdfe));
         } catch (IOException ioe) {
             throw newRSAError(getRuntime(), ioe.getMessage());
         }

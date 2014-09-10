@@ -53,8 +53,8 @@ import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.Store;
 import org.jruby.ext.openssl.x509store.StoreContext;
 
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
+import static org.jruby.ext.openssl.OpenSSL.warn;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509CRL._CRL;
 import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorString;

@@ -23,6 +23,10 @@
  */
 package org.jruby.ext.openssl;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
 import org.jcodings.specific.UTF8Encoding;
 import org.jruby.Ruby;
 import org.jruby.RubyEncoding;
@@ -32,6 +36,8 @@ import org.jruby.RubyString;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
+
+import org.jruby.ext.openssl.x509store.PEMInputOutput;
 
 /**
  *
@@ -64,8 +70,26 @@ abstract class StringHelper {
         str.setFrozen(true); return str;
     }
 
+    static byte[] readX509PEM(final ThreadContext context, IRubyObject arg) {
+        final RubyString str = StringHelper.readPossibleDERInput(context, arg);
+        final ByteList bytes = str.getByteList();
+        return readX509PEM(bytes.unsafeBytes(), bytes.getBegin(), bytes.getRealSize());
+    }
+
+    static byte[] readX509PEM(final byte[] bytes, final int offset, final int length) {
+        InputStreamReader in = new InputStreamReader(new ByteArrayInputStream(bytes, offset, length));
+        try {
+            byte[] readBytes = PEMInputOutput.readX509PEM(in);
+            if ( readBytes != null ) return readBytes;
+        }
+        catch (IOException e) {
+            // this is not PEM encoded, let's use the default argument
+        }
+        return bytes;
+    }
+
     static RubyString readPossibleDERInput(final ThreadContext context, final IRubyObject arg) {
-        return readInput(context, OpenSSLImpl.to_der_if_possible(context, arg));
+        return readInput(context, OpenSSL.to_der_if_possible(context, arg));
     }
 
     static RubyString readInput(final ThreadContext context, final IRubyObject arg) {

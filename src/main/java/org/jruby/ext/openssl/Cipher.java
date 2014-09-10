@@ -57,7 +57,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 import org.jruby.util.ByteList;
 
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
+import static org.jruby.ext.openssl.OpenSSL.isDebug;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -540,8 +540,8 @@ public class Cipher extends RubyObject {
             }
 
             MessageDigest digest = Digest.getDigest("MD5", runtime);
-            OpenSSLImpl.KeyAndIv result = OpenSSLImpl.EVP_BytesToKey(keyLen, ivLen, digest, iv, pass, 2048);
-            this.key = result.getKey();
+            KeyAndIv result = evpBytesToKey(keyLen, ivLen, digest, iv, pass, 2048);
+            this.key = result.key;
             this.realIV = iv;
             this.orgIV = this.realIV;
         }
@@ -635,9 +635,9 @@ public class Cipher extends RubyObject {
 
         final String algorithm = vdigest.isNil() ? "MD5" : ((Digest) vdigest).getAlgorithm();
         final MessageDigest digest = Digest.getDigest(algorithm, runtime);
-        OpenSSLImpl.KeyAndIv result = OpenSSLImpl.EVP_BytesToKey(keyLen, ivLen, digest, salt, pass, iter);
-        this.key = result.getKey();
-        this.realIV = result.getIv();
+        KeyAndIv result = evpBytesToKey(keyLen, ivLen, digest, salt, pass, iter);
+        this.key = result.key;
+        this.realIV = result.iv;
         this.orgIV = this.realIV;
 
         doInitialize(runtime);
@@ -821,4 +821,69 @@ public class Cipher extends RubyObject {
     private static RaiseException newCipherError(Ruby runtime, String message) {
         return Utils.newError(runtime, _Cipher(runtime).getClass("CipherError"), message);
     }
+
+    private static class KeyAndIv {
+
+        final byte[] key;
+        final byte[] iv;
+
+        KeyAndIv(byte[] key, byte[] iv) {
+            this.key = key;
+            this.iv = iv;
+        }
+
+    }
+
+    private static KeyAndIv evpBytesToKey(
+            final int key_len, final int iv_len,
+            final MessageDigest md,
+            final byte[] salt,
+            final byte[] data,
+            final int count) {
+
+        final byte[] key = new byte[key_len]; final byte[] iv = new byte[iv_len];
+
+        if ( data == null ) return new KeyAndIv(key, iv);
+
+        int key_ix = 0; int iv_ix = 0;
+        byte[] md_buf = null;
+        int nkey = key_len; int niv = iv_len;
+        int i; int addmd = 0;
+
+        for(;;) {
+            md.reset();
+            if ( addmd++ > 0 ) md.update(md_buf);
+            md.update(data);
+            if ( salt != null ) md.update(salt,0,8);
+
+            md_buf = md.digest();
+
+            for ( i = 1; i < count; i++ ) {
+                md.reset();
+                md.update(md_buf);
+                md_buf = md.digest();
+            }
+
+            i = 0;
+            if ( nkey > 0 ) {
+                for(;;) {
+                    if ( nkey == 0) break;
+                    if ( i == md_buf.length ) break;
+                    key[ key_ix++ ] = md_buf[i];
+                    nkey--; i++;
+                }
+            }
+            if ( niv > 0 && i != md_buf.length ) {
+                for(;;) {
+                    if ( niv == 0 ) break;
+                    if ( i == md_buf.length ) break;
+                    iv[ iv_ix++ ] = md_buf[i];
+                    niv--; i++;
+                }
+            }
+            if ( nkey == 0 && niv == 0 ) break;
+        }
+        return new KeyAndIv(key,iv);
+    }
+
 }

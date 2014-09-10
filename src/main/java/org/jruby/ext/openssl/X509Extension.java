@@ -64,9 +64,7 @@ import org.jruby.util.ConvertBytes;
 
 import static org.jruby.ext.openssl.ASN1._ASN1;
 import static org.jruby.ext.openssl.X509._X509;
-import static org.jruby.ext.openssl.OpenSSLImpl.to_der_if_possible;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.StringHelper.*;
 
 /**

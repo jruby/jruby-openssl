@@ -44,7 +44,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.runtime.Visibility;
 
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
+import static org.jruby.ext.openssl.OpenSSL.isDebug;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>

@@ -169,7 +169,7 @@ public class X509Cert extends RubyObject {
     void initialize(final ThreadContext context, final byte[] encoded, final int offset, final int length) {
         final Ruby runtime = context.runtime;
 
-        byte[] bytes = OpenSSLImpl.readX509PEM(encoded, offset, length);
+        byte[] bytes = StringHelper.readX509PEM(encoded, offset, length);
 
         try {
             final ByteArrayInputStream bis = new ByteArrayInputStream(bytes);

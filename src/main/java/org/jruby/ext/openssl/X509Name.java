@@ -78,7 +78,7 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
 import org.jruby.ext.openssl.x509store.Name;
-import static org.jruby.ext.openssl.OpenSSLReal.*;
+import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.StringHelper.newString;
 
@@ -296,7 +296,7 @@ public class X509Name extends RubyObject {
             }
         }
         else {
-            IRubyObject enc = OpenSSLImpl.to_der_if_possible(context, dn);
+            IRubyObject enc = to_der_if_possible(context, dn);
             fromASN1Sequence( enc.asString().getBytes() );
         }
         return this;

@@ -61,9 +61,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 
-import static org.jruby.ext.openssl.OpenSSLReal.bcExceptionMessage;
-import static org.jruby.ext.openssl.OpenSSLReal.debug;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
+import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.impl.PKey.readDSAPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readDSAPublicKey;
 import static org.jruby.ext.openssl.impl.PKey.toDerDSAKey;

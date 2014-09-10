@@ -72,8 +72,7 @@ import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.ext.openssl.x509store.Store;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.*;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -302,7 +301,7 @@ public class PKCS7 extends RubyObject {
             }
             return this;
         }
-        IRubyObject arg = OpenSSLImpl.to_der_if_possible(context, args[0]);
+        IRubyObject arg = to_der_if_possible(context, args[0]);
         BIO input = obj2bio(arg);
         try {
             p7 = org.jruby.ext.openssl.impl.PKCS7.readPEM(input);

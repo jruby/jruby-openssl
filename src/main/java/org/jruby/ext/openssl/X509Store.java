@@ -46,8 +46,8 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.isDebug;
+import static org.jruby.ext.openssl.OpenSSL.warn;
 import org.jruby.ext.openssl.x509store.X509Error;
 
 /**

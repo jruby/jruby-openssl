@@ -27,9 +27,11 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl;
 
+import java.util.Map;
 import org.jruby.Ruby;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
+import org.jruby.ext.openssl.x509store.X509Error;
 import org.jruby.ext.openssl.x509store.X509Utils;
 
 /**
@@ -120,6 +122,10 @@ public class X509 {
 
     static RubyModule _X509(final Ruby runtime) {
         return (RubyModule) runtime.getModule("OpenSSL").getConstant("X509");
+    }
+
+    static Map<Integer, String> getErrors() {
+        return X509Error.getErrors();
     }
 
 }// X509

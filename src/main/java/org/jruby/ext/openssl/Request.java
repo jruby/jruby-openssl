@@ -65,7 +65,7 @@ import org.jruby.runtime.Visibility;
 import org.jruby.ext.openssl.impl.PKCS10Request;
 import static org.jruby.ext.openssl.ASN1._ASN1;
 import static org.jruby.ext.openssl.Attribute._Attribute;
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.warn;
 import static org.jruby.ext.openssl.PKey._PKey;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Name._Name;
@@ -110,7 +110,7 @@ public class Request extends RubyObject {
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) return this;
 
         try {
-            request = new PKCS10Request( OpenSSLImpl.readX509PEM(context, args[0]) );
+            request = new PKCS10Request( StringHelper.readX509PEM(context, args[0]) );
         }
         catch (ArrayIndexOutOfBoundsException e) {
             throw newRequestError(runtime, "invalid certificate request data");

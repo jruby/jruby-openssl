@@ -5,19 +5,19 @@ import org.jruby.runtime.load.Library;
 
 import java.io.IOException;
 
+/**
+ * @deprecated
+ * @see OpenSSL
+ */
 public class OSSLLibrary implements Library {
 
     public static void load(final Ruby runtime) {
-        OpenSSLReal.createOpenSSL(runtime);
+        OpenSSL.load(runtime);
     }
 
     @Override
     public void load(Ruby runtime, boolean wrap) throws IOException {
         load(runtime);
-    }
-
-    public static boolean isProviderAvailable() {
-        return SecurityHelper.isProviderAvailable("BC");
     }
 
 }

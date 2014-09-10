@@ -50,7 +50,6 @@ import java.security.spec.X509EncodedKeySpec;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
-import org.jruby.RubyFile;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
@@ -58,14 +57,11 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
-import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
-import static org.jruby.ext.openssl.OpenSSLReal.debug;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
+import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.impl.PKey.readPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readPublicKey;
 
@@ -115,7 +111,7 @@ public abstract class PKey extends RubyObject {
                 pass = args[1].isNil() ? null : args[1].toString().toCharArray();
             }
 
-            final byte[] input = OpenSSLImpl.readX509PEM(context, data);
+            final byte[] input = StringHelper.readX509PEM(context, data);
             KeyPair key = null;
             // d2i_PrivateKey_bio
             try {

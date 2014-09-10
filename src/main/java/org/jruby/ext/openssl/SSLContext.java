@@ -79,8 +79,8 @@ import org.jruby.ext.openssl.x509store.X509Utils;
 import static org.jruby.ext.openssl.StringHelper.*;
 import static org.jruby.ext.openssl.SSL._SSL;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
-import static org.jruby.ext.openssl.OpenSSLReal.debug;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
+import static org.jruby.ext.openssl.OpenSSL.debug;
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>

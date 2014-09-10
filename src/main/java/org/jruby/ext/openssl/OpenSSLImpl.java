@@ -27,82 +27,21 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.security.MessageDigest;
-
-import org.jruby.RubyString;
-import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import org.jruby.ext.openssl.x509store.PEMInputOutput;
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
-import org.jruby.util.ByteList;
-
 /**
- * Static class that holds various OpenSSL methods that aren't
- * really easy to do any other way.
- *
+ * @deprecated no longer used
+ * @see OpenSSL
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
+@Deprecated
 public class OpenSSLImpl {
 
     private OpenSSLImpl() { /* no instances */ }
 
     @Deprecated
     public static IRubyObject to_der_if_possible(IRubyObject obj) {
-        if ( ! obj.respondsTo("to_der"))  return obj;
-        return obj.callMethod(obj.getRuntime().getCurrentContext(), "to_der");
-    }
-
-    static IRubyObject to_der_if_possible(final ThreadContext context, IRubyObject obj) {
-        if ( ! obj.respondsTo("to_der"))  return obj;
-        return obj.callMethod(context, "to_der");
-    }
-
-    @Deprecated
-    static byte[] readX509PEM(IRubyObject arg) {
-        return readX509PEM(arg.getRuntime().getCurrentContext(), arg);
-    }
-
-    static byte[] readX509PEM(final ThreadContext context, IRubyObject arg) {
-        final RubyString str = StringHelper.readPossibleDERInput(context, arg);
-        final ByteList bytes = str.getByteList();
-        return readX509PEM(bytes.unsafeBytes(), bytes.getBegin(), bytes.getRealSize());
-    }
-
-    static byte[] readX509PEM(
-        final byte[] bytes, final int offset, final int length) {
-        InputStreamReader in = new InputStreamReader(new ByteArrayInputStream(bytes, offset, length));
-        try {
-            byte[] readBytes = PEMInputOutput.readX509PEM(in);
-            if ( readBytes != null ) return readBytes;
-        }
-        catch (IOException e) {
-            // this is not PEM encoded, let's use the default argument
-        }
-        return bytes;
-    }
-
-    static interface KeyAndIv {
-        byte[] getKey();
-        byte[] getIv();
-    }
-
-    private static class KeyAndIvImpl implements KeyAndIv {
-        private final byte[] key;
-        private final byte[] iv;
-        public KeyAndIvImpl(byte[] key, byte[] iv) {
-            this.key = key;
-            this.iv = iv;
-        }
-        public byte[] getKey() {
-            return key;
-        }
-        public byte[] getIv() {
-            return iv;
-        }
+        return OpenSSL.to_der_if_possible(obj.getRuntime().getCurrentContext(), obj);
     }
 
     @Deprecated // NOTE: seems to be no longer used !
@@ -111,64 +50,9 @@ public class OpenSSLImpl {
             return new BouncyCastlePEMHandler();
         }
         catch (Exception e) {
-            if ( isDebug() ) e.printStackTrace(System.out);
+            if ( OpenSSL.isDebug() ) e.printStackTrace(System.out);
         }
         return new DefaultPEMHandler();
     }
 
-    static KeyAndIv EVP_BytesToKey(int key_len, int iv_len, MessageDigest md, byte[] salt, byte[] data, int count) {
-        final byte[] key = new byte[key_len]; final byte[] iv = new byte[iv_len];
-
-        if( data == null ) return new KeyAndIvImpl(key, iv);
-
-        int key_ix = 0;
-        int iv_ix = 0;
-        byte[] md_buf = null;
-        int nkey = key_len;
-        int niv = iv_len;
-        int i;
-        int addmd = 0;
-        for(;;) {
-            md.reset();
-            if(addmd++ > 0) {
-                md.update(md_buf);
-            }
-            md.update(data);
-            if(null != salt) {
-                md.update(salt,0,8);
-            }
-            md_buf = md.digest();
-            for(i=1;i<count;i++) {
-                md.reset();
-                md.update(md_buf);
-                md_buf = md.digest();
-            }
-            i=0;
-            if(nkey > 0) {
-                for(;;) {
-                    if(nkey == 0) break;
-                    if(i == md_buf.length) break;
-                    key[key_ix++] = md_buf[i];
-                    nkey--;
-                    i++;
-                }
-            }
-            if(niv > 0 && i != md_buf.length) {
-                for(;;) {
-                    if(niv == 0) break;
-                    if(i == md_buf.length) break;
-                    iv[iv_ix++] = md_buf[i];
-                    niv--;
-                    i++;
-                }
-            }
-            if(nkey == 0 && niv == 0) {
-                break;
-            }
-        }
-        //for(i=0;i<md_buf.length;i++) {
-        //    md_buf[i] = 0;
-        //}
-        return new KeyAndIvImpl(key,iv);
-    }
 }// OpenSSLImpl

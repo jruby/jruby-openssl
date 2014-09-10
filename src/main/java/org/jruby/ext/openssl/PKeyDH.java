@@ -47,12 +47,12 @@ import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ObjectAllocator;
-import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.runtime.Visibility;
 
 import static org.jruby.ext.openssl.PKey._PKey;
+import static org.jruby.ext.openssl.OpenSSL.bcExceptionMessage;
 
 /**
  * OpenSSL::PKey::DH implementation.
@@ -142,8 +142,8 @@ public class PKeyDH extends PKey {
                     }
                     this.dh_p = spec.getP();
                     this.dh_g = spec.getG();
-                } catch (NoClassDefFoundError ncdfe) {
-                    throw newDHError(runtime, OpenSSLReal.bcExceptionMessage(ncdfe));
+                } catch (NoClassDefFoundError e) {
+                    throw newDHError(runtime, bcExceptionMessage(e));
                 } catch (IOException e) {
                     throw runtime.newIOErrorFromException(e);
                 }
@@ -292,8 +292,8 @@ public class PKeyDH extends PKey {
             PEMInputOutput.writeDHParameters(w, new DHParameterSpec(p, g));
             w.flush();
             w.close();
-        } catch (NoClassDefFoundError ncdfe) {
-            throw newDHError(getRuntime(), OpenSSLReal.bcExceptionMessage(ncdfe));
+        } catch (NoClassDefFoundError e) {
+            throw newDHError(getRuntime(), bcExceptionMessage(e));
         } catch (IOException e) {
             // shouldn't happen (string/buffer io only)
             throw getRuntime().newIOErrorFromException(e);
@@ -311,8 +311,8 @@ public class PKeyDH extends PKey {
         try {
             byte[] bytes = org.jruby.ext.openssl.impl.PKey.toDerDHKey(p, g);
             return RubyString.newString(getRuntime(), bytes);
-        } catch (NoClassDefFoundError ncdfe) {
-            throw newDHError(getRuntime(), OpenSSLReal.bcExceptionMessage(ncdfe));
+        } catch (NoClassDefFoundError e) {
+            throw newDHError(getRuntime(), bcExceptionMessage(e));
         } catch (IOException ioe) {
             throw newDHError(getRuntime(), ioe.getMessage());
         }

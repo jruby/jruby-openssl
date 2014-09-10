@@ -61,6 +61,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 
 import org.jruby.ext.openssl.impl.ASN1Registry;
+import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.X509Extension.*;
 
 /**
@@ -174,7 +175,7 @@ public class X509ExtensionFactory extends RubyObject {
         try {
             objectId = ASN1.getObjectID(runtime, oid);
         } catch (IllegalArgumentException e) {
-            OpenSSLReal.debug(runtime, "ASN1.getObjectIdentifier() at ExtensionFactory.create_ext", e);
+            debug(runtime, "ASN1.getObjectIdentifier() at ExtensionFactory.create_ext", e);
             throw newExtensionError(runtime, "unknown OID `" + oid + "'");
         }
         final String critical_ = "critical,";

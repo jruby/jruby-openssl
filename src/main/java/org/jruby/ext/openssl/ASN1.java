@@ -84,10 +84,7 @@ import org.jruby.util.ByteList;
 
 import org.jruby.ext.openssl.impl.ASN1Registry;
 
-import static org.jruby.ext.openssl.OpenSSLReal.debug;
-import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
-import static org.jruby.ext.openssl.OpenSSLReal.isDebug;
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.*;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -930,7 +927,7 @@ public class ASN1 {
 
     static IRubyObject decodeImpl(final ThreadContext context,
         final RubyModule _ASN1, IRubyObject obj) throws IOException, IllegalArgumentException {
-        obj = OpenSSLImpl.to_der_if_possible(context, obj);
+        obj = to_der_if_possible(context, obj);
         ASN1InputStream asis = new ASN1InputStream(obj.convertToString().getBytes());
         return decodeObject(context, _ASN1, asis.readObject());
     }

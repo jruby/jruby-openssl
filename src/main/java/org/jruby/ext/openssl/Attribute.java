@@ -46,7 +46,7 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
-import static org.jruby.ext.openssl.OpenSSLReal.warn;
+import static org.jruby.ext.openssl.OpenSSL.*;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -104,7 +104,7 @@ public class Attribute extends RubyObject {
     @JRubyMethod(name="initialize", required=1, optional=1, visibility = Visibility.PRIVATE)
     public IRubyObject _initialize(final ThreadContext context, IRubyObject[] str) {
         if ( Arity.checkArgumentCount(context.runtime, str, 1, 2) == 1 ) {
-            set_oid( OpenSSLImpl.to_der_if_possible(context, str[0]) );
+            set_oid( to_der_if_possible(context, str[0]) );
             return this;
         }
         set_oid(str[0]);
