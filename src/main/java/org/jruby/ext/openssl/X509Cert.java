@@ -222,7 +222,7 @@ public class X509Cert extends RubyObject {
     private void addExtension(final ThreadContext context,
         final RubyClass _Extension, final String extOID, final boolean critical) {
         try {
-            final IRubyObject extension = newExtension(context, _Extension, extOID, cert, critical);
+            final IRubyObject extension = newExtension(context, extOID, cert, critical);
             if ( extension != null ) add_extension(extension);
         }
         catch (IOException e) { throw newCertificateError(context.runtime, e); }

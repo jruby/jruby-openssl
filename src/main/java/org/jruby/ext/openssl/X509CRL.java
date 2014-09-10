@@ -203,7 +203,7 @@ public class X509CRL extends RubyObject {
     private void addExtension(final ThreadContext context,
         final RubyClass _Extension, final String extOID, final boolean critical) {
         try {
-            final IRubyObject extension = newExtension(context, _Extension, extOID, crl, critical);
+            final IRubyObject extension = newExtension(context, extOID, crl, critical);
             if ( extension != null ) this.extensions.append(extension);
         }
         catch (IOException e) { throw newCRLError(context.runtime, e); }

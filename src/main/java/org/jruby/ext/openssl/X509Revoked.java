@@ -108,7 +108,7 @@ public class X509Revoked extends RubyObject {
         final RubyClass _Extension, final X509CRLEntry entry,
         final String extOID, final boolean critical) {
         try {
-            final IRubyObject extension = newExtension(context, _Extension, extOID, entry, critical);
+            final IRubyObject extension = newExtension(context, extOID, entry, critical);
             if ( extension != null ) extensions().append( extension );
         }
         catch (IOException e) { throw newExtensionError(context.runtime, e); }

@@ -41,6 +41,7 @@ import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 
@@ -108,8 +109,8 @@ public class X509Extension extends RubyObject {
     };
 
     static X509Extension newExtension(final ThreadContext context,
-        final RubyClass _Extension, final String oid,
-        final java.security.cert.X509Extension ext, final boolean critical)
+        final String oid, final java.security.cert.X509Extension ext,
+        final boolean critical)
         throws IOException {
 
         final byte[] extValue = ext.getExtensionValue(oid); // DER encoded
@@ -130,6 +131,15 @@ public class X509Extension extends RubyObject {
         ext.setRealObjectID(objectId);
         ext.setRealValue(value);
         ext.setRealCritical(critical);
+        return ext;
+    }
+
+    static X509Extension newExtension(final Ruby runtime, ASN1ObjectIdentifier objectId,
+        final Extension extension) {
+        X509Extension ext = new X509Extension(runtime, _Extension(runtime));
+        ext.setRealObjectID(objectId);
+        ext.setRealValue(extension.getParsedValue());
+        ext.setRealCritical(extension.isCritical());
         return ext;
     }
 
@@ -504,7 +514,7 @@ public class X509Extension extends RubyObject {
             return StringHelper.newString(getRuntime(), enc);
         }
         catch (IOException e) {
-            throw newExtensionError(getRuntime(), e.getMessage());
+            throw newExtensionError(getRuntime(), e);
         }
     }
 
