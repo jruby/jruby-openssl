@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -56,7 +55,7 @@ import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
-//import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x509.X509DefaultEntryConverter;
 
 import org.jruby.Ruby;
@@ -470,13 +469,15 @@ public class X509Name extends RubyObject {
 
     @Deprecated
     org.bouncycastle.asn1.x509.X509Name getRealName() {
-        return new org.bouncycastle.asn1.x509.X509Name(new Vector<Object>(oids), new Vector<Object>(values));
+        return new org.bouncycastle.asn1.x509.X509Name(
+            new java.util.Vector<Object>(oids), new java.util.Vector<Object>(values)
+        );
     }
 
     final X500Name getX500Name() {
         if ( name != null ) return name;
 
-        final X500NameBuilder builder = new X500NameBuilder(/* BCStyle.INSTANCE */);
+        final X500NameBuilder builder = new X500NameBuilder( BCStyle.INSTANCE );
         for ( int i = 0; i < oids.size(); i++ ) {
             builder.addRDN( oids.get(i), values.get(i) );
         }
