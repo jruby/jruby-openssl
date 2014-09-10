@@ -55,10 +55,13 @@ import org.bouncycastle.asn1.DLSet;
 import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.X500NameBuilder;
+//import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x509.X509DefaultEntryConverter;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
+import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyHash;
@@ -66,6 +69,7 @@ import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
+import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.ObjectAllocator;
@@ -161,6 +165,8 @@ public class X509Name extends RubyObject {
     private final List<String> values;
     private final List<RubyInteger> types;
 
+    private transient X500Name name;
+
     private void fromASN1Sequence(final byte[] encoded) {
         try {
             ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(encoded).readObject();
@@ -169,12 +175,6 @@ public class X509Name extends RubyObject {
         catch (IOException e) {
             throw newNameError(getRuntime(), e.getClass().getName() + ":" + e.getMessage());
         }
-    }
-
-    void addEntry(ASN1ObjectIdentifier oid, String value, RubyInteger type) {
-        this.oids.add(oid);
-        this.values.add(value);
-        this.types.add(type);
     }
 
     void fromASN1Sequence(final ASN1Sequence seq) {
@@ -222,16 +222,23 @@ public class X509Name extends RubyObject {
         final ASN1Encodable val = typeAndValue.getObjectAt(1);
         if ( val instanceof ASN1String ) {
             this.values.add( ((ASN1String) val).getString() );
-        } else {
-
+        }
+        else {
             this.values.add(null);
-
         }
         addType( getRuntime(), val );
     }
 
     private void addType(final Ruby runtime, final ASN1Encodable value) {
+        this.name = null; // NOTE: each fromX factory calls this ...
         this.types.add( runtime.newFixnum( ASN1.idForJava(value) ) );
+    }
+
+    final void addEntry(ASN1ObjectIdentifier oid, String value, RubyInteger type) {
+        this.name = null;
+        this.oids.add(oid);
+        this.values.add(value);
+        this.types.add(type);
     }
 
     @Override
@@ -324,7 +331,7 @@ public class X509Name extends RubyObject {
         final IRubyObject oid, final IRubyObject value, IRubyObject type) {
         final Ruby runtime = context.runtime;
 
-        if ( type.isNil() ) {
+        if (type == null || type.isNil()) {
             type = _Name(runtime).getConstant("OBJECT_TYPE_TEMPLATE").callMethod(context, "[]", oid);
         }
 
@@ -341,9 +348,7 @@ public class X509Name extends RubyObject {
 
         String valueStr = value.asString().toString();
 
-        oids.add(objectId);
-        values.add(valueStr);
-        types.add((RubyInteger) type);
+        addEntry(objectId, valueStr, (RubyInteger) type);
 
         return this;
     }
@@ -385,34 +390,34 @@ public class X509Name extends RubyObject {
             valuesIter = values.iterator();
         }
 
-        final StringBuilder str = new StringBuilder(); String sep = "";
+        final StringBuilder str = new StringBuilder(48); String sep = "";
         while( oidsIter.hasNext() ) {
             final ASN1ObjectIdentifier oid = oidsIter.next();
-            String name = ASN1.oid2Sym(runtime, oid);
-            if ( name == null ) name = oid.toString();
+            String oName = symName(runtime, oid);
+            if ( oName == null ) oName = oid.toString();
             final String value = valuesIter.next();
 
             switch(flag) {
                 case RFC2253:
-                    str.append(sep).append(name).append('=').append(value);
+                    str.append(sep).append(oName).append('=').append(value);
                     sep = ",";
                     break;
                 case ONELINE:
-                    str.append(sep).append(name).append(" = ").append(value);
+                    str.append(sep).append(oName).append(" = ").append(value);
                     sep = ",";
                     break;
                 case MULTILINE:
                     final Integer nid = ASN1.obj2nid(runtime, oid);
                     if ( nid != null ) {
                         final String ln = ASN1.nid2ln(runtime, nid);
-                        if ( ln != null ) name = ln;
+                        if ( ln != null ) oName = ln;
                     } // TODO need indention :
-                    str.append(sep).append(name).append(" = ").append(value);
+                    str.append(sep).append(oName).append(" = ").append(value);
                     sep = "\n";
                     break;
                 case COMPAT:
                 default:
-                    str.append('/').append(name).append('=').append(value);
+                    str.append('/').append(oName).append('=').append(value);
             }
         }
 
@@ -435,26 +440,20 @@ public class X509Name extends RubyObject {
         final Iterator<String> valuesIter = values.iterator();
         final Iterator<RubyInteger> typesIter = types.iterator();
         while ( oidsIter.hasNext() ) {
-            ASN1ObjectIdentifier oid = oidsIter.next();
-            String name = ASN1.oid2Sym(runtime, oid);
-            if ( name == null ) name = "UNDEF";
+            String oName = symName(runtime, oidsIter.next());
+            if ( oName == null ) oName = "UNDEF";
             final String value = valuesIter.next();
             final IRubyObject type = typesIter.next();
             final IRubyObject[] entry = new IRubyObject[] {
-                runtime.newString(name), runtime.newString(value), type
+                runtime.newString(oName), runtime.newString(value), type
             };
             entries.append( runtime.newArrayNoCopy(entry) );
         }
         return entries;
     }
 
-    @JRubyMethod(name = { "cmp", "<=>" })
-    public IRubyObject cmp(IRubyObject other) {
-        if ( eql_p(other).isTrue() ) {
-            return RubyFixnum.zero(getRuntime());
-        }
-        // TODO: huh?
-        return RubyFixnum.one(getRuntime());
+    private static String symName(final Ruby runtime, final ASN1ObjectIdentifier oid) {
+        return ASN1.oid2Sym(runtime, oid, true);
     }
 
     @Deprecated
@@ -462,37 +461,74 @@ public class X509Name extends RubyObject {
         return new org.bouncycastle.asn1.x509.X509Name(new Vector<Object>(oids), new Vector<Object>(values));
     }
 
-    X500Name getX500Name() {
-        return X500Name.getInstance( getRealName().toASN1Primitive() );
+    final X500Name getX500Name() {
+        if ( name != null ) return name;
+
+        final X500NameBuilder builder = new X500NameBuilder(/* BCStyle.INSTANCE */);
+        for ( int i = 0; i < oids.size(); i++ ) {
+            builder.addRDN( oids.get(i), values.get(i) );
+        }
+        return name = builder.build();
+    }
+
+    @JRubyMethod(name = { "cmp", "<=>" })
+    public RubyFixnum cmp(IRubyObject other) {
+        if ( equals(other) ) {
+            return RubyFixnum.zero( getRuntime() );
+        }
+        // TODO: do we really need cmp - if so what order huh?
+        if ( other instanceof X509Name ) {
+            final X509Name that = (X509Name) other;
+            final X500Name thisName = this.getX500Name();
+            final X500Name thatName = that.getX500Name();
+            int cmp = thisName.toString().compareTo( thatName.toString() );
+            return RubyFixnum.newFixnum( getRuntime(), cmp );
+        }
+        return RubyFixnum.one( getRuntime() );
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if ( this == other ) return true;
+        if ( other instanceof X509Name ) {
+            final X509Name that = (X509Name) other;
+            final X500Name thisName = this.getX500Name();
+            final X500Name thatName = that.getX500Name();
+            return thisName.equals(thatName);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        try {
+            return Name.hash( getX500Name() );
+        }
+        catch (IOException e) {
+            debugStackTrace(getRuntime(), e); return 0;
+        }
+        catch (RuntimeException e) {
+            debugStackTrace(getRuntime(), e); return 0;
+        }
+        // return 41 * this.oids.hashCode();
     }
 
     @Override
     @JRubyMethod(name = "eql?")
-    public IRubyObject eql_p(final IRubyObject other) {
+    public RubyBoolean eql_p(final IRubyObject other) {
         if ( ! (other instanceof X509Name) ) return getRuntime().getFalse();
-        X509Name that = (X509Name) other;
-        org.bouncycastle.asn1.x509.X509Name thisName = this.getRealName();
-        org.bouncycastle.asn1.x509.X509Name thatName = that.getRealName();
-        return thisName.equals(thatName) ? getRuntime().getTrue() : getRuntime().getFalse();
+        return getRuntime().newBoolean( equals(other) );
     }
 
     @Override
     @JRubyMethod
     public RubyFixnum hash() {
-        final Ruby runtime = getRuntime();
-        try {
-            return runtime.newFixnum( Name.hash( getX500Name() ) );
-        }
-        catch (IOException e) {
-            debugStackTrace(runtime, e); return runtime.newFixnum(0);
-        }
-        catch (RuntimeException e) {
-            debugStackTrace(runtime, e); return runtime.newFixnum(0);
-        }
+        return getRuntime().newFixnum( hashCode() );
     }
 
     @JRubyMethod
-    public IRubyObject to_der() {
+    public RubyString to_der(final ThreadContext context) {
+        final Ruby runtime = context.runtime;
         final DLSequence seq;
         if ( oids.size() > 0 ) {
             ASN1EncodableVector vec = new ASN1EncodableVector();
@@ -520,10 +556,10 @@ public class X509Name extends RubyObject {
             seq = new DLSequence();
         }
         try {
-            return StringHelper.newString(getRuntime(), seq.getEncoded(ASN1Encoding.DER));
+            return StringHelper.newString(runtime, seq.getEncoded(ASN1Encoding.DER));
         }
         catch (IOException e) {
-            throw newNameError(getRuntime(), e);
+            throw newNameError(runtime, e);
         }
     }
 
@@ -560,7 +596,7 @@ public class X509Name extends RubyObject {
     }
 
     private static RaiseException newNameError(Ruby runtime, Throwable e) {
-        return Utils.newError(runtime, _X509(runtime).getClass("NameError"), e.getMessage());
+        return Utils.newError(runtime, _X509(runtime).getClass("NameError"), e);
     }
 
     private static RaiseException newNameError(Ruby runtime, String message) {
