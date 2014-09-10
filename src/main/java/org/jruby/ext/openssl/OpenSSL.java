@@ -115,6 +115,10 @@ public final class OpenSSL {
         if ( warn != null ) OpenSSL.warn = Boolean.parseBoolean(warn);
     }
 
+    static RubyClass _OpenSSLError(final Ruby runtime) {
+        return runtime.getModule("OpenSSL").getClass("OpenSSLError");
+    }
+
     // OpenSSL module methods :
 
     @JRubyMethod(name = "errors", meta = true)

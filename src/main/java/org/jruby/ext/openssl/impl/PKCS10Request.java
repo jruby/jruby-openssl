@@ -30,6 +30,7 @@ package org.jruby.ext.openssl.impl;
 import java.util.List;
 import java.io.OutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -42,11 +43,9 @@ import java.security.spec.KeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
-
-import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+
 import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
@@ -58,11 +57,16 @@ import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
 import org.bouncycastle.crypto.params.DSAParameters;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.jce.spec.ECParameterSpec;
+import org.bouncycastle.jce.spec.ECPublicKeySpec;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.ContentVerifier;
 import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
+import org.bouncycastle.pkcs.PKCSException;
 
 import org.jruby.ext.openssl.SecurityHelper;
 
@@ -70,265 +74,242 @@ public class PKCS10Request {
 
     private X500Name subject;
     private SubjectPublicKeyInfo publicKeyInfo;
-    private PKCS10CertificationRequestBuilder builder;
-    private PKCS10CertificationRequest signedRequest;
-    private boolean valid = false;
+    private List<Attribute> attributes;
 
-    // For generating new requests
+    private transient PKCS10CertificationRequest signedRequest;
+    // private boolean valid = false;
 
     public PKCS10Request(X500Name subject,
-        SubjectPublicKeyInfo publicKeyInfo,
-        List<Attribute> attrs)
-    {
-        this.subject        = subject;
-        this.publicKeyInfo  = publicKeyInfo;
-
-        resetBuilder();
-        setAttributes(attrs);
+        SubjectPublicKeyInfo publicKeyInfo, List<Attribute> attrs) {
+        this.subject = subject;
+        this.publicKeyInfo = publicKeyInfo;
+        this.attributes = attrs;
     }
 
     public PKCS10Request(X500Name subject,
-        PublicKey publicKey,
-        List<Attribute> attrs)
-    {
-        this.subject        = subject;
-        this.publicKeyInfo  = makePublicKeyInfo(publicKey);
-
-        resetBuilder();
-        setAttributes(attrs);
+        PublicKey publicKey, List<Attribute> attrs) {
+        this.subject = subject;
+        this.publicKeyInfo = makePublicKeyInfo(publicKey);
+        this.attributes = attrs;
     }
 
     // For reading existing requests
 
-    public PKCS10Request(CertificationRequest req) {
-
+    public PKCS10Request(final CertificationRequest req) {
         subject       = req.getCertificationRequestInfo().getSubject();
         publicKeyInfo = req.getCertificationRequestInfo().getSubjectPublicKeyInfo();
+        //this.attributes = new ArrayList<Attribute>();
+        //addAttributes( req.getCertificationRequestInfo().getAttributes() );
         signedRequest = new PKCS10CertificationRequest(req);
-        valid = true;
+        // valid = true;
     }
+
     public PKCS10Request(byte[] bytes) {
         this(CertificationRequest.getInstance(bytes));
     }
+
     public PKCS10Request(ASN1Sequence sequence) {
         this(CertificationRequest.getInstance(sequence));
     }
 
     // sign
 
-    public PKCS10CertificationRequest sign(PrivateKey privateKey,
-        AlgorithmIdentifier sigAlg)
-        throws IOException
-    {
-        ContentSigner signer;
-        try {
-            signer = new PKCS10Signer(privateKey, sigAlg);
-        } catch (Exception e) {
-            throw new IOException("Could not create PKCS10 signer: " + e);
-        }
-        signedRequest = builder.build(signer);
-        valid = true;
-
+    public PKCS10CertificationRequest sign(final PrivateKey privateKey,
+        final AlgorithmIdentifier signatureAlg)
+        throws NoSuchAlgorithmException, InvalidKeyException {
+        final ContentSigner signer = new PKCS10Signer(privateKey, signatureAlg);
+        signedRequest = newBuilder().build(signer); // valid = true;
         return signedRequest;
     }
-    public PKCS10CertificationRequest sign(PrivateKey privateKey, String digestAlg)
-        throws IOException
-    {
-        PublicKey pk = getPublicKey();
 
-        String sigAlg = digestAlg + "WITH" + pk.getAlgorithm();
-
-        return sign(
-            privateKey,
+    public PKCS10CertificationRequest sign(final PrivateKey privateKey,
+        final String digestAlg)
+        throws NoSuchAlgorithmException, InvalidKeyException {
+        String sigAlg = digestAlg + "WITH" + getPublicKeyAlgorithm();
+        return sign( privateKey,
             new DefaultSignatureAlgorithmIdentifierFinder().find( sigAlg )
         );
     }
 
     // verify
 
-    public boolean verify(PublicKey publicKey) throws IOException, InvalidKeyException {
-        if (signedRequest == null) return false;
-        if (!isValid()) return false;
+    public boolean verify(final PublicKey publicKey) throws InvalidKeyException {
+        if ( signedRequest == null ) {
+            if ( true ) throw new IllegalStateException("no signed request");
+            return false;
+        }
 
         try {
             ContentVerifierProvider verifier = new PKCS10VerifierProvider( publicKey );
             return signedRequest.isSignatureValid( verifier );
-        } catch (Exception e) {
-            throw new IOException("Error verifying signature: " + e);
+        }
+        catch (PKCSException e) {
+            throw new InvalidKeyException(e);
         }
     }
 
     // privates
 
-    private void resetBuilder() {
-        builder = new PKCS10CertificationRequestBuilder(
-           subject, publicKeyInfo
-        );
-        valid = false;
-    }
-
-    private boolean isValid() {
-        return valid;
-    }
-
-    private SubjectPublicKeyInfo makePublicKeyInfo(PublicKey publicKey) {
-        if (publicKey == null)
-            return null;
-        else
-            return SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
-    }
-
-    // statics
-
-    // Have to obey some artificial constraints of the OpenSSL implementation. Stupid.
-    public static boolean algorithmMismatch(String keyAlg, String digAlg, String digName) {
-        if(("DSA".equalsIgnoreCase(keyAlg) && "MD5".equalsIgnoreCase(digAlg)) ||
-           ("RSA".equalsIgnoreCase(keyAlg) && "DSS1".equals(digName)) ||
-           ("DSA".equalsIgnoreCase(keyAlg) && "SHA1".equals(digName))) {
-            return true;
-        } else {
-            return false;
+    private PKCS10CertificationRequestBuilder newBuilder() {
+        final PKCS10CertificationRequestBuilder builder =
+                new PKCS10CertificationRequestBuilder(subject, publicKeyInfo);
+        if ( attributes != null ) {
+            for ( Attribute attribute : attributes ) {
+                builder.addAttribute(attribute.getAttrType(), attribute.getAttributeValues());
+            }
         }
+        return builder;
+    }
+
+    private static SubjectPublicKeyInfo makePublicKeyInfo(PublicKey publicKey) {
+        if ( publicKey == null ) return null;
+        return SubjectPublicKeyInfo.getInstance( publicKey.getEncoded() );
     }
 
     // conversion
 
     public ASN1Sequence toASN1Structure() {
-        // TODO: outputting previous structure without checking isValid() is weird...
-        if (signedRequest != null)
-            return ASN1Sequence.getInstance(signedRequest.toASN1Structure());
-        else
-            return new DLSequence();
+        if ( signedRequest == null ) {
+            throw new IllegalStateException("request not signed");
+        }
+        return ASN1Sequence.getInstance( signedRequest.toASN1Structure() );
     }
 
     // getters and setters
 
-    public void setSubject(X500Name subject) {
+    public void setSubject(final X500Name subject) {
         this.subject = subject;
-        resetBuilder();
     }
 
     public X500Name getSubject() {
         return subject;
     }
 
-    public void setPublicKey(PublicKey publicKey) {
+    //private transient String publicKeyAlgorithm;
+
+    public void setPublicKey(final PublicKey publicKey) {
         this.publicKeyInfo = makePublicKeyInfo(publicKey);
-        resetBuilder();
+        //if ( publicKey == null ) publicKeyAlgorithm = null;
+        //else publicKeyAlgorithm = publicKey.getAlgorithm();
     }
 
-    public PublicKey getPublicKey() throws IOException {
+    private String getPublicKeyAlgorithm() {
+        //if ( publicKeyAlgorithm == null ) {
+        //    throw new IllegalStateException("no public key info");
+        //}
+        //return publicKeyAlgorithm;
+        if ( publicKeyInfo == null ) {
+            throw new IllegalStateException("no public key info");
+        }
+        AlgorithmIdentifier algId = publicKeyInfo.getAlgorithm();
+        return ASN1Registry.oid2sym( algId.getAlgorithm() );
+    }
+
+    public PublicKey generatePublicKey() throws NoSuchAlgorithmException,
+        InvalidKeySpecException, IOException {
 
         AsymmetricKeyParameter keyParams = PublicKeyFactory.createKey(publicKeyInfo);
 
-        KeySpec keySpec = null;
-        KeyFactory keyFact = null;
+        final KeySpec keySpec; final KeyFactory keyFactory;
 
-        try {
-            if (keyParams instanceof RSAKeyParameters) {
-                RSAKeyParameters rsa = (RSAKeyParameters) keyParams;
-                keySpec = new RSAPublicKeySpec(
-                    rsa.getModulus(), rsa.getExponent()
-                );
-                keyFact = SecurityHelper.getKeyFactory("RSA");
+        if ( keyParams instanceof RSAKeyParameters ) {
+            RSAKeyParameters rsa = (RSAKeyParameters) keyParams;
+            keySpec = new RSAPublicKeySpec(
+                rsa.getModulus(), rsa.getExponent()
+            );
+            keyFactory = SecurityHelper.getKeyFactory("RSA");
+            return keyFactory.generatePublic(keySpec);
 
-            } else if (keyParams instanceof DSAPublicKeyParameters) {
-                DSAPublicKeyParameters dsa = (DSAPublicKeyParameters) keyParams;
-                DSAParameters params = dsa.getParameters();
-                keySpec = new DSAPublicKeySpec(
-                    dsa.getY(), params.getP(), params.getQ(), params.getG()
-                );
-                keyFact = SecurityHelper.getKeyFactory("DSA");
-            }
-
-            if (keySpec != null && keyFact != null) {
-                return keyFact.generatePublic(keySpec);
-            }
         }
-        catch (NoSuchAlgorithmException e) { }
-        catch (InvalidKeySpecException e) { }
-
-        throw new IOException("Could not read public key");
+        else if ( keyParams instanceof DSAPublicKeyParameters ) {
+            DSAPublicKeyParameters dsa = (DSAPublicKeyParameters) keyParams;
+            DSAParameters params = dsa.getParameters();
+            keySpec = new DSAPublicKeySpec(
+                dsa.getY(), params.getP(), params.getQ(), params.getG()
+            );
+            keyFactory = SecurityHelper.getKeyFactory("DSA");
+            return keyFactory.generatePublic(keySpec);
+        }
+        else if ( keyParams instanceof ECPublicKeyParameters ) {
+            ECPublicKeyParameters ec = (ECPublicKeyParameters) keyParams;
+            ECDomainParameters ecParams = ec.getParameters();
+            ECParameterSpec params = new ECParameterSpec(
+                    ecParams.getCurve(),
+                    ecParams.getG(), ecParams.getN(), ecParams.getH(),
+                    ecParams.getSeed()
+            );
+            // NOTE: likely to fail if non BC factory picked up :
+            keySpec = new ECPublicKeySpec(ec.getQ(), params);
+            keyFactory = SecurityHelper.getKeyFactory("EC");
+            return keyFactory.generatePublic(keySpec);
+        }
+        else {
+            throw new IllegalStateException("could not generate public key for request, params type: " + keyParams);
+        }
     }
 
     public Attribute[] getAttributes() {
-        return (signedRequest != null) ? signedRequest.getAttributes() : new Attribute[0];
+        return signedRequest != null ? signedRequest.getAttributes() :
+                    attributes.toArray(new Attribute[0]);
     }
 
-    public void setAttributes(List<Attribute> attrs) {
-        resetBuilder();
-        addAttributes(attrs);
+    public void setAttributes(final List<Attribute> attrs) {
+        this.attributes = attrs;
     }
 
-    private void addAttributes(List<Attribute> attrs) {
-        if (attrs == null) return;
-
-        for(Attribute attr : attrs) {
-            addAttribute(attr);
-        }
-    }
-    public void addAttribute(Attribute attr) {
-        for (ASN1Encodable value : attr.getAttributeValues()) {
-          addAttribute(attr.getAttrType(), value);
-        }
-    }
-    public void addAttribute(ASN1ObjectIdentifier oid, ASN1Encodable value) {
-        valid = false;
-        builder.addAttribute(oid, value);
+    public void addAttribute(final Attribute attribute) {
+        this.attributes.add( attribute );
     }
 
-    public int getVersion() {
-        if (!isValid()) return 0;
-
-        return signedRequest.toASN1Structure().getCertificationRequestInfo()
-                    .getVersion().getValue().intValue();
+    public BigInteger getVersion() {
+        if ( signedRequest == null ) return null;
+        return signedRequest.toASN1Structure().
+                getCertificationRequestInfo().
+                    getVersion().getValue();
     }
 
 
-    private class PKCS10Signer implements ContentSigner
-    {
-        AlgorithmIdentifier sigAlg;
-        Signature sig;
-        SignatureOutputStream sigOut;
+    private static class PKCS10Signer implements ContentSigner {
 
-        public PKCS10Signer(PrivateKey pkey, AlgorithmIdentifier sigAlg)
-            throws NoSuchAlgorithmException, InvalidKeyException
-        {
-            this.sigAlg = sigAlg;
-            sig = SecurityHelper.getSignature( sigAlg.getAlgorithm().getId() );
-            sig.initSign( pkey );
-            sigOut = new SignatureOutputStream(sig);
+        final AlgorithmIdentifier signatureAlg;
+        final Signature signature;
+        private final SignatureOutputStream out;
+
+        PKCS10Signer(PrivateKey privateKey, AlgorithmIdentifier signatureAlg)
+            throws NoSuchAlgorithmException, InvalidKeyException {
+            this.signatureAlg = signatureAlg;
+            signature = SecurityHelper.getSignature( signatureAlg.getAlgorithm().getId() );
+            signature.initSign( privateKey );
+            out = new SignatureOutputStream(signature);
         }
 
-        public AlgorithmIdentifier getAlgorithmIdentifier() {
-            return sigAlg;
-        }
+        public AlgorithmIdentifier getAlgorithmIdentifier() { return signatureAlg; }
 
-        public OutputStream getOutputStream() {
-            return sigOut;
-        }
+        public OutputStream getOutputStream() { return out; }
 
         public byte[] getSignature() {
             try {
-                return sig.sign();
-            } catch (SignatureException e) {
+                return signature.sign();
+            }
+            catch (SignatureException e) {
                 throw new RuntimeException("Could not read signature: " + e);
             }
         }
     }
 
-    private class PKCS10VerifierProvider implements ContentVerifierProvider
-    {
-        PublicKey publicKey;
+    private static class PKCS10VerifierProvider implements ContentVerifierProvider {
 
-        public PKCS10VerifierProvider(PublicKey key) {
+        final PublicKey publicKey;
+
+        PKCS10VerifierProvider(PublicKey key) {
             publicKey = key;
         }
 
         public ContentVerifier get(AlgorithmIdentifier sigAlg) {
             try {
                 return new PKCS10Verifier(publicKey, sigAlg);
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 throw new RuntimeException("Could not create content verifier: " + e);
             }
         }
@@ -342,69 +323,72 @@ public class PKCS10Request {
         }
     }
 
-    private class PKCS10Verifier implements ContentVerifier
-    {
-        AlgorithmIdentifier sigAlg;
-        Signature sig;
-        SignatureOutputStream sigOut;
+    private static class PKCS10Verifier implements ContentVerifier {
 
-        public PKCS10Verifier(PublicKey publicKey, AlgorithmIdentifier sigAlg)
-            throws NoSuchAlgorithmException, InvalidKeyException
-        {
-            this.sigAlg = sigAlg;
-            sig = SecurityHelper.getSignature( sigAlg.getAlgorithm().getId() );
-            sig.initVerify( publicKey );
-            sigOut = new SignatureOutputStream(sig);
+        final AlgorithmIdentifier signatureAlg;
+        final Signature signature;
+        private final SignatureOutputStream out;
+
+        public PKCS10Verifier(PublicKey publicKey, AlgorithmIdentifier signatureAlg)
+            throws NoSuchAlgorithmException, InvalidKeyException {
+            this.signatureAlg = signatureAlg;
+            signature = SecurityHelper.getSignature( signatureAlg.getAlgorithm().getId() );
+            signature.initVerify( publicKey );
+            out = new SignatureOutputStream(signature);
         }
 
-        public AlgorithmIdentifier getAlgorithmIdentifier() {
-            return sigAlg;
-        }
+        public AlgorithmIdentifier getAlgorithmIdentifier() { return signatureAlg; }
 
-        public OutputStream getOutputStream() {
-            return sigOut;
-        }
+        public OutputStream getOutputStream() { return out; }
 
         public boolean verify(byte[] expected) {
             try {
-                return sig.verify( expected );
-            } catch (SignatureException e) {
+                return signature.verify( expected );
+            }
+            catch (SignatureException e) {
                 throw new RuntimeException("Could not verify signature: " + e);
             }
         }
     }
 
-    private class SignatureOutputStream extends OutputStream
-    {
-        private Signature sig;
+    private static class SignatureOutputStream extends OutputStream {
 
-        public SignatureOutputStream(Signature sig) {
-            this.sig = sig;
+        private final Signature signature;
+
+        SignatureOutputStream(Signature signature) {
+            this.signature = signature;
         }
 
+        @Override
         public void write(byte[] bytes, int off, int len) throws IOException {
             try {
-                sig.update(bytes, off, len);
-            } catch (SignatureException e) {
+                signature.update(bytes, off, len);
+            }
+            catch (SignatureException e) {
                 throw new IOException("exception in pkcs10 signer: " + e.getMessage(), e);
             }
         }
 
+        @Override
         public void write(byte[] bytes) throws IOException {
             try {
-                sig.update(bytes);
-            } catch (SignatureException e) {
+                signature.update(bytes);
+            }
+            catch (SignatureException e) {
                 throw new IOException("exception in pkcs10 signer: " + e.getMessage(), e);
             }
         }
 
+        @Override
         public void write(int b) throws IOException {
             try {
-                sig.update((byte)b);
-            } catch (SignatureException e) {
+                signature.update((byte) b);
+            }
+            catch (SignatureException e) {
                 throw new IOException("exception in pkcs10 signer: " + e.getMessage(), e);
             }
         }
+
     }
 }
 

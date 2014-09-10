@@ -31,7 +31,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.math.BigInteger;
 
+import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.PublicKey;
 import java.security.PrivateKey;
@@ -61,6 +63,7 @@ import org.jruby.ext.openssl.impl.PKCS10Request;
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.PKey._PKey;
 import static org.jruby.ext.openssl.X509._X509;
+import static org.jruby.ext.openssl.PKey.supportedSignatureAlgorithm;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -83,7 +86,7 @@ public class X509Request extends RubyObject {
 
     private IRubyObject subject;
     private PKey public_key;
-
+    private IRubyObject version;
     private final List<X509Attribute> attributes;
 
     private transient PKCS10Request request;
@@ -103,19 +106,18 @@ public class X509Request extends RubyObject {
             request = new PKCS10Request( StringHelper.readX509PEM(context, args[0]) );
         }
         catch (RuntimeException e) {
+            debugStackTrace(runtime, e);
             throw newRequestError(runtime, "invalid certificate request data", e);
         }
 
-        final String algorithm;
-        final byte[] encoded;
+        final String algorithm; final byte[] encoded;
         try {
-            PublicKey pkey = request.getPublicKey();
+            final PublicKey pkey = request.generatePublicKey();
             algorithm = pkey.getAlgorithm();
             encoded = pkey.getEncoded();
         }
-        catch (IOException e) {
-            throw newRequestError(runtime, e.getMessage());
-        }
+        catch (IOException e) { throw newRequestError(runtime, e); }
+        catch (GeneralSecurityException e) { throw newRequestError(runtime, e); }
 
         final RubyString enc = RubyString.newString(runtime, encoded);
         if ( "RSA".equalsIgnoreCase(algorithm) ) {
@@ -130,15 +132,18 @@ public class X509Request extends RubyObject {
 
         this.subject = newName( context, request.getSubject() );
 
+        final Attribute[] attrs = request.getAttributes();
         try { // final RubyModule _ASN1 = _ASN1(runtime);
-            for ( Attribute attr : request.getAttributes() ) {
-                final ASN1ObjectIdentifier type = attr.getAttrType();
-                final ASN1Set values = attr.getAttrValues();
-                attributes.add( newAttribute( context, type, values ) );
+            if ( attrs != null ) {
+                for ( final Attribute attr : attrs ) {
+                    final ASN1ObjectIdentifier type = attr.getAttrType();
+                    final ASN1Set values = attr.getAttrValues();
+                    attributes.add( newAttribute( context, type, values ) );
+                }
             }
         }
         catch (IOException e) {
-            throw newRequestError(runtime, e.getMessage());
+            throw newRequestError(runtime, e);
         }
 
         return this;
@@ -172,18 +177,20 @@ public class X509Request extends RubyObject {
         return this;
     }
 
-    private PKCS10Request getRequest(boolean forceNew) {
-        if ( ! forceNew && request != null ) return request;
+    private PKCS10Request getRequest() {
+        if ( request != null ) return request;
 
         PublicKey publicKey = null;
         if ( public_key != null && ! public_key.isNil() ) {
             publicKey = public_key.getPublicKey();
         }
+        X500Name subjectName = subject != null ? getX500Name(subject) : null;
         final ThreadContext context = getRuntime().getCurrentContext();
-        return request = new PKCS10Request( getX500Name(subject), publicKey, newAttributesImpl(context) );
+        return request = new PKCS10Request( subjectName, publicKey, newAttributesImpl(context) );
     }
 
     private static X500Name getX500Name(final IRubyObject name) {
+        if ( name.isNil() ) return null;
         return ((X509Name) name).getX500Name();
     }
 
@@ -191,7 +198,7 @@ public class X509Request extends RubyObject {
     public IRubyObject to_pem() {
         StringWriter writer = new StringWriter();
         try {
-            PEMInputOutput.writeX509Request(writer, getRequest(false));
+            PEMInputOutput.writeX509Request(writer, getRequest());
             return getRuntime().newString( writer.toString() );
         }
         catch (IOException e) {
@@ -202,7 +209,7 @@ public class X509Request extends RubyObject {
     @JRubyMethod
     public IRubyObject to_der() {
         try {
-            ASN1Sequence seq = getRequest(false).toASN1Structure();
+            ASN1Sequence seq = getRequest().toASN1Structure();
             return StringHelper.newString(getRuntime(), seq.getEncoded());
         }
         catch (IOException ex) {
@@ -217,15 +224,21 @@ public class X509Request extends RubyObject {
     }
 
     @JRubyMethod
-   public IRubyObject version() {
-        return getRuntime().newFixnum( getRequest(false).getVersion() );
+    public IRubyObject version() {
+        final PKCS10Request request = getRequest(); // (false)
+        if ( request != null ) {
+            BigInteger certVersion = request.getVersion();
+            if ( certVersion != null ) {
+                return getRuntime().newFixnum( certVersion.intValue() );
+            }
+        }
+        return version == null ? getRuntime().newFixnum(0) : version;
     }
 
     @JRubyMethod(name="version=")
-    public IRubyObject set_version(final ThreadContext context, IRubyObject val) {
-        // NOTE: This is meaningless, it doesn't do anything...
-        // warn(context, "WARNING: meaningless method called: request#version=");
-        return context.runtime.getNil();
+    public IRubyObject set_version(final ThreadContext context, IRubyObject version) {
+        warn(context, "X509::Request.version= has no actual effect");
+        return this.version = version;
     }
 
     @JRubyMethod
@@ -269,25 +282,24 @@ public class X509Request extends RubyObject {
     @JRubyMethod
     public IRubyObject sign(final ThreadContext context,
         final IRubyObject key, final IRubyObject digest) {
-
-        PublicKey publicKey = public_key.getPublicKey();
+        // PublicKey publicKey = public_key.getPublicKey();
         PrivateKey privateKey = ((PKey) key).getPrivateKey();
 
-        final String keyAlg = publicKey.getAlgorithm();
+        final Ruby runtime = context.runtime;
+        supportedSignatureAlgorithm(runtime, public_key, (Digest) digest);
+
         final String digAlg = ((Digest) digest).getShortAlgorithm();
-        final String digName = ((Digest) digest).name().toString();
-
-        if ( PKCS10Request.algorithmMismatch(keyAlg, digAlg, digName) ) {
-            throw newRequestError(context.runtime, null);
-        }
-
         try {
-            getRequest(true).sign(privateKey, digAlg);
+            request = null; getRequest().sign( privateKey, digAlg );
         }
-        catch (IOException e) {
-            throw Utils.newIOError(context.runtime, e);
+        catch (GeneralSecurityException e) {
+            debugStackTrace(runtime, e);
+            throw newRequestError(runtime, e);
         }
-
+        //catch (IOException e) {
+        //    debugStackTrace(runtime, e);
+        //    throw newRequestError(runtime, e);
+        //}
         return this;
     }
 
@@ -309,20 +321,20 @@ public class X509Request extends RubyObject {
         final Ruby runtime = context.runtime; final PublicKey publicKey;
         try {
             publicKey = ( (PKey) key.callMethod(context, "public_key") ).getPublicKey();
-            return runtime.newBoolean( getRequest(false).verify(publicKey) );
+            return runtime.newBoolean( getRequest().verify(publicKey) );
         }
         catch (InvalidKeyException e) {
             debugStackTrace(runtime, e);
             throw newRequestError(runtime, e.getMessage());
         }
-        catch (IOException e) {
-            debug(runtime, "Request#verify() failed:", e);
-            return runtime.getFalse();
-        }
-        catch (RuntimeException e) {
-            debug(runtime, "Request#verify() failed:", e);
-            return runtime.getFalse();
-        }
+        //catch (IOException e) {
+        //    debug(runtime, "Request#verify() failed:", e);
+        //    return runtime.getFalse();
+        //}
+        //catch (RuntimeException e) {
+        //    debug(runtime, "Request#verify() failed:", e);
+        //    return runtime.getFalse();
+        //}
     }
 
     @JRubyMethod
@@ -352,6 +364,10 @@ public class X509Request extends RubyObject {
             request.addAttribute( newAttributeImpl( context, (X509Attribute) attribute ) );
         }
         return attribute;
+    }
+
+    private static RaiseException newRequestError(Ruby runtime, Exception e) {
+        return Utils.newError(runtime, _X509(runtime).getClass("RequestError"), e);
     }
 
     private static RaiseException newRequestError(Ruby runtime, String message) {

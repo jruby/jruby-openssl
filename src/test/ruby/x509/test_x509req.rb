@@ -24,6 +24,17 @@ class TestX509Request < TestCase
     csr = OpenSSL::X509::Request.new(csr.to_s)
 
     assert_equal '/CN=example.com', csr.subject.to_s
+
+    assert_equal 0, csr.version
+  end
+
+  def test_version
+    csr = OpenSSL::X509::Request.new
+    assert_equal 0, csr.version
+
+    req = OpenSSL::X509::Request.new
+    req.version = 1
+    assert_equal 1, req.version
   end
 
 end

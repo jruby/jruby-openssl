@@ -344,4 +344,21 @@ public abstract class PKey extends RubyObject {
         return StringHelper.readPossibleDERInput(context, arg);
     }
 
+    static void supportedSignatureAlgorithm(final Ruby runtime, final RubyClass errorClass,
+        final PKey key, final Digest digest) {
+        // Have to obey some artificial constraints of the OpenSSL implementation. Stupid.
+        final String keyAlg = key.getAlgorithm();
+        final String digAlg = digest.getShortAlgorithm();
+        if ( ( "DSA".equalsIgnoreCase(keyAlg) && "MD5".equalsIgnoreCase(digAlg)) ||
+             ( "RSA".equalsIgnoreCase(keyAlg) && "DSS1".equals( digest.name().toString() ) ) ||
+             ( "DSA".equalsIgnoreCase(keyAlg) && "SHA1".equals( digest.name().toString() ) ) ) {
+            throw Utils.newError(runtime, errorClass, "unsupported key / digest algorithm ( "+ key +" / "+ digAlg +" )");
+        }
+    }
+
+    static void supportedSignatureAlgorithm(final Ruby runtime,
+        final PKey key, final Digest digest) {
+        supportedSignatureAlgorithm(runtime, _OpenSSLError(runtime), key, digest);
+    }
+
 }// PKey

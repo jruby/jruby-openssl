@@ -162,7 +162,7 @@ public class Digest extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject name() {
+    public RubyString name() {
         return getRuntime().newString(name);
     }
 
