@@ -38,6 +38,7 @@ import java.security.InvalidKeyException;
 import java.security.PublicKey;
 import java.security.PrivateKey;
 
+import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
@@ -194,8 +195,8 @@ public class X509Request extends RubyObject {
         return ((X509Name) name).getX500Name();
     }
 
-    @JRubyMethod(name={"to_pem","to_s"})
-    public IRubyObject to_pem() {
+    @JRubyMethod(name = { "to_pem", "to_s" })
+    public RubyString to_pem() {
         StringWriter writer = new StringWriter();
         try {
             PEMInputOutput.writeX509Request(writer, getRequest());
@@ -207,10 +208,10 @@ public class X509Request extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject to_der() {
+    public RubyString to_der() {
+        final ASN1Sequence seq = getRequest().toASN1Structure();
         try {
-            ASN1Sequence seq = getRequest().toASN1Structure();
-            return StringHelper.newString(getRuntime(), seq.getEncoded());
+            return StringHelper.newString(getRuntime(), seq.getEncoded(ASN1Encoding.DER));
         }
         catch (IOException ex) {
             throw getRuntime().newIOErrorFromException(ex);
@@ -219,7 +220,7 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod
     public IRubyObject to_text(final ThreadContext context) {
-        warn(context, "WARNING: unimplemented method called: request#to_text");
+        warn(context, "WARNING: unimplemented method called: X509::Request#to_text");
         return context.runtime.getNil();
     }
 
@@ -237,7 +238,7 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod(name="version=")
     public IRubyObject set_version(final ThreadContext context, IRubyObject version) {
-        warn(context, "X509::Request.version= has no actual effect");
+        warn(context, "X509::Request#version= has no effect on certification request");
         return this.version = version;
     }
 
@@ -324,15 +325,15 @@ public class X509Request extends RubyObject {
             return runtime.newBoolean( getRequest().verify(publicKey) );
         }
         catch (InvalidKeyException e) {
-            debugStackTrace(runtime, e);
-            throw newRequestError(runtime, e.getMessage());
+            debug(runtime, "X509::Request.verify invalid key", e);
+            throw newRequestError(runtime, "invalid key supplied", e);
         }
         //catch (IOException e) {
-        //    debug(runtime, "Request#verify() failed:", e);
+        //    debug(runtime, "X509::Request.verify failed", e);
         //    return runtime.getFalse();
         //}
         //catch (RuntimeException e) {
-        //    debug(runtime, "Request#verify() failed:", e);
+        //    debug(runtime, "X509::Request.verify failed", e);
         //    return runtime.getFalse();
         //}
     }

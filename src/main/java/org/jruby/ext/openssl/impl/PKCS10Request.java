@@ -31,6 +31,7 @@ import java.util.List;
 import java.io.OutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.ArrayList;
 
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -43,9 +44,10 @@ import java.security.spec.KeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import java.util.Enumeration;
 
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
@@ -77,7 +79,6 @@ public class PKCS10Request {
     private List<Attribute> attributes;
 
     private transient PKCS10CertificationRequest signedRequest;
-    // private boolean valid = false;
 
     public PKCS10Request(X500Name subject,
         SubjectPublicKeyInfo publicKeyInfo, List<Attribute> attrs) {
@@ -98,10 +99,8 @@ public class PKCS10Request {
     public PKCS10Request(final CertificationRequest req) {
         subject       = req.getCertificationRequestInfo().getSubject();
         publicKeyInfo = req.getCertificationRequestInfo().getSubjectPublicKeyInfo();
-        //this.attributes = new ArrayList<Attribute>();
-        //addAttributes( req.getCertificationRequestInfo().getAttributes() );
-        signedRequest = new PKCS10CertificationRequest(req);
-        // valid = true;
+        setAttributes( req.getCertificationRequestInfo().getAttributes() );
+        signedRequest = new PKCS10CertificationRequest(req); // valid = true;
     }
 
     public PKCS10Request(byte[] bytes) {
@@ -250,11 +249,19 @@ public class PKCS10Request {
 
     public Attribute[] getAttributes() {
         return signedRequest != null ? signedRequest.getAttributes() :
-                    attributes.toArray(new Attribute[0]);
+                    attributes.toArray(new Attribute[ attributes.size() ]);
     }
 
     public void setAttributes(final List<Attribute> attrs) {
         this.attributes = attrs;
+    }
+
+    private void setAttributes(final ASN1Set attrs) {
+        this.attributes = new ArrayList<Attribute>();
+        final Enumeration e = attrs.getObjects();
+        while ( e.hasMoreElements() ) {
+            addAttribute( Attribute.getInstance( e.nextElement() ) );
+        }
     }
 
     public void addAttribute(final Attribute attribute) {
@@ -365,7 +372,7 @@ public class PKCS10Request {
                 signature.update(bytes, off, len);
             }
             catch (SignatureException e) {
-                throw new IOException("exception in pkcs10 signer: " + e.getMessage(), e);
+                throw new IOException(e);
             }
         }
 
@@ -375,7 +382,7 @@ public class PKCS10Request {
                 signature.update(bytes);
             }
             catch (SignatureException e) {
-                throw new IOException("exception in pkcs10 signer: " + e.getMessage(), e);
+                throw new IOException(e);
             }
         }
 
@@ -385,7 +392,7 @@ public class PKCS10Request {
                 signature.update((byte) b);
             }
             catch (SignatureException e) {
-                throw new IOException("exception in pkcs10 signer: " + e.getMessage(), e);
+                throw new IOException(e);
             }
         }
 
