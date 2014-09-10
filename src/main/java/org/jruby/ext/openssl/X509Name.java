@@ -80,6 +80,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.ext.openssl.x509store.Name;
 import static org.jruby.ext.openssl.OpenSSLReal.debugStackTrace;
 import static org.jruby.ext.openssl.X509._X509;
+import static org.jruby.ext.openssl.StringHelper.newString;
 
 /**
  *
@@ -110,17 +111,27 @@ public class X509Name extends RubyObject {
         _Name.setConstant("ONELINE", runtime.newFixnum(ONELINE));
         _Name.setConstant("MULTILINE", runtime.newFixnum(MULTILINE));
 
-        _Name.setConstant("DEFAULT_OBJECT_TYPE", runtime.newFixnum(BERTags.UTF8_STRING));
+        final RubyFixnum UTF8_STRING = runtime.newFixnum(BERTags.UTF8_STRING);
+        _Name.setConstant("DEFAULT_OBJECT_TYPE", UTF8_STRING);
+
+        final RubyFixnum PRINTABLE_STRING = runtime.newFixnum(BERTags.PRINTABLE_STRING);
+        final RubyFixnum IA5_STRING = runtime.newFixnum(BERTags.IA5_STRING);
 
         final ThreadContext context = runtime.getCurrentContext();
-        RubyHash hash = new RubyHash(runtime, runtime.newFixnum(BERTags.UTF8_STRING));
-        hash.op_aset(context, runtime.newString("C"), runtime.newFixnum(BERTags.PRINTABLE_STRING));
-        hash.op_aset(context, runtime.newString("countryName"), runtime.newFixnum(BERTags.PRINTABLE_STRING));
-        hash.op_aset(context, runtime.newString("serialNumber"), runtime.newFixnum(BERTags.PRINTABLE_STRING));
-        hash.op_aset(context, runtime.newString("dnQualifier"), runtime.newFixnum(BERTags.PRINTABLE_STRING));
-        hash.op_aset(context, runtime.newString("DC"), runtime.newFixnum(BERTags.IA5_STRING));
-        hash.op_aset(context, runtime.newString("domainComponent"), runtime.newFixnum(BERTags.IA5_STRING));
-        hash.op_aset(context, runtime.newString("emailAddress"), runtime.newFixnum(BERTags.IA5_STRING));
+        final RubyHash hash = new RubyHash(runtime, UTF8_STRING);
+        hash.op_aset(context, newString(runtime, new byte[] { 'C' }), PRINTABLE_STRING);
+        final byte[] countryName = { 'c','o','u','n','t','r','y','N','a','m','e' };
+        hash.op_aset(context, newString(runtime, countryName), PRINTABLE_STRING);
+        final byte[] serialNumber = { 's','e','r','i','a','l','N','u','m','b','e','r' };
+        hash.op_aset(context, newString(runtime, serialNumber), PRINTABLE_STRING);
+        final byte[] dnQualifier = { 'd','n','Q','u','a','l','i','f','i','e','r' };
+        hash.op_aset(context, newString(runtime, dnQualifier), PRINTABLE_STRING);
+        hash.op_aset(context, newString(runtime, new byte[] { 'D','C' }), IA5_STRING);
+        final byte[] domainComponent = { 'd','o','m','a','i','n','C','o','m','p','o','n','e','n','t' };
+        hash.op_aset(context, newString(runtime, domainComponent), IA5_STRING);
+        final byte[] emailAddress = { 'e','m','a','i','l','A','d','d','r','e','s','s' };
+        hash.op_aset(context, newString(runtime, emailAddress), IA5_STRING);
+
         _Name.setConstant("OBJECT_TYPE_TEMPLATE", hash);
     }
 
