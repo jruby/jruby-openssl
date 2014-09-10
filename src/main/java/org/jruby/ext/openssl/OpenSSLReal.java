@@ -32,8 +32,6 @@ import java.util.Map;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -123,40 +121,56 @@ public class OpenSSLReal {
         boolean registerProvider = Boolean.getBoolean("jruby.openssl.provider.register");
         SecurityHelper.setRegisterProvider( registerProvider );
 
-        RubyModule ossl = runtime.getOrCreateModule("OpenSSL");
-        RubyClass standardError = runtime.getClass("StandardError");
-        ossl.defineClassUnder("OpenSSLError", standardError, standardError.getAllocator());
-        ossl.defineAnnotatedMethods(OpenSSLModule.class);
+        final RubyModule _OpenSSL = runtime.getOrCreateModule("OpenSSL");
+        RubyClass _StandardError = runtime.getClass("StandardError");
+        _OpenSSL.defineClassUnder("OpenSSLError", _StandardError, _StandardError.getAllocator());
+        _OpenSSL.defineAnnotatedMethods(OpenSSLModule.class);
 
         // those are BC provider free (uses BC class but does not use BC provider)
-        PKey.createPKey(runtime, ossl);
-        BN.createBN(runtime, ossl);
-        Digest.createDigest(runtime, ossl);
-        Cipher.createCipher(runtime, ossl);
-        Random.createRandom(runtime, ossl);
-        HMAC.createHMAC(runtime, ossl);
-        Config.createConfig(runtime, ossl);
-        ASN1.createASN1(runtime, ossl);
-        X509.createX509(runtime, ossl);
-        NetscapeSPKI.createNetscapeSPKI(runtime, ossl);
-        PKCS7.createPKCS7(runtime, ossl);
-        SSL.createSSL(runtime, ossl);
+        PKey.createPKey(runtime, _OpenSSL);
+        BN.createBN(runtime, _OpenSSL);
+        Digest.createDigest(runtime, _OpenSSL);
+        Cipher.createCipher(runtime, _OpenSSL);
+        Random.createRandom(runtime, _OpenSSL);
+        HMAC.createHMAC(runtime, _OpenSSL);
+        Config.createConfig(runtime, _OpenSSL);
+        ASN1.createASN1(runtime, _OpenSSL);
+        X509.createX509(runtime, _OpenSSL);
+        NetscapeSPKI.createNetscapeSPKI(runtime, _OpenSSL);
+        PKCS7.createPKCS7(runtime, _OpenSSL);
+        SSL.createSSL(runtime, _OpenSSL);
 
         runtime.getLoadService().require("jopenssl/version");
 
-        ossl.setConstant("VERSION", StringHelper.newString(runtime, new byte[] { '1','.','0','.','0' }));
+        // MRI 1.8.7 :
+        // OpenSSL::VERSION: "1.0.0"
+        // OpenSSL::OPENSSL_VERSION: "OpenSSL 1.0.1c 10 May 2012"
+        // OpenSSL::OPENSSL_VERSION_NUMBER: 268439615
+        // MRI 1.9.3 / 2.1.2 :
+        // OpenSSL::VERSION: "1.1.0"
+        // OpenSSL::OPENSSL_VERSION: "OpenSSL 1.0.1f 6 Jan 2014"
+        // OpenSSL::OPENSSL_VERSION_NUMBER: 268439663
 
-        RubyModule _Version = (RubyModule) runtime.getModule("Jopenssl").getConstantAt("Version");
-        RubyString jopensslVersion = (RubyString) _Version.getConstantAt("VERSION");
-        final byte[] jruby_ossl = new byte[] { 'j','r','u','b','y','-','o','s','s','l',' ' };
-        ByteList opensslVersion = new ByteList( jopensslVersion.getByteList().length() + jruby_ossl.length );
-        opensslVersion.setEncoding( jopensslVersion.getEncoding() );
-        opensslVersion.append( jruby_ossl );
-        opensslVersion.append( jopensslVersion.getByteList() );
-        ossl.setConstant("OPENSSL_VERSION", runtime.newString(opensslVersion));
-        ossl.setConstant("OPENSSL_VERSION_NUMBER", runtime.newFixnum(9469999));
+        final byte[] version = { '1','.','1','.','0' };
 
-        OpenSSLModule.setDebug(ossl, runtime.newBoolean( Boolean.getBoolean("jruby.openssl.debug") ) );
+        if ( runtime.is1_8() ) version[2] = '0'; // 1.0.0 compatible on 1.8
+        _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
+
+        final RubyModule _Jopenssl = runtime.getModule("Jopenssl");
+        final RubyModule _Version = (RubyModule) _Jopenssl.getConstantAt("Version");
+        final RubyString jVERSION = _Version.getConstantAt("VERSION").asString();
+
+        final byte[] JRuby_OpenSSL_ = { 'J','R','u','b','y','-','O','p','e','n','S','S','L',' ' };
+        final int OPENSSL_VERSION_NUMBER = 999999999; // 9469999 do smt useful with it ?
+
+        ByteList OPENSSL_VERSION = new ByteList( jVERSION.getByteList().length() + JRuby_OpenSSL_.length );
+        OPENSSL_VERSION.setEncoding( jVERSION.getEncoding() );
+        OPENSSL_VERSION.append( JRuby_OpenSSL_ );
+        OPENSSL_VERSION.append( jVERSION.getByteList() );
+        _OpenSSL.setConstant("OPENSSL_VERSION", runtime.newString(OPENSSL_VERSION));
+        _OpenSSL.setConstant("OPENSSL_VERSION_NUMBER", runtime.newFixnum(OPENSSL_VERSION_NUMBER));
+
+        OpenSSLModule.setDebug(_OpenSSL, runtime.newBoolean( Boolean.getBoolean("jruby.openssl.debug") ) );
 
         final String warn = System.getProperty("jruby.openssl.warn");
         if ( warn != null ) OpenSSLReal.warn = Boolean.parseBoolean(warn);
@@ -216,7 +230,7 @@ public class OpenSSLReal {
             Ruby runtime = self.getRuntime();
             RubyArray result = runtime.newArray();
             for (Map.Entry<Integer, String> e : X509Error.getErrors().entrySet()) {
-                result.add(runtime.newString(e.getValue()));
+                result.add( runtime.newString( e.getValue() ) );
             }
             return result;
         }
@@ -247,13 +261,6 @@ public class OpenSSLReal {
             }
             return self;
         }
-    }
-
-    @Deprecated
-    public static CertificateFactory getX509CertificateFactoryBC() throws CertificateException {
-        // BC's CertificateFactorySpi :
-        // org.bouncycastle.jcajce.provider.asymmetric.x509.CertificateFactory.class
-        return SecurityHelper.getCertificateFactory("X.509");
     }
 
 }

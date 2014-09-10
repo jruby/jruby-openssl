@@ -38,6 +38,8 @@ end
 
 TestCase.class_eval do
 
+  def setup; require 'openssl' end
+
   alias assert_raise assert_raises unless method_defined?(:assert_raise)
 
 end
