@@ -806,7 +806,8 @@ public class ASN1 {
 
     private static final DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmssz");
 
-    private static IRubyObject decodeObject(final ThreadContext context, final RubyModule _ASN1, final Object obj)
+    static IRubyObject decodeObject(final ThreadContext context,
+        final RubyModule _ASN1, final org.bouncycastle.asn1.ASN1Encodable obj)
         throws IOException, IllegalArgumentException {
 
         int ix = idForJava(obj.getClass());
@@ -831,10 +832,12 @@ public class ASN1 {
                 return klass.callMethod(context, "new", context.runtime.newString(val));
             }
             else if ( obj instanceof ASN1Sequence ) {
+                @SuppressWarnings("unchecked")
                 RubyArray arr = decodeObjects(context, _ASN1, ((ASN1Sequence) obj).getObjects());
                 return klass.callMethod(context, "new", arr);
             }
             else if ( obj instanceof ASN1Set ) {
+                @SuppressWarnings("unchecked")
                 RubyArray arr = decodeObjects(context, _ASN1, ((ASN1Set) obj).getObjects());
                 return klass.callMethod(context, "new", arr);
             }
@@ -879,11 +882,13 @@ public class ASN1 {
         }
         else if ( obj instanceof ASN1Sequence) {
             // Likely a DERSequence returned by bouncycastle libs. Convert to DLSequence.
+            @SuppressWarnings("unchecked")
             RubyArray arr = decodeObjects(context, _ASN1, ((ASN1Sequence) obj).getObjects());
             return _ASN1.getClass("Sequence").callMethod(context, "new", arr);
         }
         else if ( obj instanceof ASN1Set ) {
             // Likely a DERSet returned by bouncycastle libs. Convert to DLSet.
+            @SuppressWarnings("unchecked")
             RubyArray arr = decodeObjects(context, _ASN1, ((ASN1Set) obj).getObjects());
             return _ASN1.getClass("Set").callMethod(context, "new", arr);
         }
@@ -892,7 +897,8 @@ public class ASN1 {
         throw new IllegalArgumentException("jruby-openssl unable to decode object: " + obj + "[" + obj.getClass().getName() + "]");
     }
 
-    private static RubyArray decodeObjects(final ThreadContext context, final RubyModule _ASN1, final Enumeration e)
+    private static RubyArray decodeObjects(final ThreadContext context, final RubyModule _ASN1,
+        final Enumeration<ASN1Encodable> e)
         throws IOException {
         final RubyArray arr = context.runtime.newArray();
         while ( e.hasMoreElements() ) {

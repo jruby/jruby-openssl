@@ -32,6 +32,7 @@ import java.io.IOException;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.DERSet;
 
@@ -47,6 +48,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
 import static org.jruby.ext.openssl.OpenSSL.*;
+import static org.jruby.ext.openssl.ASN1._ASN1;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -79,21 +81,32 @@ public class Attribute extends RubyObject {
         super(runtime,type);
     }
 
-    private IRubyObject oid;
+    private IRubyObject oid; // attribute type
     private IRubyObject value;
 
-    private ASN1ObjectIdentifier getObjectIdentifier(final String nameOrOid) {
-        return ASN1.getObjectID(getRuntime(), nameOrOid);
+    private transient ASN1ObjectIdentifier objectId;
+
+    static Attribute newAttribute(final Ruby runtime, final ASN1ObjectIdentifier type, final ASN1Set values)
+        throws IOException {
+        Attribute attribute = new Attribute(runtime, _Attribute(runtime));
+        attribute.objectId = type;
+        final ThreadContext context = runtime.getCurrentContext();
+        attribute.value = ASN1.decodeObject(context, _ASN1(runtime), values);
+        return attribute;
     }
 
-    ASN1Primitive toASN1() {
+    private ASN1ObjectIdentifier getTypeID() {
+        if ( objectId != null ) return objectId;
+        return objectId = ASN1.getObjectID(getRuntime(), oid.toString());
+    }
+
+    ASN1Primitive toASN1(final ThreadContext context) {
         ASN1EncodableVector v1 = new ASN1EncodableVector();
-        v1.add(getObjectIdentifier(oid.toString()));
-        if(value instanceof ASN1.ASN1Constructive) {
-            final ThreadContext context = getRuntime().getCurrentContext();
+        v1.add( getTypeID() );
+        if ( value instanceof ASN1.ASN1Constructive ) {
             v1.add( ((ASN1.ASN1Constructive) value).toASN1(context) );
-        } else {
-            final ThreadContext context = getRuntime().getCurrentContext();
+        }
+        else {
             ASN1EncodableVector v2 = new ASN1EncodableVector();
             v2.add( ((ASN1.ASN1Data) value).toASN1(context) );
             v1.add( new DERSet(v2) );
@@ -120,12 +133,16 @@ public class Attribute extends RubyObject {
 
     @JRubyMethod
     public IRubyObject oid() {
-        return oid;
+        if ( this.oid == null ) {
+            final Ruby runtime = getRuntime();
+            oid = runtime.newString( ASN1.oid2Sym(runtime, objectId) );
+        }
+        return this.oid;
     }
 
     @JRubyMethod(name="oid=")
     public IRubyObject set_oid(final IRubyObject oid) {
-        return this.oid = oid;
+        this.objectId = null; return this.oid = oid;
     }
 
     @JRubyMethod

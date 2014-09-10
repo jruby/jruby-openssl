@@ -36,19 +36,14 @@ import java.security.InvalidKeyException;
 import java.security.PublicKey;
 import java.security.PrivateKey;
 
-import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.ASN1String;
-import org.bouncycastle.asn1.pkcs.Attribute;
-import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
-import org.bouncycastle.asn1.x500.RDN;
+import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.x500.X500Name;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
-import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
@@ -56,19 +51,15 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
-import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.impl.PKCS10Request;
-import static org.jruby.ext.openssl.ASN1._ASN1;
-import static org.jruby.ext.openssl.Attribute._Attribute;
-import static org.jruby.ext.openssl.OpenSSL.warn;
+import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.PKey._PKey;
 import static org.jruby.ext.openssl.X509._X509;
-import static org.jruby.ext.openssl.X509Name._Name;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -90,21 +81,19 @@ public class Request extends RubyObject {
     }
 
     private IRubyObject subject;
-    private IRubyObject public_key;
+    private PKey public_key;
 
-    private final List<org.jruby.ext.openssl.Attribute> attributes;
+    private final List<Attribute> attributes;
 
-    private PKCS10Request request;
+    private transient PKCS10Request request;
 
     public Request(Ruby runtime, RubyClass type) {
         super(runtime, type);
-        attributes = new ArrayList<org.jruby.ext.openssl.Attribute>();
-        request = new PKCS10Request((X500Name) null, (PublicKey) null, null);
+        attributes = new ArrayList<Attribute>();
     }
 
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
-    public IRubyObject _initialize(final ThreadContext context,
-        final IRubyObject[] args, final Block block) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
 
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) return this;
@@ -112,8 +101,8 @@ public class Request extends RubyObject {
         try {
             request = new PKCS10Request( StringHelper.readX509PEM(context, args[0]) );
         }
-        catch (ArrayIndexOutOfBoundsException e) {
-            throw newRequestError(runtime, "invalid certificate request data");
+        catch (RuntimeException e) {
+            throw newRequestError(runtime, "invalid certificate request data", e);
         }
 
         final String algorithm;
@@ -138,56 +127,35 @@ public class Request extends RubyObject {
             throw runtime.newLoadError("not implemented algo for public key: " + algorithm);
         }
 
-        this.subject = newX509Name( context, request.getSubject() );
+        this.subject = newName( context, request.getSubject() );
 
-        try {
-            for ( Attribute attr : request.getAttributes() ) {
-                attributes.add( (org.jruby.ext.openssl.Attribute)
-                    newX509Attribute( context, attr.getAttrType(), attr.getAttrValues() )
-                );
+        try { // final RubyModule _ASN1 = _ASN1(runtime);
+            for ( org.bouncycastle.asn1.pkcs.Attribute attr : request.getAttributes() ) {
+                final ASN1ObjectIdentifier type = attr.getAttrType();
+                final ASN1Set values = attr.getAttrValues();
+                attributes.add( newAttribute( context, type, values ) );
             }
         }
-        catch (IOException ex) {
-            throw newRequestError(runtime, ex.getMessage());
+        catch (IOException e) {
+            throw newRequestError(runtime, e.getMessage());
         }
 
         return this;
     }
 
-    private static IRubyObject newPKeyImplInstance(final ThreadContext context,
+    private static PKey newPKeyImplInstance(final ThreadContext context,
         final String className, final RubyString encoded) { // OpenSSL::PKey::RSA.new(encoded)
-        return _PKey(context.runtime).getClass(className).callMethod(context, "new", encoded);
+        return (PKey) _PKey(context.runtime).getClass(className).callMethod(context, "new", encoded);
     }
 
-    private static IRubyObject newX509Attribute(final ThreadContext context,
+    private static Attribute newAttribute(final ThreadContext context,
         final ASN1ObjectIdentifier type, final ASN1Set values) throws IOException {
-        final Ruby runtime = context.runtime;
-        IRubyObject attrType = runtime.newString( ASN1.oid2Sym(runtime, type) );
-        IRubyObject attrValue = ASN1.decode(context, _ASN1(runtime),
-            RubyString.newString( runtime, ((ASN1Object) values).getEncoded() )
-        );
-        return _Attribute(runtime).callMethod(context, "new", new IRubyObject[] { attrType, attrValue });
+        return Attribute.newAttribute(context.runtime, type, values);
     }
 
-    private static IRubyObject newX509Name(final ThreadContext context, X500Name name) {
-        final Ruby runtime = context.runtime;
-        if ( name == null ) return context.runtime.getNil();
-
-        final X509Name newName = (X509Name) _Name(runtime).callMethod(context, "new");
-
-        for ( RDN rdn: name.getRDNs() ) {
-            for ( AttributeTypeAndValue tv : rdn.getTypesAndValues() ) {
-                ASN1ObjectIdentifier oid = tv.getType();
-                String val = null;
-                if ( tv.getValue() instanceof ASN1String ) {
-                    val = ( (ASN1String) tv.getValue() ).getString();
-                }
-                RubyFixnum type = runtime.newFixnum( ASN1.idForJava( tv.getValue() ) ); //TODO correct?
-                newName.addEntry(oid, val, type);
-            }
-        }
-
-        return newName;
+    private static IRubyObject newName(final ThreadContext context, X500Name name) {
+        if ( name == null ) return context.nil;
+        return X509Name.newName(context.runtime, name);
     }
 
     @Override
@@ -199,15 +167,30 @@ public class Request extends RubyObject {
         if ( this == obj ) return this;
 
         checkFrozen();
-        subject = public_key = runtime.getNil();
+        // subject = public_key = null;
         return this;
+    }
+
+    private PKCS10Request getRequest(boolean forceNew) {
+        if ( ! forceNew && request != null ) return request;
+
+        PublicKey publicKey = null;
+        if ( public_key != null && ! public_key.isNil() ) {
+            publicKey = public_key.getPublicKey();
+        }
+        final ThreadContext context = getRuntime().getCurrentContext();
+        return request = new PKCS10Request( getX500Name(subject), publicKey, newAttributesImpl(context) );
+    }
+
+    private static X500Name getX500Name(final IRubyObject name) {
+        return ((X509Name) name).getX500Name();
     }
 
     @JRubyMethod(name={"to_pem","to_s"})
     public IRubyObject to_pem() {
         StringWriter writer = new StringWriter();
         try {
-            PEMInputOutput.writeX509Request(writer, request);
+            PEMInputOutput.writeX509Request(writer, getRequest(false));
             return getRuntime().newString( writer.toString() );
         }
         catch (IOException e) {
@@ -218,7 +201,8 @@ public class Request extends RubyObject {
     @JRubyMethod
     public IRubyObject to_der() {
         try {
-            return RubyString.newString(getRuntime(), request.toASN1Structure().getEncoded());
+            ASN1Sequence seq = getRequest(false).toASN1Structure();
+            return StringHelper.newString(getRuntime(), seq.getEncoded());
         }
         catch (IOException ex) {
             throw getRuntime().newIOErrorFromException(ex);
@@ -233,7 +217,7 @@ public class Request extends RubyObject {
 
     @JRubyMethod
    public IRubyObject version() {
-        return getRuntime().newFixnum(request.getVersion());
+        return getRuntime().newFixnum( getRequest(false).getVersion() );
     }
 
     @JRubyMethod(name="version=")
@@ -245,17 +229,15 @@ public class Request extends RubyObject {
 
     @JRubyMethod
     public IRubyObject subject() {
-        return this.subject;
-    }
-
-    private static X500Name x500Name(IRubyObject name) {
-        return ((X509Name) name).getX500Name();
+        return subject == null ? subject = getRuntime().getNil() : subject;
     }
 
     @JRubyMethod(name="subject=")
-    public IRubyObject set_subject(IRubyObject val) {
-        if (val != subject) {
-            request.setSubject( x500Name(val) );
+    public IRubyObject set_subject(final IRubyObject val) {
+        if ( val != this.subject ) {
+            if (request != null) {
+                request.setSubject( getX500Name(val) );
+            }
             this.subject = val;
         }
         return val;
@@ -269,14 +251,16 @@ public class Request extends RubyObject {
 
     @JRubyMethod
     public IRubyObject public_key() {
-        return this.public_key;
+        return public_key == null ? getRuntime().getNil() : public_key;
     }
 
     @JRubyMethod(name="public_key=")
     public IRubyObject set_public_key(final IRubyObject pkey) {
-        if (pkey != subject) {
-            request.setPublicKey( ((PKey) pkey).getPublicKey() );
-            this.public_key = pkey;
+        if ( pkey != this.public_key ) {
+            if (request != null) {
+                request.setPublicKey( ((PKey) pkey).getPublicKey() );
+            }
+            this.public_key = (PKey) pkey;
         }
         return pkey;
     }
@@ -285,53 +269,58 @@ public class Request extends RubyObject {
     public IRubyObject sign(final ThreadContext context,
         final IRubyObject key, final IRubyObject digest) {
 
-        PublicKey publicKey = ((PKey) public_key).getPublicKey();
+        PublicKey publicKey = public_key.getPublicKey();
         PrivateKey privateKey = ((PKey) key).getPrivateKey();
 
         final String keyAlg = publicKey.getAlgorithm();
-        final String digAlg = ((Digest)digest).getShortAlgorithm();
-        final String digName = ((Digest)digest).name().toString();
+        final String digAlg = ((Digest) digest).getShortAlgorithm();
+        final String digName = ((Digest) digest).name().toString();
 
-        if (PKCS10Request.algorithmMismatch(keyAlg, digAlg, digName))
+        if ( PKCS10Request.algorithmMismatch(keyAlg, digAlg, digName) ) {
             throw newRequestError(context.runtime, null);
-
-        // String sigAlgStr = digAlg + "WITH" + keyAlg;
-        request = new PKCS10Request(x500Name(subject), publicKey, newAttributes(attributes));
+        }
 
         try {
-            request.sign(privateKey, digAlg);
+            getRequest(true).sign(privateKey, digAlg);
         }
-        catch(IOException e) {
-            throw context.runtime.newIOErrorFromException(e);
+        catch (IOException e) {
+            throw Utils.newIOError(context.runtime, e);
         }
 
         return this;
     }
 
-    private static List<Attribute> newAttributes(final List<org.jruby.ext.openssl.Attribute> attributes) {
-        ArrayList<Attribute> attrs = new ArrayList<Attribute>(attributes.size());
-        for (org.jruby.ext.openssl.Attribute attribute : attributes) {
-            attrs.add( newAttribute(attribute) );
+    private List<org.bouncycastle.asn1.pkcs.Attribute> newAttributesImpl(final ThreadContext context) {
+        ArrayList<org.bouncycastle.asn1.pkcs.Attribute> attrs = new ArrayList<org.bouncycastle.asn1.pkcs.Attribute>(attributes.size());
+        for ( Attribute attribute : attributes ) {
+            attrs.add( newAttributeImpl(context, attribute) );
         }
         return attrs;
     }
 
-    private static Attribute newAttribute(final IRubyObject attribute) {
-        return Attribute.getInstance( ((org.jruby.ext.openssl.Attribute) attribute).toASN1() );
+    private org.bouncycastle.asn1.pkcs.Attribute newAttributeImpl(final ThreadContext context,
+        final Attribute attribute) {
+        return org.bouncycastle.asn1.pkcs.Attribute.getInstance( attribute.toASN1( context ) );
     }
 
     @JRubyMethod
     public IRubyObject verify(final ThreadContext context, IRubyObject key) {
-        PublicKey publicKey;
+        final Ruby runtime = context.runtime; final PublicKey publicKey;
         try {
             publicKey = ( (PKey) key.callMethod(context, "public_key") ).getPublicKey();
-            return request.verify(publicKey) ? context.runtime.getTrue() : context.runtime.getFalse();
+            return runtime.newBoolean( getRequest(false).verify(publicKey) );
         }
         catch (InvalidKeyException e) {
-            throw newRequestError(context.runtime, e.getMessage());
+            debugStackTrace(runtime, e);
+            throw newRequestError(runtime, e.getMessage());
         }
-        catch(Exception e) {
-            return context.runtime.getFalse();
+        catch (IOException e) {
+            debug(runtime, "Request#verify() failed:", e);
+            return runtime.getFalse();
+        }
+        catch (RuntimeException e) {
+            debug(runtime, "Request#verify() failed:", e);
+            return runtime.getFalse();
         }
     }
 
@@ -343,29 +332,33 @@ public class Request extends RubyObject {
     }
 
     @JRubyMethod(name="attributes=")
-    public IRubyObject set_attributes(final IRubyObject attributes) {
+    public IRubyObject set_attributes(final ThreadContext context,final IRubyObject attributes) {
         this.attributes.clear();
         final RubyArray attrs = (RubyArray) attributes;
         for ( int i = 0; i < attrs.size(); i++ ) {
-            this.attributes.add( (org.jruby.ext.openssl.Attribute) attrs.entry(i) );
+            this.attributes.add( (Attribute) attrs.entry(i) );
         }
-        //if (request != null) {
-            request.setAttributes( newAttributes(this.attributes) );
-        //}
+        if (request != null) {
+            request.setAttributes( newAttributesImpl(context) );
+        }
         return attributes;
     }
 
     @JRubyMethod
-    public IRubyObject add_attribute(final IRubyObject attribute) {
-        attributes.add( (org.jruby.ext.openssl.Attribute) attribute );
-        //if (request != null) {
-            request.addAttribute( newAttribute(attribute) );
-        //}
+    public IRubyObject add_attribute(final ThreadContext context,final IRubyObject attribute) {
+        attributes.add( (Attribute) attribute );
+        if (request != null) {
+            request.addAttribute( newAttributeImpl( context, (Attribute) attribute ) );
+        }
         return attribute;
     }
 
     private static RaiseException newRequestError(Ruby runtime, String message) {
         return Utils.newError(runtime, _X509(runtime).getClass("RequestError"), message);
+    }
+
+    private static RaiseException newRequestError(Ruby runtime, String message, Exception cause) {
+        return Utils.newError(runtime, _X509(runtime).getClass("RequestError"), message, cause);
     }
 
 }// Request

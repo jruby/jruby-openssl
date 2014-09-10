@@ -71,13 +71,17 @@ final class Utils {
     }
 
     static RaiseException newError(Ruby runtime, RubyClass errorClass, Throwable e) {
-        RaiseException ex = newError(runtime, errorClass, e.getMessage());
-        ex.initCause(e);
-        return ex;
+        return newError(runtime, errorClass, e.getMessage(), e);
     }
 
     static RaiseException newError(Ruby runtime, RubyClass errorClass, String msg) {
         return newError(runtime, errorClass, msg, true);
+    }
+
+    static RaiseException newError(Ruby runtime, RubyClass errorClass, String msg, Throwable e) {
+        RaiseException ex = newError(runtime, errorClass, msg);
+        ex.initCause(e);
+        return ex;
     }
 
     // reinvented parts of org.jruby.runtime.Helpers for compatibility with "older" JRuby :
