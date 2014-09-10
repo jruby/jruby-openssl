@@ -62,6 +62,10 @@ final class Utils {
         return ex;
     }
 
+    static RaiseException newArgumentError(Ruby runtime, Exception e) {
+        return newError(runtime, runtime.getArgumentError(), e);
+    }
+
     static RaiseException newRuntimeError(Ruby runtime, String msg) {
         return new RaiseException(runtime, runtime.getRuntimeError(), msg, true);
     }

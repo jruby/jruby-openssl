@@ -42,14 +42,14 @@ public class X509 {
     public static void createX509(final Ruby runtime, final RubyModule _OpenSSL) {
         final RubyModule _X509 = _OpenSSL.defineModuleUnder("X509");
 
-        X509Name.createX509Name(runtime,_X509);
-        X509Cert.createX509Cert(runtime,_X509);
-        X509Extension.createX509Extension(runtime,_X509);
-        X509CRL.createX509CRL(runtime,_X509);
-        X509Revoked.createX509Revoked(runtime,_X509);
-        X509Store.createX509Store(runtime,_X509);
-        Request.createRequest(runtime,_X509);
-        Attribute.createAttribute(runtime,_X509);
+        X509Name.createX509Name(runtime, _X509);
+        X509Cert.createX509Cert(runtime, _X509);
+        X509Extension.createX509Extension(runtime, _X509);
+        X509CRL.createX509CRL(runtime, _X509);
+        X509Revoked.createX509Revoked(runtime, _X509);
+        X509Store.createX509Store(runtime, _X509);
+        X509Request.createRequest(runtime, _X509);
+        X509Attribute.createAttribute(runtime, _X509);
 
         final RubyFixnum _1 = runtime.newFixnum(1);
         final RubyFixnum _2 = runtime.newFixnum(2);
