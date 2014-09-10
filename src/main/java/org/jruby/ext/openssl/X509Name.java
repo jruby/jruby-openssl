@@ -526,11 +526,15 @@ public class X509Name extends RubyObject {
         // return 41 * this.oids.hashCode();
     }
 
-    @Override
     @JRubyMethod(name = "eql?")
-    public RubyBoolean eql_p(final IRubyObject other) {
+    public RubyBoolean eql_p(final ThreadContext context, final IRubyObject other) {
         if ( ! (other instanceof X509Name) ) return getRuntime().getFalse();
         return getRuntime().newBoolean( equals(other) );
+    }
+
+    @Override
+    public IRubyObject eql_p(final IRubyObject obj) {
+        return eql_p(getRuntime().getCurrentContext(), obj);
     }
 
     @Override
