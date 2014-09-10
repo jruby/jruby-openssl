@@ -42,28 +42,42 @@ import org.jruby.runtime.builtin.IRubyObject;
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
-public class Utils {
+final class Utils {
 
     private Utils() {}
 
     static RaiseException newIOError(Ruby runtime, IOException e) {
-        return new RaiseException(runtime, runtime.getIOError(), e.getMessage(), true);
+        RaiseException ex = newIOError(runtime, e.getMessage());
+        ex.initCause(e);
+        return ex;
+    }
+
+    static RaiseException newIOError(Ruby runtime, String msg) {
+        return new RaiseException(runtime, runtime.getIOError(), msg, true);
     }
 
     static RaiseException newRuntimeError(Ruby runtime, Exception e) {
-        return new RaiseException(runtime, runtime.getRuntimeError(), e.getMessage(), true);
+        RaiseException ex = newRuntimeError(runtime, e.getMessage());
+        ex.initCause(e);
+        return ex;
+    }
+
+    static RaiseException newRuntimeError(Ruby runtime, String msg) {
+        return new RaiseException(runtime, runtime.getRuntimeError(), msg, true);
     }
 
     static RaiseException newError(Ruby runtime, RubyClass errorClass, String message, boolean nativeException) {
         return new RaiseException(runtime, errorClass, message, nativeException);
     }
 
-    static RaiseException newError(Ruby runtime, RubyClass errorClass, Exception e) {
-        return new RaiseException(runtime, errorClass, e.getMessage(), true);
+    static RaiseException newError(Ruby runtime, RubyClass errorClass, Throwable e) {
+        RaiseException ex = newError(runtime, errorClass, e.getMessage());
+        ex.initCause(e);
+        return ex;
     }
 
     static RaiseException newError(Ruby runtime, RubyClass errorClass, String msg) {
-        return new RaiseException(runtime, errorClass, msg, true);
+        return newError(runtime, errorClass, msg, true);
     }
 
     // reinvented parts of org.jruby.runtime.Helpers for compatibility with "older" JRuby :
