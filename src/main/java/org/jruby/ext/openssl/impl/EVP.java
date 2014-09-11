@@ -83,22 +83,20 @@ public class EVP {
         }
     }
 
-    public static int type(MessageDigest digest) {
-        String name = digest.getAlgorithm();
-        ASN1ObjectIdentifier oid = ASN1Registry.sym2oid(name);
+    public static int type(final MessageDigest digest) {
+        String name = digest.getAlgorithm().toLowerCase();
+        String oid = ASN1Registry.getOIDLookup().get(name);
         if ( oid == null ) {
-            name = name.toLowerCase().replace("sha-", "sha");
-            oid = ASN1Registry.sym2oid(name);
+            name = name.replace("sha-", "sha");
+            oid = ASN1Registry.getOIDLookup().get(name);
         }
-        return ASN1Registry.obj2nid(oid);
+        return ASN1Registry.oid2nid(oid);
     }
 
     public static String signatureAlgorithm(MessageDigest digest, Key key) {
         String sig = digest.getAlgorithm().toLowerCase().replace("sha-", "sha");
         String type = key.getAlgorithm().toLowerCase();
-        if(sig == null) {
-            sig = "none";
-        }
+        if ( sig == null ) sig = "none";
         return sig + "with" + type;
     }
 

@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2008 Ola Bini <ola.bini@gmail.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -150,17 +150,15 @@ public class EncContent {
      *
      * EncryptedContent ::= OCTET STRING
      */
-    public static EncContent fromASN1(ASN1Encodable content) {
-        ASN1Sequence sequence = (ASN1Sequence)content;
+    public static EncContent fromASN1(final ASN1Encodable content) {
+        final ASN1Sequence sequence = (ASN1Sequence) content;
         ASN1ObjectIdentifier contentType = (ASN1ObjectIdentifier)(sequence.getObjectAt(0));
-        int nid = ASN1Registry.obj2nid(contentType);
-
-        EncContent ec = new EncContent();
-        ec.setContentType(nid);
+        final EncContent ec = new EncContent();
+        ec.setContentType( ASN1Registry.oid2nid(contentType) );
         ec.setAlgorithm(AlgorithmIdentifier.getInstance(sequence.getObjectAt(1)));
         if(sequence.size() > 2 && sequence.getObjectAt(2) instanceof ASN1TaggedObject && ((ASN1TaggedObject)(sequence.getObjectAt(2))).getTagNo() == 0) {
             ASN1Encodable ee = ((ASN1TaggedObject)(sequence.getObjectAt(2))).getObject();
-            if(ee instanceof ASN1Sequence && ((ASN1Sequence)ee).size() > 0) {
+            if ( ee instanceof ASN1Sequence && ((ASN1Sequence) ee).size() > 0 ) {
                 ByteList combinedOctets = new ByteList();
                 Enumeration enm = ((ASN1Sequence)ee).getObjects();
                 while (enm.hasMoreElements()) {
@@ -179,7 +177,7 @@ public class EncContent {
         ASN1EncodableVector vector = new ASN1EncodableVector();
         vector.add(ASN1Registry.nid2obj(contentType).toASN1Primitive());
         vector.add(algorithm.toASN1Primitive());
-        if(encData != null) {
+        if ( encData != null ) {
             vector.add(new DERTaggedObject(false, 0, encData));
         }
         return new DLSequence(vector);

@@ -394,14 +394,14 @@ public class X509CRL extends RubyObject {
     private String getSignatureAlgorithm(final Ruby runtime, final String def) {
         if ( getCRL() == null ) return def;
 
-        ASN1ObjectIdentifier algId = ASN1.asOID( getCRL().getSigAlgOID() );
         String algName;
+        ASN1ObjectIdentifier algId = ASN1.toObjectID( getCRL().getSigAlgOID(), true );
         if ( algId != null ) {
             algName = ASN1.o2a(runtime, algId, true);
         }
         else {
             algName = getCRL().getSigAlgName();
-            algId = ASN1.asOID( algName );
+            algId = ASN1.toObjectID( algName, true );
             if ( algId != null ) {
                 algName = ASN1.o2a(runtime, algId, true);
             }

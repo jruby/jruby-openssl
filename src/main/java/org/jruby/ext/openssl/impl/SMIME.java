@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 
@@ -170,9 +171,7 @@ public class SMIME {
         byte[] linebuf = new byte[MAX_SMLEN];
         int blen = bound.length;
         boolean eol = false;
-        int len = 0;
-        int part = 0;
-        int state = 0;
+        int len; int state; int part = 0;
         boolean first = true;
         BIO bpart = null;
 
@@ -399,8 +398,8 @@ public class SMIME {
         while ( it.hasNext() ) {
             if ( writeComma ) output.append(',');
 
-            AlgorithmIdentifier algId = it.next();
-            String ln = ASN1Registry.nid2ln(ASN1Registry.obj2nid(algId.getAlgorithm()));
+            ASN1ObjectIdentifier algId = it.next().getAlgorithm();
+            String ln = ASN1Registry.nid2ln( ASN1Registry.oid2nid(algId) );
             if ( ln == null ) ln = "unknown";
 
             output.append(ln);

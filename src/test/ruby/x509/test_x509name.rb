@@ -20,8 +20,6 @@ class TestX509Name < TestCase
     dn.each { |attr| name.add_entry(*attr) }
     ary = name.to_a
 
-    puts ary.inspect
-
     exp_to_a = [
       ["DC", "org", 22],
       ["DC", "jruby", 22],

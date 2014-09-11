@@ -49,7 +49,9 @@ import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
+import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.anno.JRubyModule;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ObjectAllocator;
@@ -77,6 +79,7 @@ import static org.jruby.ext.openssl.OpenSSL.*;
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
+@JRubyClass(name = "OpenSSL::PKCS7")
 public class PKCS7 extends RubyObject {
     private static final long serialVersionUID = -3925104500966826973L;
 
@@ -410,7 +413,7 @@ public class PKCS7 extends RubyObject {
         // TODO: Handle exception here
 
         if ( p7.isSigned() ) {
-            ASN1Encodable objectId = ASN1Registry.OID_pkcs7_data;
+            ASN1Encodable objectId = org.jruby.ext.openssl.impl.PKCS7.OID_pkcs7_data;
             signedInfo.addSignedAttribute(ASN1Registry.NID_pkcs9_contentType, objectId);
         }
 
@@ -672,6 +675,7 @@ public class PKCS7 extends RubyObject {
         return getInstanceVariable("@data");
     }
 
+    @JRubyClass(name = "OpenSSL::PKCS7::SignerInfo")
     public static class SignerInfo extends RubyObject {
 
         private static final long serialVersionUID = -3799397032272738848L;
@@ -733,6 +737,7 @@ public class PKCS7 extends RubyObject {
         }
     }
 
+    @JRubyClass(name = "OpenSSL::PKCS7::RecipientInfo")
     public static class RecipientInfo extends RubyObject {
 
         private static final long serialVersionUID = 6977793206950149902L;

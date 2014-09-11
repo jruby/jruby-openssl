@@ -58,6 +58,12 @@ import org.jruby.ext.openssl.x509store.X509AuxCertificate;
  * @author <a href="mailto:ola.bini@gmail.com">Ola Bini</a>
  */
 public class SignerInfoWithPkey implements ASN1Encodable {
+
+    static final ASN1ObjectIdentifier OID_dsa = new ASN1ObjectIdentifier(ASN1Registry.OBJ_dsa);
+    static final ASN1ObjectIdentifier OID_sha1 = new ASN1ObjectIdentifier(ASN1Registry.OBJ_sha1);
+    static final ASN1ObjectIdentifier OID_ecdsa_with_SHA1 = new ASN1ObjectIdentifier(ASN1Registry.OBJ_ecdsa_with_SHA1);
+    static final ASN1ObjectIdentifier OID_rsaEncryption = new ASN1ObjectIdentifier(ASN1Registry.OBJ_rsaEncryption);
+
     private ASN1Integer              version;
     private IssuerAndSerialNumber   issuerAndSerialNumber;
     private AlgorithmIdentifier     digAlgorithm;
@@ -179,17 +185,19 @@ public class SignerInfoWithPkey implements ASN1Encodable {
         this.pkey = pkey;
 
         if ( dsa ) {
-            digAlgorithm = new AlgorithmIdentifier(ASN1Registry.OID_sha1);
+            digAlgorithm = new AlgorithmIdentifier(OID_sha1);
         } else {
             digAlgorithm = new AlgorithmIdentifier(ASN1Registry.nid2obj(EVP.type(dgst)));
         }
 
-        if(pkey instanceof RSAPrivateKey) {
-            digEncryptionAlgorithm = new AlgorithmIdentifier(ASN1Registry.OID_rsaEncryption);
-        } else if(pkey instanceof DSAPrivateKey) {
-            digEncryptionAlgorithm = new AlgorithmIdentifier(ASN1Registry.OID_dsa);
-        } else if(pkey instanceof ECPrivateKey) {
-            digEncryptionAlgorithm = new AlgorithmIdentifier(ASN1Registry.OID_ecdsa_with_SHA1);
+        if ( pkey instanceof RSAPrivateKey ) {
+            digEncryptionAlgorithm = new AlgorithmIdentifier(OID_rsaEncryption);
+        }
+        else if( pkey instanceof DSAPrivateKey ) {
+            digEncryptionAlgorithm = new AlgorithmIdentifier(OID_dsa);
+        }
+        else if( pkey instanceof ECPrivateKey ) {
+            digEncryptionAlgorithm = new AlgorithmIdentifier(OID_ecdsa_with_SHA1);
         }
     }
 
@@ -326,7 +334,7 @@ public class SignerInfoWithPkey implements ASN1Encodable {
         Attribute attr;
         for ( Enumeration e = base.getObjects(); e.hasMoreElements(); ) {
             attr = Attribute.getInstance( e.nextElement() );
-            if ( ASN1Registry.obj2nid(attr.getAttrType()) != atrType ) {
+            if ( ASN1Registry.oid2nid(attr.getAttrType()) != atrType ) {
                 vector.add(attr);
             }
         }

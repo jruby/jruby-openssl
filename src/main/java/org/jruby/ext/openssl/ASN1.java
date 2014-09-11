@@ -133,12 +133,12 @@ public class ASN1 {
         addObject(runtime, 18, "OU", "organizationalUnitName","2.5.4.11");
         addObject(runtime, 19, "RSA", "rsa","2.5.8.1.1");
         addObject(runtime, 20, null, "pkcs7","1.2.840.113549.1.7");
-        addObject(runtime, 21, null, "pkcs7-data","1.2.840.113549.1.7.1"); // NID_pkcs7_data
-        addObject(runtime, 22, null, "pkcs7-signedData","1.2.840.113549.1.7.2"); // NID_pkcs7_signed
-        addObject(runtime, 23, null, "pkcs7-envelopedData","1.2.840.113549.1.7.3"); // NID_pkcs7_enveloped
-        addObject(runtime, 24, null, "pkcs7-signedAndEnvelopedData","1.2.840.113549.1.7.4"); // NID_pkcs7_signedAndEnveloped
-        addObject(runtime, 25, null, "pkcs7-digestData","1.2.840.113549.1.7.5"); // NID_pkcs7_digest
-        addObject(runtime, 26, null, "pkcs7-encryptedData","1.2.840.113549.1.7.6"); // NID_pkcs7_encrypted
+        addObject(runtime, 21, null, "pkcs7-data","1.2.840.113549.1.7.1");
+        addObject(runtime, 22, null, "pkcs7-signedData","1.2.840.113549.1.7.2");
+        addObject(runtime, 23, null, "pkcs7-envelopedData","1.2.840.113549.1.7.3");
+        addObject(runtime, 24, null, "pkcs7-signedAndEnvelopedData","1.2.840.113549.1.7.4");
+        addObject(runtime, 25, null, "pkcs7-digestData","1.2.840.113549.1.7.5");
+        addObject(runtime, 26, null, "pkcs7-encryptedData","1.2.840.113549.1.7.6");
         addObject(runtime, 27, null, "pkcs3","1.2.840.113549.1.3");
         addObject(runtime, 28, null, "dhKeyAgreement","1.2.840.113549.1.3.1");
         addObject(runtime, 29, "DES-ECB", "des-ecb","1.3.14.3.2.6");
@@ -302,10 +302,11 @@ public class ASN1 {
 
         addObject(runtime, 660, "street", "streetAddress", "2.5.4.9");
         addObject(runtime, 391, "DC", "domainComponent", "0.9.2342.19200300.100.1.25");
-        addObject(runtime, 509, null, "generationQualifier", "2.5.4.44");
-        addObject(runtime, 510, null, "pseudonym", "2.5.4.65");
-        //addObject(runtime, -1, null, "postalAddress", "2.5.4.16"); NID ?
-        addObject(runtime, 661, null, "postalCode", "2.5.4.17");
+        //addObject(runtime, 509, null, "generationQualifier", "2.5.4.44");
+        //addObject(runtime, 510, null, "pseudonym", "2.5.4.65");
+        //addObject(runtime, 661, null, "postalCode", "2.5.4.17");
+        //addObject(runtime, 861, null, "postalAddress", "2.5.4.16");
+
         // NOTE: left-overs from BC's org.bouncycastle.asn1.x509.X509Name
         /*
             DefaultLookUp.put("uid", UID);
@@ -321,15 +322,6 @@ public class ASN1 {
             DefaultLookUp.put("businesscategory", BUSINESS_CATEGORY);
             DefaultLookUp.put("telephonenumber", TELEPHONE_NUMBER);
         */
-    }
-
-    static ASN1ObjectIdentifier asOID(final String oid) {
-        try {
-            return new ASN1ObjectIdentifier(oid);
-        }
-        catch (IllegalArgumentException e) {
-            return null;
-        }
     }
 
     private static void addObject(final Ruby runtime, final int nid,
@@ -569,8 +561,8 @@ public class ASN1 {
         {"CHARACTER_STRING",  null, null },
         {"BMPSTRING", org.bouncycastle.asn1.DERBMPString.class, "BMPString" }};
 
-    private final static Map<Class<?>, Integer> CLASS_TO_ID = new HashMap<Class<?>, Integer>(24);
-    private final static Map<String, Integer> RUBYNAME_TO_ID = new HashMap<String, Integer>(24);
+    private final static Map<Class<?>, Integer> CLASS_TO_ID = new HashMap<Class<?>, Integer>(24, 1);
+    private final static Map<String, Integer> RUBYNAME_TO_ID = new HashMap<String, Integer>(24, 1);
 
     static {
         for ( int i = 0; i < ASN1_INFO.length; i++ ) {
@@ -706,11 +698,26 @@ public class ASN1 {
 
     static ASN1ObjectIdentifier getObjectID(final Ruby runtime, final String nameOrOid)
         throws IllegalArgumentException {
-        ASN1ObjectIdentifier objectId = getOIDLookup(runtime).get( nameOrOid.toLowerCase() );
+        final String name = nameOrOid.toLowerCase();
+        
+        ASN1ObjectIdentifier objectId = getOIDLookup(runtime).get( name );
         if ( objectId != null ) return objectId;
-        objectId = ASN1Registry.sym2oid(nameOrOid);
-        if ( objectId != null ) return objectId;
-        return new ASN1ObjectIdentifier(nameOrOid);
+
+        final String objectIdStr = ASN1Registry.getOIDLookup().get( name );
+        if ( objectIdStr != null ) return toObjectID(objectIdStr, false);
+
+        return new ASN1ObjectIdentifier( nameOrOid );
+    }
+
+    static ASN1ObjectIdentifier toObjectID(final String oid, final boolean silent)
+        throws IllegalArgumentException {
+        try {
+            return new ASN1ObjectIdentifier(oid);
+        }
+        catch (IllegalArgumentException e) {
+            if ( silent ) return null;
+            throw e;
+        }
     }
 
     @JRubyMethod(name="Boolean", module=true, rest=true)

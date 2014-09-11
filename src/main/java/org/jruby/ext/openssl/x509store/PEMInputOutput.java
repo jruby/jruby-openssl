@@ -1002,7 +1002,7 @@ public class PEMInputOutput {
     }
 
     private static String getPrivateKeyTypeFromObjectId(ASN1ObjectIdentifier oid) {
-        if (ASN1Registry.obj2nid(oid) == ASN1Registry.NID_rsaEncryption) {
+        if ( ASN1Registry.oid2nid(oid) == ASN1Registry.NID_rsaEncryption ) {
             return "RSA";
         } else {
             return "DSA";

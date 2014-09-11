@@ -739,7 +739,7 @@ PKCS7STR
       assert_equal 0, env.version
       enc_data = env.enc_data
       assert_equal ASN1Registry::NID_pkcs7_data, enc_data.content_type
-      assert_equal ASN1Registry::NID_aes_128_cbc, ASN1Registry::obj2nid(enc_data.algorithm.get_object_id)
+      assert_equal ASN1Registry::NID_aes_128_cbc, ASN1Registry::oid2nid(enc_data.algorithm.object_id)
       assert_equal PKCS7_PEM_CONTENTS, String.from_java_bytes(enc_data.enc_data.octets)
 
       ris = env.recipient_info
@@ -766,8 +766,8 @@ PKCS7STR
       assert_equal "DC=org,DC=ruby-lang,CN=CA", first.issuer_and_serial.name.to_s
       assert_equal "DC=org,DC=ruby-lang,CN=CA", second.issuer_and_serial.name.to_s
 
-      assert_equal ASN1Registry::NID_rsaEncryption, ASN1Registry::obj2nid(first.key_enc_algor.get_object_id)
-      assert_equal ASN1Registry::NID_rsaEncryption, ASN1Registry::obj2nid(second.key_enc_algor.get_object_id)
+      assert_equal ASN1Registry::NID_rsaEncryption, ASN1Registry::oid2nid(first.key_enc_algor.object_id)
+      assert_equal ASN1Registry::NID_rsaEncryption, ASN1Registry::oid2nid(second.key_enc_algor.object_id)
 
       assert_equal PKCS7_PEM_FIRST_KEY, String.from_java_bytes(first.enc_key.octets)
       assert_equal PKCS7_PEM_SECOND_KEY, String.from_java_bytes(second.enc_key.octets)

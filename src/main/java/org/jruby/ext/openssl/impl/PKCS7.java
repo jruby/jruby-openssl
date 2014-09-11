@@ -84,6 +84,11 @@ public class PKCS7 {
     // OpenSSL behavior: PKCS#7 ObjectId for "ITU-T" + "0"
     private static final String EMPTY_PKCS7_OID = "0.0";
 
+    public static final ASN1ObjectIdentifier OID_pkcs7_data = new ASN1ObjectIdentifier(ASN1Registry.OBJ_pkcs7_data);
+    static final ASN1ObjectIdentifier OID_des_ede3_cbc = new ASN1ObjectIdentifier(ASN1Registry.OBJ_des_ede3_cbc);
+    static final ASN1ObjectIdentifier OID_rc2_cbc = new ASN1ObjectIdentifier(ASN1Registry.OBJ_rc2_cbc);
+    static final ASN1ObjectIdentifier OID_des_cbc = new ASN1ObjectIdentifier(ASN1Registry.OBJ_des_cbc);
+
 	/* content as defined by the type */
 	/* all encryption/message digests are applied to the 'contents',
 	 * leaving out the 'type' field. */
@@ -131,11 +136,12 @@ public class PKCS7 {
         }
 
         ASN1ObjectIdentifier contentType = (ASN1ObjectIdentifier) (((ASN1Sequence) obj).getObjectAt(0));
-        if (EMPTY_PKCS7_OID.equals(contentType.getId())) {
+        if ( EMPTY_PKCS7_OID.equals( contentType.getId() ) ) {
             // OpenSSL behavior
             p7.setType(ASN1Registry.NID_undef);
-        } else {
-            Integer nid = ASN1Registry.obj2nid(contentType);
+        }
+        else {
+            Integer nid = ASN1Registry.oid2nid(contentType);
 
             ASN1Encodable content = size == 1 ? (ASN1Encodable) null : ((ASN1Sequence) obj).getObjectAt(1);
 
@@ -253,7 +259,7 @@ public class PKCS7 {
             throw new PKCS7Exception(F_PKCS7_SIGNATUREVERIFY, R_WRONG_PKCS7_TYPE);
         }
 
-        int md_type = ASN1Registry.obj2nid(si.getDigestAlgorithm().getAlgorithm()).intValue();
+        final int md_type = ASN1Registry.oid2nid( si.getDigestAlgorithm().getAlgorithm() );
         BIO btmp = bio;
         MessageDigest mdc = null;
 
@@ -267,9 +273,7 @@ public class PKCS7 {
                 throw new PKCS7Exception(F_PKCS7_SIGNATUREVERIFY, -1);
             }
 
-            if(EVP.type(mdc) == md_type) {
-                break;
-            }
+            if ( EVP.type(mdc) == md_type ) break;
 
             btmp = btmp.next();
         }
@@ -437,14 +441,14 @@ public class PKCS7 {
         }
 
         if ( (flags & NOATTR) == 0 ) {
-            si.addSignedAttribute(ASN1Registry.NID_pkcs9_contentType, ASN1Registry.OID_pkcs7_data);
+            si.addSignedAttribute(ASN1Registry.NID_pkcs9_contentType, OID_pkcs7_data);
             if ( (flags & NOSMIMECAP) == 0 ) {
                 ASN1EncodableVector smcap = new ASN1EncodableVector();
-                smcap.add(new AlgorithmIdentifier(ASN1Registry.OID_des_ede3_cbc));
-                smcap.add(new AlgorithmIdentifier(ASN1Registry.OID_rc2_cbc, new ASN1Integer(BI_128)));
-                smcap.add(new AlgorithmIdentifier(ASN1Registry.OID_rc2_cbc, new ASN1Integer(BI_64)));
-                smcap.add(new AlgorithmIdentifier(ASN1Registry.OID_rc2_cbc, new ASN1Integer(BI_40)));
-                smcap.add(new AlgorithmIdentifier(ASN1Registry.OID_des_cbc));
+                smcap.add(new AlgorithmIdentifier(OID_des_ede3_cbc));
+                smcap.add(new AlgorithmIdentifier(OID_rc2_cbc, new ASN1Integer(BI_128)));
+                smcap.add(new AlgorithmIdentifier(OID_rc2_cbc, new ASN1Integer(BI_64)));
+                smcap.add(new AlgorithmIdentifier(OID_rc2_cbc, new ASN1Integer(BI_40)));
+                smcap.add(new AlgorithmIdentifier(OID_des_cbc));
                 si.addSignedAttribute(ASN1Registry.NID_SMIMECapabilities, new DLSequence(smcap));
             }
         }
@@ -994,7 +998,7 @@ public class PKCS7 {
                 if(si.getPkey() == null) {
                     continue;
                 }
-                int j = ASN1Registry.obj2nid(si.getDigestAlgorithm().getAlgorithm());
+                int j = ASN1Registry.oid2nid( si.getDigestAlgorithm().getAlgorithm() );
                 btmp = bio;
                 MessageDigest[] _mdc = new MessageDigest[] {mdc};
                 btmp = findDigest(_mdc, btmp, j);
@@ -1042,7 +1046,7 @@ public class PKCS7 {
                 }
             }
         } else if(i == ASN1Registry.NID_pkcs7_digest) {
-            int nid = ASN1Registry.obj2nid(getDigest().getMd().getAlgorithm());
+            int nid = ASN1Registry.oid2nid( getDigest().getMd().getAlgorithm() );
             MessageDigest[] _mdc = new MessageDigest[] {mdc};
             bio = findDigest(_mdc, bio, nid);
             mdc = _mdc[0];
