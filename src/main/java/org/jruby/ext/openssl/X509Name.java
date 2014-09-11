@@ -334,7 +334,7 @@ public class X509Name extends RubyObject {
 
     @JRubyMethod
     public IRubyObject add_entry(ThreadContext context, IRubyObject oid, IRubyObject value) {
-        return add_entry(context, oid, value, context.nil);
+        return add_entry(context, oid, value, null);
     }
 
     @JRubyMethod
@@ -342,26 +342,32 @@ public class X509Name extends RubyObject {
         final IRubyObject oid, final IRubyObject value, IRubyObject type) {
         final Ruby runtime = context.runtime;
 
-        if (type == null || type.isNil()) {
-            type = _Name(runtime).getConstant("OBJECT_TYPE_TEMPLATE").callMethod(context, "[]", oid);
-        }
+        final RubyString oidStr = oid.asString();
+
+        if ( type == null || type.isNil() ) type = getDefaultType(context, oidStr);
 
         final ASN1ObjectIdentifier objectId;
         try {
-            String oidStr = oid.asString().toString();
-            objectId = ASN1.getObjectID(runtime, oidStr);
+            objectId = ASN1.getObjectID( runtime, oidStr.toString() );
         }
         catch (IllegalArgumentException e) {
-            throw newNameError(runtime, "invalid field name: " + e.getMessage());
+            throw newNameError(runtime, "invalid field name: " + oidStr, e);
         }
-
-        if ( objectId == null ) throw newNameError(runtime, (String) null);
+        // NOTE: won't reach here :
+        if ( objectId == null ) throw newNameError(runtime, "invalid field name");
 
         String valueStr = value.asString().toString();
-
         addEntry(objectId, valueStr, (RubyInteger) type);
 
         return this;
+    }
+
+    private static IRubyObject getDefaultType(final ThreadContext context, final RubyString oid) {
+        IRubyObject template = _Name(context.runtime).getConstant("OBJECT_TYPE_TEMPLATE");
+        if ( template instanceof RubyHash ) {
+            return ((RubyHash) template).op_aref(context, oid);
+        }
+        return template.callMethod(context, "[]", oid);
     }
 
     @JRubyMethod(name = "to_s", rest = true)
@@ -404,7 +410,7 @@ public class X509Name extends RubyObject {
         final StringBuilder str = new StringBuilder(48); String sep = "";
         while( oidsIter.hasNext() ) {
             final ASN1ObjectIdentifier oid = oidsIter.next();
-            String oName = symName(runtime, oid);
+            String oName = name(runtime, oid);
             if ( oName == null ) oName = oid.toString();
             final String value = valuesIter.next();
 
@@ -418,7 +424,7 @@ public class X509Name extends RubyObject {
                     sep = ",";
                     break;
                 case MULTILINE:
-                    final Integer nid = ASN1.obj2nid(runtime, oid);
+                    final Integer nid = ASN1.oid2nid(runtime, oid);
                     if ( nid != null ) {
                         final String ln = ASN1.nid2ln(runtime, nid);
                         if ( ln != null ) oName = ln;
@@ -451,7 +457,8 @@ public class X509Name extends RubyObject {
         final Iterator<String> valuesIter = values.iterator();
         final Iterator<RubyInteger> typesIter = types.iterator();
         while ( oidsIter.hasNext() ) {
-            String oName = symName(runtime, oidsIter.next());
+            final ASN1ObjectIdentifier oid = oidsIter.next();
+            String oName = name(runtime, oid);
             if ( oName == null ) oName = "UNDEF";
             final String value = valuesIter.next();
             final IRubyObject type = typesIter.next();
@@ -463,8 +470,8 @@ public class X509Name extends RubyObject {
         return entries;
     }
 
-    private static String symName(final Ruby runtime, final ASN1ObjectIdentifier oid) {
-        return ASN1.oid2Sym(runtime, oid, true);
+    private static String name(final Ruby runtime, final ASN1ObjectIdentifier oid) {
+        return ASN1.oid2name(runtime, oid, true);
     }
 
     @Deprecated
@@ -610,6 +617,10 @@ public class X509Name extends RubyObject {
             debugStackTrace(getRuntime(), e);
             throw newNameError(getRuntime(), e);
         }
+    }
+
+    private static RaiseException newNameError(Ruby runtime, String msg, Throwable e) {
+        return Utils.newError(runtime, _X509(runtime).getClass("NameError"), msg, e);
     }
 
     private static RaiseException newNameError(Ruby runtime, Throwable e) {

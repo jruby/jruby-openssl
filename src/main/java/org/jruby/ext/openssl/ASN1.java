@@ -61,7 +61,6 @@ import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.DERUTCTime;
 import org.bouncycastle.asn1.DERUTF8String;
-import org.bouncycastle.asn1.x509.X509Name;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -100,12 +99,14 @@ public class ASN1 {
 
     @SuppressWarnings("unchecked")
     private static synchronized void initMaps(final Ruby runtime) {
-        SYM_TO_OID.put(runtime, new HashMap<String, ASN1ObjectIdentifier>(X509Name.DefaultLookUp));
-        OID_TO_SYM.put(runtime, new HashMap<ASN1ObjectIdentifier, String>(X509Name.DefaultSymbols));
-        OID_TO_NID.put(runtime, new HashMap<ASN1ObjectIdentifier, Integer>());
-        NID_TO_OID.put(runtime, new HashMap<Integer, ASN1ObjectIdentifier>());
-        NID_TO_SN.put(runtime, new HashMap<Integer, String>());
-        NID_TO_LN.put(runtime, new HashMap<Integer, String>());
+        final int size = 200; final float fact = 1.0f;
+
+        SYM_TO_OID.put(runtime, new HashMap<String, ASN1ObjectIdentifier>(size, fact));
+        OID_TO_SYM.put(runtime, new HashMap<ASN1ObjectIdentifier, String>(size, fact));
+        OID_TO_NID.put(runtime, new HashMap<ASN1ObjectIdentifier, Integer>(size, fact));
+        NID_TO_OID.put(runtime, new HashMap<Integer, ASN1ObjectIdentifier>(size, fact));
+        NID_TO_SN.put(runtime, new HashMap<Integer, String>(size, fact));
+        NID_TO_LN.put(runtime, new HashMap<Integer, String>(size, fact));
 
         defaultObjects(runtime);
     }
@@ -159,7 +160,7 @@ public class ASN1 {
         addObject(runtime, 45, "DES-OFB", "des-ofb","1.3.14.3.2.8");
         addObject(runtime, 46, "IDEA-OFB", "idea-ofb",null);
         addObject(runtime, 47, null, "pkcs9","1.2.840.113549.1.9");
-        addObject(runtime, 48, "Email", "emailAddress","1.2.840.113549.1.9.1");
+        addObject(runtime, 48, null, "emailAddress","1.2.840.113549.1.9.1");
         addObject(runtime, 49, null, "unstructuredName","1.2.840.113549.1.9.2");
         addObject(runtime, 50, null, "contentType","1.2.840.113549.1.9.3");
         addObject(runtime, 51, null, "messageDigest","1.2.840.113549.1.9.4");
@@ -213,10 +214,10 @@ public class ASN1 {
         addObject(runtime, 99, "G", "givenName","2.5.4.42");
         addObject(runtime, 100, "S", "surname","2.5.4.4");
         addObject(runtime, 101, "I", "initials","2.5.4.43");
-        addObject(runtime, 102, "UID", "uniqueIdentifier","2.5.4.45");
+        addObject(runtime, 102, "UID", "uniqueIdentifier","2.5.4.45"); // BC prefers UID to map to userId ?!
         addObject(runtime, 103, "crlDistributionPoints", "X509v3 CRL Distribution Points","2.5.29.31");
         addObject(runtime, 104, "RSA-NP-MD5", "md5WithRSA","1.3.14.3.2.3");
-        addObject(runtime, 105, "SN", "serialNumber","2.5.4.5");
+        addObject(runtime, 105, null, "serialNumber","2.5.4.5");
         addObject(runtime, 106, "T", "title","2.5.4.12");
         addObject(runtime, 107, "D", "description","2.5.4.13");
         addObject(runtime, 108, "CAST5-CBC", "cast5-cbc","1.2.840.113533.7.66.10");
@@ -298,6 +299,28 @@ public class ASN1 {
         addObject(runtime, 184, "AES-256-CBC", "aes-256-cbc","2.16.840.1.101.3.4.1.42");
         addObject(runtime, 185, "AES-256-OFB", "aes-256-ofb","2.16.840.1.101.3.4.1.43");
         addObject(runtime, 186, "AES-256-CFB", "aes-256-cfb","2.16.840.1.101.3.4.1.44");
+
+        addObject(runtime, 660, "street", "streetAddress", "2.5.4.9");
+        addObject(runtime, 391, "DC", "domainComponent", "0.9.2342.19200300.100.1.25");
+        addObject(runtime, 509, null, "generationQualifier", "2.5.4.44");
+        addObject(runtime, 510, null, "pseudonym", "2.5.4.65");
+        //addObject(runtime, -1, null, "postalAddress", "2.5.4.16"); NID ?
+        addObject(runtime, 661, null, "postalCode", "2.5.4.17");
+        // NOTE: left-overs from BC's org.bouncycastle.asn1.x509.X509Name
+        /*
+            DefaultLookUp.put("uid", UID);
+
+            DefaultLookUp.put("dn", DN_QUALIFIER);
+
+            DefaultLookUp.put("nameofbirth", NAME_AT_BIRTH);
+            DefaultLookUp.put("placeofbirth", PLACE_OF_BIRTH);
+            DefaultLookUp.put("dateofbirth", DATE_OF_BIRTH);gen
+            DefaultLookUp.put("countryofcitizenship", COUNTRY_OF_CITIZENSHIP);
+            DefaultLookUp.put("countryofresidence", COUNTRY_OF_RESIDENCE);
+            DefaultLookUp.put("gender", GENDER);
+            DefaultLookUp.put("businesscategory", BUSINESS_CATEGORY);
+            DefaultLookUp.put("telephonenumber", TELEPHONE_NUMBER);
+        */
     }
 
     static ASN1ObjectIdentifier asOID(final String oid) {
@@ -423,7 +446,7 @@ public class ASN1 {
         return val.getId();
     }
 
-    static Integer obj2nid(final Ruby runtime, final ASN1ObjectIdentifier oid) {
+    static Integer oid2nid(final Ruby runtime, final ASN1ObjectIdentifier oid) {
         return oidToNid(runtime).get(oid);
     }
 
@@ -432,23 +455,64 @@ public class ASN1 {
     }
 
     static String o2a(final Ruby runtime, final ASN1ObjectIdentifier oid, final boolean silent) {
-        final Integer nid = obj2nid(runtime, oid);
+        Integer nid = oidToNid(runtime).get(oid);
+        if ( nid != null ) {
+            final String name = nid2ln(runtime, nid, false);
+            return name == null ? nid2sn(runtime, nid, false) : name;
+        }
+        nid = ASN1Registry.oid2nid(oid);
         if ( nid == null ) {
             if ( silent ) return null;
             throw new NullPointerException("nid not found for oid = '" + oid + "' (" + runtime + ")");
         }
-        String one = nidToLn(runtime).get(nid);
-        if ( one == null ) one = nidToSn(runtime).get(nid);
-        if ( one == null ) ASN1Registry.o2a(oid);
-        return one;
+        final String name = nid2ln(runtime, nid, false);
+        if ( name != null ) return name;
+        return nid2sn(runtime, nid, true);
     }
 
-    static String nid2ln(final Ruby runtime, final int nid) {
-        return nidToLn(runtime).get(nid);
+    static String oid2name(final Ruby runtime, final ASN1ObjectIdentifier oid, final boolean silent) {
+        Integer nid = oidToNid(runtime).get(oid);
+        if ( nid != null ) {
+            final String name = nid2sn(runtime, nid, false);
+            return name == null ? nid2ln(runtime, nid, false) : name;
+        }
+        nid = ASN1Registry.oid2nid(oid);
+        if ( nid == null ) {
+            if ( silent ) return null;
+            throw new NullPointerException("nid not found for oid = '" + oid + "' (" + runtime + ")");
+        }
+        final String name = nid2sn(runtime, nid, false);
+        if ( name != null ) return name;
+        return nid2ln(runtime, nid, true);
+        /*
+        if ( nid == null ) nid = ASN1Registry.oid2nid(oid);
+        if ( nid == null ) {
+            if ( silent ) return null;
+            throw new NullPointerException("nid not found for oid = '" + oid + "' (" + runtime + ")");
+        }
+        final String name = nid2sn(runtime, nid, true);
+        if ( name != null ) return name;
+        return nid2ln(runtime, nid, true); */
+    }
+
+    static String nid2sn(final Ruby runtime, final Integer nid) {
+        return nid2sn(runtime, nid, true);
+    }
+
+    private static String nid2sn(final Ruby runtime, final Integer nid, boolean fallback) {
+        final String ln = nidToSn(runtime).get(nid);
+        if ( ln == null && fallback ) return ASN1Registry.nid2sn(nid);
+        return ln;
     }
 
     static String nid2ln(final Ruby runtime, final Integer nid) {
-        return nidToLn(runtime).get(nid);
+        return nid2ln(runtime, nid, true);
+    }
+
+    private static String nid2ln(final Ruby runtime, final Integer nid, boolean fallback) {
+        final String ln = nidToLn(runtime).get(nid);
+        if ( ln == null && fallback ) return ASN1Registry.nid2ln(nid);
+        return ln;
     }
 
     static String oid2Sym(final Ruby runtime, final ASN1ObjectIdentifier oid) {
@@ -643,6 +707,8 @@ public class ASN1 {
     static ASN1ObjectIdentifier getObjectID(final Ruby runtime, final String nameOrOid)
         throws IllegalArgumentException {
         ASN1ObjectIdentifier objectId = getOIDLookup(runtime).get( nameOrOid.toLowerCase() );
+        if ( objectId != null ) return objectId;
+        objectId = ASN1Registry.sym2oid(nameOrOid);
         if ( objectId != null ) return objectId;
         return new ASN1ObjectIdentifier(nameOrOid);
     }

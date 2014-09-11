@@ -39,19 +39,14 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 public class ASN1Registry {
 
     @SuppressWarnings("unchecked")
-    private static final Map<String, ASN1ObjectIdentifier> SYM_TO_OID = new HashMap<String, ASN1ObjectIdentifier>(org.bouncycastle.asn1.x509.X509Name.DefaultLookUp);
+    private static final Map<String, ASN1ObjectIdentifier> SYM_TO_OID = new HashMap<String, ASN1ObjectIdentifier>(1000, 1);
     @SuppressWarnings("unchecked")
-    private static final Map<ASN1ObjectIdentifier, String> OID_TO_SYM = new HashMap<ASN1ObjectIdentifier, String>(org.bouncycastle.asn1.x509.X509Name.DefaultSymbols);
+    private static final Map<ASN1ObjectIdentifier, String> OID_TO_SYM = new HashMap<ASN1ObjectIdentifier, String>(1000, 1);
 
-    private static final Map<ASN1ObjectIdentifier, Integer> OID_TO_NID = new HashMap<ASN1ObjectIdentifier, Integer>();
-    private static final Map<Integer, ASN1ObjectIdentifier> NID_TO_OID = new HashMap<Integer, ASN1ObjectIdentifier>();
-    private static final Map<Integer, String> NID_TO_SN = new HashMap<Integer, String>();
-    private static final Map<Integer, String> NID_TO_LN = new HashMap<Integer, String>();
-
-    // seems no longer used
-    static Integer obj2nid(String oid) {
-        return obj2nid(new ASN1ObjectIdentifier(oid));
-    }
+    private static final Map<ASN1ObjectIdentifier, Integer> OID_TO_NID = new HashMap<ASN1ObjectIdentifier, Integer>(1000, 1);
+    private static final Map<Integer, ASN1ObjectIdentifier> NID_TO_OID = new HashMap<Integer, ASN1ObjectIdentifier>(1000, 1);
+    private static final Map<Integer, String> NID_TO_SN = new HashMap<Integer, String>(1000, 1);
+    private static final Map<Integer, String> NID_TO_LN = new HashMap<Integer, String>(1000, 1);
 
     @Deprecated
     public static Integer obj2nid(final ASN1ObjectIdentifier oid) {
@@ -92,17 +87,16 @@ public class ASN1Registry {
         return OID_TO_NID.get(SYM_TO_OID.get(name.toLowerCase()));
     }
 
-    static String nid2ln(int nid) {
-        return NID_TO_LN.get( Integer.valueOf(nid) );
-    }
-
     public static ASN1ObjectIdentifier nid2obj(int nid) {
         return NID_TO_OID.get(nid);
     }
 
-    // seems no longer used
-    static String nid2ln(Integer nid) {
+    public static String nid2ln(Integer nid) {
         return NID_TO_LN.get(nid);
+    }
+
+    public static String nid2sn(Integer nid) {
+        return NID_TO_SN.get(nid);
     }
 
     private static ASN1ObjectIdentifier addObject(final int nid, String sn, String ln, final String oid) {
@@ -493,6 +487,7 @@ public class ASN1Registry {
     public final static String LN_idea_ofb64 = "idea-ofb";
 
     public final static int    NID_pkcs9_emailAddress = 48;
+    public final static String SN_pkcs9_emailAddress = null; // "E";
     public final static String LN_pkcs9_emailAddress = "emailAddress";
     public final static String OBJ_pkcs9_emailAddress = OBJ_pkcs9 + ".1";
 
@@ -739,6 +734,7 @@ public class ASN1Registry {
     public final static String OBJ_surname = OBJ_X509 + ".4";
 
     public final static int    NID_initials = 101;
+    public final static String SN_initials = "I";
     public final static String LN_initials = "initials";
     public final static String OBJ_initials = OBJ_X509 + ".43";
 
@@ -753,10 +749,12 @@ public class ASN1Registry {
     public final static String OBJ_md5WithRSA = OBJ_algorithm + ".3";
 
     public final static int    NID_serialNumber = 105;
+    public final static String SN_serialNumber = "SN";
     public final static String LN_serialNumber = "serialNumber";
     public final static String OBJ_serialNumber = OBJ_X509 + ".5";
 
     public final static int    NID_title = 106;
+    public final static String SN_title = "T";
     public final static String LN_title = "title";
     public final static String OBJ_title = OBJ_X509 + ".12";
 
@@ -2416,6 +2414,7 @@ public class ASN1Registry {
     public final static String OBJ_id_hex_multipart_message = OBJ_mime_mhs_headings + ".2";
 
     public final static int    NID_generationQualifier = 509;
+    public final static String SN_generationQualifier = "generation";
     public final static String LN_generationQualifier = "generationQualifier";
     public final static String OBJ_generationQualifier = OBJ_X509 + ".44";
 
@@ -3021,6 +3020,7 @@ public class ASN1Registry {
     public final static String LN_des_ede3_cfb8 = "des-ede3-cfb8";
 
     public final static int    NID_streetAddress = 660;
+    public final static String SN_streetAddress = "street";
     public final static String LN_streetAddress = "streetAddress";
     public final static String OBJ_streetAddress = OBJ_X509 + ".9";
 
@@ -3443,7 +3443,7 @@ public class ASN1Registry {
         addObject(NID_des_ofb64, SN_des_ofb64, LN_des_ofb64, OBJ_des_ofb64); // NID: 45
         //addObject(NID_idea_ofb64, SN_idea_ofb64, LN_idea_ofb64, null); // NID: 46
         addObject(NID_pkcs9, SN_pkcs9, null, OBJ_pkcs9); // NID: 47
-        addObject(NID_pkcs9_emailAddress, null, LN_pkcs9_emailAddress, OBJ_pkcs9_emailAddress); // NID: 48
+        addObject(NID_pkcs9_emailAddress, SN_pkcs9_emailAddress, LN_pkcs9_emailAddress, OBJ_pkcs9_emailAddress); // NID: 48
         addObject(NID_pkcs9_unstructuredName, null, LN_pkcs9_unstructuredName, OBJ_pkcs9_unstructuredName); // NID: 49
         addObject(NID_pkcs9_contentType, null, LN_pkcs9_contentType, OBJ_pkcs9_contentType); // NID: 50
         addObject(NID_pkcs9_messageDigest, null, LN_pkcs9_messageDigest, OBJ_pkcs9_messageDigest); // NID: 51
@@ -3496,11 +3496,11 @@ public class ASN1Registry {
         addObject(NID_rc2_40_cbc, SN_rc2_40_cbc, LN_rc2_40_cbc, OBJ_rc2_40_cbc); // NID: 98
         addObject(NID_givenName, SN_givenName, LN_givenName, OBJ_givenName); // NID: 99
         addObject(NID_surname, SN_surname, LN_surname, OBJ_surname); // NID: 100
-        addObject(NID_initials, null, LN_initials, OBJ_initials); // NID: 101
+        addObject(NID_initials, SN_initials, LN_initials, OBJ_initials); // NID: 101
         addObject(NID_crl_distribution_points, SN_crl_distribution_points, LN_crl_distribution_points, OBJ_crl_distribution_points); // NID: 103
         addObject(NID_md5WithRSA, SN_md5WithRSA, LN_md5WithRSA, OBJ_md5WithRSA); // NID: 104
-        addObject(NID_serialNumber, null, LN_serialNumber, OBJ_serialNumber); // NID: 105
-        addObject(NID_title, null, LN_title, OBJ_title); // NID: 106
+        addObject(NID_serialNumber, SN_serialNumber, LN_serialNumber, OBJ_serialNumber); // NID: 105
+        addObject(NID_title, SN_title, LN_title, OBJ_title); // NID: 106
         addObject(NID_description, null, LN_description, OBJ_description); // NID: 107
         addObject(NID_cast5_cbc, SN_cast5_cbc, LN_cast5_cbc, OBJ_cast5_cbc); // NID: 108
         //addObject(NID_cast5_ecb, SN_cast5_ecb, LN_cast5_ecb, null); // NID: 109
@@ -3901,7 +3901,7 @@ public class ASN1Registry {
         addObject(NID_mime_mhs_bodies, SN_mime_mhs_bodies, LN_mime_mhs_bodies, OBJ_mime_mhs_bodies); // NID: 506
         addObject(NID_id_hex_partial_message, SN_id_hex_partial_message, LN_id_hex_partial_message, OBJ_id_hex_partial_message); // NID: 507
         addObject(NID_id_hex_multipart_message, SN_id_hex_multipart_message, LN_id_hex_multipart_message, OBJ_id_hex_multipart_message); // NID: 508
-        addObject(NID_generationQualifier, null, LN_generationQualifier, OBJ_generationQualifier); // NID: 509
+        addObject(NID_generationQualifier, SN_generationQualifier, LN_generationQualifier, OBJ_generationQualifier); // NID: 509
         addObject(NID_pseudonym, null, LN_pseudonym, OBJ_pseudonym); // NID: 510
         addObject(NID_id_set, SN_id_set, LN_id_set, OBJ_id_set); // NID: 512
         addObject(NID_set_ctype, SN_set_ctype, LN_set_ctype, OBJ_set_ctype); // NID: 513
@@ -4051,7 +4051,7 @@ public class ASN1Registry {
         //addObject(NID_des_cfb8, SN_des_cfb8, LN_des_cfb8, null); // NID: 657
         //addObject(NID_des_ede3_cfb1, SN_des_ede3_cfb1, LN_des_ede3_cfb1, null); // NID: 658
         //addObject(NID_des_ede3_cfb8, SN_des_ede3_cfb8, LN_des_ede3_cfb8, null); // NID: 659
-        addObject(NID_streetAddress, null, LN_streetAddress, OBJ_streetAddress); // NID: 660
+        addObject(NID_streetAddress, SN_streetAddress, LN_streetAddress, OBJ_streetAddress); // NID: 660
         addObject(NID_postalCode, null, LN_postalCode, OBJ_postalCode); // NID: 661
         addObject(NID_id_ppl, SN_id_ppl, null, OBJ_id_ppl); // NID: 662
         addObject(NID_proxyCertInfo, SN_proxyCertInfo, LN_proxyCertInfo, OBJ_proxyCertInfo); // NID: 663
@@ -4603,25 +4603,10 @@ public class ASN1Registry {
 //     public final static String LN_rc2_40_cbc = "rc2-40-cbc";
 //     public final static int NID_rc2_40_cbc = 98;
 
-//     public final static String SN_givenName = "G";
-//     public final static String LN_givenName = "givenName";
-//     public final static int NID_givenName = 99;
-//     public final static String OBJ_givenName = OBJ_X509+".42";
-
-//     public final static String SN_surname = "S";
-//     public final static String LN_surname = "surname";
-//     public final static int NID_surname = 100;
-//     public final static String OBJ_surname = OBJ_X509+".4";
-
-//     public final static String SN_initials = "I";
-//     public final static String LN_initials = "initials";
-//     public final static int NID_initials = 101;
-//     public final static String OBJ_initials = OBJ_X509+".43";
-
-//     public final static String SN_uniqueIdentifier = "UID";
-//     public final static String LN_uniqueIdentifier = "uniqueIdentifier";
-//     public final static int NID_uniqueIdentifier = 102;
-//     public final static String OBJ_uniqueIdentifier = OBJ_X509+".45";
+     public final static String SN_uniqueIdentifier = "UID";
+     public final static String LN_uniqueIdentifier = "uniqueIdentifier";
+     public final static int NID_uniqueIdentifier = 102;
+     public final static String OBJ_uniqueIdentifier = OBJ_X509+".45";
 
 //     public final static String SN_crl_distribution_points = "crlDistributionPoints";
 //     public final static String LN_crl_distribution_points = "X509v3 CRL Distribution Points";
@@ -4953,11 +4938,6 @@ public class ASN1Registry {
 //     public final static String SN_ext_req = "extReq";
 //     public final static int NID_ext_req = 172;
 //     public final static String OBJ_ext_req = OBJ_pkcs9+".14";
-
-//     public final static String SN_name = "name";
-//     public final static String LN_name = "name";
-//     public final static int NID_name = 173;
-//     public final static String OBJ_name = OBJ_X509+".41";
 
 //     public final static String SN_dnQualifier = "dnQualifier";
 //     public final static String LN_dnQualifier = "dnQualifier";
