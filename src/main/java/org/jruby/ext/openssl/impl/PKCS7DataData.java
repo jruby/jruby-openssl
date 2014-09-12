@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2008 Ola Bini <ola.bini@gmail.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -27,6 +27,7 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.impl;
 
+import java.util.Arrays;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.DEROctetString;
@@ -47,6 +48,7 @@ public class PKCS7DataData extends PKCS7Data {
         this.data = data;
     }
 
+    @Override
     public int getType() {
         return ASN1Registry.NID_pkcs7_data;
     }
@@ -68,22 +70,20 @@ public class PKCS7DataData extends PKCS7Data {
 
     @Override
     public String toString() {
-        return "#<Data " + new String(data.getOctets()) + ">";
+        return "#<Data " + Arrays.toString( data.getOctets() ) + ">";
     }
 
     /**
      * Data ::= OCTET STRING
      */
     public static PKCS7DataData fromASN1(ASN1Encodable content) {
-        if(content == null) {
-            return new PKCS7DataData();
-        }
-        return new PKCS7DataData((ASN1OctetString)content);
+        if ( content == null ) return new PKCS7DataData();
+        return new PKCS7DataData((ASN1OctetString) content);
     }
 
     @Override
     public ASN1Encodable asASN1() {
-        if(data == null) {
+        if ( data == null ) {
             return new DEROctetString(new byte[0]).toASN1Primitive();
         }
         return data.toASN1Primitive();
