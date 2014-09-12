@@ -154,13 +154,6 @@ public class Cipher extends RubyObject {
         if ( supportedCiphersInitialized ) return supportedCiphers;
         synchronized ( supportedCiphers ) {
             if ( supportedCiphersInitialized ) return supportedCiphers;
-            final String[] other = {
-                "AES128", "AES192", "AES256",
-                "BLOWFISH",
-                "RC2-40-CBC", "RC2-64-CBC",
-                "RC4", "RC4-40",
-                "CAST", "CAST-CBC"
-            };
             final String[] bases = {
                 "AES-128", "AES-192", "AES-256",
                 "BF", "DES", "DES-EDE", "DES-EDE3",
@@ -177,6 +170,13 @@ public class Cipher extends RubyObject {
                     }
                 }
             }
+            final String[] other = {
+                "AES128", "AES192", "AES256",
+                "BLOWFISH",
+                "RC2-40-CBC", "RC2-64-CBC",
+                "RC4", "RC4-40",
+                "CAST", "CAST-CBC"
+            };
             for ( int i = 0; i < other.length; i++ ) {
                 final String cipher = other[i];
                 if ( tryCipher( cipher ) ) {
@@ -188,7 +188,22 @@ public class Cipher extends RubyObject {
         }
     }
 
-    public static class Algorithm {
+    public static final class Algorithm {
+
+        final String cryptoBase;
+        final String cryptoVersion;
+        final String cryptoMode;
+        final String realName;
+        final String paddingType;
+
+        private Algorithm(String cryptoBase, String cryptoVersion, String cryptoMode,
+            String realName, String paddingType) {
+            this.cryptoBase = cryptoBase;
+            this.cryptoVersion = cryptoVersion;
+            this.cryptoMode = cryptoMode;
+            this.realName = realName;
+            this.paddingType = paddingType;
+        }
 
         private static final Set<String> BLOCK_MODES;
 
@@ -242,16 +257,33 @@ public class Cipher extends RubyObject {
             return algorithm;
         }
 
-        public static String[] osslToJsse(final String osslName) {
+        public static String getRealName(final String osslName) {
+            return osslToJsse(osslName).realName;
+        }
+
+        static Algorithm osslToJsse(final String osslName) {
             return osslToJsse(osslName, null); // assume PKCS5Padding
         }
 
-        public static String[] osslToJsse(final String osslName, final String padding) {
-            final String[] split = osslName.split("-");
-            String cryptoBase = split[0];
+        private static Algorithm osslToJsse(final String osslName, final String padding) {
+            String cryptoBase;
             String cryptoVersion = null;
-            String cryptoMode;
+            String cryptoMode = "CBC";
             String realName;
+
+            int s = osslName.indexOf('-'); int i = 0;
+            if (s == -1) { cryptoBase = osslName; }
+            else {
+                // final int len = osslName.length();
+                cryptoBase = osslName.substring(i, s);
+
+                s = osslName.indexOf('-', i = s + 1);
+                if (s == -1) cryptoMode = osslName.substring(i); // "base-mode"
+                else { // two separators :  "base-version-mode"
+                    cryptoVersion = osslName.substring(i, s);
+                    cryptoMode = osslName.substring(s + 1);
+                }
+            }
 
             String paddingType;
             if (padding == null || padding.equalsIgnoreCase("PKCS5Padding")) {
@@ -266,15 +298,6 @@ public class Cipher extends RubyObject {
 
             if ( "BF".equalsIgnoreCase(cryptoBase) ) {
                 cryptoBase = "Blowfish";
-            }
-
-            if (split.length == 3) {
-                cryptoVersion = split[1];
-                cryptoMode = split[2];
-            } else if (split.length == 2) {
-                cryptoMode = split[1];
-            } else {
-                cryptoMode = "CBC";
             }
 
             if ( "CAST".equalsIgnoreCase(cryptoBase) ) {
@@ -298,13 +321,13 @@ public class Cipher extends RubyObject {
                 realName = realName + "/" + cryptoMode + "/" + paddingType;
             }
 
-            return new String[]{ cryptoBase, cryptoVersion, cryptoMode, realName, paddingType };
+            return new Algorithm(cryptoBase, cryptoVersion, cryptoMode, realName, paddingType);
         }
 
         public static int[] osslKeyIvLength(final String cipherName) {
-            String[] name = Algorithm.osslToJsse(cipherName);
-            final String cryptoBaseUpper = name[0].toUpperCase();
-            final String cryptoVersion = name[1];
+            final Algorithm alg = Algorithm.osslToJsse(cipherName);
+            final String cryptoBaseUpper = alg.cryptoBase.toUpperCase();
+            final String cryptoVersion = alg.cryptoVersion;
             //final String cryptoMode = name[2];
             //final String realName = name[3];
 
@@ -353,7 +376,7 @@ public class Cipher extends RubyObject {
     }
 
     private static boolean tryCipher(final String osslName) {
-        String realName = Algorithm.osslToJsse(osslName, null)[3];
+        final String realName = Algorithm.getRealName(osslName);
         try {
             return getCipher(realName, true) != null;
         }
@@ -629,12 +652,12 @@ public class Cipher extends RubyObject {
         this.name = name.toUpperCase();
         this.padding = padding;
 
-        String[] values = Algorithm.osslToJsse(name, padding);
-        cryptoBase = values[0];
-        cryptoVersion = values[1];
-        cryptoMode = values[2];
-        realName = values[3];
-        padding_type = values[4];
+        final Algorithm alg = Algorithm.osslToJsse(name, padding);
+        cryptoBase = alg.cryptoBase;
+        cryptoVersion = alg.cryptoVersion;
+        cryptoMode = alg.cryptoMode;
+        realName = alg.realName;
+        padding_type = alg.paddingType;
 
         int[] lengths = Algorithm.osslKeyIvLength(name);
         keyLen = lengths[0];

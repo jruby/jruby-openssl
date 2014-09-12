@@ -34,22 +34,22 @@ public class CipherTest {
 
     @Test
     public void osslToJsse() {
-        String[] alg;
+        Cipher.Algorithm alg;
         alg = Cipher.Algorithm.osslToJsse("RC2-40-CBC");
-        assertEquals("RC2", alg[0]);
-        assertEquals("40", alg[1]);
-        assertEquals("CBC", alg[2]);
-        assertEquals("RC2/CBC/PKCS5Padding", alg[3]);
+        assertEquals("RC2", alg.cryptoBase);
+        assertEquals("40", alg.cryptoVersion);
+        assertEquals("CBC", alg.cryptoMode);
+        assertEquals("RC2/CBC/PKCS5Padding", alg.realName);
 
         alg = Cipher.Algorithm.osslToJsse("DES-EDE3-CBC");
-        assertEquals("DES", alg[0]);
-        assertEquals("EDE3", alg[1]);
-        assertEquals("CBC", alg[2]);
-        assertEquals("DESede/CBC/PKCS5Padding", alg[3]);
+        assertEquals("DES", alg.cryptoBase);
+        assertEquals("EDE3", alg.cryptoVersion);
+        assertEquals("CBC", alg.cryptoMode);
+        assertEquals("DESede/CBC/PKCS5Padding", alg.realName);
 
         alg = Cipher.Algorithm.osslToJsse("BF");
-        assertEquals("Blowfish", alg[0]);
-        assertEquals("Blowfish/CBC/PKCS5Padding", alg[3]);
+        assertEquals("Blowfish", alg.cryptoBase);
+        assertEquals("Blowfish/CBC/PKCS5Padding", alg.realName);
     }
 
     @Test

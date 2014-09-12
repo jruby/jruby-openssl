@@ -1104,8 +1104,8 @@ public class PEMInputOutput {
         if ( ! isSupportedCipher(algorithm) ) {
             throw new IOException("Unknown algorithm: " + algorithm);
         }
-        String[] cipherData = Algorithm.osslToJsse(algorithm);
-        String realName = cipherData[3];
+
+        String realName = Algorithm.getRealName(algorithm);
         int[] lengths = Algorithm.osslKeyIvLength(algorithm);
         int keyLen = lengths[0];
         int ivLen = lengths[1];
@@ -1148,8 +1148,9 @@ public class PEMInputOutput {
             CertificateFactory certFact = CertificateFactory.getInstance("X.509");
             ByteArrayInputStream bIn = new ByteArrayInputStream(Base64.decode(buf.toString()));
             return (X509Certificate) certFact.generateCertificate(bIn);
-        } catch (Exception e) {
-            throw new IOException("problem parsing cert: " + e.toString());
+        }
+        catch (Exception e) {
+            throw new IOException("problem parsing cert: " + e.toString(), e);
         }
     }
 

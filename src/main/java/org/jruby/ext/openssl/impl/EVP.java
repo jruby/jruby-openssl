@@ -39,6 +39,7 @@ import javax.crypto.NoSuchPaddingException;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 
 import org.jruby.ext.openssl.SecurityHelper;
+import static org.jruby.ext.openssl.Cipher.Algorithm;
 
 /**
  *
@@ -58,8 +59,7 @@ public class EVP {
     public static Cipher getCipher(ASN1ObjectIdentifier oid)
         throws NoSuchAlgorithmException, NoSuchPaddingException {
         String algorithm = getAlgorithmName(oid);
-        String[] cipher = org.jruby.ext.openssl.Cipher.Algorithm.osslToJsse(algorithm);
-        String realName = cipher[3];
+        String realName = Algorithm.getRealName(algorithm);
         return SecurityHelper.getCipher(realName);
     }
 
