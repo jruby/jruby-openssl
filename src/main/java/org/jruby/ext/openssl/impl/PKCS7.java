@@ -110,7 +110,7 @@ public class PKCS7 {
         return isSigned() && getDetached() != 0;
     }
 
-    private void initiateWith(Integer nid, ASN1Encodable content) throws PKCS7Exception {
+    private void initiateWith(int nid, ASN1Encodable content) throws PKCS7Exception {
         this.data = PKCS7Data.fromASN1(nid, content);
     }
 
@@ -141,7 +141,7 @@ public class PKCS7 {
             p7.setType(ASN1Registry.NID_undef);
         }
         else {
-            Integer nid = ASN1Registry.oid2nid(contentType);
+            final int nid = ASN1Registry.oid2nid(contentType);
 
             ASN1Encodable content = size == 1 ? (ASN1Encodable) null : ((ASN1Sequence) obj).getObjectAt(1);
 

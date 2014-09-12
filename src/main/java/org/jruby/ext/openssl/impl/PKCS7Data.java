@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2008 Ola Bini <ola.bini@gmail.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -140,8 +140,8 @@ public abstract class PKCS7Data {
         throw new PKCS7Exception(PKCS7.F_PKCS7_ADD_CRL,PKCS7.R_WRONG_CONTENT_TYPE);
     }
 
-    public static PKCS7Data fromASN1(Integer nid, ASN1Encodable content) throws PKCS7Exception {
-        switch(nid) {
+    public static PKCS7Data fromASN1(final int nid, ASN1Encodable content) throws PKCS7Exception {
+        switch (nid) {
         case ASN1Registry.NID_pkcs7_data:
             return PKCS7DataData.fromASN1(content);
         case ASN1Registry.NID_pkcs7_signed:
