@@ -61,3 +61,17 @@ if defined? JRUBY_VERSION # make sure our OpenSSL lib gets used not JRuby's
     $LOAD_PATH.unshift(File.expand_path('../../../lib', File.dirname(__FILE__)))
   end
 end
+
+if ENV['OPENSSL_TEST_SUITE'].to_s == 'true'
+
+  require 'jopenssl/load' if defined? JRUBY_VERSION
+
+  base = File.expand_path('../ossl', File.dirname(__FILE__))
+  if ( sub = RUBY_VERSION[0, 3] ) == '2.0'
+    sub = '1.9'
+  end
+  puts "loading (MRI) OpenSSL suite from: #{File.join(base, sub)}"
+  Dir.glob("#{File.join(base, sub)}/**/test_*.rb").each do |test|
+    require test
+  end
+end
