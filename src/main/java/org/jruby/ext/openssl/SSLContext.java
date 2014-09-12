@@ -51,13 +51,14 @@ import javax.net.ssl.X509TrustManager;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
+import org.jruby.RubyHash;
+import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.common.IRubyWarnings.ID;
-import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.BlockCallback;
@@ -77,7 +78,7 @@ import org.jruby.ext.openssl.x509store.X509Object;
 import org.jruby.ext.openssl.x509store.X509Utils;
 
 import static org.jruby.ext.openssl.StringHelper.*;
-import static org.jruby.ext.openssl.SSL._SSL;
+import static org.jruby.ext.openssl.SSL.*;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
 import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
@@ -87,7 +88,7 @@ import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
  */
 public class SSLContext extends RubyObject {
 
-    private static final long serialVersionUID = -6203496135962974777L;
+    private static final long serialVersionUID = -6955774230685920773L;
 
     // Mapping table for OpenSSL's SSL_METHOD -> JSSE's SSLContext algorithm.
     private static final HashMap<String, String> SSL_VERSION_OSSL2JSSE;
@@ -96,7 +97,7 @@ public class SSLContext extends RubyObject {
 
     static {
         SSL_VERSION_OSSL2JSSE = new LinkedHashMap<String, String>(16);
-        ENABLED_PROTOCOLS = new HashMap<String, String[]>(8);
+        ENABLED_PROTOCOLS = new HashMap<String, String[]>(8, 1);
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1", "TLSv1");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_server", "TLSv1");
@@ -161,11 +162,15 @@ public class SSLContext extends RubyObject {
         // in 1.8.7 as well as 1.9.3 :
         // [:TLSv1, :TLSv1_server, :TLSv1_client, :SSLv3, :SSLv3_server, :SSLv3_client, :SSLv23, :SSLv23_server, :SSLv23_client]
 
-        // MRI (1.9.3) has a bunch of SESSION_CACHE constants :
-        // :SESSION_CACHE_OFF, :SESSION_CACHE_CLIENT, :SESSION_CACHE_SERVER,
-        // :SESSION_CACHE_BOTH, :SESSION_CACHE_NO_AUTO_CLEAR, :SESSION_CACHE_NO_INTERNAL_LOOKUP,
-        // :SESSION_CACHE_NO_INTERNAL_STORE, :SESSION_CACHE_NO_INTERNAL,
-        //
+        _SSLContext.setConstant("SESSION_CACHE_OFF", runtime.newFixnum(SESSION_CACHE_OFF));
+        _SSLContext.setConstant("SESSION_CACHE_CLIENT", runtime.newFixnum(SESSION_CACHE_CLIENT));
+        _SSLContext.setConstant("SESSION_CACHE_SERVER", runtime.newFixnum(SESSION_CACHE_SERVER));
+        _SSLContext.setConstant("SESSION_CACHE_BOTH", runtime.newFixnum(SESSION_CACHE_BOTH));
+        _SSLContext.setConstant("SESSION_CACHE_NO_AUTO_CLEAR", runtime.newFixnum(SESSION_CACHE_NO_AUTO_CLEAR));
+        _SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_LOOKUP", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_LOOKUP));
+        _SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_STORE", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_STORE));
+        _SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL));
+
         // NOTE probably worth doing are :
         // OpenSSL::SSL::SSLContext::DEFAULT_CERT_STORE
         // => #<OpenSSL::X509::Store:0x00000001c69f48>
@@ -173,13 +178,18 @@ public class SSLContext extends RubyObject {
         // => {:ssl_version=>"SSLv23", :verify_mode=>1, :ciphers=>"ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM:+LOW", :options=>-2147480577}
     }
 
+    static final int SESSION_CACHE_OFF = 0;
+    static final int SESSION_CACHE_CLIENT = 1;
+    static final int SESSION_CACHE_SERVER = 2;
+    static final int SESSION_CACHE_BOTH = 3; // 1 | 2
+
+    static final int SESSION_CACHE_NO_AUTO_CLEAR = 128;
+    static final int SESSION_CACHE_NO_INTERNAL_LOOKUP = 256;
+    static final int SESSION_CACHE_NO_INTERNAL_STORE = 512;
+    static final int SESSION_CACHE_NO_INTERNAL = 768;
+
     public SSLContext(Ruby runtime, RubyClass type) {
         super(runtime,type);
-    }
-
-    public static RaiseException newSSLError(Ruby runtime, String message) {
-        final RubyModule _SSL = (RubyModule) runtime.getModule("OpenSSL").getConstant("SSL");
-        return Utils.newError(runtime, _SSL.getClass("SSLError"), message, false);
     }
 
     private String ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
@@ -188,12 +198,16 @@ public class SSLContext extends RubyObject {
     private boolean protocolForClient = true;
     private PKey t_key;
     private X509Cert t_cert;
+
     /* TODO: should move to SSLSession after implemented */
     private int verifyResult = 1; /* avoid 0 (= X509_V_OK) just in case */
 
+    private int sessionCacheMode; // 2
+    private int sessionCacheSize; // 20480
+
     private InternalContext internalContext;
 
-    @JRubyMethod(rest=true, visibility = Visibility.PRIVATE)
+    @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(IRubyObject[] args) {
         return this;
     }
@@ -277,8 +291,10 @@ public class SSLContext extends RubyObject {
                 if (internalContext.store.loadLocations(caFile, caPath) == 0) {
                     runtime.getWarnings().warn(ID.MISCELLANEOUS, "can't set verify locations");
                 }
-            } catch (Exception e) {
-                throw newSSLError(runtime, e.getMessage());
+            }
+            catch (Exception e) {
+                if ( e instanceof RuntimeException ) debugStackTrace(runtime, e);
+                throw newSSLError(runtime, e);
             }
         }
 
@@ -308,39 +324,40 @@ public class SSLContext extends RubyObject {
         }
 
         /* TODO: should be implemented for SSLSession
-    val = ossl_sslctx_get_sess_id_ctx(self);
-    if (!NIL_P(val)){
-        StringValue(val);
-        if (!SSL_CTX_set_session_id_context(ctx, (unsigned char *)RSTRING_PTR(val),
-                                            RSTRING_LEN(val))){
-            ossl_raise(eSSLError, "SSL_CTX_set_session_id_context:");
+        val = ossl_sslctx_get_sess_id_ctx(self);
+        if (!NIL_P(val)){
+            StringValue(val);
+            if (!SSL_CTX_set_session_id_context(ctx, (unsigned char *)RSTRING_PTR(val),
+                                                RSTRING_LEN(val))){
+                ossl_raise(eSSLError, "SSL_CTX_set_session_id_context:");
+            }
         }
-    }
 
-    if (RTEST(rb_iv_get(self, "@session_get_cb"))) {
-        SSL_CTX_sess_set_get_cb(ctx, ossl_sslctx_session_get_cb);
-        OSSL_Debug("SSL SESSION get callback added");
-    }
-    if (RTEST(rb_iv_get(self, "@session_new_cb"))) {
-        SSL_CTX_sess_set_new_cb(ctx, ossl_sslctx_session_new_cb);
-        OSSL_Debug("SSL SESSION new callback added");
-    }
-    if (RTEST(rb_iv_get(self, "@session_remove_cb"))) {
-        SSL_CTX_sess_set_remove_cb(ctx, ossl_sslctx_session_remove_cb);
-        OSSL_Debug("SSL SESSION remove callback added");
-    }
+        if (RTEST(rb_iv_get(self, "@session_get_cb"))) {
+            SSL_CTX_sess_set_get_cb(ctx, ossl_sslctx_session_get_cb);
+            OSSL_Debug("SSL SESSION get callback added");
+        }
+        if (RTEST(rb_iv_get(self, "@session_new_cb"))) {
+            SSL_CTX_sess_set_new_cb(ctx, ossl_sslctx_session_new_cb);
+            OSSL_Debug("SSL SESSION new callback added");
+        }
+        if (RTEST(rb_iv_get(self, "@session_remove_cb"))) {
+            SSL_CTX_sess_set_remove_cb(ctx, ossl_sslctx_session_remove_cb);
+            OSSL_Debug("SSL SESSION remove callback added");
+        }
 
-    val = rb_iv_get(self, "@servername_cb");
-    if (!NIL_P(val)) {
-        SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
-        OSSL_Debug("SSL TLSEXT servername callback added");
-    }
-         */
+        val = rb_iv_get(self, "@servername_cb");
+        if (!NIL_P(val)) {
+            SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
+            OSSL_Debug("SSL TLSEXT servername callback added");
+        }
+        */
 
         try {
             internalContext.init();
-        } catch(GeneralSecurityException gse) {
-            throw newSSLError(runtime, gse.getMessage());
+        }
+        catch (GeneralSecurityException e) {
+            throw newSSLError(runtime, e);
         }
         return runtime.getTrue();
     }
@@ -418,6 +435,42 @@ public class SSLContext extends RubyObject {
         protocolForServer = ! versionStr.endsWith("_client");
         protocolForClient = ! versionStr.endsWith("_server");
         return version;
+    }
+
+    // NOTE: mostly stubs since SSL session (cache) not yet implemented :
+
+    @JRubyMethod(name = "session_cache_mode")
+    public IRubyObject session_cache_mode() {
+        return getRuntime().newFixnum(sessionCacheMode);
+    }
+
+    @JRubyMethod(name = "session_cache_mode=")
+    public IRubyObject set_session_cache_mode(IRubyObject mode) {
+        this.sessionCacheMode = RubyInteger.fix2int(mode);
+        return mode;
+    }
+
+    @JRubyMethod(name = "session_cache_size")
+    public IRubyObject session_cache_size() {
+        return getRuntime().newFixnum(sessionCacheSize);
+    }
+
+    @JRubyMethod(name = "session_cache_size=")
+    public IRubyObject set_session_cache_size(IRubyObject size) {
+        this.sessionCacheSize = RubyInteger.fix2int(size);
+        return size;
+    }
+
+    @JRubyMethod(name = "session_cache_stats")
+    public RubyHash session_cache_stats(final ThreadContext context) {
+        // TODO: session cache NOT IMPLEMENTED
+
+        // { :connect_renegotiate=>0, :cache_full=>0, :accept_good=>0,
+        //   :connect=>0, :timeouts=>0, :accept_renegotiate=>0, :accept=>0,
+        //   :cache_hits=>0, :cache_num=>0, :cb_hits=>0, :connect_good=>0,
+        //   :cache_misses=>0 }
+
+        return RubyHash.newHash(context.runtime);
     }
 
     boolean isProtocolForServer() {
