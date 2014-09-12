@@ -18,12 +18,6 @@
 #
 #++
 
-module OpenSSL
-  class BN
-    include Comparable
-  end # BN
-end # OpenSSL
-
 ##
 # Add double dispatch to Integer
 #

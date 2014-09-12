@@ -93,13 +93,13 @@ public class BN extends RubyObject {
     //    return new BN(runtime, BigInteger.valueOf(value));
     //}
 
-    public static void createBN(Ruby runtime, RubyModule ossl) {
-        RubyClass openSSLError = ossl.getClass("OpenSSLError");
-        ossl.defineClassUnder("BNError", openSSLError, openSSLError.getAllocator());
+    public static void createBN(final Ruby runtime, final RubyModule OpenSSL) {
+        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
+        OpenSSL.defineClassUnder("BNError", OpenSSLError, OpenSSLError.getAllocator());
 
-        RubyClass bn = ossl.defineClassUnder("BN", runtime.getObject(), BN_ALLOCATOR);
-
-        bn.defineAnnotatedMethods(BN.class);
+        RubyClass BN = OpenSSL.defineClassUnder("BN", runtime.getObject(), BN_ALLOCATOR);
+        BN.includeModule( runtime.getModule("Comparable") );
+        BN.defineAnnotatedMethods(BN.class);
     }
 
     private volatile BigInteger value;

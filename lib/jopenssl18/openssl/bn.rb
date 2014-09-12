@@ -15,16 +15,6 @@
 =end
 
 ##
-# Should we care what if somebody require this file directly?
-#require 'openssl'
-
-module OpenSSL
-  class BN
-    include Comparable
-  end # BN
-end # OpenSSL
-
-##
 # Add double dispatch to Integer
 #
 class Integer
