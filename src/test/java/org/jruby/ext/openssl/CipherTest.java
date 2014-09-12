@@ -35,21 +35,44 @@ public class CipherTest {
     @Test
     public void osslToJsse() {
         Cipher.Algorithm alg;
-        alg = Cipher.Algorithm.osslToJsse("RC2-40-CBC");
-        assertEquals("RC2", alg.cryptoBase);
-        assertEquals("40", alg.cryptoVersion);
-        assertEquals("CBC", alg.cryptoMode);
+        alg = Cipher.Algorithm.osslToJava("RC2-40-CBC");
+        assertEquals("RC2", alg.base);
+        assertEquals("40", alg.version);
+        assertEquals("CBC", alg.mode);
         assertEquals("RC2/CBC/PKCS5Padding", alg.realName);
 
-        alg = Cipher.Algorithm.osslToJsse("DES-EDE3-CBC");
-        assertEquals("DES", alg.cryptoBase);
-        assertEquals("EDE3", alg.cryptoVersion);
-        assertEquals("CBC", alg.cryptoMode);
+        alg = Cipher.Algorithm.osslToJava("DES-EDE3-CBC");
+        assertEquals("DES", alg.base);
+        assertEquals("EDE3", alg.version);
+        assertEquals("CBC", alg.mode);
         assertEquals("DESede/CBC/PKCS5Padding", alg.realName);
 
-        alg = Cipher.Algorithm.osslToJsse("BF");
-        assertEquals("Blowfish", alg.cryptoBase);
+        alg = Cipher.Algorithm.osslToJava("BF");
+        assertEquals("Blowfish", alg.base);
         assertEquals("Blowfish/CBC/PKCS5Padding", alg.realName);
+
+        alg = Cipher.Algorithm.osslToJava("AES-128-XTS");
+        assertEquals("AES", alg.base);
+        assertEquals("128", alg.version);
+        assertEquals("XTS", alg.mode);
+        assertEquals("PKCS5Padding", alg.padding);
+        assertEquals("AES/XTS/PKCS5Padding", alg.realName);
+
+        alg = Cipher.Algorithm.osslToJava("AES256");
+        assertEquals("AES256", alg.base);
+        assertEquals(null, alg.version);
+        assertEquals("CBC", alg.mode);
+        assertEquals("PKCS5Padding", alg.padding);
+        assertEquals("AES256/CBC/PKCS5Padding", alg.realName);
+
+        alg = Cipher.Algorithm.osslToJava("AES-256-CBC-HMAC-SHA1");
+        assertEquals("AES", alg.base);
+
+        assertEquals("CBC", alg.mode);
+        assertEquals("256", alg.version);
+
+        assertEquals("PKCS5Padding", alg.padding);
+        assertEquals("AES/CBC/PKCS5Padding", alg.realName);
     }
 
     @Test

@@ -157,7 +157,9 @@ public class Cipher extends RubyObject {
             final String[] bases = {
                 "AES-128", "AES-192", "AES-256",
                 "BF", "DES", "DES-EDE", "DES-EDE3",
-                "RC2", "CAST5"
+                "RC2", "CAST5",
+                "CAMELLIA-128", "CAMELLIA-192", "CAMELLIA-256",
+                "SEED",
             };
             final String[] suffixes = {
                 "", "-CBC", "-CFB", "-CFB1", "-CFB8", "-ECB", "-OFB"
@@ -190,31 +192,35 @@ public class Cipher extends RubyObject {
 
     public static final class Algorithm {
 
-        final String cryptoBase;
-        final String cryptoVersion;
-        final String cryptoMode;
+        final String base; // DES
+        final String version; // EDE3
+        final String mode; // CBC
+        final String padding; // PKCS5Padding
         final String realName;
-        final String paddingType;
 
         private Algorithm(String cryptoBase, String cryptoVersion, String cryptoMode,
-            String realName, String paddingType) {
-            this.cryptoBase = cryptoBase;
-            this.cryptoVersion = cryptoVersion;
-            this.cryptoMode = cryptoMode;
+            String realName, String padding) {
+            this.base = cryptoBase;
+            this.version = cryptoVersion;
+            this.mode = cryptoMode;
             this.realName = realName;
-            this.paddingType = paddingType;
+            this.padding = padding;
         }
 
         private static final Set<String> BLOCK_MODES;
 
         static {
-            BLOCK_MODES = new HashSet<String>(8, 1);
+            BLOCK_MODES = new HashSet<String>();
             BLOCK_MODES.add("CBC");
             BLOCK_MODES.add("CFB");
             BLOCK_MODES.add("CFB1");
             BLOCK_MODES.add("CFB8");
             BLOCK_MODES.add("ECB");
             BLOCK_MODES.add("OFB");
+            BLOCK_MODES.add("CTR");
+            BLOCK_MODES.add("CTS"); // not supported by OpenSSL
+            BLOCK_MODES.add("PCBC"); // not supported by OpenSSL
+            BLOCK_MODES.add("NONE"); // valid to pass into JCE
         }
 
         public static String jsseToOssl(final String cipherName, final int keyLen) {
@@ -268,32 +274,50 @@ public class Cipher extends RubyObject {
         private static Algorithm osslToJsse(final String osslName, final String padding) {
             String cryptoBase;
             String cryptoVersion = null;
-            String cryptoMode = "CBC";
+            String cryptoMode = "CBC"; // default
             String realName;
 
             int s = osslName.indexOf('-'); int i = 0;
             if (s == -1) { cryptoBase = osslName; }
             else {
-                // final int len = osslName.length();
                 cryptoBase = osslName.substring(i, s);
 
                 s = osslName.indexOf('-', i = s + 1);
                 if (s == -1) cryptoMode = osslName.substring(i); // "base-mode"
                 else { // two separators :  "base-version-mode"
                     cryptoVersion = osslName.substring(i, s);
-                    cryptoMode = osslName.substring(s + 1);
+                    //cryptoMode = osslName.substring(s + 1);
+                    s = osslName.indexOf('-', i = s + 1);
+                    if (s == -1) {
+                        cryptoMode = osslName.substring(i);
+                    }
+                    else {
+                        cryptoMode = osslName.substring(i, s);
+                    }
                 }
             }
 
             String paddingType;
             if (padding == null || padding.equalsIgnoreCase("PKCS5Padding")) {
                 paddingType = "PKCS5Padding";
-            } else if (padding.equals("0") || padding.equalsIgnoreCase("NoPadding")) {
+            }
+            else if (padding.equals("0") || padding.equalsIgnoreCase("NoPadding")) {
                 paddingType = "NoPadding";
-            } else if (padding.equalsIgnoreCase("ISO10126Padding")) {
+            }
+            else if (padding.equalsIgnoreCase("ISO10126Padding")) {
                 paddingType = "ISO10126Padding";
-            } else {
-                paddingType = "PKCS5Padding";
+            }
+            else if (padding.equalsIgnoreCase("PKCS1Padding")) {
+                paddingType = "PKCS1Padding";
+            }
+            else if (padding.equalsIgnoreCase("SSL3Padding")) {
+                paddingType = "SSL3Padding";
+            }
+            //else if (padding.equalsIgnoreCase("OAEPPadding")) {
+            //    paddingType = "OAEPPadding";
+            //}
+            else {
+                paddingType = "PKCS5Padding"; // default
             }
 
             if ( "BF".equalsIgnoreCase(cryptoBase) ) {
@@ -310,15 +334,19 @@ public class Cipher extends RubyObject {
 
             final String cryptoModeUpper = cryptoMode.toUpperCase();
             if ( ! BLOCK_MODES.contains(cryptoModeUpper) ) {
-                cryptoVersion = cryptoMode; cryptoMode = "CBC";
-            } else if ( "CFB1".equals(cryptoModeUpper) ) {
-                cryptoMode = "CFB"; // uglish SunJCE cryptoMode normalization
+                if ( ! "XTS".equals(cryptoModeUpper) ) { // valid but likely not supported in JCE
+                    cryptoVersion = cryptoMode; cryptoMode = "CBC";
+                }
+            }
+            else if ( "CFB1".equals(cryptoModeUpper) ) {
+                cryptoMode = "CFB"; // uglish SunJCE mode normalization
             }
 
             if ( "RC4".equalsIgnoreCase(realName) ) {
                 realName = "RC4"; cryptoMode = "NONE"; paddingType = "NoPadding";
-            } else {
-                realName = realName + "/" + cryptoMode + "/" + paddingType;
+            }
+            else {
+                realName = realName + '/' + cryptoMode + '/' + paddingType;
             }
 
             return new Algorithm(cryptoBase, cryptoVersion, cryptoMode, realName, paddingType);
@@ -326,9 +354,9 @@ public class Cipher extends RubyObject {
 
         public static int[] osslKeyIvLength(final String cipherName) {
             final Algorithm alg = Algorithm.osslToJsse(cipherName);
-            final String cryptoBaseUpper = alg.cryptoBase.toUpperCase();
-            final String cryptoVersion = alg.cryptoVersion;
-            //final String cryptoMode = name[2];
+            final String cryptoBaseUpper = alg.base.toUpperCase();
+            final String cryptoVersion = alg.version;
+            //final String mode = name[2];
             //final String realName = name[3];
 
             int keyLen = -1; int ivLen = -1;
@@ -409,7 +437,7 @@ public class Cipher extends RubyObject {
     private String cryptoBase;
     private String cryptoVersion;
     private String cryptoMode;
-    private String padding_type;
+    private String paddingType;
     private String realName;
     private int keyLen = -1;
     private int generateKeyLen = -1;
@@ -428,7 +456,7 @@ public class Cipher extends RubyObject {
         out.println("cryptoBase = " + cryptoBase);
         out.println("cryptoVersion = " + cryptoVersion);
         out.println("cryptoMode = " + cryptoMode);
-        out.println("padding_type = " + padding_type);
+        out.println("padding_type = " + paddingType);
         out.println("realName = " + realName);
         out.println("keyLen = " + keyLen);
         out.println("ivLen = " + ivLen);
@@ -470,7 +498,7 @@ public class Cipher extends RubyObject {
         cryptoBase = other.cryptoBase;
         cryptoVersion = other.cryptoVersion;
         cryptoMode = other.cryptoMode;
-        padding_type = other.padding_type;
+        paddingType = other.paddingType;
         realName = other.realName;
         name = other.name;
         keyLen = other.keyLen;
@@ -653,11 +681,11 @@ public class Cipher extends RubyObject {
         this.padding = padding;
 
         final Algorithm alg = Algorithm.osslToJsse(name, padding);
-        cryptoBase = alg.cryptoBase;
-        cryptoVersion = alg.cryptoVersion;
-        cryptoMode = alg.cryptoMode;
+        cryptoBase = alg.base;
+        cryptoVersion = alg.version;
+        cryptoMode = alg.mode;
         realName = alg.realName;
-        padding_type = alg.paddingType;
+        paddingType = alg.padding;
 
         int[] lengths = Algorithm.osslKeyIvLength(name);
         keyLen = lengths[0];
