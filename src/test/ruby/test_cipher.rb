@@ -22,10 +22,12 @@ class TestCipher < TestCase
     OpenSSL::Cipher::BF.new 'ECB'
 
     OpenSSL::Cipher::DES.new 'OFB'
+    OpenSSL::Cipher::DES.new :EDE3, "CBC"
 
     assert_raise_cipher_error { OpenSSL::Cipher::DES.new '3X3' }
 
     OpenSSL::Cipher::RC2.new '64', 'CBC'
+    OpenSSL::Cipher::RC2.new 'ECB'
 
     OpenSSL::Cipher::RC4.new '40'
   end
@@ -35,6 +37,13 @@ class TestCipher < TestCase
     OpenSSL::Cipher::AES192.new 'CFB'
     OpenSSL::Cipher::AES256.new
     assert_raise_cipher_error { OpenSSL::Cipher::AES256.new 'XXX' }
+  end
+
+  def test_instantiate_supported_ciphers
+    OpenSSL::Cipher.ciphers.each do |cipher_name|
+      OpenSSL::Cipher.new cipher_name
+    end
+    # puts OpenSSL::Cipher.ciphers.size
   end
 
   def assert_raise_cipher_error(&block)

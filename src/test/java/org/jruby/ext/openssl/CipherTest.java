@@ -63,7 +63,7 @@ public class CipherTest {
         assertEquals(null, alg.version);
         assertEquals("CBC", alg.mode);
         assertEquals("PKCS5Padding", alg.padding);
-        assertEquals("AES256/CBC/PKCS5Padding", alg.realName);
+        assertEquals("AES/CBC/PKCS5Padding", alg.realName);
 
         alg = Cipher.Algorithm.osslToJava("AES-256-CBC-HMAC-SHA1");
         assertEquals("AES", alg.base);

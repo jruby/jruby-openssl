@@ -150,7 +150,7 @@ public class Cipher extends RubyObject {
     }
 
     private static boolean supportedCiphersInitialized = false;
-    static final Collection<String> supportedCiphers = new LinkedHashSet<String>(120, 1);
+    static final Collection<String> supportedCiphers = new LinkedHashSet<String>(128, 1);
 
     private static Collection<String> getSupportedCiphers() {
         if ( supportedCiphersInitialized ) return supportedCiphers;
@@ -162,7 +162,7 @@ public class Cipher extends RubyObject {
             final String[] bases = {
                 "AES-128", "AES-192", "AES-256",
                 "BF", "DES", "DES-EDE", "DES-EDE3",
-                "RC2", "CAST5",
+                "RC2", "CAST5", "CAST6",
                 "Camellia-128", "Camellia-192", "Camellia-256",
                 "SEED",
             };
@@ -177,15 +177,35 @@ public class Cipher extends RubyObject {
                     }
                 }
             }
+            // special cases :
             final String[] other = {
                 "AES128", "AES192", "AES256",
                 "BLOWFISH",
+                "CAST", "CAST-CBC",
                 "RC2-40-CBC", "RC2-64-CBC",
                 "RC4", "RC4-40", // "RC4-HMAC-MD5",
-                "CAST", "CAST-CBC"
             };
+            if ( supportedCiphers.contains("AES-128") ) {
+                other[0] = null; supportedCiphers.add("AES128");
+            }
+            if ( supportedCiphers.contains("AES-192") ) {
+                other[1] = null; supportedCiphers.add("AES192");
+            }
+            if ( supportedCiphers.contains("AES-256") ) {
+                other[2] = null; supportedCiphers.add("AES256");
+            }
+            if ( supportedCiphers.contains("BF") ) {
+                other[3] = null; supportedCiphers.add("BLOWFISH");
+            }
+            if ( supportedCiphers.contains("CAST5") ) {
+                other[4] = null; supportedCiphers.add("CAST");
+            }
+            if ( supportedCiphers.contains("CAST5-CBC") ) {
+                other[5] = null; supportedCiphers.add("CAST-CBC");
+            }
             for ( int i = 0; i < other.length; i++ ) {
                 final String cipher = other[i];
+                if ( cipher == null ) continue;
                 if ( supportedCipher( cipher, services ) ) {
                     supportedCiphers.add( cipher.toUpperCase() );
                 }
@@ -197,7 +217,7 @@ public class Cipher extends RubyObject {
 
     private static boolean supportedCipher(final String osslName,
         final Collection<Provider.Service> services) {
-        final Algorithm alg = Algorithm.osslToJava(osslName);
+        final Algorithm alg = Algorithm.osslToJava(osslName, null, null);
 
         for ( final Provider.Service service : services ) {
             if ( alg.base.equalsIgnoreCase( service.getAlgorithm() ) ) {
@@ -342,10 +362,15 @@ public class Cipher extends RubyObject {
             return osslToJava(osslName, null); // assume PKCS5Padding
         }
 
-        private static Algorithm osslToJava(final String osslName, final String padding) {
+        static Algorithm osslToJava(final String osslName, final String padding) {
+            return osslToJava(osslName, padding, "CBC");
+        }
+
+        private static Algorithm osslToJava(final String osslName, final String padding,
+            final String defaultCryptoMode) {
             String cryptoBase;
             String cryptoVersion = null;
-            String cryptoMode = "CBC"; // default
+            String cryptoMode = defaultCryptoMode;
             String realName;
 
             int s = osslName.indexOf('-'); int i = 0;
@@ -391,33 +416,51 @@ public class Cipher extends RubyObject {
                 paddingType = "PKCS5Padding"; // default
             }
 
-            if ( "BF".equalsIgnoreCase(cryptoBase) ) {
+            final String cryptoBaseUpper = cryptoBase.toUpperCase();
+            if ( "BF".equals(cryptoBaseUpper) ) {
                 cryptoBase = "Blowfish";
             }
 
-            if ( "CAST".equalsIgnoreCase(cryptoBase) ) {
+            if ( "CAST".equals(cryptoBaseUpper) ) {
                 realName = "CAST5";
-            } else if ( "DES".equalsIgnoreCase(cryptoBase) && "EDE3".equalsIgnoreCase(cryptoVersion) ) {
+            }
+            else if ( "DES".equals(cryptoBaseUpper) && "EDE3".equalsIgnoreCase(cryptoVersion) ) {
                 realName = "DESede";
-            } else {
+            }
+            else if ( cryptoBaseUpper.length() > 3 && cryptoBaseUpper.startsWith("AES") ) {
+                if ( "AES128".equals(cryptoBaseUpper) ||
+                     "AES192".equals(cryptoBaseUpper) ||
+                     "AES256".equals(cryptoBaseUpper) ) realName = "AES";
+                else realName = cryptoBase;
+            }
+            else {
                 realName = cryptoBase;
             }
 
-            final String cryptoModeUpper = cryptoMode.toUpperCase();
-            if ( ! BLOCK_MODES.contains(cryptoModeUpper) ) {
-                if ( ! "XTS".equals(cryptoModeUpper) ) { // valid but likely not supported in JCE
-                    cryptoVersion = cryptoMode; cryptoMode = "CBC";
+            if ( cryptoMode != null ) {
+                final String cryptoModeUpper = cryptoMode.toUpperCase();
+                if ( ! BLOCK_MODES.contains(cryptoModeUpper) ) {
+                    if ( ! "XTS".equals(cryptoModeUpper) ) { // valid but likely not supported in JCE
+                        cryptoVersion = cryptoMode; cryptoMode = "CBC";
+                    }
+                }
+                else if ( "CFB1".equals(cryptoModeUpper) ) {
+                    cryptoMode = "CFB"; // uglish SunJCE mode normalization
+                }
+
+                if ( "RC4".equalsIgnoreCase(realName) ) {
+                    realName = "RC4"; cryptoMode = "NONE"; paddingType = "NoPadding";
+                }
+                else {
+                    realName = realName + '/' + cryptoMode + '/' + paddingType;
                 }
             }
-            else if ( "CFB1".equals(cryptoModeUpper) ) {
-                cryptoMode = "CFB"; // uglish SunJCE mode normalization
-            }
-
-            if ( "RC4".equalsIgnoreCase(realName) ) {
-                realName = "RC4"; cryptoMode = "NONE"; paddingType = "NoPadding";
-            }
             else {
-                realName = realName + '/' + cryptoMode + '/' + paddingType;
+                if ( padding != null ) {
+                    realName = realName + '/' + "NONE" + '/' + paddingType;
+                }
+                else paddingType = null;
+                // else realName is cryptoBase
             }
 
             return new Algorithm(cryptoBase, cryptoVersion, cryptoMode, realName, paddingType);
@@ -427,8 +470,6 @@ public class Cipher extends RubyObject {
             final Algorithm alg = Algorithm.osslToJava(cipherName);
             final String cryptoBaseUpper = alg.base.toUpperCase();
             final String cryptoVersion = alg.version;
-            //final String mode = name[2];
-            //final String realName = name[3];
 
             int keyLen = -1; int ivLen = -1;
 
