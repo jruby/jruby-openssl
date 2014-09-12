@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -57,13 +58,13 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 import org.jruby.util.ByteList;
 
-import static org.jruby.ext.openssl.OpenSSL.isDebug;
+import static org.jruby.ext.openssl.OpenSSL.*;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class Cipher extends RubyObject {
-    private static final long serialVersionUID = 7727377435222646536L;
+    private static final long serialVersionUID = -5390983669951165103L;
 
     private static ObjectAllocator CIPHER_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
@@ -71,11 +72,57 @@ public class Cipher extends RubyObject {
         }
     };
 
-    public static void createCipher(final Ruby runtime, final RubyModule _OpenSSL) {
-        RubyClass _Cipher = _OpenSSL.defineClassUnder("Cipher", runtime.getObject(), CIPHER_ALLOCATOR);
-        _Cipher.defineAnnotatedMethods(Cipher.class);
-        RubyClass _OpenSSLError = _OpenSSL.getClass("OpenSSLError");
-        _Cipher.defineClassUnder("CipherError", _OpenSSLError, _OpenSSLError.getAllocator());
+    public static void createCipher(final Ruby runtime, final RubyModule OpenSSL) {
+        final RubyClass Cipher = OpenSSL.defineClassUnder("Cipher", runtime.getObject(), CIPHER_ALLOCATOR);
+        Cipher.defineAnnotatedMethods(Cipher.class);
+        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
+        Cipher.defineClassUnder("CipherError", OpenSSLError, OpenSSLError.getAllocator());
+
+        String cipherName;
+
+        cipherName = "AES"; // OpenSSL::Cipher::AES
+        Cipher.defineClassUnder(cipherName, Cipher, new NamedCipherAllocator(cipherName))
+              .defineAnnotatedMethods(Named.class);
+
+        cipherName = "CAST5"; // OpenSSL::Cipher::CAST5
+        Cipher.defineClassUnder(cipherName, Cipher, new NamedCipherAllocator(cipherName))
+              .defineAnnotatedMethods(Named.class);
+
+        cipherName = "BF"; // OpenSSL::Cipher::BF
+        Cipher.defineClassUnder(cipherName, Cipher, new NamedCipherAllocator(cipherName))
+              .defineAnnotatedMethods(Named.class);
+
+        cipherName = "DES"; // OpenSSL::Cipher::DES
+        Cipher.defineClassUnder(cipherName, Cipher, new NamedCipherAllocator(cipherName))
+              .defineAnnotatedMethods(Named.class);
+
+        cipherName = "IDEA"; // OpenSSL::Cipher::IDEA
+        Cipher.defineClassUnder(cipherName, Cipher, new NamedCipherAllocator(cipherName))
+              .defineAnnotatedMethods(Named.class);
+
+        cipherName = "RC2"; // OpenSSL::Cipher::RC2
+        Cipher.defineClassUnder(cipherName, Cipher, new NamedCipherAllocator(cipherName))
+              .defineAnnotatedMethods(Named.class);
+
+        cipherName = "RC4"; // OpenSSL::Cipher::RC4
+        Cipher.defineClassUnder(cipherName, Cipher, new NamedCipherAllocator(cipherName))
+              .defineAnnotatedMethods(Named.class);
+
+        cipherName = "RC5"; // OpenSSL::Cipher::RC5
+        Cipher.defineClassUnder(cipherName, Cipher, new NamedCipherAllocator(cipherName))
+              .defineAnnotatedMethods(Named.class);
+
+        String keyLength;
+
+        keyLength = "128"; // OpenSSL::Cipher::AES128
+        Cipher.defineClassUnder("AES" + keyLength, Cipher, new AESCipherAllocator(keyLength))
+              .defineAnnotatedMethods(AES.class);
+        keyLength = "192"; // OpenSSL::Cipher::AES192
+        Cipher.defineClassUnder("AES" + keyLength, Cipher, new AESCipherAllocator(keyLength))
+              .defineAnnotatedMethods(AES.class);
+        keyLength = "256"; // OpenSSL::Cipher::AES256
+        Cipher.defineClassUnder("AES" + keyLength, Cipher, new AESCipherAllocator(keyLength))
+              .defineAnnotatedMethods(AES.class);
     }
 
     static RubyClass _Cipher(final Ruby runtime) {
@@ -146,7 +193,7 @@ public class Cipher extends RubyObject {
         private static final Set<String> BLOCK_MODES;
 
         static {
-            BLOCK_MODES = new HashSet<String>(8);
+            BLOCK_MODES = new HashSet<String>(8, 1);
             BLOCK_MODES.add("CBC");
             BLOCK_MODES.add("CFB");
             BLOCK_MODES.add("CFB1");
@@ -346,7 +393,7 @@ public class Cipher extends RubyObject {
     private int ivLen = -1;
     private boolean encryptMode = true;
     //private IRubyObject[] modeParams;
-    private boolean ciphInited = false;
+    private boolean cipherInited = false;
     private byte[] key;
     private byte[] realIV;
     private byte[] orgIV;
@@ -362,28 +409,32 @@ public class Cipher extends RubyObject {
         out.println("realName = " + realName);
         out.println("keyLen = " + keyLen);
         out.println("ivLen = " + ivLen);
-        out.println("ciph block size = " + cipher.getBlockSize());
+        out.println("cipher block size = " + cipher.getBlockSize());
         out.println("encryptMode = " + encryptMode);
-        out.println("ciphInited = " + ciphInited);
+        out.println("cipherInited = " + cipherInited);
         out.println("key.length = " + (key == null ? 0 : key.length));
-        out.println("iv.length = " + (this.realIV == null ? 0 : this.realIV.length));
+        out.println("iv.length = " + (realIV == null ? 0 : realIV.length));
         out.println("padding = " + padding);
-        out.println("ciphAlgo = " + cipher.getAlgorithm());
+        out.println("cipher alg = " + cipher.getAlgorithm());
         out.println("*******************************");
     }
 
     @JRubyMethod(required = 1, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject name) {
-        final String nameStr = name.toString();
-        if ( ! isSupportedCipher(nameStr) ) {
-            throw newCipherError(context.runtime, String.format("unsupported cipher algorithm (%s)", nameStr));
-        }
-        if (cipher != null) {
-            throw context.runtime.newRuntimeError("Cipher already inititalized!");
-        }
-        updateCipher(nameStr, padding);
+        initializeImpl(context.runtime, name.toString());
         return this;
     }
+
+    final void initializeImpl(final Ruby runtime, final String name) {
+        if ( ! isSupportedCipher(name) ) {
+            throw newCipherError(runtime, "unsupported cipher algorithm ("+ name +")");
+        }
+        if ( cipher != null ) {
+            throw runtime.newRuntimeError("Cipher already inititalized!");
+        }
+        updateCipher(name, padding);
+    }
+
 
     @Override
     @JRubyMethod(required = 1, visibility = Visibility.PRIVATE)
@@ -402,18 +453,16 @@ public class Cipher extends RubyObject {
         keyLen = other.keyLen;
         ivLen = other.ivLen;
         encryptMode = other.encryptMode;
-        ciphInited = false;
+        cipherInited = false;
         if ( other.key != null ) {
-            key = new byte[other.key.length];
-            System.arraycopy(other.key, 0, key, 0, key.length);
+            key = Arrays.copyOf(other.key, other.key.length);
         } else {
             key = null;
         }
         if (other.realIV != null) {
-            this.realIV = new byte[other.realIV.length];
-            System.arraycopy(other.realIV, 0, this.realIV, 0, this.realIV.length);
+            realIV = Arrays.copyOf(other.realIV, other.realIV.length);
         } else {
-            this.realIV = null;
+            realIV = null;
         }
         this.orgIV = this.realIV;
         padding = other.padding;
@@ -452,8 +501,8 @@ public class Cipher extends RubyObject {
         }
         catch (Exception e) {
             final Ruby runtime = context.runtime;
-            if ( isDebug(runtime) ) e.printStackTrace( runtime.getOut() );
-            throw newCipherError(runtime, e.getMessage());
+            debugStackTrace(runtime, e);
+            throw newCipherError(runtime, e);
         }
         if (keyBytes.length < keyLen) {
             throw newCipherError(context.runtime, "key length too short");
@@ -471,26 +520,27 @@ public class Cipher extends RubyObject {
 
     @JRubyMethod(name = "iv=", required = 1)
     public IRubyObject set_iv(final ThreadContext context, final IRubyObject iv) {
-        byte[] ivBytes;
+        final byte[] ivBytes;
         try {
             ivBytes = iv.convertToString().getBytes();
         }
         catch (Exception e) {
             final Ruby runtime = context.runtime;
-            if ( isDebug(runtime) ) e.printStackTrace( runtime.getOut() );
-            throw newCipherError(getRuntime(), e.getMessage());
+            debugStackTrace(runtime, e);
+            throw newCipherError(runtime, e);
         }
-        if (ivBytes.length < ivLen) {
-            throw newCipherError(getRuntime(), "iv length to short");
-        } else {
+        if ( ivBytes.length < ivLen ) {
+            throw newCipherError(context.runtime, "iv length to short");
+        }
+        else {
             // EVP_CipherInit_ex uses leading IV length of given sequence.
             byte[] iv2 = new byte[ivLen];
             System.arraycopy(ivBytes, 0, iv2, 0, ivLen);
             this.realIV = iv2;
         }
         this.orgIV = this.realIV;
-        if (!isStreamCipher()) {
-            ciphInited = false;
+        if ( ! isStreamCipher() ) {
+            cipherInited = false;
         }
         return iv;
     }
@@ -511,7 +561,7 @@ public class Cipher extends RubyObject {
         Arity.checkArgumentCount(runtime, args, 0, 2);
 
         encryptMode = encrypt;
-        ciphInited = false;
+        cipherInited = false;
 
         if ( args.length > 0 ) {
             /*
@@ -566,7 +616,7 @@ public class Cipher extends RubyObject {
         checkInitialized();
         if ( ! isStreamCipher() ) {
             this.realIV = orgIV;
-            doInitialize(context.runtime);
+            doInitCipher(context.runtime);
         }
         return this;
     }
@@ -640,14 +690,14 @@ public class Cipher extends RubyObject {
         this.realIV = result.iv;
         this.orgIV = this.realIV;
 
-        doInitialize(runtime);
+        doInitCipher(runtime);
 
         return runtime.getNil();
     }
 
-    private void doInitialize(final Ruby runtime) {
+    private void doInitCipher(final Ruby runtime) {
         if ( isDebug(runtime) ) {
-            runtime.getOut().println("*** doInitialize");
+            runtime.getOut().println("*** doInitCipher");
             dumpVars( runtime.getOut() );
         }
         checkInitialized();
@@ -675,29 +725,27 @@ public class Cipher extends RubyObject {
             throw newCipherError(runtime, e.getMessage() + ": possibly you need to install Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE");
         }
         catch (Exception e) {
-            if ( isDebug(runtime) ) e.printStackTrace( runtime.getOut() );
-            throw newCipherError(runtime, e.getMessage());
+            debugStackTrace(runtime, e);
+            throw newCipherError(runtime, e);
         }
-        ciphInited = true;
+        cipherInited = true;
     }
     private byte[] lastIv = null;
 
     @JRubyMethod
     public IRubyObject update(final ThreadContext context, final IRubyObject data) {
         final Ruby runtime = context.runtime;
-        final boolean debug = isDebug(runtime);
-        if ( debug ) {
-            runtime.getOut().println("*** update [" + data + "]");
-        }
+        if ( isDebug(runtime) ) debug("*** update [" + data + "]");
+
         checkInitialized();
         byte[] val = data.convertToString().getBytes();
         if (val.length == 0) {
             throw getRuntime().newArgumentError("data must not be empty");
         }
 
-        if ( ! ciphInited ) {
+        if ( ! cipherInited ) {
             //if ( debug ) runtime.getOut().println("BEFORE INITING");
-            doInitialize(runtime);
+            doInitCipher(runtime);
             //if ( debug ) runtime.getOut().println("AFTER INITING");
         }
 
@@ -719,7 +767,7 @@ public class Cipher extends RubyObject {
             }
         }
         catch (Exception e) {
-            if ( isDebug(runtime) ) e.printStackTrace( runtime.getOut() );
+            debugStackTrace( runtime, e );
             throw newCipherError(runtime, e.getMessage());
         }
 
@@ -736,8 +784,8 @@ public class Cipher extends RubyObject {
     public IRubyObject _final(final ThreadContext context) {
         final Ruby runtime = context.runtime;
         checkInitialized();
-        if ( ! ciphInited ) {
-            doInitialize(runtime);
+        if ( ! cipherInited ) {
+            doInitCipher(runtime);
         }
         // trying to allow update after final like cruby-openssl. Bad idea.
         if ( "RC4".equalsIgnoreCase(cryptoBase) ) {
@@ -765,15 +813,15 @@ public class Cipher extends RubyObject {
             }
             if (this.realIV != null) {
                 this.realIV = lastIv;
-                doInitialize(runtime);
+                doInitCipher(runtime);
             }
         }
         catch (GeneralSecurityException e) { // cipher.doFinal
             throw newCipherError(runtime, e.getMessage());
         }
         catch (RuntimeException e) {
-            if ( isDebug(runtime) ) e.printStackTrace( runtime.getOut() );
-            throw newCipherError(runtime, e.getMessage());
+            debugStackTrace(runtime, e);
+            throw newCipherError(runtime, e);
         }
         return runtime.newString(str);
     }
@@ -809,13 +857,17 @@ public class Cipher extends RubyObject {
     }
 
     private void checkInitialized() {
-        if (cipher == null) {
+        if ( cipher == null ) {
             throw getRuntime().newRuntimeError("Cipher not inititalized!");
         }
     }
 
     private boolean isStreamCipher() {
         return cipher.getBlockSize() == 0;
+    }
+
+    private static RaiseException newCipherError(Ruby runtime, Exception e) {
+        return Utils.newError(runtime, _Cipher(runtime).getClass("CipherError"), e);
     }
 
     private static RaiseException newCipherError(Ruby runtime, String message) {
@@ -884,6 +936,105 @@ public class Cipher extends RubyObject {
             if ( nkey == 0 && niv == 0 ) break;
         }
         return new KeyAndIv(key,iv);
+    }
+
+    private static class NamedCipherAllocator implements ObjectAllocator {
+
+        private final String cipherBase;
+
+        NamedCipherAllocator(final String cipherBase) {
+            this.cipherBase = cipherBase;
+        }
+
+        public Named allocate(Ruby runtime, RubyClass klass) {
+            return new Named(runtime, klass, cipherBase);
+        }
+    };
+
+    public static class Named extends Cipher {
+        private static final long serialVersionUID = 5599069534014317221L;
+
+        final String cipherBase;
+
+        Named(Ruby runtime, RubyClass type, String cipherBase) {
+            super(runtime, type);
+            this.cipherBase = cipherBase; // e.g. "AES"
+        }
+
+        /*
+        AES = Class.new(Cipher) do
+          define_method(:initialize) do |*args|
+            cipher_name = args.inject('AES'){|n, arg| "#{n}-#{arg}" }
+            super(cipher_name)
+          end
+        end
+         */
+        @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+            final StringBuilder name = new StringBuilder();
+            name.append(cipherBase);
+            if ( args != null ) {
+                for ( int i = 0; i < args.length; i++ ) {
+                    name.append('-').append( args[i].asString() );
+                }
+            }
+            initializeImpl(context.runtime, name.toString());
+            return this;
+        }
+
+        //@Override
+        //void initializeImpl(final Ruby runtime, final String name) {
+        //    final String cipherName = name == null ? cipherBase : ( cipherBase + '-' + name );
+        //    super.initializeImpl(runtime, cipherName);
+        //}
+
+    }
+
+    private static class AESCipherAllocator implements ObjectAllocator {
+
+        private final String keyLength;
+
+        AESCipherAllocator(final String keyLength) {
+            this.keyLength = keyLength;
+        }
+
+        public AES allocate(Ruby runtime, RubyClass klass) {
+            return new AES(runtime, klass, keyLength);
+        }
+    };
+
+    public static class AES extends Cipher {
+        private static final long serialVersionUID = -3627749495034257750L;
+
+        final String keyLength;
+
+        AES(Ruby runtime, RubyClass type, String keyLength) {
+            super(runtime, type);
+            this.keyLength = keyLength; // e.g. "256"
+        }
+
+        /*
+        AES256 = Class.new(Cipher) do
+          define_method(:initialize) do |mode|
+            mode ||= "CBC"
+            cipher_name = "AES-256-#{mode}"
+            super(cipher_name)
+          end
+        end
+         */
+        @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+            final String mode;
+            if ( args != null && args.length > 0 ) {
+                mode = args[0].toString();
+            }
+            else {
+                mode = "CBC";
+            }
+            initializeImpl(context.runtime, "AES-" + keyLength + '-' + mode);
+            return this;
+        }
+
     }
 
 }

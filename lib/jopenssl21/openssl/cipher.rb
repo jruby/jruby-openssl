@@ -20,27 +20,7 @@
 
 module OpenSSL
   class Cipher
-    %w(AES CAST5 BF DES IDEA RC2 RC4 RC5).each{|name|
-      klass = Class.new(Cipher){
-        define_method(:initialize){|*args|
-          cipher_name = args.inject(name){|n, arg| "#{n}-#{arg}" }
-          super(cipher_name)
-        }
-      }
-      const_set(name, klass)
-    }
-
-    %w(128 192 256).each{|keylen|
-      klass = Class.new(Cipher){
-        define_method(:initialize){|mode|
-          mode ||= "CBC"
-          cipher_name = "AES-#{keylen}-#{mode}"
-          super(cipher_name)
-        }
-      }
-      const_set("AES#{keylen}", klass)
-    }
-
+    
     # Generate, set, and return a random key.
     # You must call cipher.encrypt or cipher.decrypt before calling this method.
     def random_key
