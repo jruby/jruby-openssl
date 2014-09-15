@@ -197,6 +197,7 @@ public abstract class SecurityHelper {
         return KeyPairGenerator.getInstance(algorithm);
     }
 
+    @SuppressWarnings("unchecked")
     static KeyPairGenerator getKeyPairGenerator(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
         final Object spi = getImplEngine("KeyPairGenerator", algorithm);
@@ -253,6 +254,7 @@ public abstract class SecurityHelper {
         return MessageDigest.getInstance(algorithm);
     }
 
+    @SuppressWarnings("unchecked")
     static MessageDigest getMessageDigest(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
         final Object spi = getImplEngine("MessageDigest", algorithm);
@@ -406,6 +408,7 @@ public abstract class SecurityHelper {
         return Signature.getInstance(algorithm);
     }
 
+    @SuppressWarnings("unchecked")
     static Signature getSignature(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
         final Object spi = getImplEngine("Signature", algorithm);
@@ -650,6 +653,7 @@ public abstract class SecurityHelper {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static <T> T invoke(Object object, Class<?> klass, String methodName, Class<?>[] paramTypes, Object... params) {
         final Method method;
         try {
