@@ -36,11 +36,8 @@ import java.util.List;
 import java.util.Set;
 
 import java.security.GeneralSecurityException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.SignatureException;
 import java.security.cert.CRLException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509CRLEntry;
@@ -60,8 +57,6 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-import org.bouncycastle.asn1.x509.CertificateList;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
 import org.bouncycastle.cert.CertException;
@@ -71,9 +66,7 @@ import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.DSAParameters;
 import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
-import org.bouncycastle.jce.provider.X509CRLObject;
 import org.bouncycastle.operator.ContentSigner;
-import org.bouncycastle.operator.ContentVerifier;
 import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder;
@@ -671,7 +664,8 @@ public class X509CRL extends RubyObject {
         final String digAlg = digest.getShortAlgorithm();
 
         if ( "DSA".equalsIgnoreCase(keyAlg) ) {
-            if ( ( "MD5".equalsIgnoreCase( digAlg ) ) ) {
+            if ( ( "MD5".equalsIgnoreCase( digAlg ) ) ) { // ||
+                // ( "SHA1".equals( digest.name().toString() ) ) ) {
                 throw newCRLError(runtime, "unsupported key / digest algorithm ("+ key +" / "+ digAlg +")");
             }
         }
@@ -745,37 +739,7 @@ public class X509CRL extends RubyObject {
             debug("CRL#verify() failed:", e);
             return context.runtime.getFalse();
         }
-//        catch (SignatureException e) {
-//            debug("CRL#verify() failed:", e);
-//            return context.runtime.getFalse();
-//        }
-//        catch (NoSuchAlgorithmException e) {
-//            return context.runtime.getFalse();
-//        }
     }
-
-    /*
-    private static boolean verify(final CertificateList crl, final PublicKey publicKey)
-        throws CRLException, InvalidKeyException, SignatureException, NoSuchAlgorithmException {
-
-        final AlgorithmIdentifier tbsSignatureId = crl.getTBSCertList().getSignature();
-        if ( ! crl.getSignatureAlgorithm().equals( tbsSignatureId ) ) {
-            if ( true ) return false;
-            //throw new CRLException("Signature algorithm on CertificateList does not match TBSCertList.");
-        }
-
-        final String sigAlgName = X509SignatureUtil.getSignatureName(crl.getSignatureAlgorithm());
-        final Signature signature = SecurityHelper.getSignature(sigAlgName, securityProvider);
-
-        signature.initVerify(publicKey);
-        signature.update(crl.getTBSCertList());
-
-        if ( ! signature.verify( crl.getSignature() ) ) {
-            if ( true ) return false;
-            //throw new SignatureException("CRL does not verify with supplied public key.");
-        }
-        return true;
-    } */
 
     private static RubyClass _CRLError(final Ruby runtime) {
         return _X509(runtime).getClass("CRLError");
