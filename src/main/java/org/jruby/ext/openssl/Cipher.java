@@ -432,9 +432,26 @@ public class Cipher extends RubyObject {
             }
 
             String cryptoBase, cryptoVersion = null, cryptoMode = "CBC", realName;
+            String paddingType;
+
+            // EXPERIMENTAL: if there's '/' assume it's a "real" JCE name :
+            if ( osslName.indexOf('/') != -1 ) {
+                // e.g. "DESedeWrap/CBC/NOPADDING"
+                final String[] names = osslName.split("/");
+                cryptoBase = names[0];
+                if ( names.length > 1 ) cryptoMode = names[1];
+                paddingType = getPaddingType(padding, cryptoMode);
+                if ( names.length > 2 ) paddingType = names[2];
+                Algorithm alg = new Algorithm(cryptoBase, null, cryptoMode);
+                alg.realName = osslName;
+                alg.padding = paddingType;
+                return alg;
+            }
 
             int s = osslName.indexOf('-'); int i = 0;
-            if (s == -1) { cryptoBase = osslName; }
+            if (s == -1) {
+                cryptoBase = osslName;
+            }
             else {
                 cryptoBase = osslName.substring(i, s);
 
@@ -502,7 +519,7 @@ public class Cipher extends RubyObject {
                 }
             }
 
-            String paddingType = getPaddingType(padding, cryptoMode);
+            paddingType = getPaddingType(padding, cryptoMode);
 
             if ( cryptoMode != null ) {
                 if ( ! KNOWN_BLOCK_MODES.contains(cryptoMode) ) {
@@ -1008,19 +1025,19 @@ public class Cipher extends RubyObject {
                 }
                 if ( "RC2".equalsIgnoreCase(cryptoBase) ) {
                     cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
-                            new SimpleSecretKey("RC2", this.key),
-                            new RC2ParameterSpec(this.key.length * 8, this.realIV)
+                        new SimpleSecretKey("RC2", this.key),
+                        new RC2ParameterSpec(this.key.length * 8, this.realIV)
                     );
                 }
                 else if ( "RC4".equalsIgnoreCase(cryptoBase) ) {
                     cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
-                            new SimpleSecretKey("RC4", this.key)
+                        new SimpleSecretKey("RC4", this.key)
                     );
                 }
                 else {
                     cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
-                            new SimpleSecretKey(getCipherAlgorithm(), this.key),
-                            new IvParameterSpec(this.realIV)
+                        new SimpleSecretKey(getCipherAlgorithm(), this.key),
+                        new IvParameterSpec(this.realIV)
                     );
                 }
             }

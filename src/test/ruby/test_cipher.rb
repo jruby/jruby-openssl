@@ -15,6 +15,17 @@ class TestCipher < TestCase
     assert_raise(ArgumentError) { OpenSSL::Cipher.new }
   end
 
+  def test_cipher_extended_support
+    # NOTE: since 0.9.6 we allow the underlying JCE cipher algorithms
+    # to work - although we won't report support for them in `ciphers`
+    OpenSSL::Cipher.new 'PBEWithSHA1AndRC2_40-CBC' # Sun JCE
+    #OpenSSL::Cipher.new 'RSA/ECB' # Sun JCE
+    OpenSSL::Cipher.new 'RSA/ECB/OAEPWITHSHA-512ANDMGF1PADDING' # Sun JCE
+    OpenSSL::Cipher.new 'DESedeWrap/CBC/NOPADDING' # Sun JCE
+    OpenSSL::Cipher.new 'XTEA/CBC/PKCS7Padding' # BC
+    OpenSSL::Cipher.new 'Noekeon/CBC/ZeroBytePadding' # BC
+  end
+
   def test_named_classes
     OpenSSL::Cipher::AES.new '192-ECB'
     #assert_raise_cipher_error { OpenSSL::Cipher::AES.new '128' }
