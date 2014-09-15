@@ -42,90 +42,150 @@ import org.jruby.util.ByteList;
  */
 public class Random {
 
-    static class RandomHolder {
+    private static class Holder {
 
-        final java.util.Random plainRandom;
-        final java.security.SecureRandom secureRandom;
+        private volatile java.util.Random plainRandom;
+        private volatile java.security.SecureRandom secureRandom;
 
-        RandomHolder(java.util.Random plainRandom, java.security.SecureRandom secureRandom) {
-            this.plainRandom = plainRandom; this.secureRandom = secureRandom;
-            //this.randomizers = new java.util.Random[] { plainRandom, secureRandom };
+        //RandomHolder(java.util.Random plainRandom, java.security.SecureRandom secureRandom) {
+        //    this.plainRandom = plainRandom; this.secureRandom = secureRandom;
+        //}
+
+        final java.util.Random getPlainRandom() {
+            if (plainRandom == null) {
+                synchronized(this) {
+                    if (plainRandom == null) {
+                        plainRandom = new java.util.Random();
+                    }
+                }
+            }
+            return plainRandom;
         }
 
-        //RandomHolder(java.util.Random... randomizers) {
-        //    this.randomizers = randomizers;
-        //}
-
-        //public final java.util.Random[] randomizers;
-
-        //java.util.Random get(final int index) {
-        //    return randomizers[ index % randomizers.length ];
-        //}
+        final java.security.SecureRandom getSecureRandom() {
+            if (secureRandom == null) {
+                synchronized(this) {
+                    if (secureRandom == null) {
+                        secureRandom = SecurityHelper.getSecureRandom();
+                    }
+                }
+            }
+            return secureRandom;
+        }
 
     }
 
-    public static void createRandom(final Ruby runtime, final RubyModule ossl) {
-        final RubyModule random = ossl.defineModuleUnder("Random");
+    public static void createRandom(final Ruby runtime, final RubyModule OpenSSL) {
+        final RubyModule Random = OpenSSL.defineModuleUnder("Random");
 
-        RubyClass osslError = (RubyClass) ossl.getConstant("OpenSSLError");
-        random.defineClassUnder("RandomError", osslError, osslError.getAllocator());
+        RubyClass OpenSSLError = (RubyClass) OpenSSL.getConstant("OpenSSLError");
+        Random.defineClassUnder("RandomError", OpenSSLError, OpenSSLError.getAllocator());
 
-        random.defineAnnotatedMethods(Random.class);
+        Random.defineAnnotatedMethods(Random.class);
 
-        random.dataWrapStruct(
-            new RandomHolder(new java.util.Random(), SecurityHelper.getSecureRandom())
-        );
-    }
-
-    @JRubyMethod(meta = true)
-    public static IRubyObject seed(final ThreadContext context,
-        final IRubyObject self, IRubyObject arg) {
-        return context.runtime.getNil(); // TODO this could be implemented !
-    }
-    @JRubyMethod(meta = true)
-    public static IRubyObject load_random_file(final ThreadContext context,
-        final IRubyObject self, IRubyObject arg) {
-        return context.runtime.getNil();
-    }
-    @JRubyMethod(meta = true)
-    public static IRubyObject write_random_file(final ThreadContext context,
-        final IRubyObject self, IRubyObject arg) {
-        return context.runtime.getNil();
+        Random.dataWrapStruct(new Holder());
     }
 
     @JRubyMethod(meta = true)
-    public static IRubyObject random_bytes(final ThreadContext context,
-        final IRubyObject self, IRubyObject arg) {
-        return generate(context.runtime, self, arg, true); // secure-random
+    public static RubyString random_bytes(final ThreadContext context,
+        final IRubyObject self, final IRubyObject arg) {
+        final Ruby runtime = context.runtime;
+        return random_bytes(runtime, self, toInt(runtime, arg));
+    }
+
+    static RubyString random_bytes(final Ruby runtime, final int len) {
+        final RubyModule Random = (RubyModule) runtime.getModule("OpenSSL").getConstantAt("Random");
+        return generate(runtime, Random, len, true); // secure-random
+    }
+
+    private static RubyString random_bytes(final Ruby runtime,
+        final IRubyObject self, final int len) {
+        return generate(runtime, self, len, true); // secure-random
     }
 
     @JRubyMethod(meta = true)
-    public static IRubyObject pseudo_bytes(final ThreadContext context,
-        final IRubyObject self, IRubyObject arg) {
-        return generate(context.runtime, self, arg, false); // plain-random
+    public static RubyString pseudo_bytes(final ThreadContext context,
+        final IRubyObject self, final IRubyObject len) {
+        final Ruby runtime = context.runtime;
+        return generate(runtime, self, toInt(runtime, len), false); // plain-random
     }
 
-    private static RubyString generate(final Ruby runtime,
-        final IRubyObject self, IRubyObject arg, final boolean secure) {
-        final int len = RubyNumeric.fix2int(arg);
+    private static int toInt(final Ruby runtime, final IRubyObject arg) {
+        final long len = RubyNumeric.fix2long(arg);
         if ( len < 0 || len > Integer.MAX_VALUE ) {
             throw runtime.newArgumentError("negative string size (or size too big) " + len);
         }
-        final RandomHolder holder = (RandomHolder) self.dataGetStruct();
+        return (int) len;
+    }
+
+    private static RubyString generate(final Ruby runtime,
+        final IRubyObject self, final int len, final boolean secure) {
+        final Holder holder = unwrapStruct(self);
         final byte[] bytes = new byte[len];
-        ( secure ? holder.secureRandom : holder.plainRandom ).nextBytes(bytes);
+        ( secure ? holder.getSecureRandom() : holder.getPlainRandom() ).nextBytes(bytes);
         return RubyString.newString(runtime, new ByteList(bytes, false));
     }
 
-    @JRubyMethod(meta = true)
-    public static IRubyObject egd(final ThreadContext context,
-        final IRubyObject self, IRubyObject arg) {
+    private static Holder unwrapStruct(final IRubyObject Random) {
+        return (Holder) ((RubyModule) Random).dataGetStruct();
+    }
+
+    @JRubyMethod(meta = true) // seed(str) -> str
+    public static IRubyObject seed(final ThreadContext context,
+        final IRubyObject self, IRubyObject str) {
+        final byte[] seed = str.asString().getBytes();
+        final Holder holder = unwrapStruct(self);
+
+        holder.getSecureRandom().setSeed(seed); // seed supplements existing
+
+        long s; int l = seed.length;
+        if ( l >= 4 ) {
+            s = (seed[0] << 24) | (seed[1] << 16) | (seed[2] << 8) | seed[3];
+            holder.getPlainRandom().setSeed(s);
+        }
+        return str;
+    }
+
+    // true if the PRNG has been seeded with enough data, false otherwise
+    @JRubyMethod(meta = true, name = "status?") // status? => true | false
+    public static IRubyObject status_p(final ThreadContext context,
+        final IRubyObject self) {
+        //final Holder holder = unwrapStruct(self);
+        //if ( holder.secureRandom == null ) {
+        //    return context.runtime.newBoolean(false); // just a HINT
+        //}
+        return context.runtime.newBoolean(true);
+    }
+
+    // C-Ruby OpenSSL::Random API stubs :
+
+    @JRubyMethod(meta = true) // random_add(str, entropy) -> self
+    public static IRubyObject random_add(final ThreadContext context,
+        final IRubyObject self, IRubyObject str, IRubyObject entropy) {
+        return self;
+    }
+
+    @JRubyMethod(meta = true) // load_random_file(filename)
+    public static IRubyObject load_random_file(final ThreadContext context,
+        final IRubyObject self, IRubyObject fname) {
         return context.runtime.getNil();
     }
 
-    @JRubyMethod(meta = true)
+    @JRubyMethod(meta = true) // write_random_file(filename) -> true
+    public static IRubyObject write_random_file(final ThreadContext context,
+        final IRubyObject self, IRubyObject fname) {
+        return context.runtime.getNil();
+    }
+
+    @JRubyMethod(meta = true) // egd(filename) -> true
+    public static IRubyObject egd(final ThreadContext context,
+        final IRubyObject self, IRubyObject fname) {
+        return context.runtime.getNil();
+    }
+
+    @JRubyMethod(meta = true) // egd_bytes(filename, length) -> true
     public static IRubyObject egd_bytes(final ThreadContext context,
-        final IRubyObject self, IRubyObject arg1, IRubyObject arg2) {
+        final IRubyObject self, IRubyObject fname, IRubyObject len) {
         return context.runtime.getNil();
     }
 

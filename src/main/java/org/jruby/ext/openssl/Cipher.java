@@ -1164,6 +1164,24 @@ public class Cipher extends RubyObject {
         return padding;
     }
 
+    @JRubyMethod
+    public IRubyObject random_key(final ThreadContext context) {
+        // str = OpenSSL::Random.random_bytes(self.key_len)
+        // self.key = str
+        // return str
+        RubyString str = Random.random_bytes(context.runtime, this.keyLength);
+        this.set_key(context, str); return str;
+    }
+
+    @JRubyMethod
+    public IRubyObject random_iv(final ThreadContext context) {
+        // str = OpenSSL::Random.random_bytes(self.iv_len)
+        // self.iv = str
+        // return str
+        RubyString str = Random.random_bytes(context.runtime, this.ivLength);
+        this.set_iv(context, str); return str;
+    }
+
     //String getAlgorithm() {
     //    return this.cipher.getAlgorithm();
     //}

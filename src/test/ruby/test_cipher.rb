@@ -71,6 +71,22 @@ class TestCipher < TestCase
     end
   end
 
+  def test_random
+    cipher = OpenSSL::Cipher.new 'AES-128-OFB'
+
+    org.jruby.ext.openssl.Cipher.class_eval do
+      field_reader :key, :realIV
+    end
+
+    assert_equal nil, cipher.to_java.key
+    assert_equal nil, cipher.to_java.realIV
+
+    assert_equal 16, cipher.random_key.size
+    assert_equal 16, cipher.to_java.key.length
+    assert_equal 16, cipher.random_iv.size
+    assert_equal 16, cipher.to_java.realIV.length
+  end
+
   def test_cipher_init_default_key
     return skip('OpenSSL::Cipher key default not implemented') if defined? JRUBY_VERSION
 
