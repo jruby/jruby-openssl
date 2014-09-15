@@ -459,7 +459,7 @@ public class X509Name extends RubyObject {
         while ( oidsIter.hasNext() ) {
             final ASN1ObjectIdentifier oid = oidsIter.next();
             String oName = name(runtime, oid);
-            if ( oName == null ) oName = "UNDEF";
+            if ( oName == null ) oName = oid.toString();
             final String value = valuesIter.next();
             final IRubyObject type = typesIter.next();
             final IRubyObject[] entry = new IRubyObject[] {
