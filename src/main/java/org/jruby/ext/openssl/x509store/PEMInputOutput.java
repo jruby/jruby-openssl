@@ -118,7 +118,6 @@ import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.cms.CMSSignedData;
 
 import org.jruby.ext.openssl.Cipher.Algorithm;
-import static org.jruby.ext.openssl.Cipher.isSupportedCipher;
 import org.jruby.ext.openssl.impl.ASN1Registry;
 import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.impl.PKCS10Request;
@@ -1101,9 +1100,10 @@ public class PEMInputOutput {
         StringTokenizer tknz = new StringTokenizer(dekInfo, ",");
         String algorithm = tknz.nextToken();
         byte[] iv = Hex.decode(tknz.nextToken());
-        if ( ! isSupportedCipher(algorithm) ) {
-            throw new IOException("Unknown algorithm: " + algorithm);
-        }
+        // NOTE: shall be fine and bubble up on-demand (if really not supported)
+        //if ( ! org.jruby.ext.openssl.Cipher.isSupportedCipher(algorithm) ) {
+        //    throw new IOException("Unknown algorithm: " + algorithm);
+        //}
 
         String realName = Algorithm.getRealName(algorithm);
         int[] lengths = Algorithm.osslKeyIvLength(algorithm);
