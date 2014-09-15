@@ -645,8 +645,6 @@ public class ASN1 {
         _ASN1.defineClassUnder("Integer", _Primitive, primitiveAllocator);
         _ASN1.defineClassUnder("Enumerated", _Primitive, primitiveAllocator);
 
-        RubyClass _BitString = _ASN1.defineClassUnder("BitString", _Primitive, primitiveAllocator);
-
         _ASN1.defineClassUnder("OctetString", _Primitive, primitiveAllocator);
         _ASN1.defineClassUnder("UTF8String", _Primitive, primitiveAllocator);
         _ASN1.defineClassUnder("NumericString", _Primitive, primitiveAllocator);
@@ -661,15 +659,16 @@ public class ASN1 {
         _ASN1.defineClassUnder("BMPString", _Primitive, primitiveAllocator);
         _ASN1.defineClassUnder("Null", _Primitive, primitiveAllocator);
 
-        RubyClass _ObjectId = _ASN1.defineClassUnder("ObjectId", _Primitive, primitiveAllocator);
+        RubyClass ObjectId = _ASN1.defineClassUnder("ObjectId", _Primitive, primitiveAllocator);
         _ASN1.defineClassUnder("UTCTime", _Primitive, primitiveAllocator);
         _ASN1.defineClassUnder("GeneralizedTime", _Primitive, primitiveAllocator);
         _ASN1.defineClassUnder("Sequence", _Constructive, _Constructive.getAllocator());
         _ASN1.defineClassUnder("Set", _Constructive, _Constructive.getAllocator());
 
-        _ObjectId.defineAnnotatedMethods(ObjectId.class);
+        ObjectId.defineAnnotatedMethods(ObjectId.class);
 
-        _BitString.addReadWriteAttribute(context, "unused_bits");
+        RubyClass BitString = _ASN1.defineClassUnder("BitString", _Primitive, primitiveAllocator);
+        BitString.addReadWriteAttribute(context, "unused_bits");
     }
 
 
@@ -699,7 +698,7 @@ public class ASN1 {
     static ASN1ObjectIdentifier getObjectID(final Ruby runtime, final String nameOrOid)
         throws IllegalArgumentException {
         final String name = nameOrOid.toLowerCase();
-        
+
         ASN1ObjectIdentifier objectId = getOIDLookup(runtime).get( name );
         if ( objectId != null ) return objectId;
 

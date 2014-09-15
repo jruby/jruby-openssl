@@ -327,11 +327,10 @@ public class PKeyDSA extends PKey {
     @JRubyMethod(name = { "export", "to_pem", "to_s" }, rest = true)
     public IRubyObject export(IRubyObject[] args) {
         Arity.checkArgumentCount(getRuntime(), args, 0, 2);
-        CipherSpec spec = null;
-        char[] passwd = null;
+        CipherSpec spec = null; char[] passwd = null;
         if (args.length > 0 && !args[0].isNil()) {
-            org.jruby.ext.openssl.Cipher c = (org.jruby.ext.openssl.Cipher) args[0];
-            spec = new CipherSpec(c.getCipher(), c.getName(), c.getKeyLen() * 8);
+            final Cipher c = (Cipher) args[0];
+            spec = new CipherSpec(c.getCipherInstance(), c.getName(), c.getKeyLength() * 8);
             if (args.length > 1 && !args[1].isNil()) {
                 passwd = args[1].toString().toCharArray();
             }
@@ -446,7 +445,6 @@ public class PKeyDSA extends PKey {
     @JRubyMethod(name="priv_key")
     public synchronized IRubyObject get_priv_key() {
         DSAPrivateKey key;
-        BigInteger param;
         if ((key = this.privKey) != null) {
             return BN.newBN(getRuntime(), key.getX());
         }

@@ -51,7 +51,6 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.anno.JRubyModule;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ObjectAllocator;
@@ -261,14 +260,13 @@ public class PKCS7 extends RubyObject {
         if ( cipher.isNil() ) {
             try {
                 javax.crypto.Cipher c = SecurityHelper.getCipher("RC2/CBC/PKCS5Padding");
-                cipherSpec = new CipherSpec(c, Cipher.Algorithm.jsseToOssl("RC2/CBC/PKCS5Padding", 40), 40);
+                cipherSpec = new CipherSpec(c, Cipher.Algorithm.javaToOssl("RC2/CBC/PKCS5Padding", 40), 40);
             }
-            catch (GeneralSecurityException e) {
-                throw newPKCS7Error(runtime, e.getMessage());
-            }
-        } else {
-            Cipher c = ((Cipher) cipher);
-            cipherSpec = new CipherSpec(c.getCipher(), c.getName(), c.getGenerateKeyLen() * 8);
+            catch (GeneralSecurityException e) { throw newPKCS7Error(runtime, e); }
+        }
+        else {
+            final Cipher c = (Cipher) cipher;
+            cipherSpec = new CipherSpec(c.getCipherInstance(), c.getName(), c.getGenerateKeyLength() * 8);
         }
         final int flg = flags.isNil() ? 0 : RubyNumeric.fix2int(flags);
         final List<X509AuxCertificate> auxCerts = getAuxCerts(certs);
@@ -792,8 +790,8 @@ public class PKCS7 extends RubyObject {
         }
     }
 
-    private static RaiseException newPKCS7Error(Ruby ruby, PKCS7Exception e) {
-        return newPKCS7Error(ruby, e.getMessage());
+    private static RaiseException newPKCS7Error(Ruby runtime, Exception e) {
+        return Utils.newError(runtime, _PKCS7(runtime).getClass("PKCS7Error"), e);
     }
 
     private static RaiseException newPKCS7Error(Ruby runtime, String message) {

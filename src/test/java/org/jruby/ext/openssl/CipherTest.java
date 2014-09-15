@@ -11,68 +11,128 @@ public class CipherTest {
 
     @Test
     public void ciphersGetLazyInitialized() {
-        assertTrue( Cipher.supportedCiphers.isEmpty() );
+        assertTrue( Cipher.Algorithm.supportedCiphers.isEmpty() );
         assertFalse( Cipher.isSupportedCipher("UNKNOWN") );
-        assertFalse( Cipher.supportedCiphers.isEmpty() );
-        assertTrue( Cipher.supportedCiphers.contains("DES") );
+        assertFalse( Cipher.Algorithm.supportedCiphers.isEmpty() );
+        assertTrue( Cipher.Algorithm.supportedCiphers.get("DES") != null );
         assertTrue( Cipher.isSupportedCipher("DES") );
         assertTrue( Cipher.isSupportedCipher("des") );
+        assertTrue( Cipher.isSupportedCipher("AES") );
+        assertTrue( Cipher.isSupportedCipher("BF") );
+        assertTrue( Cipher.isSupportedCipher("des3") );
     }
 
     @Test
     public void jsseToOssl() {
         String alg;
-        alg = Cipher.Algorithm.jsseToOssl("RC2/CBC/PKCS5Padding", 40);
+        alg = Cipher.Algorithm.javaToOssl("RC2/CBC/PKCS5Padding", 40);
         assertEquals("RC2-40-CBC", alg);
-        alg = Cipher.Algorithm.jsseToOssl("RC2/CFB/PKCS5Padding", 40);
+        alg = Cipher.Algorithm.javaToOssl("RC2/CFB/PKCS5Padding", 40);
         assertEquals("RC2-40-CFB", alg);
-        alg = Cipher.Algorithm.jsseToOssl("Blowfish", 60);
+        alg = Cipher.Algorithm.javaToOssl("Blowfish", 60);
         assertEquals("BF-60-CBC", alg);
-        alg = Cipher.Algorithm.jsseToOssl("DESede", 24);
+        alg = Cipher.Algorithm.javaToOssl("DESede", 24);
         assertEquals("DES-EDE3-CBC", alg);
     }
 
     @Test
     public void osslToJsse() {
+        Cipher.Algorithm.supportedCiphers.clear();
+        Cipher.Algorithm.supportedCiphersAll = false;
+        doTestOsslToJsse();
+    }
+
+    @Test
+    public void osslToJsseWithAllLoaded() {
+        Cipher.Algorithm.allSupportedCiphers();
+        doTestOsslToJsse();
+    }
+
+    private void doTestOsslToJsse() {
         Cipher.Algorithm alg;
         alg = Cipher.Algorithm.osslToJava("RC2-40-CBC");
         assertEquals("RC2", alg.base);
         assertEquals("40", alg.version);
         assertEquals("CBC", alg.mode);
-        assertEquals("RC2/CBC/PKCS5Padding", alg.realName);
+        assertEquals("RC2/CBC/PKCS5Padding", alg.getRealName());
 
+        System.out.println("running ...");
         alg = Cipher.Algorithm.osslToJava("DES-EDE3-CBC");
         assertEquals("DES", alg.base);
         assertEquals("EDE3", alg.version);
         assertEquals("CBC", alg.mode);
-        assertEquals("DESede/CBC/PKCS5Padding", alg.realName);
+        assertEquals("DESede/CBC/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("DES-EDE");
+        assertEquals("DES", alg.base);
+        assertEquals("EDE", alg.version);
+        assertEquals("CBC", alg.mode);
+        assertEquals("DESede/CBC/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("DES-CFB");
+        assertEquals("DES", alg.base);
+        assertEquals(null, alg.version);
+        assertEquals("CFB", alg.mode);
+        assertEquals("DES/CFB/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("DES3");
+        assertEquals("DES", alg.base);
+        //assertEquals("EDE", alg.version);
+        assertEquals("CBC", alg.mode);
+        assertEquals("DESede/CBC/PKCS5Padding", alg.getRealName());
 
         alg = Cipher.Algorithm.osslToJava("BF");
-        assertEquals("Blowfish", alg.base);
-        assertEquals("Blowfish/CBC/PKCS5Padding", alg.realName);
+        assertEquals("BF", alg.base);
+        assertEquals("Blowfish/CBC/PKCS5Padding", alg.getRealName());
 
         alg = Cipher.Algorithm.osslToJava("AES-128-XTS");
         assertEquals("AES", alg.base);
         assertEquals("128", alg.version);
         assertEquals("XTS", alg.mode);
-        assertEquals("PKCS5Padding", alg.padding);
-        assertEquals("AES/XTS/PKCS5Padding", alg.realName);
+        assertEquals("PKCS5Padding", alg.getPadding());
+        assertEquals("AES/XTS/PKCS5Padding", alg.getRealName());
 
         alg = Cipher.Algorithm.osslToJava("AES256");
-        assertEquals("AES256", alg.base);
-        assertEquals(null, alg.version);
+        assertEquals("AES", alg.base);
+        assertEquals("256", alg.version);
         assertEquals("CBC", alg.mode);
-        assertEquals("PKCS5Padding", alg.padding);
-        assertEquals("AES/CBC/PKCS5Padding", alg.realName);
+        assertEquals("PKCS5Padding", alg.getPadding());
+        assertEquals("AES/CBC/PKCS5Padding", alg.getRealName());
 
         alg = Cipher.Algorithm.osslToJava("AES-256-CBC-HMAC-SHA1");
         assertEquals("AES", alg.base);
-
         assertEquals("CBC", alg.mode);
         assertEquals("256", alg.version);
+        assertEquals("PKCS5Padding", alg.getPadding());
+        assertEquals("AES/CBC/PKCS5Padding", alg.getRealName());
 
-        assertEquals("PKCS5Padding", alg.padding);
-        assertEquals("AES/CBC/PKCS5Padding", alg.realName);
+        alg = Cipher.Algorithm.osslToJava("RC4");
+        assertEquals("RC4", alg.base);
+        assertEquals(null, alg.version);
+        assertEquals(null, alg.mode);
+        assertEquals(null, alg.getPadding());
+        assertEquals("RC4", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("RC4-40");
+        assertEquals("RC4", alg.base);
+        assertEquals("40", alg.version);
+        assertEquals(null, alg.mode);
+        assertEquals(null, alg.getPadding());
+        assertEquals("RC4", alg.getRealName());
+
+        // keeps "invalid" modes :
+        
+        alg = Cipher.Algorithm.osslToJava("DES-3X3");
+        assertEquals("DES", alg.base);
+        assertEquals(null, alg.version);
+        assertEquals("3X3", alg.mode);
+        assertEquals("DES/3X3/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("MES-123-XXX");
+        assertEquals("MES", alg.base);
+        assertEquals("123", alg.version);
+        assertEquals("XXX", alg.mode);
+        assertEquals("MES/XXX/PKCS5Padding", alg.getRealName());
     }
 
     @Test

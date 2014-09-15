@@ -28,11 +28,9 @@
 package org.jruby.ext.openssl;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
 import java.security.GeneralSecurityException;
@@ -40,6 +38,11 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import static javax.crypto.Cipher.DECRYPT_MODE;
+import static javax.crypto.Cipher.ENCRYPT_MODE;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.RC2ParameterSpec;
@@ -50,6 +53,7 @@ import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
+import org.jruby.RubyString;
 import org.jruby.common.IRubyWarnings.ID;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
@@ -131,123 +135,62 @@ public class Cipher extends RubyObject {
         return (RubyClass) runtime.getModule("OpenSSL").getConstant("Cipher");
     }
 
-    public static boolean isSupportedCipher(final String name) {
-        final Collection<String> ciphers = getSupportedCiphers();
-        return ciphers.contains( name.toUpperCase() );
-    }
-
     @JRubyMethod(meta = true)
     public static IRubyObject ciphers(final ThreadContext context, final IRubyObject self) {
         final Ruby runtime = context.runtime;
 
-        final Collection<String> ciphers = getSupportedCiphers();
-        final RubyArray result = runtime.newArray(ciphers.size() * 2);
+        final Collection<String> ciphers = Algorithm.allSupportedCiphers().keySet();
+        final RubyArray result = runtime.newArray( ciphers.size() * 2 );
         for ( final String cipher : ciphers ) {
-            result.append( runtime.newString(cipher) );
+            result.append( runtime.newString(cipher) ); // upper-case
+        }
+        for ( final String cipher : ciphers ) { // than lower-case OpenSSL compatibility
             result.append( runtime.newString(cipher.toLowerCase()) );
         }
         return result;
     }
 
-    private static boolean supportedCiphersInitialized = false;
-    static final Collection<String> supportedCiphers = new LinkedHashSet<String>(128, 1);
-
-    private static Collection<String> getSupportedCiphers() {
-        if ( supportedCiphersInitialized ) return supportedCiphers;
-        synchronized ( supportedCiphers ) {
-            if ( supportedCiphersInitialized ) return supportedCiphers;
-
-            final Collection<Provider.Service> services = availableCipherServices();
-
-            final String[] bases = {
-                "AES-128", "AES-192", "AES-256",
-                "BF", "DES", "DES-EDE", "DES-EDE3",
-                "RC2", "CAST5", "CAST6",
-                "Camellia-128", "Camellia-192", "Camellia-256",
-                "SEED",
-            };
-            final String[] suffixes = {
-                "", "-CBC", "-CFB", "-CFB1", "-CFB8", "-ECB", "-OFB"
-            };
-            for ( int i = 0; i < bases.length; i++ ) {
-                for ( int k = 0; k < suffixes.length; k++ ) {
-                    final String cipher = bases[i] + suffixes[k];
-                    if ( supportedCipher( cipher, services ) ) {
-                        supportedCiphers.add( cipher.toUpperCase() );
-                    }
-                }
-            }
-            // special cases :
-            final String[] other = {
-                "AES128", "AES192", "AES256",
-                "BLOWFISH",
-                "CAST", "CAST-CBC",
-                "RC2-40-CBC", "RC2-64-CBC",
-                "RC4", "RC4-40", // "RC4-HMAC-MD5",
-            };
-            if ( supportedCiphers.contains("AES-128") ) {
-                other[0] = null; supportedCiphers.add("AES128");
-            }
-            if ( supportedCiphers.contains("AES-192") ) {
-                other[1] = null; supportedCiphers.add("AES192");
-            }
-            if ( supportedCiphers.contains("AES-256") ) {
-                other[2] = null; supportedCiphers.add("AES256");
-            }
-            if ( supportedCiphers.contains("BF") ) {
-                other[3] = null; supportedCiphers.add("BLOWFISH");
-            }
-            if ( supportedCiphers.contains("CAST5") ) {
-                other[4] = null; supportedCiphers.add("CAST");
-            }
-            if ( supportedCiphers.contains("CAST5-CBC") ) {
-                other[5] = null; supportedCiphers.add("CAST-CBC");
-            }
-            for ( int i = 0; i < other.length; i++ ) {
-                final String cipher = other[i];
-                if ( cipher == null ) continue;
-                if ( supportedCipher( cipher, services ) ) {
-                    supportedCiphers.add( cipher.toUpperCase() );
-                }
-            }
-            supportedCiphersInitialized = true;
-            return supportedCiphers;
+    public static boolean isSupportedCipher(final String name) {
+        final String osslName = name.toUpperCase();
+        //
+        if ( Algorithm.allSupportedCiphers().get( osslName ) != null ) {
+            return true;
         }
-    }
-
-    private static boolean supportedCipher(final String osslName,
-        final Collection<Provider.Service> services) {
-        final Algorithm alg = Algorithm.osslToJava(osslName, null, null);
-
-        for ( final Provider.Service service : services ) {
-            if ( alg.base.equalsIgnoreCase( service.getAlgorithm() ) ) {
-                if ( alg.mode == null ) return true;
-                final String supportedModes = service.getAttribute("SupportedModes");
-                if ( supportedModes != null && supportedModes.contains(alg.mode) ) {
-                    // NOTE: we can not verify version at this point
-                    // e.g. for AES whether it supports 256 bit keys
-                    return true;
-                }
-                // NOTE: do not stop as there migth be multiple
-            }
-        }
-
-        if ( isDebug() ) debug("supportedCipher( "+ osslName +" ) tryGetCipher = " + alg.realName);
-        return tryGetCipher( alg.realName ); // last (slow but reliable) resort
-    }
-
-    private static boolean tryGetCipher(final String realName) {
+        //
+        final Algorithm alg = Algorithm.osslToJava(osslName);
+        if ( isDebug() ) debug("isSupportedCipher( "+ name +" ) try new cipher = " + alg.getRealName());
         try {
-            return getCipher(realName, true) != null;
+            return getCipherInstance(alg.getRealName(), true) != null;
         }
         catch (GeneralSecurityException e) {
             return false;
         }
     }
 
-    private static Collection<Provider.Service> availableCipherServices() {
-        final Collection<Provider.Service> services = new ArrayList<Provider.Service>();
+    private static String[] cipherModes(final String alg) {
+        final String[] modes = providerCipherModes(alg);
+        return modes == null ? registeredCipherModes(alg) : modes;
+    }
 
+    private static String[] providerCipherModes(final String alg) {
+        final Provider.Service service = providerCipherService(alg);
+        if ( service != null ) {
+            final String supportedModes = service.getAttribute("SupportedModes");
+            if ( supportedModes == null ) return Algorithm.OPENSSL_BLOCK_MODES;
+            return supportedModes.split("|");
+        }
+        return null;
+    }
+
+    private static Provider.Service providerCipherService(final String alg) {
+        if ( SecurityHelper.securityProvider != null ) {
+            return SecurityHelper.securityProvider.getService("Cipher", alg);
+        }
+        return null;
+    }
+
+    private static String[] registeredCipherModes(final String alg) { // e.g. "AES"
+        /*
         if ( SecurityHelper.securityProvider != null && ! SecurityHelper.isProviderRegistered() ) {
             final Provider provider = SecurityHelper.securityProvider;
             for ( Provider.Service service : provider.getServices() ) {
@@ -255,66 +198,193 @@ public class Cipher extends RubyObject {
                     services.add(service);
                 }
             }
-        }
+        } */
+        boolean serviceFound = false;
 
         final Provider[] providers = java.security.Security.getProviders();
         for ( int i = 0; i < providers.length; i++ ) {
             final Provider provider = providers[i];
-            // skip those that are known to provide no Cipher impls :
-            if ( provider.getName().indexOf("JGSS") >= 0 ) continue; // SunJGSS
-            if ( provider.getName().indexOf("SASL") >= 0 ) continue; // SunSASL
-            if ( provider.getName().indexOf("XMLD") >= 0 ) continue; // XMLDSig
-            if ( provider.getName().indexOf("PCSC") >= 0 ) continue; // SunPCSC
-            if ( provider.getName().indexOf("JSSE") >= 0 ) continue; // SunJSSE
+            final String name = provider.getName() == null ? "" : provider.getName();
+            // skip those that are known to provide no Cipher engines :
+            if ( name.indexOf("JGSS") >= 0 ) continue; // SunJGSS
+            if ( name.indexOf("SASL") >= 0 ) continue; // SunSASL
+            if ( name.indexOf("XMLD") >= 0 ) continue; // XMLDSig
+            if ( name.indexOf("PCSC") >= 0 ) continue; // SunPCSC
+            if ( name.indexOf("JSSE") >= 0 ) continue; // SunJSSE
 
-            for ( Provider.Service service : provider.getServices() ) {
-                if ( "Cipher".equals( service.getType() ) ) {
-                    services.add(service);
-                }
+            final Provider.Service service = provider.getService("Cipher", alg);
+            if ( service != null ) {
+                serviceFound = true;
+                final String supportedModes = service.getAttribute("SupportedModes");
+                if ( supportedModes != null ) return supportedModes.split("|");
             }
         }
-        return services;
+        // if a service is found but has no SupportedModes configuration included
+        // e.g. BC provider does not provide those - assume all modes that OpenSSL
+        // supports (and are mappable to JSE) work with the cipher algorithm :
+        return serviceFound ? Algorithm.OPENSSL_BLOCK_MODES : null;
     }
 
     public static final class Algorithm {
 
-        final String base; // DES
-        final String version; // EDE3
-        final String mode; // CBC
-        final String padding; // PKCS5Padding
-        final String realName;
+        final String base; // e.g. DES, AES
+        final String version; // e.g. EDE3, 256
+        final String mode; // CBC (default)
+        private String padding; // PKCS5Padding (default)
+        private String realName;
+        private boolean realNameNeedsPadding;
 
-        private Algorithm(String cryptoBase, String cryptoVersion, String cryptoMode,
-            String realName, String padding) {
+        private int keyLength = -1, ivLength = -1;
+
+        Algorithm(String cryptoBase, String cryptoVersion, String cryptoMode) {
             this.base = cryptoBase;
             this.version = cryptoVersion;
             this.mode = cryptoMode;
-            this.realName = realName;
-            this.padding = padding;
+            //this.padding = padding;
         }
 
-        private static final Set<String> BLOCK_MODES;
+        private static final Set<String> KNOWN_BLOCK_MODES;
+        private static final String[] OPENSSL_BLOCK_MODES = {
+            "CBC", "CFB", "CFB1", "CFB8", "ECB", "OFB" // that Java supports
+        };
 
         static {
-            BLOCK_MODES = new HashSet<String>();
-            BLOCK_MODES.add("CBC");
-            BLOCK_MODES.add("CFB");
-            BLOCK_MODES.add("CFB1");
-            BLOCK_MODES.add("CFB8");
-            BLOCK_MODES.add("ECB");
-            BLOCK_MODES.add("OFB");
-            BLOCK_MODES.add("CTR");
-            BLOCK_MODES.add("CTS"); // not supported by OpenSSL
-            BLOCK_MODES.add("PCBC"); // not supported by OpenSSL
-            BLOCK_MODES.add("NONE"); // valid to pass into JCE
+            KNOWN_BLOCK_MODES = new HashSet<String>();
+            for ( String mode : OPENSSL_BLOCK_MODES ) KNOWN_BLOCK_MODES.add(mode);
+            KNOWN_BLOCK_MODES.add("CTR");
+            KNOWN_BLOCK_MODES.add("CTS"); // not supported by OpenSSL
+            KNOWN_BLOCK_MODES.add("PCBC"); // not supported by OpenSSL
+            KNOWN_BLOCK_MODES.add("NONE"); // valid to pass into JCE
+        }
+
+        // Ruby to Java name String (or FALSE)
+        static final HashMap<String, String[]> supportedCiphers = new LinkedHashMap<String, String[]>(120, 1);
+        // we're _marking_ unsupported keys with a Boolean.FALSE mapping
+        // all cipher mappings are resolved on `OpenSSL::Cipher.ciphers`
+        // ... probably a slightly _rare_ case to be going for up front
+        static boolean supportedCiphersAll;
+
+        static Map<String, String[]> allSupportedCiphers() {
+            if ( supportedCiphersAll ) return supportedCiphers;
+            synchronized ( supportedCiphers ) {
+                if ( supportedCiphersAll ) return supportedCiphers;
+
+                // cleanup all FALSE keys :
+                //for ( String key: supportedCiphers.keySet() ) {
+                    //if ( supportedCiphers.get(key) == Boolean.FALSE ) supportedCiphers.remove(key);
+                //}
+
+                // OpenSSL: all the block ciphers normally use PKCS#5 padding
+                String[] modes;
+                modes = cipherModes("AES"); // null if not supported
+                if ( modes != null ) {
+                    for ( final String mode : modes ) {
+                        final String realName = "AES/" + mode; // + "/PKCS5Padding"
+                        supportedCiphers.put( "AES-128-" + mode, new String[] { "AES", mode, "128", realName } );
+                        supportedCiphers.put( "AES-192-" + mode, new String[] { "AES", mode, "192", realName } );
+                        supportedCiphers.put( "AES-256-" + mode, new String[] { "AES", mode, "256", realName } );
+                    }
+                    final String realName = "AES/CBC";
+                    supportedCiphers.put( "AES128", new String[] { "AES", "CBC", "128", realName } );
+                    supportedCiphers.put( "AES192", new String[] { "AES", "CBC", "192", realName } );
+                    supportedCiphers.put( "AES256", new String[] { "AES", "CBC", "256", realName } );
+                }
+
+                modes = cipherModes("Blowfish");
+                if ( modes != null ) {
+                    supportedCiphers.put( "BF", new String[] { "BF", "CBC", null, "Blowfish/CBC" });
+                    for ( final String mode : modes ) {
+                        supportedCiphers.put( "BF-" + mode, new String[] { "BF", mode, null, "Blowfish/" + mode } );
+                    }
+                }
+
+                modes = cipherModes("Camellia");
+                if ( modes != null ) {
+                    for ( final String mode : modes ) {
+                        final String realName = "Camellia/" + mode;
+                        supportedCiphers.put( "CAMELLIA-128-" + mode, new String[] { "CAMELLIA", mode, "128", realName } );
+                        supportedCiphers.put( "CAMELLIA-192-" + mode, new String[] { "CAMELLIA", mode, "192", realName } );
+                        supportedCiphers.put( "CAMELLIA-256-" + mode, new String[] { "CAMELLIA", mode, "256", realName } );
+                    }
+                    final String realName = "Camellia/CBC";
+                    supportedCiphers.put( "CAMELLIA128", new String[] { "CAMELLIA", "CBC", "128", realName } );
+                    supportedCiphers.put( "CAMELLIA192", new String[] { "CAMELLIA", "CBC", "192", realName } );
+                    supportedCiphers.put( "CAMELLIA256", new String[] { "CAMELLIA", "CBC", "256", realName } );
+                }
+
+                modes = cipherModes("CAST5");
+                if ( modes != null ) {
+                    supportedCiphers.put( "CAST", new String[] { "CAST", "CBC", null, "CAST5/CBC" } );
+                    supportedCiphers.put( "CAST-CBC", supportedCiphers.get("CAST") );
+                    for ( final String mode : modes ) {
+                        supportedCiphers.put( "CAST5-" + mode, new String[] { "CAST", mode, null, "CAST5/" + mode });
+                    }
+                }
+
+                modes = cipherModes("CAST6");
+                if ( modes != null ) {
+                    for ( final String mode : modes ) {
+                        supportedCiphers.put( "CAST6-" + mode, new String[] { "CAST6", mode, null, "CAST6/" + mode });
+                    }
+                }
+
+                modes = cipherModes("DES");
+                if ( modes != null ) {
+                    supportedCiphers.put( "DES", new String[] { "DES", "CBC", null, "DES/CBC" } );
+                    for ( final String mode : modes ) {
+                        supportedCiphers.put( "DES-" + mode, new String[] { "DES", mode, null, "DES/" + mode });
+                    }
+                }
+
+                modes = cipherModes("DESede");
+                if ( modes != null ) {
+                    supportedCiphers.put( "DES-EDE", new String[] { "DES", "CBC", "EDE", "DESede/CBC" } );
+                    supportedCiphers.put( "DES-EDE-CBC", supportedCiphers.get("DES-EDE") );
+                    supportedCiphers.put( "DES-EDE-CFB", new String[] { "DES", "CBC", "EDE", "DESede/CFB" } );
+                    supportedCiphers.put( "DES-EDE-OFB", new String[] { "DES", "CBC", "EDE", "DESede/OFB" } );
+                    supportedCiphers.put( "DES-EDE3", new String[] { "DES", "CBC", "EDE3", "DESede/CBC" });
+                    for ( final String mode : modes ) {
+                        supportedCiphers.put( "DES-EDE3-" + mode, new String[] { "DES", mode, "EDE3", "DESede/" + mode });
+                    }
+                    supportedCiphers.put( "DES3", new String[] { "DES", "CBC", "EDE3", "DESede/CBC" } );
+                }
+
+                modes = cipherModes("RC2");
+                if ( modes != null ) {
+                    supportedCiphers.put( "RC2", new String[] { "RC2", "CBC", null, "RC2/CBC" } );
+                    for ( final String mode : modes ) {
+                        supportedCiphers.put( "RC2-" + mode, new String[] { "RC2", mode, null, "RC2/" + mode } );
+                    }
+                    supportedCiphers.put( "RC2-40-CBC", new String[] { "RC2", "CBC", "40", "RC2/CBC" } );
+                    supportedCiphers.put( "RC2-64-CBC", new String[] { "RC2", "CBC", "64", "RC2/CBC" } );
+                }
+
+                modes = cipherModes("RC4"); // NOTE: stream cipher (BC supported)
+                if ( modes != null ) {
+                    supportedCiphers.put( "RC4", new String[] { "RC4", null, null, "RC4" } );
+                    supportedCiphers.put( "RC4-40", new String[] { "RC4", null, "40", "RC4" } );
+                    //supportedCiphers.put( "RC2-HMAC-MD5", new String[] { "RC4", null, null, "RC4" });
+                }
+
+                modes = cipherModes("SEED");
+                if ( modes != null ) {
+                    supportedCiphers.put( "SEED", new String[] { "SEED", "CBC", null, "SEED/CBC" } );
+                    for ( final String mode : modes ) {
+                        supportedCiphers.put( "SEED-" + mode, new String[] { "SEED", mode, null, "SEED/" + mode });
+                    }
+                }
+
+                supportedCiphersAll = true;
+                return supportedCiphers;
+            }
         }
 
         @Deprecated
-        public static String jsseToOssl(final String cipherName, final int keyLen) {
-            return javaToOssl(cipherName, keyLen);
+        public static String jsseToOssl(final String cipherName, final int keyLength) {
+            return javaToOssl(cipherName, keyLength);
         }
 
-        public static String javaToOssl(final String cipherName, final int keyLen) {
+        public static String javaToOssl(final String cipherName, final int keyLength) {
             String cryptoBase;
             String cryptoVersion = null;
             String cryptoMode = null;
@@ -323,11 +393,10 @@ public class Cipher extends RubyObject {
                 return null;
             }
             if ( parts.length > 2 ) {
-                cryptoMode = parts[1];
-                // padding: parts[2] is not used
+                cryptoMode = parts[1]; // padding: parts[2] not used
             }
             cryptoBase = parts[0];
-            if ( ! BLOCK_MODES.contains(cryptoMode) ) {
+            if ( ! KNOWN_BLOCK_MODES.contains(cryptoMode) ) {
                 cryptoVersion = cryptoMode;
                 cryptoMode = "CBC";
             }
@@ -335,43 +404,34 @@ public class Cipher extends RubyObject {
                 cryptoMode = "CBC";
             }
             if ( "DESede".equals(cryptoBase) ) {
-                cryptoBase = "DES";
-                cryptoVersion = "EDE3";
+                cryptoBase = "DES"; cryptoVersion = "EDE3";
             }
             else if ( "Blowfish".equals(cryptoBase) ) {
                 cryptoBase = "BF";
             }
             if (cryptoVersion == null) {
-                cryptoVersion = String.valueOf(keyLen);
+                cryptoVersion = String.valueOf(keyLength);
             }
             return cryptoBase + '-' + cryptoVersion + '-' + cryptoMode;
-        }
-
-        public static String getAlgorithmBase(javax.crypto.Cipher cipher) {
-            final String algorithm = cipher.getAlgorithm();
-            final int idx = algorithm.indexOf('/');
-            if ( idx != -1 ) return algorithm.substring(0, idx);
-            return algorithm;
-        }
-
-        public static String getRealName(final String osslName) {
-            return osslToJava(osslName).realName;
         }
 
         static Algorithm osslToJava(final String osslName) {
             return osslToJava(osslName, null); // assume PKCS5Padding
         }
 
-        static Algorithm osslToJava(final String osslName, final String padding) {
-            return osslToJava(osslName, padding, "CBC");
-        }
+        private static Algorithm osslToJava(final String osslName, final String padding) {
 
-        private static Algorithm osslToJava(final String osslName, final String padding,
-            final String defaultCryptoMode) {
-            String cryptoBase;
-            String cryptoVersion = null;
-            String cryptoMode = defaultCryptoMode;
-            String realName;
+            final String[] algVals = supportedCiphers.get(osslName);
+            if ( algVals != null ) {
+                final String cryptoMode = algVals[1];
+                Algorithm alg = new Algorithm(algVals[0], algVals[2], cryptoMode);
+                alg.realName = algVals[3];
+                alg.realNameNeedsPadding = true;
+                alg.padding = getPaddingType(padding, cryptoMode);
+                return alg;
+            }
+
+            String cryptoBase, cryptoVersion = null, cryptoMode = "CBC", realName;
 
             int s = osslName.indexOf('-'); int i = 0;
             if (s == -1) { cryptoBase = osslName; }
@@ -382,7 +442,6 @@ public class Cipher extends RubyObject {
                 if (s == -1) cryptoMode = osslName.substring(i); // "base-mode"
                 else { // two separators :  "base-version-mode"
                     cryptoVersion = osslName.substring(i, s);
-                    //cryptoMode = osslName.substring(s + 1);
                     s = osslName.indexOf('-', i = s + 1);
                     if (s == -1) {
                         cryptoMode = osslName.substring(i);
@@ -393,129 +452,212 @@ public class Cipher extends RubyObject {
                 }
             }
 
-            String paddingType;
-            if (padding == null || padding.equalsIgnoreCase("PKCS5Padding")) {
-                paddingType = "PKCS5Padding";
-            }
-            else if (padding.equals("0") || padding.equalsIgnoreCase("NoPadding")) {
-                paddingType = "NoPadding";
-            }
-            else if (padding.equalsIgnoreCase("ISO10126Padding")) {
-                paddingType = "ISO10126Padding";
-            }
-            else if (padding.equalsIgnoreCase("PKCS1Padding")) {
-                paddingType = "PKCS1Padding";
-            }
-            else if (padding.equalsIgnoreCase("SSL3Padding")) {
-                paddingType = "SSL3Padding";
-            }
-            //else if (padding.equalsIgnoreCase("OAEPPadding")) {
-            //    paddingType = "OAEPPadding";
-            //}
-            else {
-                paddingType = "PKCS5Padding"; // default
-            }
+            cryptoBase = cryptoBase.toUpperCase(); // allways upper e.g. "AES"
+            if ( cryptoMode != null ) cryptoMode = cryptoMode.toUpperCase();
 
-            final String cryptoBaseUpper = cryptoBase.toUpperCase();
-            if ( "BF".equals(cryptoBaseUpper) ) {
-                cryptoBase = "Blowfish";
-            }
+            boolean realNameSet = false;
 
-            if ( "CAST".equals(cryptoBaseUpper) ) {
-                realName = "CAST5";
+            if ( "BF".equals(cryptoBase) ) realName = "Blowfish";
+            else if ( "CAST".equals(cryptoBase) ) realName = "CAST5";
+            else if ( cryptoBase.startsWith("DES") ) {
+                if ( "DES3".equals(cryptoBase) ) {
+                    cryptoBase = "DES"; realName = "DESede"; // cryptoVersion = cryptoMode; cryptoMode = "CBC";
+                }
+                else if ( "EDE3".equalsIgnoreCase(cryptoVersion) || "EDE".equalsIgnoreCase(cryptoVersion) ) {
+                    realName = "DESede";
+                }
+                else if ( "EDE3".equalsIgnoreCase(cryptoMode) || "EDE".equalsIgnoreCase(cryptoMode) ) {
+                    realName = "DESede"; cryptoVersion = cryptoMode; cryptoMode = "CBC";
+                }
+                else realName = "DES";
             }
-            else if ( "DES".equals(cryptoBaseUpper) && "EDE3".equalsIgnoreCase(cryptoVersion) ) {
-                realName = "DESede";
+            else if ( cryptoBase.length() > 3 && cryptoBase.startsWith("AES") ) {
+                try { // try parsing e.g. "AES256"
+                    final String version = cryptoBase.substring(3);
+                    Integer.parseInt( version );
+                    realName = cryptoBase = "AES"; cryptoVersion = version;
+                }
+                catch (NumberFormatException e) { realName = cryptoBase;  }
             }
-            else if ( cryptoBaseUpper.length() > 3 && cryptoBaseUpper.startsWith("AES") ) {
-                if ( "AES128".equals(cryptoBaseUpper) ||
-                     "AES192".equals(cryptoBaseUpper) ||
-                     "AES256".equals(cryptoBaseUpper) ) realName = "AES";
-                else realName = cryptoBase;
+            else if ( cryptoBase.length() > 8 && cryptoBase.startsWith("CAMELLIA") ) {
+                try { // try parsing e.g. "CAMELLIA192"
+                    final String version = cryptoBase.substring(8);
+                    Integer.parseInt( version );
+                    realName = cryptoBase = "CAMELLIA"; cryptoVersion = version;
+                }
+                catch (NumberFormatException e) { realName = cryptoBase;  }
             }
             else {
                 realName = cryptoBase;
+
+                // streaming ciphers - no padding/mode to be used ...
+                // e.g. only SecurityHelper.getCipherInstance("RC4") will work
+                if ( "RC4".equals(cryptoBase) ) {
+                    if ( ! KNOWN_BLOCK_MODES.contains(cryptoMode) ) {
+                        cryptoVersion = cryptoMode;
+                    }
+                    cryptoMode = null; // padding = null;
+                    // cryptoMode = "NONE"; paddingType = "NoPadding";
+                    realNameSet = true;
+                }
             }
 
+            String paddingType = getPaddingType(padding, cryptoMode);
+
             if ( cryptoMode != null ) {
-                final String cryptoModeUpper = cryptoMode.toUpperCase();
-                if ( ! BLOCK_MODES.contains(cryptoModeUpper) ) {
-                    if ( ! "XTS".equals(cryptoModeUpper) ) { // valid but likely not supported in JCE
-                        cryptoVersion = cryptoMode; cryptoMode = "CBC";
+                if ( ! KNOWN_BLOCK_MODES.contains(cryptoMode) ) {
+                    if ( ! "XTS".equals(cryptoMode) ) {
+                        // valid but likely not supported by JCE/provider
+                        //cryptoVersion = cryptoMode; cryptoMode = "CBC";
                     }
                 }
-                else if ( "CFB1".equals(cryptoModeUpper) ) {
+                else if ( "CFB1".equals(cryptoMode) ) {
                     cryptoMode = "CFB"; // uglish SunJCE mode normalization
                 }
 
-                if ( "RC4".equalsIgnoreCase(realName) ) {
-                    realName = "RC4"; cryptoMode = "NONE"; paddingType = "NoPadding";
-                }
-                else {
+                if ( ! realNameSet ) {
                     realName = realName + '/' + cryptoMode + '/' + paddingType;
                 }
             }
-            else {
+            else if ( ! realNameSet ) {
                 if ( padding != null ) {
                     realName = realName + '/' + "NONE" + '/' + paddingType;
                 }
-                else paddingType = null;
-                // else realName is cryptoBase
+                //else paddingType = null; // else realName is cryptoBase
             }
 
-            return new Algorithm(cryptoBase, cryptoVersion, cryptoMode, realName, paddingType);
+            Algorithm alg = new Algorithm(cryptoBase, cryptoVersion, cryptoMode);
+            alg.realName = realName;
+            alg.padding = paddingType;
+            return alg;
         }
 
-        public static int[] osslKeyIvLength(final String cipherName) {
-            final Algorithm alg = Algorithm.osslToJava(cipherName);
-            final String cryptoBaseUpper = alg.base.toUpperCase();
-            final String cryptoVersion = alg.version;
+        String getPadding() {
+            if ( mode == null ) return null; // if ( "RC4".equals(base) ) return null;
+            return padding;
+        }
 
-            int keyLen = -1; int ivLen = -1;
+        private static String getPaddingType(final String padding, final String cryptoMode) {
 
-            final boolean hasLen =
-                "AES".equals(cryptoBaseUpper) || "RC2".equals(cryptoBaseUpper) || "RC4".equals(cryptoBaseUpper);
-            if ( hasLen && cryptoVersion != null ) {
+            // TODO check cryptoMode CFB/OFB
+
+            final String defaultPadding = "PKCS5Padding";
+
+            if ( padding == null ) return defaultPadding;
+            if ( padding.equalsIgnoreCase("PKCS5Padding") ) {
+                return "PKCS5Padding";
+            }
+            if ( padding.equals("0") || padding.equalsIgnoreCase("NoPadding") ) {
+                return "NoPadding";
+            }
+            if ( padding.equalsIgnoreCase("ISO10126Padding") ) {
+                return "ISO10126Padding";
+            }
+            if ( padding.equalsIgnoreCase("PKCS1Padding") ) {
+                return "PKCS1Padding";
+            }
+            if ( padding.equalsIgnoreCase("SSL3Padding") ) {
+                return "SSL3Padding";
+            }
+            if (padding.equalsIgnoreCase("OAEPPadding")) {
+                return "OAEPPadding";
+            }
+            return defaultPadding; // "PKCS5Padding"; // default
+        }
+
+        String getRealName() {
+            if ( realName != null ) {
+                if ( realNameNeedsPadding ) {
+                    final String padding = getPadding();
+                    if ( padding != null ) {
+                        realName = realName + '/' + padding;
+                    }
+                    realNameNeedsPadding = false;
+                }
+                return realName;
+            }
+            return realName = base + '/' + (mode == null ? "NONE" : mode) + '/' + padding;
+        }
+
+        public static String getAlgorithmBase(javax.crypto.Cipher cipher) {
+            final String algorithm = cipher.getAlgorithm();
+            final int idx = algorithm.indexOf('/');
+            if ( idx != -1 ) return algorithm.substring(0, idx);
+            return algorithm;
+        }
+
+        public static String getRealName(final String osslName) {
+            return osslToJava(osslName).getRealName();
+        }
+
+        public int getIvLength() {
+            if ( ivLength != -1 ) return ivLength;
+
+            getKeyLength();
+
+            if ( ivLength == -1 ) {
+                if ( "AES".equals(base) ) {
+                    ivLength = 16;
+                }
+                //else if ( "DES".equals(base) ) {
+                //    ivLength = 8;
+                //}
+                else if ( "RC4".equals(base) ) {
+                    ivLength = 8;
+                }
+                else {
+                    ivLength = 8;
+                }
+            }
+            return ivLength;
+        }
+
+        public int getKeyLength() {
+            if ( keyLength != -1 ) return keyLength;
+
+            int keyLen = -1;
+            if ( version != null ) {
                 try {
-                    keyLen = Integer.parseInt(cryptoVersion) / 8;
-                } catch (NumberFormatException e) {
+                    keyLen = Integer.parseInt(version) / 8;
+                }
+                catch (NumberFormatException e) {
                     keyLen = -1;
                 }
             }
             if ( keyLen == -1 ) {
-                if ( "DES".equals(cryptoBaseUpper) ) {
-                    ivLen = 8;
-                    if ( "EDE3".equalsIgnoreCase(cryptoVersion) ) {
+                if ( "DES".equals(base) ) {
+                    if ( "EDE3".equalsIgnoreCase(version) ) {
                         keyLen = 24;
                     } else {
                         keyLen = 8;
                     }
-                } else if ( "RC4".equals(cryptoBaseUpper) ) {
-                    ivLen = 0;
+                }
+                else if ( "RC4".equals(base) ) {
                     keyLen = 16;
-                } else {
+                }
+                else {
                     keyLen = 16;
                     try {
-                        int maxLen = javax.crypto.Cipher.getMaxAllowedKeyLength(cipherName) / 8;
+                        final String name = getRealName();
+                        int maxLen = javax.crypto.Cipher.getMaxAllowedKeyLength(name) / 8;
                         if (maxLen < keyLen) keyLen = maxLen;
                     }
                     catch (NoSuchAlgorithmException e) { }
                 }
             }
 
-            if ( ivLen == -1 ) {
-                if ( "AES".equals(cryptoBaseUpper) ) {
-                    ivLen = 16;
-                } else {
-                    ivLen = 8;
-                }
-            }
-            return new int[] { keyLen, ivLen };
+            return keyLength = keyLen;
+        }
+
+        @Deprecated
+        public static int[] osslKeyIvLength(final String cipherName) {
+            final Algorithm alg = Algorithm.osslToJava(cipherName);
+            return new int[] { alg.getKeyLength(), alg.getIvLength() };
         }
 
     }
 
-    private static javax.crypto.Cipher getCipher(final String transformation, boolean silent)
+    private static javax.crypto.Cipher getCipherInstance(final String transformation, boolean silent)
         throws NoSuchAlgorithmException, NoSuchPaddingException {
         try {
             return SecurityHelper.getCipher(transformation); // tries BC if it's available
@@ -534,16 +676,16 @@ public class Cipher extends RubyObject {
         super(runtime, type);
     }
 
-    private javax.crypto.Cipher cipher;
+    private javax.crypto.Cipher cipher; // the "real" (Java) Cipher object
     private String name;
     private String cryptoBase;
     private String cryptoVersion;
     private String cryptoMode;
     private String paddingType;
-    private String realName;
-    private int keyLen = -1;
-    private int generateKeyLen = -1;
-    private int ivLen = -1;
+    private String realName; // Cipher's "real" (Java) name - used to instantiate
+    private int keyLength = -1;
+    private int generateKeyLength = -1;
+    private int ivLength = -1;
     private boolean encryptMode = true;
     //private IRubyObject[] modeParams;
     private boolean cipherInited = false;
@@ -560,15 +702,15 @@ public class Cipher extends RubyObject {
         out.println("cryptoMode = " + cryptoMode);
         out.println("padding_type = " + paddingType);
         out.println("realName = " + realName);
-        out.println("keyLen = " + keyLen);
-        out.println("ivLen = " + ivLen);
-        out.println("cipher block size = " + cipher.getBlockSize());
+        out.println("keyLength = " + keyLength);
+        out.println("ivLength = " + ivLength);
+        out.println("cipher alg = " + cipher == null ? null : cipher.getAlgorithm());
+        out.println("cipher block size = " + cipher == null ? null : cipher.getBlockSize());
         out.println("encryptMode = " + encryptMode);
         out.println("cipherInited = " + cipherInited);
         out.println("key.length = " + (key == null ? 0 : key.length));
         out.println("iv.length = " + (realIV == null ? 0 : realIV.length));
         out.println("padding = " + padding);
-        out.println("cipher alg = " + cipher.getAlgorithm());
         out.println("*******************************");
     }
 
@@ -579,9 +721,9 @@ public class Cipher extends RubyObject {
     }
 
     final void initializeImpl(final Ruby runtime, final String name) {
-        if ( ! isSupportedCipher(name) ) {
-            throw newCipherError(runtime, "unsupported cipher algorithm ("+ name +")");
-        }
+        //if ( ! isSupportedCipher(name) ) {
+        //    throw newCipherError(runtime, "unsupported cipher algorithm ("+ name +")");
+        //}
         if ( cipher != null ) {
             throw runtime.newRuntimeError("Cipher already inititalized!");
         }
@@ -592,7 +734,7 @@ public class Cipher extends RubyObject {
     @Override
     @JRubyMethod(required = 1, visibility = Visibility.PRIVATE)
     public IRubyObject initialize_copy(final IRubyObject obj) {
-        if (this == obj) return this;
+        if ( this == obj ) return this;
 
         checkFrozen();
 
@@ -603,8 +745,8 @@ public class Cipher extends RubyObject {
         paddingType = other.paddingType;
         realName = other.realName;
         name = other.name;
-        keyLen = other.keyLen;
-        ivLen = other.ivLen;
+        keyLength = other.keyLength;
+        ivLength = other.ivLength;
         encryptMode = other.encryptMode;
         cipherInited = false;
         if ( other.key != null ) {
@@ -620,7 +762,7 @@ public class Cipher extends RubyObject {
         this.orgIV = this.realIV;
         padding = other.padding;
 
-        cipher = getCipher();
+        cipher = getCipherInstance();
 
         return this;
     }
@@ -632,17 +774,17 @@ public class Cipher extends RubyObject {
 
     @JRubyMethod
     public IRubyObject key_len() {
-        return getRuntime().newFixnum(keyLen);
+        return getRuntime().newFixnum(keyLength);
     }
 
     @JRubyMethod
     public IRubyObject iv_len() {
-        return getRuntime().newFixnum(ivLen);
+        return getRuntime().newFixnum(ivLength);
     }
 
     @JRubyMethod(name = "key_len=", required = 1)
     public IRubyObject set_key_len(IRubyObject len) {
-        this.keyLen = RubyNumeric.fix2int(len);
+        this.keyLength = RubyNumeric.fix2int(len);
         return len;
     }
 
@@ -657,13 +799,13 @@ public class Cipher extends RubyObject {
             debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
-        if (keyBytes.length < keyLen) {
+        if (keyBytes.length < keyLength) {
             throw newCipherError(context.runtime, "key length too short");
         }
 
-        if (keyBytes.length > keyLen) {
-            byte[] keys = new byte[keyLen];
-            System.arraycopy(keyBytes, 0, keys, 0, keyLen);
+        if (keyBytes.length > keyLength) {
+            byte[] keys = new byte[keyLength];
+            System.arraycopy(keyBytes, 0, keys, 0, keyLength);
             keyBytes = keys;
         }
 
@@ -682,13 +824,13 @@ public class Cipher extends RubyObject {
             debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
-        if ( ivBytes.length < ivLen ) {
+        if ( ivBytes.length < ivLength ) {
             throw newCipherError(context.runtime, "iv length to short");
         }
         else {
             // EVP_CipherInit_ex uses leading IV length of given sequence.
-            byte[] iv2 = new byte[ivLen];
-            System.arraycopy(ivBytes, 0, iv2, 0, ivLen);
+            byte[] iv2 = new byte[ivLength];
+            System.arraycopy(ivBytes, 0, iv2, 0, ivLength);
             this.realIV = iv2;
         }
         this.orgIV = this.realIV;
@@ -700,13 +842,14 @@ public class Cipher extends RubyObject {
 
     @JRubyMethod
     public IRubyObject block_size(final ThreadContext context) {
-        checkInitialized();
+        final Ruby runtime = context.runtime;
+        checkCipherNotNull(runtime);
         if ( isStreamCipher() ) {
             // getBlockSize() returns 0 for stream cipher in JCE
             // OpenSSL returns 1 for RC4.
-            return context.runtime.newFixnum(1);
+            return runtime.newFixnum(1);
         }
-        return context.runtime.newFixnum(cipher.getBlockSize());
+        return runtime.newFixnum(cipher.getBlockSize());
     }
 
     private void init(final ThreadContext context, final IRubyObject[] args, final boolean encrypt) {
@@ -722,28 +865,28 @@ public class Cipher extends RubyObject {
              * We deprecated the arguments for this method, but we decided
              * keeping this behaviour for backward compatibility.
              */
-            byte[] pass = args[0].convertToString().getBytes();
+            byte[] pass = args[0].asString().getBytes();
             byte[] iv = null;
             try {
                 iv = "OpenSSL for Ruby rulez!".getBytes("ISO8859-1");
-                byte[] iv2 = new byte[this.ivLen];
-                System.arraycopy(iv, 0, iv2, 0, this.ivLen);
+                byte[] iv2 = new byte[this.ivLength];
+                System.arraycopy(iv, 0, iv2, 0, this.ivLength);
                 iv = iv2;
             } catch (Exception e) {
             }
 
             if ( args.length > 1 && ! args[1].isNil() ) {
                 runtime.getWarnings().warning(ID.MISCELLANEOUS, "key derivation by " + getMetaClass().getRealClass().getName() + "#encrypt is deprecated; use " + getMetaClass().getRealClass().getName() + "::pkcs5_keyivgen instead");
-                iv = args[1].convertToString().getBytes();
-                if (iv.length > this.ivLen) {
-                    byte[] iv2 = new byte[this.ivLen];
-                    System.arraycopy(iv, 0, iv2, 0, this.ivLen);
+                iv = args[1].asString().getBytes();
+                if (iv.length > this.ivLength) {
+                    byte[] iv2 = new byte[this.ivLength];
+                    System.arraycopy(iv, 0, iv2, 0, this.ivLength);
                     iv = iv2;
                 }
             }
 
             MessageDigest digest = Digest.getDigest("MD5", runtime);
-            KeyAndIv result = evpBytesToKey(keyLen, ivLen, digest, iv, pass, 2048);
+            KeyAndIv result = evpBytesToKey(keyLength, ivLength, digest, iv, pass, 2048);
             this.key = result.key;
             this.realIV = iv;
             this.orgIV = this.realIV;
@@ -766,15 +909,16 @@ public class Cipher extends RubyObject {
 
     @JRubyMethod
     public IRubyObject reset(final ThreadContext context) {
-        checkInitialized();
+        final Ruby runtime = context.runtime;
+        checkCipherNotNull(runtime);
         if ( ! isStreamCipher() ) {
             this.realIV = orgIV;
-            doInitCipher(context.runtime);
+            doInitCipher(runtime);
         }
         return this;
     }
 
-    private void updateCipher(String name, String padding) {
+    private void updateCipher(final String name, final String padding) {
         // given 'rc4' must be 'RC4' here. OpenSSL checks it as a LN of object
         // ID and set SN. We don't check 'name' is allowed as a LN in ASN.1 for
         // the possibility of JCE specific algorithm so just do upperCase here
@@ -786,22 +930,21 @@ public class Cipher extends RubyObject {
         cryptoBase = alg.base;
         cryptoVersion = alg.version;
         cryptoMode = alg.mode;
-        realName = alg.realName;
-        paddingType = alg.padding;
+        realName = alg.getRealName();
+        paddingType = alg.getPadding();
 
-        int[] lengths = Algorithm.osslKeyIvLength(name);
-        keyLen = lengths[0];
-        ivLen = lengths[1];
-        if ("DES".equalsIgnoreCase(cryptoBase)) {
-            generateKeyLen = keyLen / 8 * 7;
+        keyLength = alg.getKeyLength();
+        ivLength = alg.getIvLength();
+        if ( "DES".equalsIgnoreCase(cryptoBase) ) {
+            generateKeyLength = keyLength / 8 * 7;
         }
 
-        cipher = getCipher();
+        cipher = getCipherInstance();
     }
 
-    javax.crypto.Cipher getCipher() {
+    javax.crypto.Cipher getCipherInstance() {
         try {
-            return getCipher(realName, false);
+            return getCipherInstance(realName, false);
         }
         catch (NoSuchAlgorithmException e) {
             throw newCipherError(getRuntime(), "unsupported cipher algorithm (" + realName + ")");
@@ -815,13 +958,14 @@ public class Cipher extends RubyObject {
     public IRubyObject pkcs5_keyivgen(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
         Arity.checkArgumentCount(runtime, args, 1, 4);
-        byte[] pass = args[0].convertToString().getBytes();
+
+        byte[] pass = args[0].asString().getBytes();
         byte[] salt = null;
         int iter = 2048;
         IRubyObject vdigest = runtime.getNil();
         if ( args.length > 1 ) {
             if ( ! args[1].isNil() ) {
-                salt = args[1].convertToString().getBytes();
+                salt = args[1].asString().getBytes();
             }
             if ( args.length > 2 ) {
                 if ( ! args[2].isNil() ) {
@@ -838,7 +982,7 @@ public class Cipher extends RubyObject {
 
         final String algorithm = vdigest.isNil() ? "MD5" : ((Digest) vdigest).getAlgorithm();
         final MessageDigest digest = Digest.getDigest(algorithm, runtime);
-        KeyAndIv result = evpBytesToKey(keyLen, ivLen, digest, salt, pass, iter);
+        KeyAndIv result = evpBytesToKey(keyLength, ivLength, digest, salt, pass, iter);
         this.key = result.key;
         this.realIV = result.iv;
         this.orgIV = this.realIV;
@@ -853,29 +997,41 @@ public class Cipher extends RubyObject {
             runtime.getOut().println("*** doInitCipher");
             dumpVars( runtime.getOut() );
         }
-        checkInitialized();
-        if (key == null) {
+        checkCipherNotNull(runtime);
+        if ( key == null ) {
             throw newCipherError(runtime, "key not specified");
         }
         try {
             if ( ! "ECB".equalsIgnoreCase(cryptoMode) ) {
-                if ( this.realIV == null ) {
-                    // no IV yet, start out with all zeros
-                    this.realIV = new byte[ivLen];
+                if ( realIV == null ) { // no IV yet, start out with all 0s
+                    realIV = new byte[ivLength];
                 }
                 if ( "RC2".equalsIgnoreCase(cryptoBase) ) {
-                    this.cipher.init(encryptMode ? javax.crypto.Cipher.ENCRYPT_MODE : javax.crypto.Cipher.DECRYPT_MODE, new SimpleSecretKey("RC2", this.key), new RC2ParameterSpec(this.key.length * 8, this.realIV));
-                } else if ( "RC4".equalsIgnoreCase(cryptoBase) ) {
-                    this.cipher.init(encryptMode ? javax.crypto.Cipher.ENCRYPT_MODE : javax.crypto.Cipher.DECRYPT_MODE, new SimpleSecretKey("RC4", this.key));
-                } else {
-                    this.cipher.init(encryptMode ? javax.crypto.Cipher.ENCRYPT_MODE : javax.crypto.Cipher.DECRYPT_MODE, new SimpleSecretKey(realName.split("/")[0], this.key), new IvParameterSpec(this.realIV));
+                    cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
+                            new SimpleSecretKey("RC2", this.key),
+                            new RC2ParameterSpec(this.key.length * 8, this.realIV)
+                    );
                 }
-            } else {
-                this.cipher.init(encryptMode ? javax.crypto.Cipher.ENCRYPT_MODE : javax.crypto.Cipher.DECRYPT_MODE, new SimpleSecretKey(realName.split("/")[0], this.key));
+                else if ( "RC4".equalsIgnoreCase(cryptoBase) ) {
+                    cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
+                            new SimpleSecretKey("RC4", this.key)
+                    );
+                }
+                else {
+                    cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
+                            new SimpleSecretKey(getCipherAlgorithm(), this.key),
+                            new IvParameterSpec(this.realIV)
+                    );
+                }
+            }
+            else {
+                cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
+                        new SimpleSecretKey(getCipherAlgorithm(), this.key)
+                );
             }
         }
         catch (InvalidKeyException e) {
-            throw newCipherError(runtime, e.getMessage() + ": possibly you need to install Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE");
+            throw newCipherError(runtime, e + ": possibly you need to install Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE");
         }
         catch (Exception e) {
             debugStackTrace(runtime, e);
@@ -883,17 +1039,24 @@ public class Cipher extends RubyObject {
         }
         cipherInited = true;
     }
-    private byte[] lastIv = null;
+
+    private String getCipherAlgorithm() {
+        final int idx = realName.indexOf('/');
+        return idx <= 0 ? realName : realName.substring(0, idx);
+    }
+
+    private byte[] lastIV = null;
 
     @JRubyMethod
-    public IRubyObject update(final ThreadContext context, final IRubyObject data) {
+    public IRubyObject update(final ThreadContext context, final IRubyObject arg) {
         final Ruby runtime = context.runtime;
-        if ( isDebug(runtime) ) debug("*** update [" + data + "]");
+        if ( isDebug(runtime) ) debug("*** update " + arg.inspect() + "");
 
-        checkInitialized();
-        byte[] val = data.convertToString().getBytes();
-        if (val.length == 0) {
-            throw getRuntime().newArgumentError("data must not be empty");
+        checkCipherNotNull(runtime);
+
+        final byte[] data = arg.convertToString().getBytes();
+        if ( data.length == 0 ) {
+            throw runtime.newArgumentError("data must not be empty");
         }
 
         if ( ! cipherInited ) {
@@ -902,81 +1065,75 @@ public class Cipher extends RubyObject {
             //if ( debug ) runtime.getOut().println("AFTER INITING");
         }
 
-        byte[] str = new byte[0];
+        byte[] str = ByteList.NULL_ARRAY;
         try {
-            byte[] out = cipher.update(val);
-            if (out != null) {
+            final byte[] out = cipher.update(data);
+            if ( out != null ) {
                 str = out;
 
-                if (this.realIV != null) {
-                    if (lastIv == null) {
-                        lastIv = new byte[ivLen];
-                    }
-                    byte[] tmpIv = encryptMode ? out : val;
-                    if (tmpIv.length >= ivLen) {
-                        System.arraycopy(tmpIv, tmpIv.length - ivLen, lastIv, 0, ivLen);
+                if ( realIV != null ) {
+                    if ( lastIV == null ) lastIV = new byte[ivLength];
+                    byte[] tmpIV = encryptMode ? out : data;
+                    if ( tmpIV.length >= ivLength ) {
+                        System.arraycopy(tmpIV, tmpIV.length - ivLength, lastIV, 0, ivLength);
                     }
                 }
             }
         }
         catch (Exception e) {
             debugStackTrace( runtime, e );
-            throw newCipherError(runtime, e.getMessage());
+            throw newCipherError(runtime, e);
         }
 
-        return getRuntime().newString(new ByteList(str, false));
+        return StringHelper.newString(runtime, str);
     }
 
     @JRubyMethod(name = "<<")
     public IRubyObject update_deprecated(final ThreadContext context, final IRubyObject data) {
-        context.runtime.getWarnings().warn(ID.DEPRECATED_METHOD, this.getMetaClass().getRealClass().getName() + "#<< is deprecated; use " + this.getMetaClass().getRealClass().getName() + "#update instead");
+        context.runtime.getWarnings().warn(ID.DEPRECATED_METHOD, getMetaClass().getRealClass().getName() + "#<< is deprecated; use #update instead");
         return update(context, data);
     }
 
     @JRubyMethod(name = "final")
-    public IRubyObject _final(final ThreadContext context) {
+    public IRubyObject do_final(final ThreadContext context) {
         final Ruby runtime = context.runtime;
-        checkInitialized();
-        if ( ! cipherInited ) {
-            doInitCipher(runtime);
-        }
+        checkCipherNotNull(runtime);
+        if ( ! cipherInited ) doInitCipher(runtime);
         // trying to allow update after final like cruby-openssl. Bad idea.
         if ( "RC4".equalsIgnoreCase(cryptoBase) ) {
             return runtime.newString("");
         }
-        ByteList str = new ByteList(ByteList.NULL_ARRAY);
+        ByteList str = null;
         try {
-            byte[] out = cipher.doFinal();
-            if (out != null) {
+            final byte[] out = cipher.doFinal();
+            if ( out != null ) {
                 str = new ByteList(out, false);
                 // TODO: Modifying this line appears to fix the issue, but I do
                 // not have a good reason for why. Best I can tell, lastIv needs
                 // to be set regardless of encryptMode, so we'll go with this
                 // for now. JRUBY-3335.
-                //if(this.realIV != null && encryptMode) {
-                if (this.realIV != null) {
-                    if (lastIv == null) {
-                        lastIv = new byte[ivLen];
-                    }
-                    byte[] tmpIv = out;
-                    if (tmpIv.length >= ivLen) {
-                        System.arraycopy(tmpIv, tmpIv.length - ivLen, lastIv, 0, ivLen);
+                //if ( realIV != null && encryptMode ) {
+                if ( realIV != null ) {
+                    if ( lastIV == null ) lastIV = new byte[ivLength];
+                    byte[] tmpIV = out;
+                    if (tmpIV.length >= ivLength) {
+                        System.arraycopy(tmpIV, tmpIV.length - ivLength, lastIV, 0, ivLength);
                     }
                 }
             }
-            if (this.realIV != null) {
-                this.realIV = lastIv;
+            if (realIV != null) {
+                realIV = lastIV;
                 doInitCipher(runtime);
             }
         }
         catch (GeneralSecurityException e) { // cipher.doFinal
-            throw newCipherError(runtime, e.getMessage());
+            throw newCipherError(runtime, e);
         }
         catch (RuntimeException e) {
             debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
-        return runtime.newString(str);
+        return str == null ? RubyString.newEmptyString(runtime) : runtime.newString(str);
     }
 
     @JRubyMethod(name = "padding=")
@@ -985,33 +1142,33 @@ public class Cipher extends RubyObject {
         return padding;
     }
 
-    String getAlgorithm() {
-        return this.cipher.getAlgorithm();
-    }
+    //String getAlgorithm() {
+    //    return this.cipher.getAlgorithm();
+    //}
 
     String getName() {
         return this.name;
     }
 
-    String getCryptoBase() {
-        return this.cryptoBase;
+    //String getCryptoBase() {
+    //    return this.cryptoBase;
+    //}
+
+    //String getCryptoMode() {
+    //    return this.cryptoMode;
+    //}
+
+    int getKeyLength() {
+        return keyLength;
     }
 
-    String getCryptoMode() {
-        return this.cryptoMode;
+    int getGenerateKeyLength() {
+        return (generateKeyLength == -1) ? keyLength : generateKeyLength;
     }
 
-    int getKeyLen() {
-        return keyLen;
-    }
-
-    int getGenerateKeyLen() {
-        return (generateKeyLen == -1) ? keyLen : generateKeyLen;
-    }
-
-    private void checkInitialized() {
+    private void checkCipherNotNull(final Ruby runtime) {
         if ( cipher == null ) {
-            throw getRuntime().newRuntimeError("Cipher not inititalized!");
+            throw runtime.newRuntimeError("Cipher not inititalized!");
         }
     }
 
@@ -1059,7 +1216,7 @@ public class Cipher extends RubyObject {
             md.reset();
             if ( addmd++ > 0 ) md.update(md_buf);
             md.update(data);
-            if ( salt != null ) md.update(salt,0,8);
+            if ( salt != null ) md.update(salt, 0, 8);
 
             md_buf = md.digest();
 
@@ -1134,12 +1291,6 @@ public class Cipher extends RubyObject {
             initializeImpl(context.runtime, name.toString());
             return this;
         }
-
-        //@Override
-        //void initializeImpl(final Ruby runtime, final String name) {
-        //    final String cipherName = name == null ? cipherBase : ( cipherBase + '-' + name );
-        //    super.initializeImpl(runtime, cipherName);
-        //}
 
     }
 

@@ -6,8 +6,11 @@ class TestCipher < TestCase
     OpenSSL::Cipher.new 'AES-256-CBC'
     # NOTE: MRI 1.9.3 raises RuntimeError :
     # RuntimeError: unsupported cipher algorithm (AES)
-    # ... hoping we do not need to align that much ?!
-    assert_raise_cipher_error { OpenSSL::Cipher.new 'AES' }
+    # ... maybe we do not need to align that much ?!
+    # NOTE: this raises in MRI :
+    #assert_raise_cipher_error { OpenSSL::Cipher.new 'AES' }
+    assert_raise_cipher_error { OpenSSL::Cipher.new 'AES-XXX' }
+    assert_raise_cipher_error { OpenSSL::Cipher.new 'AES-128-XXX' }
     assert_raise_cipher_error { OpenSSL::Cipher.new 'SSS' }
     assert_raise(ArgumentError) { OpenSSL::Cipher.new }
   end
@@ -30,6 +33,8 @@ class TestCipher < TestCase
     OpenSSL::Cipher::RC2.new 'ECB'
 
     OpenSSL::Cipher::RC4.new '40'
+    #OpenSSL::Cipher::RC4.new 'HMAC' if defined? JRUBY_VERSION
+    #OpenSSL::Cipher::RC4.new 'HMAC-MD5'
   end
 
   def test_AES_classes
@@ -40,10 +45,12 @@ class TestCipher < TestCase
   end
 
   def test_instantiate_supported_ciphers
+    #puts OpenSSL::Cipher.ciphers.inspect
+    #puts OpenSSL::Cipher.ciphers.size
+
     OpenSSL::Cipher.ciphers.each do |cipher_name|
       OpenSSL::Cipher.new cipher_name
     end
-    # puts OpenSSL::Cipher.ciphers.size
   end
 
   def assert_raise_cipher_error(&block)

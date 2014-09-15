@@ -48,7 +48,7 @@ import java.security.spec.RSAKeyGenParameterSpec;
 import java.security.spec.RSAPrivateCrtKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 
-import javax.crypto.Cipher;
+import static javax.crypto.Cipher.*;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -404,19 +404,18 @@ public class PKeyRSA extends PKey {
     @JRubyMethod(name = { "export", "to_pem", "to_s" }, rest = true)
     public IRubyObject export(IRubyObject[] args) {
         StringWriter w = new StringWriter();
-        org.jruby.runtime.Arity.checkArgumentCount(getRuntime(), args, 0, 2);
-        CipherSpec ciph = null;
-        char[] passwd = null;
+        Arity.checkArgumentCount(getRuntime(), args, 0, 2);
+        CipherSpec spec = null; char[] passwd = null;
         if (args.length > 0 && !args[0].isNil()) {
-            org.jruby.ext.openssl.Cipher c = (org.jruby.ext.openssl.Cipher) args[0];
-            ciph = new CipherSpec(c.getCipher(), c.getName(), c.getKeyLen() * 8);
+            final Cipher c = (Cipher) args[0];
+            spec = new CipherSpec(c.getCipherInstance(), c.getName(), c.getKeyLength() * 8);
             if (args.length > 1 && !args[1].isNil()) {
                 passwd = args[1].toString().toCharArray();
             }
         }
         try {
             if (privKey != null) {
-                PEMInputOutput.writeRSAPrivateKey(w, privKey, ciph, passwd);
+                PEMInputOutput.writeRSAPrivateKey(w, privKey, spec, passwd);
             } else {
                 PEMInputOutput.writeRSAPublicKey(w, pubKey);
             }
@@ -452,7 +451,7 @@ public class PKeyRSA extends PKey {
             padding = RubyNumeric.fix2int(args[1]);
         }
         if ( privKey == null ) throw newRSAError(context.runtime, "private key needed.");
-        return doCipherRSA(context.runtime, args[0], padding, Cipher.ENCRYPT_MODE, privKey);
+        return doCipherRSA(context.runtime, args[0], padding, ENCRYPT_MODE, privKey);
     }
 
     @JRubyMethod(rest = true)
@@ -462,7 +461,7 @@ public class PKeyRSA extends PKey {
             padding = RubyNumeric.fix2int(args[1]);
         }
         if ( privKey == null ) throw newRSAError(context.runtime, "private key needed.");
-        return doCipherRSA(context.runtime, args[0], padding, Cipher.DECRYPT_MODE, privKey);
+        return doCipherRSA(context.runtime, args[0], padding, DECRYPT_MODE, privKey);
     }
 
     @JRubyMethod(rest = true)
@@ -471,7 +470,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil())  {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        return doCipherRSA(context.runtime, args[0], padding, Cipher.ENCRYPT_MODE, pubKey);
+        return doCipherRSA(context.runtime, args[0], padding, ENCRYPT_MODE, pubKey);
     }
 
     @JRubyMethod(rest = true)
@@ -480,7 +479,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil() ) {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        return doCipherRSA(context.runtime, args[0], padding, Cipher.DECRYPT_MODE, pubKey);
+        return doCipherRSA(context.runtime, args[0], padding, DECRYPT_MODE, pubKey);
     }
 
     private RubyString doCipherRSA(final Ruby runtime,
@@ -490,10 +489,10 @@ public class PKeyRSA extends PKey {
         final String cipherPadding = getPadding(padding);
         final RubyString buffer = content.convertToString();
         try {
-            Cipher engine = SecurityHelper.getCipher("RSA" + cipherPadding);
+            javax.crypto.Cipher engine = SecurityHelper.getCipher("RSA" + cipherPadding);
             engine.init(initMode, initKey);
             byte[] output = engine.doFinal(buffer.getBytes());
-            return RubyString.newString(runtime, output);
+            return StringHelper.newString(runtime, output);
         }
         catch (GeneralSecurityException gse) {
             throw newRSAError(runtime, gse.getMessage());

@@ -109,7 +109,7 @@ public class SSLSocket extends RubyObject {
         return SSL.newSSLError(runtime, message);
     }
 
-    private org.jruby.ext.openssl.SSLContext sslContext;
+    private SSLContext sslContext;
     private SSLEngine engine;
     private RubyIO io;
 
