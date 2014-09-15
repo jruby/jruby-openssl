@@ -44,7 +44,11 @@ import java.security.SignatureException;
 import java.security.cert.CRLException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509CRLEntry;
+import java.security.interfaces.DSAParams;
+import java.security.interfaces.DSAPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 
 import org.bouncycastle.asn1.ASN1Encodable;
@@ -56,11 +60,26 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.CertificateList;
+import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
+import org.bouncycastle.cert.CertException;
 import org.bouncycastle.cert.X509CRLHolder;
 import org.bouncycastle.cert.X509v2CRLBuilder;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.DSAParameters;
+import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.jce.provider.X509CRLObject;
 import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.ContentVerifier;
+import org.bouncycastle.operator.ContentVerifierProvider;
+import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.OperatorException;
+import org.bouncycastle.operator.bc.BcDSAContentVerifierProviderBuilder;
+import org.bouncycastle.operator.bc.BcRSAContentVerifierProviderBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import org.joda.time.DateTime;
@@ -90,7 +109,6 @@ import org.jruby.util.ByteList;
 
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.X509._X509;
-import static org.jruby.ext.openssl.X509Extension._Extension;
 import static org.jruby.ext.openssl.X509Extension.newExtension;
 
 /**
@@ -123,7 +141,7 @@ public class X509CRL extends RubyObject {
 
     private boolean changed = true;
 
-    private java.security.cert.X509CRL crl;
+    private java.security.cert.X509CRL crl = null;
     private transient X509CRLHolder crlHolder;
     private transient ASN1Primitive crlValue;
 
@@ -151,12 +169,16 @@ public class X509CRL extends RubyObject {
         catch (IOException ex) {
             throw newCRLError(getRuntime(), ex);
         }
+        catch (GeneralSecurityException ex) {
+            throw newCRLError(getRuntime(), ex);
+        }
     }
 
-    X509CRLHolder getCRLHolder() {
+    private X509CRLHolder getCRLHolder(boolean allowNull) {
         if ( crlHolder != null ) return crlHolder;
         try {
             if ( crl == null ) {
+                if ( allowNull ) return null;
                 throw new IllegalStateException("no crl");
             }
             return crlHolder = new X509CRLHolder(crl.getEncoded());
@@ -178,17 +200,20 @@ public class X509CRL extends RubyObject {
         return getCRL().getSignature();
     }
 
-    private java.security.cert.X509CRL generateCRL(final byte[] bytes,
-        final int offset, final int length) {
-        try {
-            CertificateFactory factory = SecurityHelper.getCertificateFactory("X.509");
-            return (java.security.cert.X509CRL) factory.generateCRL(
-                new ByteArrayInputStream(bytes, offset, length)
-            );
-        }
-        catch (GeneralSecurityException e) {
-            throw newCRLError(getRuntime(), e.getMessage());
-        }
+    private static boolean avoidJavaSecurity = false;
+
+    private static java.security.cert.X509CRL generateCRL(
+        final byte[] bytes, final int offset, final int length)
+        throws GeneralSecurityException {
+        CertificateFactory factory = SecurityHelper.getCertificateFactory("X.509");
+        return (java.security.cert.X509CRL) factory.generateCRL(
+            new ByteArrayInputStream(bytes, offset, length)
+        );
+    }
+
+    private static X509CRLHolder parseCRLHolder(
+        final byte[] bytes, final int offset, final int length) throws IOException {
+        return new X509CRLHolder(new ByteArrayInputStream(bytes, offset, length));
     }
 
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
@@ -200,9 +225,25 @@ public class X509CRL extends RubyObject {
 
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) return this;
 
-        final ByteList bytes = args[0].asString().getByteList();
-        final int offset = bytes.getBegin(); final int length = bytes.getRealSize();
-        this.crl = generateCRL(bytes.unsafeBytes(), offset, length);
+        final ByteList strList = args[0].asString().getByteList();
+        final byte[] bytes = strList.unsafeBytes();
+        final int offset = strList.getBegin(); final int length = strList.getRealSize();
+        try {
+            if ( avoidJavaSecurity ) {
+                this.crlHolder = parseCRLHolder(bytes, offset, length);
+            }
+            else {
+                this.crl = generateCRL(bytes, offset, length);
+            }
+        }
+        catch (IOException e) {
+            debugStackTrace(runtime, e);
+            throw newCRLError(runtime, e);
+        }
+        catch (GeneralSecurityException e) {
+            debugStackTrace(runtime, e);
+            throw newCRLError(runtime, e);
+        }
 
         set_last_update( context, RubyTime.newTime(runtime, crl.getThisUpdate().getTime()) );
         set_next_update( context, RubyTime.newTime(runtime, crl.getNextUpdate().getTime()) );
@@ -211,22 +252,7 @@ public class X509CRL extends RubyObject {
         final int version = crl.getVersion();
         this.version = runtime.newFixnum( version > 0 ? version - 1 : 2 );
 
-
-        final RubyClass _Extension = _Extension(runtime);
-
-        final Set<String> criticalExtOIDs = crl.getCriticalExtensionOIDs();
-        if ( criticalExtOIDs != null ) {
-            for ( final String extOID : criticalExtOIDs ) {
-                addExtension(context, _Extension, extOID, true);
-            }
-        }
-
-        final Set<String> nonCriticalExtOIDs = crl.getNonCriticalExtensionOIDs();
-        if ( nonCriticalExtOIDs != null ) {
-            for ( final String extOID : nonCriticalExtOIDs ) {
-                addExtension(context, _Extension, extOID, false);
-            }
-        }
+        extractExtensions(context);
 
         Set<? extends X509CRLEntry> revokedCRLs = crl.getRevokedCertificates();
         if ( revokedCRLs != null && ! revokedCRLs.isEmpty() ) {
@@ -246,8 +272,48 @@ public class X509CRL extends RubyObject {
         return this;
     }
 
+    private void extractExtensions(final ThreadContext context) {
+        if ( crlHolder != null ) extractExtensions(context, crlHolder);
+        else extractExtensionsCRL(context, getCRL());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void extractExtensions(final ThreadContext context, final X509CRLHolder crl) {
+        if ( ! crlHolder.hasExtensions() ) return;
+        for ( ASN1ObjectIdentifier oid : (Collection<ASN1ObjectIdentifier>) crl.getExtensionOIDs() ) {
+            addExtension(context, oid, crl);
+        }
+    }
+
     private void addExtension(final ThreadContext context,
-        final RubyClass _Extension, final String extOID, final boolean critical) {
+        final ASN1ObjectIdentifier extOID, final X509CRLHolder crl) {
+        final Extension ext = crl.getExtension(extOID);
+        final IRubyObject extension = newExtension(context.runtime, extOID, ext);
+        this.extensions.append(extension);
+    }
+
+    private void extractExtensionsCRL(final ThreadContext context,
+        final java.security.cert.X509Extension crl) {
+        //final RubyClass _Extension = _Extension(context.runtime);
+
+        final Set<String> criticalExtOIDs = crl.getCriticalExtensionOIDs();
+        if ( criticalExtOIDs != null ) {
+            for ( final String extOID : criticalExtOIDs ) {
+                addExtensionCRL(context, extOID, crl, true);
+            }
+        }
+
+        final Set<String> nonCriticalExtOIDs = crl.getNonCriticalExtensionOIDs();
+        if ( nonCriticalExtOIDs != null ) {
+            for ( final String extOID : nonCriticalExtOIDs ) {
+                addExtensionCRL(context, extOID, crl, false);
+            }
+        }
+    }
+
+    private void addExtensionCRL(final ThreadContext context,
+        final String extOID, final java.security.cert.X509Extension crl,
+        final boolean critical) {
         try {
             final IRubyObject extension = newExtension(context, extOID, crl, critical);
             if ( extension != null ) this.extensions.append(extension);
@@ -429,20 +495,24 @@ public class X509CRL extends RubyObject {
     }
 
     private String getSignatureAlgorithm(final Ruby runtime, final String def) {
-        if ( getCRL() == null ) return def;
+        final X509CRLHolder crlHolder = getCRLHolder(true);
+        if ( crlHolder == null ) return def;
 
+        ASN1ObjectIdentifier algId =
+            crlHolder.toASN1Structure().getSignatureAlgorithm().getAlgorithm();
+        //ASN1ObjectIdentifier algId = ASN1.toObjectID( getCRL().getSigAlgOID(), true );
         String algName;
-        ASN1ObjectIdentifier algId = ASN1.toObjectID( getCRL().getSigAlgOID(), true );
         if ( algId != null ) {
             algName = ASN1.o2a(runtime, algId, true);
         }
-        else {
-            algName = getCRL().getSigAlgName();
-            algId = ASN1.toObjectID( algName, true );
-            if ( algId != null ) {
-                algName = ASN1.o2a(runtime, algId, true);
-            }
-        }
+        else algName = null;
+        //else {
+        //    algName = getCRL().getSigAlgName();
+        //    algId = ASN1.toObjectID( algName, true );
+        //    if ( algId != null ) {
+        //        algName = ASN1.o2a(runtime, algId, true);
+        //    }
+        //}
         return algName == null ? def : algName;
     }
 
@@ -577,6 +647,12 @@ public class X509CRL extends RubyObject {
 
         final PrivateKey privateKey = ((PKey) key).getPrivateKey();
         try {
+            if ( avoidJavaSecurity ) {
+                // NOT IMPLEMENTED
+            }
+            else {
+                //crl = generator.generate(((PKey) key).getPrivateKey());
+            }
             /*
             AlgorithmIdentifier keyAldID = new AlgorithmIdentifier(new ASN1ObjectIdentifier(keyAlg));
             AlgorithmIdentifier digAldID = new AlgorithmIdentifier(new ASN1ObjectIdentifier(digAlg));
@@ -604,9 +680,9 @@ public class X509CRL extends RubyObject {
             debugStackTrace(e); throw newCRLError(runtime, e.getMessage());
         }
 
-        final ASN1Primitive crlValue = getCRLValue(runtime);
+        final ASN1Primitive crlVal = getCRLValue(runtime);
 
-        ASN1Sequence v1 = (ASN1Sequence) ( ((ASN1Sequence) crlValue).getObjectAt(0) );
+        ASN1Sequence v1 = (ASN1Sequence) ( ((ASN1Sequence) crlVal).getObjectAt(0) );
         final ASN1EncodableVector build1 = new ASN1EncodableVector();
         int copyIndex = 0;
         if ( v1.getObjectAt(0) instanceof ASN1Integer ) copyIndex++;
@@ -616,8 +692,8 @@ public class X509CRL extends RubyObject {
         }
         final ASN1EncodableVector build2 = new ASN1EncodableVector();
         build2.add( new DLSequence(build1) );
-        build2.add( ((ASN1Sequence) crlValue).getObjectAt(1) );
-        build2.add( ((ASN1Sequence) crlValue).getObjectAt(2) );
+        build2.add( ((ASN1Sequence) crlVal).getObjectAt(1) );
+        build2.add( ((ASN1Sequence) crlVal).getObjectAt(2) );
 
         this.crlValue = new DLSequence(build2);
         changed = false;
@@ -630,8 +706,7 @@ public class X509CRL extends RubyObject {
         final String digAlg = digest.getShortAlgorithm();
 
         if ( "DSA".equalsIgnoreCase(keyAlg) ) {
-            if ( ( "MD5".equalsIgnoreCase( digAlg ) ) ||
-                 ( "SHA1".equals( digest.name().toString() ) ) ) {
+            if ( ( "MD5".equalsIgnoreCase( digAlg ) ) ) {
                 throw newCRLError(runtime, "unsupported key / digest algorithm ("+ key +" / "+ digAlg +")");
             }
         }
@@ -642,6 +717,10 @@ public class X509CRL extends RubyObject {
         }
 
         return digAlg + "WITH" + keyAlg;
+    }
+
+    private boolean isDSA(final PKey key) {
+        return "DSA".equalsIgnoreCase( key.getAlgorithm() );
     }
 
     private ASN1Primitive getCRLValue(final Ruby runtime) {
@@ -662,25 +741,76 @@ public class X509CRL extends RubyObject {
         if ( changed ) return context.runtime.getFalse();
         final PublicKey publicKey = ((PKey) key).getPublicKey();
         try {
-            boolean valid = SecurityHelper.verify(getCRL(), publicKey, true);
+            // NOTE: with BC 1.49 this seems to need BC provider installed ;(
+            // java.security.NoSuchProviderException: no such provider: BC
+            //    at sun.security.jca.GetInstance.getService(GetInstance.java:83)
+            //    at sun.security.jca.GetInstance.getInstance(GetInstance.java:206)
+            //    at java.security.Signature.getInstance(Signature.java:355)
+            //    at org.bouncycastle.jcajce.provider.asymmetric.x509.X509CRLObject.verify(Unknown Source)
+            //    at org.bouncycastle.jcajce.provider.asymmetric.x509.X509CRLObject.verify(Unknown Source)
+            //    at org.jruby.ext.openssl.SecurityHelper.verify(SecurityHelper.java:564)
+            //    at org.jruby.ext.openssl.X509CRL.verify(X509CRL.java:717)
+            //boolean valid = SecurityHelper.verify(getCRL(), publicKey, true);
+
+            final DigestAlgorithmIdentifierFinder digestAlgFinder = new DefaultDigestAlgorithmIdentifierFinder();
+            final ContentVerifierProvider verifierProvider;
+            if ( isDSA( (PKey) key ) ) {
+                BigInteger y = ((DSAPublicKey) publicKey).getY();
+                DSAParams params = ((DSAPublicKey) publicKey).getParams();
+                DSAParameters parameters = new DSAParameters(params.getP(), params.getQ(), params.getG());
+                AsymmetricKeyParameter dsaKey = new DSAPublicKeyParameters(y, parameters);
+                verifierProvider = new BcDSAContentVerifierProviderBuilder(digestAlgFinder).build(dsaKey);
+            }
+            else {
+                BigInteger mod = ((RSAPublicKey) publicKey).getModulus();
+                BigInteger exp = ((RSAPublicKey) publicKey).getPublicExponent();
+                AsymmetricKeyParameter rsaKey = new RSAKeyParameters(false, mod, exp);
+                verifierProvider = new BcRSAContentVerifierProviderBuilder(digestAlgFinder).build(rsaKey);
+            }
+            //final X509CRLHolder crl = getCRLHolder();
+            //final AlgorithmIdentifier algId = crl.toASN1Structure().getSignatureAlgorithm();
+            boolean valid = getCRLHolder(false).isSignatureValid( verifierProvider );
             return context.runtime.newBoolean(valid);
         }
-        catch (CRLException e) {
+        catch (OperatorException e) {
             debug("CRL#verify() failed:", e);
             return context.runtime.getFalse();
         }
-        catch (InvalidKeyException e) {
+        catch (CertException e) {
             debug("CRL#verify() failed:", e);
             return context.runtime.getFalse();
         }
-        catch (SignatureException e) {
-            debug("CRL#verify() failed:", e);
-            return context.runtime.getFalse();
-        }
-        catch (NoSuchAlgorithmException e) {
-            return context.runtime.getFalse();
-        }
+//        catch (SignatureException e) {
+//            debug("CRL#verify() failed:", e);
+//            return context.runtime.getFalse();
+//        }
+//        catch (NoSuchAlgorithmException e) {
+//            return context.runtime.getFalse();
+//        }
     }
+
+    /*
+    private static boolean verify(final CertificateList crl, final PublicKey publicKey)
+        throws CRLException, InvalidKeyException, SignatureException, NoSuchAlgorithmException {
+
+        final AlgorithmIdentifier tbsSignatureId = crl.getTBSCertList().getSignature();
+        if ( ! crl.getSignatureAlgorithm().equals( tbsSignatureId ) ) {
+            if ( true ) return false;
+            //throw new CRLException("Signature algorithm on CertificateList does not match TBSCertList.");
+        }
+
+        final String sigAlgName = X509SignatureUtil.getSignatureName(crl.getSignatureAlgorithm());
+        final Signature signature = SecurityHelper.getSignature(sigAlgName, securityProvider);
+
+        signature.initVerify(publicKey);
+        signature.update(crl.getTBSCertList());
+
+        if ( ! signature.verify( crl.getSignature() ) ) {
+            if ( true ) return false;
+            //throw new SignatureException("CRL does not verify with supplied public key.");
+        }
+        return true;
+    } */
 
     private static RubyClass _CRLError(final Ruby runtime) {
         return _X509(runtime).getClass("CRLError");
