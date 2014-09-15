@@ -42,6 +42,29 @@ TestCase.class_eval do
 
   alias assert_raise assert_raises unless method_defined?(:assert_raise)
 
+  unless method_defined?(:skip)
+    if method_defined?(:omit)
+      alias skip omit
+    else
+      def skip(msg = nil)
+        warn "Skipped: #{caller[0]} #{msg}"
+      end
+    end
+  end
+
+  def self.disable_security_restrictions!; end
+
+  def self.disable_security_restrictions!
+    security_class = java.lang.Class.for_name('javax.crypto.JceSecurity')
+    restricted_field = security_class.get_declared_field('isRestricted')
+    restricted_field.accessible = true
+    restricted_field.set nil, false
+  rescue java.lang.ClassNotFoundException => e
+    warn "failed to disable JCE security restrictions: #{e}"
+  rescue NameError => e
+    warn "failed to disable JCE security restrictions: #{e}"
+  end if defined? JRUBY_VERSION
+
 end
 
 begin
