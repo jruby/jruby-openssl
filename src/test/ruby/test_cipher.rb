@@ -1,6 +1,12 @@
+# coding: US-ASCII
 require File.expand_path('test_helper', File.dirname(__FILE__))
 
 class TestCipher < TestCase
+
+  def setup
+    super
+    self.class.disable_security_restrictions!
+  end
 
   def test_cipher_new
     OpenSSL::Cipher.new 'AES-256-CBC'
@@ -24,7 +30,7 @@ class TestCipher < TestCase
     OpenSSL::Cipher.new 'DESedeWrap/CBC/NOPADDING' # Sun JCE
     OpenSSL::Cipher.new 'XTEA/CBC/PKCS7Padding' # BC
     OpenSSL::Cipher.new 'Noekeon/CBC/ZeroBytePadding' # BC
-  end
+  end if defined? JRUBY_VERSION
 
   def test_named_classes
     OpenSSL::Cipher::AES.new '192-ECB'
@@ -48,10 +54,11 @@ class TestCipher < TestCase
     #OpenSSL::Cipher::RC4.new 'HMAC-MD5'
   end
 
-  def test_AES_classes
-    OpenSSL::Cipher::AES128.new
+  def test_aes_classes
+    # NOTE: ArgumentError: wrong number of arguments (0 for 1) on MRI
+    OpenSSL::Cipher::AES128.new if defined? JRUBY_VERSION
     OpenSSL::Cipher::AES192.new 'CFB'
-    OpenSSL::Cipher::AES256.new
+    OpenSSL::Cipher::AES256.new 'ECB'
     assert_raise_cipher_error { OpenSSL::Cipher::AES256.new 'XXX' }
   end
 
@@ -64,8 +71,43 @@ class TestCipher < TestCase
     end
   end
 
+  def test_cipher_init_default_key
+    return skip('OpenSSL::Cipher key default not implemented') if defined? JRUBY_VERSION
+
+    out = OpenSSL::Cipher::AES256.new("CBC").update "\1\2\3\4\5\6\7\8"
+    assert_equal '', out
+
+    # NOTE on MRI < 1.9.3 : [BUG] Segmentation fault
+    return if RUBY_VERSION.index('1.8') == 0 && ! defined? JRUBY_VERSION
+
+    #out = OpenSSL::Cipher::AES128.new("CFB").update "\0\0\0\0\0\0\0\0"
+    #assert_equal "f\xE9K\xD4\xEF\x8A,;", out
+
+    # NOTE: quite "crappy" MRI (ECB) behavior :
+    out = OpenSSL::Cipher::AES192.new("ECB").update "1234567890"
+    assert_equal '', out
+    c = OpenSSL::Cipher.new("AES-128-ECB")
+    c.encrypt
+    assert_equal '', c.update('0')
+    assert_equal "B\xF1c\xE2:\xE3\x84fd\xC1s\xDB\x889\x84\x8A", c.update('0' * 15)
+    out = c.update '0'
+    assert_equal "", out
+    c.update('0' * 15)
+    assert_equal "G\xDD\x11?\x9D\x99\xAD\xB0\x9F\xB2j\x01L\xD7\xA8\xBD", c.final
+
+    c = OpenSSL::Cipher::AES128.new("ECB")
+    assert_equal '', c.update('0')
+    assert_equal '', c.update('0' * 15)
+    out = c.update '0'
+    assert_equal "\x9F\fr\xDB%9\xEC\x11\xF6\xBFt\x9F0\xF0\x8C\x0E", out
+  end
+
   def assert_raise_cipher_error(&block)
-    assert_raise OpenSSL::Cipher::CipherError, &block
+    if defined? JRUBY_VERSION # TODO should we fix this?
+      assert_raise OpenSSL::Cipher::CipherError, &block
+    else
+      assert_raise RuntimeError, &block
+    end
   end
 
 end

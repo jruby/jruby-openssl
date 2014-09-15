@@ -711,24 +711,23 @@ public class Cipher extends RubyObject {
     private byte[] orgIV;
     private String padding;
 
-    private void dumpVars(final PrintStream out) {
-        out.println("***** Cipher instance vars ****");
-        out.println("name = " + name);
-        out.println("cryptoBase = " + cryptoBase);
-        out.println("cryptoVersion = " + cryptoVersion);
-        out.println("cryptoMode = " + cryptoMode);
-        out.println("padding_type = " + paddingType);
-        out.println("realName = " + realName);
-        out.println("keyLength = " + keyLength);
-        out.println("ivLength = " + ivLength);
-        out.println("cipher alg = " + cipher == null ? null : cipher.getAlgorithm());
-        out.println("cipher block size = " + cipher == null ? null : cipher.getBlockSize());
-        out.println("encryptMode = " + encryptMode);
-        out.println("cipherInited = " + cipherInited);
-        out.println("key.length = " + (key == null ? 0 : key.length));
-        out.println("iv.length = " + (realIV == null ? 0 : realIV.length));
-        out.println("padding = " + padding);
-        out.println("*******************************");
+    private void dumpVars(final PrintStream out, final String header) {
+        out.println(this.toString() + ' ' + header);
+        out.println(" name = " + name);
+        out.println(" cryptoBase = " + cryptoBase);
+        out.println(" cryptoVersion = " + cryptoVersion);
+        out.println(" cryptoMode = " + cryptoMode);
+        out.println(" padding_type = " + paddingType);
+        out.println(" realName = " + realName);
+        out.println(" keyLength = " + keyLength);
+        out.println(" ivLength = " + ivLength);
+        out.println(" cipher.alg = " + cipher == null ? null : cipher.getAlgorithm());
+        out.println(" cipher.blockSize = " + cipher == null ? null : cipher.getBlockSize());
+        out.println(" encryptMode = " + encryptMode);
+        out.println(" cipherInited = " + cipherInited);
+        out.println(" key.length = " + (key == null ? 0 : key.length));
+        out.println(" iv.length = " + (realIV == null ? 0 : realIV.length));
+        out.println(" padding = " + padding);
     }
 
     @JRubyMethod(required = 1, visibility = Visibility.PRIVATE)
@@ -809,7 +808,7 @@ public class Cipher extends RubyObject {
     public IRubyObject set_key(final ThreadContext context, final IRubyObject key) {
         byte[] keyBytes;
         try {
-            keyBytes = key.convertToString().getBytes();
+            keyBytes = key.asString().getBytes();
         }
         catch (Exception e) {
             final Ruby runtime = context.runtime;
@@ -834,7 +833,7 @@ public class Cipher extends RubyObject {
     public IRubyObject set_iv(final ThreadContext context, final IRubyObject iv) {
         final byte[] ivBytes;
         try {
-            ivBytes = iv.convertToString().getBytes();
+            ivBytes = iv.asString().getBytes();
         }
         catch (Exception e) {
             final Ruby runtime = context.runtime;
@@ -1011,18 +1010,23 @@ public class Cipher extends RubyObject {
 
     private void doInitCipher(final Ruby runtime) {
         if ( isDebug(runtime) ) {
-            runtime.getOut().println("*** doInitCipher");
-            dumpVars( runtime.getOut() );
+            dumpVars( runtime.getOut(), "doInitCipher()" );
         }
         checkCipherNotNull(runtime);
-        if ( key == null ) {
+        if ( key == null ) { //key = emptyKey(keyLength);
             throw newCipherError(runtime, "key not specified");
         }
         try {
-            if ( ! "ECB".equalsIgnoreCase(cryptoMode) ) {
-                if ( realIV == null ) { // no IV yet, start out with all 0s
-                    realIV = new byte[ivLength];
-                }
+            // ECB mode is the only mode that does not require an IV
+            if ( "ECB".equalsIgnoreCase(cryptoMode) ) {
+                cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
+                        new SimpleSecretKey(getCipherAlgorithm(), this.key)
+                );
+            }
+            else {
+                // if no IV yet, start out with all \0s
+                if ( realIV == null ) realIV = new byte[ivLength];
+
                 if ( "RC2".equalsIgnoreCase(cryptoBase) ) {
                     cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
                         new SimpleSecretKey("RC2", this.key),
@@ -1041,11 +1045,6 @@ public class Cipher extends RubyObject {
                     );
                 }
             }
-            else {
-                cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
-                        new SimpleSecretKey(getCipherAlgorithm(), this.key)
-                );
-            }
         }
         catch (InvalidKeyException e) {
             throw newCipherError(runtime, e + ": possibly you need to install Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE");
@@ -1055,6 +1054,12 @@ public class Cipher extends RubyObject {
             throw newCipherError(runtime, e);
         }
         cipherInited = true;
+    }
+
+    private static byte[] emptyKey(final int length) {
+        final byte[] key = new byte[length];
+        // Arrays.fill(key, (byte) '\0');
+        return key;
     }
 
     private String getCipherAlgorithm() {
@@ -1067,11 +1072,11 @@ public class Cipher extends RubyObject {
     @JRubyMethod
     public IRubyObject update(final ThreadContext context, final IRubyObject arg) {
         final Ruby runtime = context.runtime;
-        if ( isDebug(runtime) ) debug("*** update " + arg.inspect() + "");
+        if ( isDebug(runtime) ) dumpVars( runtime.getOut(), "update()" );
 
         checkCipherNotNull(runtime);
 
-        final byte[] data = arg.convertToString().getBytes();
+        final byte[] data = arg.asString().getBytes();
         if ( data.length == 0 ) {
             throw runtime.newArgumentError("data must not be empty");
         }
