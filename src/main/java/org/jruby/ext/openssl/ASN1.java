@@ -687,6 +687,7 @@ public class ASN1 {
         RubyClass Constructive = ASN1.defineClassUnder("Constructive", _ASN1Data, constructiveAllocator);
         Constructive.includeModule( runtime.getModule("Enumerable") );
         Constructive.addReadWriteAttribute(context, "tagging");
+        Constructive.addReadWriteAttribute(context, "infinite_length");
         Constructive.defineAnnotatedMethods(Constructive.class);
 
         ASN1.defineClassUnder("Boolean", Primitive, primitiveAllocator); // OpenSSL::ASN1::Boolean <=> value is a Boolean
@@ -1021,18 +1022,6 @@ public class ASN1 {
             return _ASN1.getClass("GeneralizedTime").callMethod(context,"new", time);
         }
 
-        if ( obj instanceof ASN1Sequence) {
-            @SuppressWarnings("unchecked")
-            RubyArray arr = decodeObjects(context, _ASN1, ((ASN1Sequence) obj).getObjects());
-            return _ASN1.getClass("Sequence").callMethod(context, "new", arr);
-        }
-        if ( obj instanceof ASN1Set ) {
-            // Likely a DERSet returned by bouncycastle libs. Convert to DLSet.
-            @SuppressWarnings("unchecked")
-            RubyArray arr = decodeObjects(context, _ASN1, ((ASN1Set) obj).getObjects());
-            return _ASN1.getClass("Set").callMethod(context, "new", arr);
-        }
-
         if ( obj instanceof DERObjectIdentifier ) {
             final String objId = ((DERObjectIdentifier) obj).getId();
             return _ASN1.getClass("ObjectId").callMethod(context, "new", runtime.newString(objId));
@@ -1047,6 +1036,18 @@ public class ASN1 {
             return _ASN1.getClass("ASN1Data").callMethod(context, "new",
                 new IRubyObject[] { valArr, tag, tag_class }
             );
+        }
+
+        if ( obj instanceof ASN1Sequence) {
+            @SuppressWarnings("unchecked")
+            RubyArray arr = decodeObjects(context, _ASN1, ((ASN1Sequence) obj).getObjects());
+            return _ASN1.getClass("Sequence").callMethod(context, "new", arr);
+        }
+        if ( obj instanceof ASN1Set ) {
+            // Likely a DERSet returned by bouncycastle libs. Convert to DLSet.
+            @SuppressWarnings("unchecked")
+            RubyArray arr = decodeObjects(context, _ASN1, ((ASN1Set) obj).getObjects());
+            return _ASN1.getClass("Set").callMethod(context, "new", arr);
         }
 
         throw new IllegalArgumentException("unable to decode object: " + obj + " (" + ( obj == null ? "" : obj.getClass().getName() ) + ")");
@@ -1420,6 +1421,13 @@ public class ASN1 {
             super(runtime,type);
         }
 
+        @JRubyMethod(required = 1, optional = 3, visibility = Visibility.PRIVATE)
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+            Primitive.initializeImpl(context, this, args);
+            setInstanceVariable("@infinite_length", context.runtime.getFalse());
+            return this;
+        }
+
         @Override
         @JRubyMethod
         public IRubyObject to_der(final ThreadContext context) {
@@ -1427,12 +1435,6 @@ public class ASN1 {
             //    throw context.runtime.newTypeError("nil value");
             //}
             return super.to_der(context);
-        }
-
-        @JRubyMethod(required=1, optional=3, visibility = Visibility.PRIVATE)
-        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
-            Primitive.initializeImpl(context, this, args);
-            return this;
         }
 
         @Override
