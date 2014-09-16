@@ -57,6 +57,7 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x509.X509DefaultEntryConverter;
+import org.bouncycastle.asn1.x509.X509NameEntryConverter;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -167,12 +168,12 @@ public class X509Name extends RubyObject {
     public X509Name(Ruby runtime, RubyClass type) {
         super(runtime,type);
         oids = new ArrayList<ASN1ObjectIdentifier>();
-        values = new ArrayList<String>();
+        values = new ArrayList<ASN1Encodable>();
         types = new ArrayList<RubyInteger>();
     }
 
     private final List<ASN1ObjectIdentifier> oids;
-    private final List<String> values;
+    private final List<ASN1Encodable> values; // <ASN1String>
     private final List<RubyInteger> types;
 
     private transient X500Name name;
@@ -208,13 +209,7 @@ public class X509Name extends RubyObject {
         for( AttributeTypeAndValue tv: rdn.getTypesAndValues() ) {
             oids.add( tv.getType() );
             final ASN1Encodable val = tv.getValue();
-            if ( val instanceof ASN1String ) {
-                this.values.add( ((ASN1String) val).getString() );
-            }
-            else {
-                warn(runtime.getCurrentContext(), this + " fromRDNElement() value not an ASN1 string = '" + val + "' " + ( val == null ? "" : val.getClass()));
-                this.values.add( val == null ? null : val.toString() ); // TODO should not happen?!
-            }
+            addValue( val );
             addType( runtime, val );
         }
     }
@@ -230,26 +225,47 @@ public class X509Name extends RubyObject {
         ASN1Sequence typeAndValue = ASN1Sequence.getInstance(element);
         oids.add( (ASN1ObjectIdentifier) typeAndValue.getObjectAt(0) );
         final ASN1Encodable val = typeAndValue.getObjectAt(1);
-        if ( val instanceof ASN1String ) {
-            this.values.add( ((ASN1String) val).getString() );
-        }
-        else {
-            warn(getRuntime().getCurrentContext(), this + " fromASN1Sequence() value not an ASN1 string = '" + val + "' " + ( val == null ? "" : val.getClass()));
-            this.values.add( val == null ? null : val.toString() ); // TODO should not happen?!
-        }
+        addValue( val );
         addType( getRuntime(), val );
     }
 
-    private void addType(final Ruby runtime, final ASN1Encodable value) {
-        this.name = null; // NOTE: each fromX factory calls this ...
-        this.types.add( runtime.newFixnum( ASN1.idForJava(value) ) );
+    private void addValue(final ASN1Encodable value) {
+        if ( value instanceof ASN1String ) {
+            this.values.add( value );
+        }
+        else {
+            warn(getRuntime().getCurrentContext(), this + " addValue() value not an ASN1 string = '" + value + "' (" + ( value == null ? "" : value.getClass().getName()) + ")");
+            this.values.add( value ); // TODO should not happen?!
+        }
     }
 
-    final void addEntry(ASN1ObjectIdentifier oid, String value, RubyInteger type) {
+    @SuppressWarnings("unchecked")
+    private void addType(final Ruby runtime, final ASN1Encodable value) {
+        this.name = null; // NOTE: each fromX factory calls this ...
+        final Integer type = ASN1.typeId(value);
+        if ( type == null ) {
+            warn(runtime.getCurrentContext(), this + " addType() could not resolve type for: " +
+                 value + " (" + (value == null ? "" : value.getClass().getName()) + ")");
+            ((List) this.types).add( runtime.getNil() );
+        }
+        else {
+            this.types.add( runtime.newFixnum( type.intValue() ) );
+        }
+    }
+
+    private void addEntry(ASN1ObjectIdentifier oid, RubyString value, RubyInteger type)
+        throws IOException {
         this.name = null;
         this.oids.add(oid);
-        this.values.add(value);
+        final ASN1Encodable convertedValue = getNameEntryConverted().
+                getConvertedValue(oid, value.toString()
+        );
+        this.values.add( convertedValue );
         this.types.add(type);
+    }
+
+    private static X509NameEntryConverter getNameEntryConverted() {
+        return new X509DefaultEntryConverter();
     }
 
     @Override
@@ -356,9 +372,12 @@ public class X509Name extends RubyObject {
         // NOTE: won't reach here :
         if ( objectId == null ) throw newNameError(runtime, "invalid field name");
 
-        String valueStr = value.asString().toString();
-        addEntry(objectId, valueStr, (RubyInteger) type);
-
+        try {
+            addEntry(objectId, value.asString(), (RubyInteger) type);
+        }
+        catch (IOException e) {
+            throw newNameError(runtime, "invalid value", e);
+        }
         return this;
     }
 
@@ -394,17 +413,17 @@ public class X509Name extends RubyObject {
          */
 
         final Iterator<ASN1ObjectIdentifier> oidsIter;
-        final Iterator<String> valuesIter;
+        final Iterator<Object> valuesIter;
         if ( flag == RFC2253 ) {
             ArrayList<ASN1ObjectIdentifier> reverseOids = new ArrayList<ASN1ObjectIdentifier>(oids);
-            ArrayList<String> reverseValues = new ArrayList<String>(values);
+            ArrayList<Object> reverseValues = new ArrayList<Object>(values);
             Collections.reverse(reverseOids);
             Collections.reverse(reverseValues);
             oidsIter = reverseOids.iterator();
             valuesIter = reverseValues.iterator();
         } else {
             oidsIter = oids.iterator();
-            valuesIter = values.iterator();
+            valuesIter = (Iterator) values.iterator();
         }
 
         final StringBuilder str = new StringBuilder(48); String sep = "";
@@ -412,7 +431,7 @@ public class X509Name extends RubyObject {
             final ASN1ObjectIdentifier oid = oidsIter.next();
             String oName = name(runtime, oid);
             if ( oName == null ) oName = oid.toString();
-            final String value = valuesIter.next();
+            final Object value = valuesIter.next();
 
             switch(flag) {
                 case RFC2253:
@@ -454,13 +473,13 @@ public class X509Name extends RubyObject {
         final Ruby runtime = getRuntime();
         final RubyArray entries = runtime.newArray( oids.size() );
         final Iterator<ASN1ObjectIdentifier> oidsIter = oids.iterator();
-        final Iterator<String> valuesIter = values.iterator();
+        final Iterator<Object> valuesIter = (Iterator) values.iterator();
         final Iterator<RubyInteger> typesIter = types.iterator();
         while ( oidsIter.hasNext() ) {
             final ASN1ObjectIdentifier oid = oidsIter.next();
             String oName = name(runtime, oid);
             if ( oName == null ) oName = oid.toString();
-            final String value = valuesIter.next();
+            final String value = valuesIter.next().toString();
             final IRubyObject type = typesIter.next();
             final IRubyObject[] entry = new IRubyObject[] {
                 runtime.newString(oName), runtime.newString(value), type
@@ -475,9 +494,12 @@ public class X509Name extends RubyObject {
     }
 
     @Deprecated
+    @SuppressWarnings("unchecked")
     org.bouncycastle.asn1.x509.X509Name getRealName() {
+        final java.util.Vector strValues = new java.util.Vector();
+        for ( ASN1Encodable value : values ) strValues.add( value.toString() );
         return new org.bouncycastle.asn1.x509.X509Name(
-            new java.util.Vector<Object>(oids), new java.util.Vector<Object>(values)
+            new java.util.Vector<Object>(oids), strValues
         );
     }
 
@@ -562,9 +584,12 @@ public class X509Name extends RubyObject {
                 final ASN1ObjectIdentifier oid = oids.get(i);
                 ASN1EncodableVector v = new ASN1EncodableVector();
                 v.add(oid);
-                final String value = values.get(i);
-                final int type = RubyNumeric.fix2int(types.get(i));
-                v.add( convert(oid, value, type) );
+                // TODO DO NOT USE DL types !
+                //final String value = values.get(i);
+                //final int type = RubyNumeric.fix2int(types.get(i));
+                //v.add( convert(oid, value, type) );
+                v.add( values.get(i) );
+
                 if ( lastOid == null ) {
                     sVec.add(new DLSequence(v));
                 } else {
@@ -588,7 +613,7 @@ public class X509Name extends RubyObject {
     }
 
     private ASN1Primitive convert(ASN1ObjectIdentifier oid, String value, int type) {
-        final Class<? extends ASN1Encodable> clazz = ASN1.classForId(type);
+        final Class<? extends ASN1Encodable> clazz = ASN1.typeClass(type);
         try {
             if ( clazz != null ) {
                 Constructor<?> ctor = clazz.getConstructor(new Class[]{ String.class });
