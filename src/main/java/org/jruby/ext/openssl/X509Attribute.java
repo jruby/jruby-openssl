@@ -104,8 +104,8 @@ public class X509Attribute extends RubyObject {
     ASN1Primitive toASN1(final ThreadContext context) {
         ASN1EncodableVector v1 = new ASN1EncodableVector();
         v1.add( getTypeID() );
-        if ( value instanceof ASN1.ASN1Constructive ) {
-            v1.add( ((ASN1.ASN1Constructive) value).toASN1(context) );
+        if ( value instanceof ASN1.Constructive ) {
+            v1.add( ((ASN1.Constructive) value).toASN1(context) );
         }
         else {
             ASN1EncodableVector v2 = new ASN1EncodableVector();
