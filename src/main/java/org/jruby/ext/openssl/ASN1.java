@@ -678,15 +678,16 @@ public class ASN1 {
         _ASN1Data.addReadWriteAttribute(context, "tag_class");
         _ASN1Data.defineAnnotatedMethods(ASN1Data.class);
 
-        final ObjectAllocator primitiveAllocator = ASN1Primitive.ALLOCATOR;
+        final ObjectAllocator primitiveAllocator = Primitive.ALLOCATOR;
         RubyClass Primitive = ASN1.defineClassUnder("Primitive", _ASN1Data, primitiveAllocator);
         Primitive.addReadWriteAttribute(context, "tagging");
-        Primitive.defineAnnotatedMethods(ASN1Primitive.class);
+        Primitive.defineAnnotatedMethods(Primitive.class);
 
-        RubyClass Constructive = ASN1.defineClassUnder("Constructive", _ASN1Data, ASN1Constructive.ALLOCATOR);
+        final ObjectAllocator constructiveAllocator = Constructive.ALLOCATOR;
+        RubyClass Constructive = ASN1.defineClassUnder("Constructive", _ASN1Data, constructiveAllocator);
         Constructive.includeModule( runtime.getModule("Enumerable") );
         Constructive.addReadWriteAttribute(context, "tagging");
-        Constructive.defineAnnotatedMethods(ASN1Constructive.class);
+        Constructive.defineAnnotatedMethods(Constructive.class);
 
         ASN1.defineClassUnder("Boolean", Primitive, primitiveAllocator); // OpenSSL::ASN1::Boolean <=> value is a Boolean
         ASN1.defineClassUnder("Integer", Primitive, primitiveAllocator); // OpenSSL::ASN1::Integer <=> value is a Number
@@ -986,8 +987,8 @@ public class ASN1 {
             return _ASN1.getClass(type).callMethod(context, "new", runtime.newString(bytes));
         }
 
-        if ( obj instanceof ASN1OctetString ) {
-            final ByteList octets = new ByteList(((ASN1OctetString) obj).getOctets(), false);
+        if ( obj instanceof DEROctetString ) {
+            final ByteList octets = new ByteList(((DEROctetString) obj).getOctets(), false);
             return _ASN1.getClass("OctetString").callMethod(context, "new", runtime.newString(octets));
         }
 
@@ -1231,16 +1232,16 @@ public class ASN1 {
 
     }
 
-    public static class ASN1Primitive extends ASN1Data {
+    public static class Primitive extends ASN1Data {
         private static final long serialVersionUID = 8489625559339190259L;
 
         static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
             public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-                return new ASN1Primitive(runtime, klass);
+                return new Primitive(runtime, klass);
             }
         };
 
-        public ASN1Primitive(Ruby runtime, RubyClass type) {
+        public Primitive(Ruby runtime, RubyClass type) {
             super(runtime,type);
         }
 
@@ -1266,7 +1267,7 @@ public class ASN1 {
             return this;
         }
 
-        // shared initialize logic between ASN1Primitive and ASN1Constructive
+        // shared initialize logic between Primitive and Constructive
         static void initializeImpl(final ThreadContext context,
             final ASN1Data self, final IRubyObject[] args) {
             final Ruby runtime = context.runtime;
@@ -1303,7 +1304,7 @@ public class ASN1 {
                 tag_class = runtime.newSymbol("UNIVERSAL");
             }
 
-            // NOTE: ASN1Primitive only
+            // NOTE: Primitive only
             if ( "ObjectId".equals( self.getMetaClass().getRealClass().getBaseName() ) ) {
                 final String name;
                 try {
@@ -1404,16 +1405,16 @@ public class ASN1 {
 
     }
 
-    public static class ASN1Constructive extends ASN1Data {
+    public static class Constructive extends ASN1Data {
         private static final long serialVersionUID = -7166662655104776828L;
 
         static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
             public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-                return new ASN1Constructive(runtime, klass);
+                return new Constructive(runtime, klass);
             }
         };
 
-        public ASN1Constructive(Ruby runtime, RubyClass type) {
+        public Constructive(Ruby runtime, RubyClass type) {
             super(runtime,type);
         }
 
@@ -1428,7 +1429,7 @@ public class ASN1 {
 
         @JRubyMethod(required=1, optional=3, visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
-            ASN1Primitive.initializeImpl(context, this, args);
+            Primitive.initializeImpl(context, this, args);
             return this;
         }
 
