@@ -30,6 +30,16 @@ class TestASN1 < TestCase
     assert_raise(NoMethodError) { OpenSSL::ASN1::Sequence.new(nil).to_der }
   end
 
+  def test_constants
+    universal_tag_name = ["EOC", "BOOLEAN", "INTEGER", "BIT_STRING", "OCTET_STRING",
+      "NULL", "OBJECT", "OBJECT_DESCRIPTOR", "EXTERNAL", "REAL", "ENUMERATED",
+      "EMBEDDED_PDV", "UTF8STRING", "RELATIVE_OID", nil, nil, "SEQUENCE", "SET",
+      "NUMERICSTRING", "PRINTABLESTRING", "T61STRING", "VIDEOTEXSTRING", "IA5STRING",
+      "UTCTIME", "GENERALIZEDTIME", "GRAPHICSTRING", "ISO64STRING", "GENERALSTRING",
+      "UNIVERSALSTRING", "CHARACTER_STRING", "BMPSTRING"]
+    assert_equal universal_tag_name, OpenSSL::ASN1::UNIVERSAL_TAG_NAME
+  end
+
   private
 
   def encode_decode_test(type, values)
