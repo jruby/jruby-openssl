@@ -30,6 +30,12 @@ class TestASN1 < TestCase
     assert_raise(NoMethodError) { OpenSSL::ASN1::Sequence.new(nil).to_der }
   end
 
+  def test_instantiate
+    # nothing shall raise :
+    OpenSSL::ASN1::Null.new(nil)
+    OpenSSL::ASN1::EndOfContent.new()
+  end
+
   def test_constants
     universal_tag_name = ["EOC", "BOOLEAN", "INTEGER", "BIT_STRING", "OCTET_STRING",
       "NULL", "OBJECT", "OBJECT_DESCRIPTOR", "EXTERNAL", "REAL", "ENUMERATED",

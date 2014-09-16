@@ -1261,7 +1261,7 @@ public class ASN1 {
             return super.to_der(context);
         }
 
-        @JRubyMethod(required = 1, optional = 4, visibility = Visibility.PRIVATE)
+        @JRubyMethod(required = 0, optional = 4, visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
             initializeImpl(context, this, args);
             return this;
@@ -1271,16 +1271,18 @@ public class ASN1 {
         static void initializeImpl(final ThreadContext context,
             final ASN1Data self, final IRubyObject[] args) {
             final Ruby runtime = context.runtime;
-            IRubyObject value = args[0];
+            final int len = args.length;
+
+            IRubyObject value = len == 0 ? runtime.getNil() : args[0];
             final IRubyObject tag;
             IRubyObject tagging = runtime.getNil();
             IRubyObject tag_class = runtime.getNil();
 
-            if ( args.length > 1 ) {
+            if ( len > 1 ) {
                 tag = args[1];
-                if ( args.length > 2 ) {
+                if ( len > 2 ) {
                     tagging = args[2];
-                    if ( args.length > 3 ) tag_class = args[3];
+                    if ( len > 3 ) tag_class = args[3];
                 }
 
                 if ( tag.isNil() ) throw newASN1Error(runtime, "must specify tag number");
