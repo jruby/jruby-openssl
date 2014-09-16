@@ -46,6 +46,22 @@ class TestASN1 < TestCase
     assert_equal universal_tag_name, OpenSSL::ASN1::UNIVERSAL_TAG_NAME
   end
 
+  def test_constructive
+    partial1 = OpenSSL::ASN1::OctetString.new("\x01")
+    partial2 = OpenSSL::ASN1::OctetString.new("\x02")
+    inf_octets = OpenSSL::ASN1::Constructive.new( [ partial1,
+                                                    partial2,
+                                                    OpenSSL::ASN1::EndOfContent.new ],
+                                                  OpenSSL::ASN1::OCTET_STRING,
+                                                  nil,
+                                                  :UNIVERSAL )
+    assert_equal false, inf_octets.infinite_length
+    # The real value of inf_octets is "\x01\x02", i.e. the concatenation
+    # of partial1 and partial2
+    inf_octets.infinite_length = true
+    assert_equal true, inf_octets.infinite_length
+  end
+
   private
 
   def encode_decode_test(type, values)
