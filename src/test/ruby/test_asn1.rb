@@ -52,8 +52,7 @@ class TestASN1 < TestCase
 
   def _test_parse_infinite_length_sequence # borrowed from Krypt
     raw = [%w{30 80 04 01 01 02 01 01 00 00}.join("")].pack("H*")
-    asn1 = OpenSSL::ASN1.decode(raw)
-    pp asn1
+    pp asn1 = OpenSSL::ASN1.decode(raw)
 
     assert_universal(OpenSSL::ASN1::SEQUENCE, asn1, true)
     seq = asn1.value
@@ -140,17 +139,23 @@ class TestASN1 < TestCase
     assert_equal "$\x80\x04\x01\x01\x04\x01\x02\x00\x00", der
   end
 
-  def _test_constructive_decode # TODO NOT IMPLEMENTED
+  def test_constructive_decode
     der = "$\x80\x04\x01\x01\x04\x01\x02\x00\x00"
     asn1 = OpenSSL::ASN1.decode(der)
-    #assert asn1.instance_of? OpenSSL::ASN1::Constructive
+
+    assert asn1.instance_of?(OpenSSL::ASN1::Constructive), "expected Constructive got: #{asn1.class}"
     assert_equal 4, asn1.tag
     assert_equal :UNIVERSAL, asn1.tag_class
     assert_equal true, asn1.infinite_length
 
-    assert_equal "\x01", asn1.value[0].value
-    assert_equal "\x02", asn1.value[1].value
-    assert_equal "", asn1.value[2].value
+    first = asn1.value[0]
+    assert first.instance_of?(OpenSSL::ASN1::OctetString), "expected OctetString got: #{first.class}"
+    # NOTE: probably won;t pass this without writing a custom "parser" :
+    #assert_equal "\x01", asn1.value[0].value
+    #assert_equal "\x02", asn1.value[1].value
+    #assert_equal "", asn1.value[2].value
+    last = asn1.value.last
+    assert last.instance_of?(OpenSSL::ASN1::EndOfContent), "expected EndOfContent got: #{last.class}"
   end
 
   private
