@@ -1754,13 +1754,13 @@ public class ASN1 {
         @Override
         @JRubyMethod
         public IRubyObject to_der(final ThreadContext context) {
-            //if ( rawConstructive() ) { // MRI compatibility
+            if ( rawConstructive() ) { // MRI compatibility
                 if ( ! isInfiniteLength() && ! super.value(context).isNil() ) {
                     final Ruby runtime = context.runtime;
                     throw newASN1Error(runtime, "Constructive shall only be used"
                                                 + " with infinite length");
                 }
-            //}
+            }
             return super.to_der(context);
         }
 
