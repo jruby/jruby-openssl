@@ -143,6 +143,18 @@ public final class OpenSSL {
         return debug;
     }
 
+    // API "stubs" in JRuby-OpenSSL :
+
+    @JRubyMethod(meta = true)
+    public static IRubyObject deprecated_warning_flag(final IRubyObject self) {
+        return self.getRuntime().getNil(); // no-op in JRuby-OpenSSL
+    }
+
+    @JRubyMethod(meta = true, rest = true) // check_func(func, header)
+    public static IRubyObject check_func(final IRubyObject self, final IRubyObject[] args) {
+        return self.getRuntime().getNil(); // no-op in JRuby-OpenSSL
+    }
+
     // Added in 2.0; not masked because it does nothing anyway (there's no reader in MRI)
     @JRubyMethod(name = "fips_mode=", meta = true)
     public static IRubyObject set_fips_mode(ThreadContext context, IRubyObject self, IRubyObject value) {
