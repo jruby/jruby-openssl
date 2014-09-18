@@ -30,6 +30,7 @@ package org.jruby.ext.openssl;
 import java.io.IOException;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
+import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Set;
@@ -128,8 +129,14 @@ public class X509Attribute extends RubyObject {
 
     @JRubyMethod
     public IRubyObject to_der(final ThreadContext context) {
-        warn(context, "WARNING: unimplemented method called: attribute#to_der");
-        return context.runtime.getNil();
+        final byte[] bytes;
+        try { // NOTE: likely won't work due Constructive !
+            bytes = toASN1(context).getEncoded(ASN1Encoding.DER);
+        }
+        catch (IOException e) {
+            throw newIOError(context.runtime, e);
+        }
+        return StringHelper.newString(context.runtime, bytes);
     }
 
     @JRubyMethod
@@ -152,9 +159,12 @@ public class X509Attribute extends RubyObject {
     }
 
     @JRubyMethod(name="value=")
-    public IRubyObject set_value(final ThreadContext context, IRubyObject val) {
+    public IRubyObject set_value(final ThreadContext context, final IRubyObject value) {
         try {
-            return this.value = ASN1.decodeImpl(context, val);
+            //if ( value instanceof ASN1.ASN1Data ) {
+            //    return this.value = value;
+            //}
+            return this.value = ASN1.decodeImpl(context, value);
         }
         catch (IOException e) {
             throw newIOError(context.runtime, e);
