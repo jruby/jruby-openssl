@@ -52,18 +52,29 @@ TestCase.class_eval do
     end
   end
 
-  def self.disable_security_restrictions!; end
+  def self.disable_security_restrictions!; end # do nothing on MRI
 
   def self.disable_security_restrictions!
     security_class = java.lang.Class.for_name('javax.crypto.JceSecurity')
     restricted_field = security_class.get_declared_field('isRestricted')
     restricted_field.accessible = true
-    restricted_field.set nil, false
-  rescue java.lang.ClassNotFoundException => e
-    warn "failed to disable JCE security restrictions: #{e}"
+    restricted_field.set nil, false; return true
+  rescue Java::JavaLang::ClassNotFoundException => e
+    warn "failed to disable JCE security restrictions: #{e.inspect}"; nil
+  rescue Java::JavaLang::NoSuchFieldException => e # Java 6
+    warn "failed to disable JCE security restrictions: #{e.inspect}"; nil
   rescue NameError => e
-    warn "failed to disable JCE security restrictions: #{e}"
+    warn "failed to disable JCE security restrictions: #{e.inspect}"; nil
   end if defined? JRUBY_VERSION
+
+  def self.java6?
+    java_version.last.to_i == 6
+  end
+
+  def self.java_version
+    return [] unless defined? JRUBY_VERSION
+    ENV_JAVA[ 'java.specification.version' ].split('.')
+  end
 
 end
 
