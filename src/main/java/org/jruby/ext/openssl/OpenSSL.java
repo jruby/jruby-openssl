@@ -143,19 +143,13 @@ public final class OpenSSL {
         return debug;
     }
 
-    // Added in 2.0; not masked because it does nothing anyway
-    @JRubyMethod(meta = true)
-    public static IRubyObject fips_mode(ThreadContext context, IRubyObject self) {
-        return context.runtime.getFalse();
-    }
-
-    // Added in 2.0; not masked because it does nothing anyway
+    // Added in 2.0; not masked because it does nothing anyway (there's no reader in MRI)
     @JRubyMethod(name = "fips_mode=", meta = true)
-    public static IRubyObject fips_mode_set(ThreadContext context, IRubyObject self, IRubyObject value) {
+    public static IRubyObject set_fips_mode(ThreadContext context, IRubyObject self, IRubyObject value) {
         if ( value.isTrue() ) {
-            OpenSSL.warn(context, "WARNING: FIPS mode not supported on JRuby-OpenSSL");
+            warn(context, "WARNING: FIPS mode not supported on JRuby-OpenSSL");
         }
-        return self;
+        return value;
     }
 
     // internal (package-level) helpers :
