@@ -32,6 +32,13 @@ class TestDigest < TestCase
     OpenSSL::Digest.new('Whirlpool').digest
   end if defined? JRUBY_VERSION
 
+  def test_digest_helpers
+    md5 = "\x1EJ\e\x03\xD1\xB6\xCD\x8A\x17J\x82ov\xE0\t\xF4"
+    assert_equal md5, OpenSSL::Digest.digest('MD5', '0000000000000000')
+    sha = "b02132081808b493c61e86626ee6c2e29326a662"
+    assert_equal sha, OpenSSL::Digest.hexdigest('SHA1', '0000000000000000')
+  end
+
   def setup
     require 'openssl'
     @d1 = OpenSSL::Digest::Digest::new("MD5")

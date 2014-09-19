@@ -67,6 +67,57 @@ public class Digest extends RubyObject {
         Digest.defineAnnotatedMethods(Digest.class);
         RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         OpenSSL.defineClassUnder("DigestError", OpenSSLError, OpenSSLError.getAllocator());
+
+        String digestName;
+
+        digestName = "DSS"; // OpenSSL::Digest::DSS
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+        digestName = "DSS1"; // OpenSSL::Digest::DSS1
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+
+        digestName = "MD2"; // OpenSSL::Digest::MD2
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+        digestName = "MD4"; // OpenSSL::Digest::MD4
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+        digestName = "MD5"; // OpenSSL::Digest::MD5
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+
+        digestName = "MDC2"; // OpenSSL::Digest::MDC2 NOTE: not really supported on Java
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+
+        digestName = "RIPEMD160"; // OpenSSL::Digest::RIPEMD160
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+
+        digestName = "SHA"; // OpenSSL::Digest::SHA
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+        digestName = "SHA1"; // OpenSSL::Digest::SHA1
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+        //
+        digestName = "SHA224"; // OpenSSL::Digest::SHA224
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+        digestName = "SHA256"; // OpenSSL::Digest::SHA256
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+        digestName = "SHA384"; // OpenSSL::Digest::SHA384
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+        digestName = "SHA512"; // OpenSSL::Digest::SHA512
+        Digest.defineClassUnder(digestName, Digest, new NamedDigestAllocator(digestName))
+              .defineAnnotatedMethods(Named.class);
+    }
+
+    static RubyClass _Digest(final Ruby runtime) {
+        return (RubyClass) runtime.getModule("OpenSSL").getConstantAt("Digest");
     }
 
     static MessageDigest getDigest(final Ruby runtime, final String name) {
@@ -78,6 +129,13 @@ public class Digest extends RubyObject {
             debug(runtime, "getMessageDigest failed: " + e);
             throw runtime.newNotImplementedError("Unsupported digest algorithm (" + name + ")");
         }
+    }
+
+    private static Digest newInstance(final Ruby runtime, final IRubyObject name, final IRubyObject data) {
+        final RubyClass klass = _Digest(runtime);
+        final Digest instance = new Digest(runtime, klass);
+        instance.initializeImpl(runtime, name.asString(), data);
+        return instance;
     }
 
     public Digest(Ruby runtime, RubyClass type) {
@@ -97,13 +155,16 @@ public class Digest extends RubyObject {
 
     @JRubyMethod(required = 1, optional = 1, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
-        IRubyObject type = args[0]; // e.g. "MD5"
         IRubyObject data = context.nil;
         if ( args.length > 1 ) data = args[1];
-        this.name = type.asString();
-        this.digest = getDigest(context.runtime, name.toString());
-        if ( ! data.isNil() ) update( data.asString() );
+        initializeImpl(context.runtime, args[0].asString(), data);
         return this;
+    }
+
+    void initializeImpl(final Ruby runtime, final RubyString name, final IRubyObject data) {
+        this.name = name; // e.g. "MD5"
+        this.digest = getDigest(runtime, name.toString());
+        if ( ! data.isNil() ) update( data.asString() );
     }
 
     @Override
@@ -125,7 +186,7 @@ public class Digest extends RubyObject {
     }
 
     @JRubyMethod(name = "update", alias = "<<")
-    public IRubyObject update(IRubyObject obj) {
+    public IRubyObject update(final IRubyObject obj) {
         final ByteList bytes = obj.asString().getByteList();
         digest.update(bytes.getUnsafeBytes(), bytes.getBegin(), bytes.getRealSize());
         return this;
@@ -207,6 +268,110 @@ public class Digest extends RubyObject {
         if ( alg.equals("RIPEMD160") ) return 64;
 
         return -1;
+    }
+
+    @JRubyMethod(meta = true) // OpenSSL::Digest.digest("SHA256, "abc")
+    public static RubyString digest(final ThreadContext context, final IRubyObject self,
+        final IRubyObject name, final IRubyObject data) {
+        return newInstance(context.runtime, name, data).finish();
+    }
+
+    @JRubyMethod(meta = true) // OpenSSL::Digest.hexdigest("SHA1" "abc")
+    public static RubyString hexdigest(final ThreadContext context, final IRubyObject self,
+        final IRubyObject name, final IRubyObject data) {
+        final Ruby runtime = context.runtime;
+        return hexString( newInstance(runtime, name, data).finish() );
+    }
+
+    private final static byte[] HEX = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    };
+
+    private static RubyString hexString(final RubyString str) {
+        final byte[] plain = str.getBytes(); final int len = plain.length;
+
+        final ByteList bytes = str.getByteList(); // modify str in-place !
+        bytes.length( len * 2 ); bytes.invalidate();
+
+        final byte[] unsafeBytes = bytes.getUnsafeBytes();
+        int index = bytes.getBegin();
+
+        for ( int i = 0; i < len; i++ ) {
+            final int b = plain[i] & 0xFF;
+            unsafeBytes[ index++ ] = HEX[ b >> 4 ];
+            unsafeBytes[ index++ ] = HEX[ b & 0xF ];
+        }
+        return str;
+    }
+
+    private static class NamedDigestAllocator implements ObjectAllocator {
+
+        private final String digestName;
+
+        NamedDigestAllocator(final String digestName) {
+            this.digestName = digestName;
+        }
+
+        public Named allocate(Ruby runtime, RubyClass klass) {
+            return new Named(runtime, klass, digestName);
+        }
+    };
+
+    public static class Named extends Digest {
+        private static final long serialVersionUID = -8794569678070129828L;
+
+        private final RubyString digestName;
+
+        Named(Ruby runtime, RubyClass type, String digestName) {
+            super(runtime, type);
+            this.digestName = RubyString.newString(runtime, digestName); // e.g. "MD5"
+        }
+
+        /*
+        MD5 = Class.new(Digest) do
+          define_method(:initialize) do |*data|
+            if data.length > 1
+              raise ArgumentError, "wrong number of arguments (#{data.length} for 1)"
+            end
+            super(name, data.first)
+          end
+        end
+         */
+        @Override
+        @JRubyMethod(required = 0, optional = 1, visibility = Visibility.PRIVATE)
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+            IRubyObject data = context.nil;
+            if ( args.length > 0 ) data = args[0];
+            initializeImpl(context.runtime, digestName, data); // super(name, args[0])
+            return this;
+        }
+
+        /*
+        define_method(:digest){ |data| Digest.digest(name, data) }
+        define_method(:hexdigest){ |data| Digest.hexdigest(name, data) }
+         */
+
+        @JRubyMethod(meta = true)
+        public static RubyString digest(final ThreadContext context, final IRubyObject self,
+            final IRubyObject data) {
+            return newInstance(context.runtime, (RubyClass) self, data).finish();
+        }
+
+        @JRubyMethod(meta = true)
+        public static RubyString hexdigest(final ThreadContext context, final IRubyObject self,
+            final IRubyObject data) {
+            final Ruby runtime = context.runtime;
+            return hexString( newInstance(runtime, (RubyClass) self, data).finish() );
+        }
+
+        private static Named newInstance(final Ruby runtime,
+            final RubyClass klass, final IRubyObject data) {
+            final String name = klass.getBaseName();
+            final Named instance = new Named(runtime, klass, name);
+            instance.initializeImpl(runtime, instance.digestName, data);
+            return instance;
+        }
+
     }
 
 }
