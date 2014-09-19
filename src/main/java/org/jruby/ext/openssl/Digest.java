@@ -33,6 +33,7 @@ import java.security.NoSuchAlgorithmException;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
+import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
@@ -43,11 +44,13 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 import org.jruby.util.ByteList;
 
+import static org.jruby.ext.openssl.OpenSSL.*;
+
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class Digest extends RubyObject {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 7409857414064319518L;
 
     private static ObjectAllocator DIGEST_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
@@ -55,179 +58,155 @@ public class Digest extends RubyObject {
         }
     };
 
-    public static void createDigest(Ruby runtime, RubyModule mOSSL) {
+    public static void createDigest(Ruby runtime, RubyModule OpenSSL) {
         runtime.getLoadService().require("digest");
-        RubyModule mDigest = runtime.getModule("Digest");
-        RubyClass cDigestClass = mDigest.getClass("Class");
-        RubyClass cDigest = mOSSL.defineClassUnder("Digest", cDigestClass, DIGEST_ALLOCATOR);
-        cDigest.defineAnnotatedMethods(Digest.class);
-        RubyClass openSSLError = mOSSL.getClass("OpenSSLError");
-        mOSSL.defineClassUnder("DigestError", openSSLError, openSSLError.getAllocator());
+
+        final RubyModule coreDigest = runtime.getModule("Digest");
+        final RubyClass DigestClass = coreDigest.getClass("Class"); // ::Digest::Class
+        RubyClass Digest = OpenSSL.defineClassUnder("Digest", DigestClass, DIGEST_ALLOCATOR);
+        Digest.defineAnnotatedMethods(Digest.class);
+        RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
+        OpenSSL.defineClassUnder("DigestError", OpenSSLError, OpenSSLError.getAllocator());
     }
 
-    static MessageDigest getDigest(final String name, final Ruby runtime) {
-        String algorithm = transformDigest(name);
+    static MessageDigest getDigest(final Ruby runtime, final String name) {
+        final String algorithm = osslToJava( name );
         try {
             return SecurityHelper.getMessageDigest(algorithm);
         }
         catch (NoSuchAlgorithmException e) {
+            debug(runtime, "getMessageDigest failed: " + e);
             throw runtime.newNotImplementedError("Unsupported digest algorithm (" + name + ")");
         }
     }
 
-    // name mapping for openssl -> JCE
-    private static String transformDigest(String inp) {
-        String[] sp = inp.split("::");
-        if (sp.length > 1) { // We only want Digest names from the last part of class name
-            inp = sp[sp.length - 1];
-        }
-        // MessageDigest algorithm name normalization.
-        // BC accepts "SHA1" but it should be "SHA-1" per spec.
-        if ("DSS".equalsIgnoreCase(inp)) {
-            return "SHA";   // why?
-        } else if ("DSS1".equalsIgnoreCase(inp)) {
-            return "SHA-1";
-        } else if (inp.toUpperCase().startsWith("SHA") && inp.length() > 3 && inp.charAt(3) != '-') {
-            inp = "SHA-" + inp.substring(3);
-        }
-        return inp;
-    }
-
     public Digest(Ruby runtime, RubyClass type) {
         super(runtime,type);
-        // do not initialize MessageDigest at allocation time (same as the ruby-openssl)
-        name = null;
-        algo = null;
     }
-    private MessageDigest algo;
-    private String name;
 
-    public String getRealName() {
-        return transformDigest(name);
+    private RubyString name;
+    private MessageDigest digest;
+
+    String getRealName() {
+        return osslToJava(name.toString());
     }
 
     public String getName() {
-        return name;
+        return name.toString();
     }
 
     @JRubyMethod(required = 1, optional = 1, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(IRubyObject[] args) {
-        IRubyObject type = args[0];
-        IRubyObject data = getRuntime().getNil();
-        if (args.length > 1) {
-            data = args[1];
-        }
-        name = type.toString();
-        algo = getDigest(name, getRuntime());
-        if (!data.isNil()) {
-            update(data.convertToString());
-        }
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+        IRubyObject type = args[0]; // e.g. "MD5"
+        IRubyObject data = context.nil;
+        if ( args.length > 1 ) data = args[1];
+        this.name = type.asString();
+        this.digest = getDigest(context.runtime, name.toString());
+        if ( ! data.isNil() ) update( data.asString() );
         return this;
     }
 
     @Override
     @JRubyMethod(visibility = Visibility.PRIVATE)
-    public IRubyObject initialize_copy(IRubyObject obj) {
+    public IRubyObject initialize_copy(final IRubyObject obj) {
         checkFrozen();
-        if(this == obj) {
-            return this;
-        }
-        name = ((Digest)obj).algo.getAlgorithm();
+        if ( this == obj ) return this;
+        final Digest that = ((Digest) obj);
+        this.name = (RubyString) that.name.dup();
         try {
-            algo = (MessageDigest)((Digest)obj).algo.clone();
-        } catch(CloneNotSupportedException e) {
-            throw getRuntime().newTypeError("Could not initialize copy of digest (" + name + ")");
+            this.digest = (MessageDigest) that.digest.clone();
+        }
+        catch (CloneNotSupportedException e) {
+            final Ruby runtime = getRuntime();
+            debug(runtime, "MessageDigest.clone() failed: " + e);
+            throw runtime.newTypeError("Could not initialize copy of digest (" + name + ")");
         }
         return this;
     }
 
-    @JRubyMethod(name={"update","<<"})
+    @JRubyMethod(name = "update", alias = "<<")
     public IRubyObject update(IRubyObject obj) {
-        ByteList bytes = obj.convertToString().getByteList();
-        algo.update(bytes.getUnsafeBytes(), bytes.getBegin(), bytes.getRealSize());
+        final ByteList bytes = obj.asString().getByteList();
+        digest.update(bytes.getUnsafeBytes(), bytes.getBegin(), bytes.getRealSize());
         return this;
     }
 
     @JRubyMethod
     public IRubyObject reset() {
-        algo.reset();
+        digest.reset();
         return this;
     }
 
     @JRubyMethod
-    public IRubyObject finish() {
-        IRubyObject digest = RubyString.newStringNoCopy(getRuntime(), algo.digest());
-        algo.reset();
-        return digest;
+    public RubyString finish() {
+        final byte[] hash = digest.digest();
+        digest.reset();
+        return StringHelper.newString(getRuntime(), hash);
     }
 
     @JRubyMethod
-    public RubyString name() {
-        return getRuntime().newString(name);
-    }
+    public RubyString name() { return name; }
 
-    @JRubyMethod()
+    @JRubyMethod
     public IRubyObject digest_length() {
-        return RubyFixnum.newFixnum(getRuntime(), algo.getDigestLength());
+        return RubyFixnum.newFixnum(getRuntime(), digest.getDigestLength());
     }
 
-    // from http://www.win.tue.nl/pinpasjc/docs/apis/jc222/javacard/security/MessageDigest.html
-    private enum BlockLength {
-        DUMMY(-1),
-        SHA(64),
-        MD5(64),
-        SHA_256(64),
-        SHA_384(128),
-        SHA_512(128);
+    @JRubyMethod
+    public RubyInteger block_length(final ThreadContext context) {
+        final Ruby runtime = context.runtime;
 
-        public static BlockLength forAlgorithm(String algorithm) {
-            if (algorithm.equalsIgnoreCase("SHA-1")) {
-                return SHA;
-            } else if (algorithm.equalsIgnoreCase("MD5")) {
-                return MD5;
-            } else if (algorithm.equalsIgnoreCase("SHA-256")) {
-                return SHA_256;
-            } else if (algorithm.equalsIgnoreCase("SHA-384")) {
-                return SHA_384;
-            } else if (algorithm.equalsIgnoreCase("SHA-512")) {
-                return SHA_512;
-            }
+        final int blockLength = getBlockLength( digest.getAlgorithm() );
 
-            return DUMMY;
+        if ( blockLength == -1 ) {
+            throw runtime.newRuntimeError(getMetaClass() + " doesn't implement block_length()");
         }
-
-        public int getLength() {
-            return length;
-        }
-
-        private BlockLength(int length) {
-            this.length = length;
-        }
-
-        private final int length;
-    }
-
-    @JRubyMethod()
-    public IRubyObject block_length(ThreadContext context) {
-        Ruby runtime = context.runtime;
-
-        BlockLength bl = BlockLength.forAlgorithm(algo.getAlgorithm());
-
-        if (bl.getLength() != -1) {
-            return runtime.newFixnum(bl.getLength());
-        }
-
-        // TODO: All algorithms should be supported here?
-        throw getRuntime().newRuntimeError(
-                this.getMetaClass() + " doesn't implement block_length()");
+        return runtime.newFixnum(blockLength);
     }
 
     String getAlgorithm() {
-        return this.algo.getAlgorithm();
+        return this.digest.getAlgorithm();
     }
 
     String getShortAlgorithm() {
         return getAlgorithm().replace("-", "");
     }
+
+    // name mapping for openssl -> JCE
+    private static String osslToJava(final String digestName) {
+        String name = digestName.toString();
+        final String[] parts = name.split("::");
+        if ( parts.length > 1 ) { // only want Digest names from the last part of class name
+            name = parts[ parts.length - 1 ];
+        }
+        // DSS, DSS1 (Pseudo algorithms to be used for DSA signatures.
+        // DSS is equal to SHA and DSS1 is equal to SHA1)
+        if ( "DSS".equalsIgnoreCase(name) ) return "SHA";
+        if ( "DSS1".equalsIgnoreCase(name) ) return "SHA-1";
+        if ( name.toUpperCase().startsWith("SHA") &&
+             name.length() > 3 && name.charAt(3) != '-' ) {
+            // BC accepts "SHA1" but it should be "SHA-1" per spec
+            return "SHA-" + name.substring(3);
+        }
+        // BC handles MD2, MD4 and RIPEMD160 names fine ...
+        return name;
+    }
+
+    private static int getBlockLength(final String algorithm) {
+        final String alg = algorithm.toUpperCase();
+        if ( alg.startsWith("SHA") ) {
+            if ( alg.equals("SHA-384") ) return 128;
+            if ( alg.equals("SHA-512") ) return 128;
+            return 64; // others 224/256 have 512 bit blocks
+        }
+
+        if ( alg.equals("MD5") ) return 64;
+        if ( alg.equals("MD4") ) return 64;
+        if ( alg.equals("MD2") ) return 48;
+        if ( alg.equals("RIPEMD160") ) return 64;
+
+        return -1;
+    }
+
 }
 

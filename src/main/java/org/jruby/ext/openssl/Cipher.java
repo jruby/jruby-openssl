@@ -901,7 +901,7 @@ public class Cipher extends RubyObject {
                 }
             }
 
-            MessageDigest digest = Digest.getDigest("MD5", runtime);
+            final MessageDigest digest = Digest.getDigest(runtime, "MD5");
             KeyAndIv result = evpBytesToKey(keyLength, ivLength, digest, iv, pass, 2048);
             this.key = result.key;
             this.realIV = iv;
@@ -997,7 +997,7 @@ public class Cipher extends RubyObject {
         }
 
         final String algorithm = vdigest.isNil() ? "MD5" : ((Digest) vdigest).getAlgorithm();
-        final MessageDigest digest = Digest.getDigest(algorithm, runtime);
+        final MessageDigest digest = Digest.getDigest(runtime, algorithm);
         KeyAndIv result = evpBytesToKey(keyLength, ivLength, digest, salt, pass, iter);
         this.key = result.key;
         this.realIV = result.iv;
