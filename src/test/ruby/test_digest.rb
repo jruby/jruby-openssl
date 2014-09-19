@@ -23,6 +23,15 @@ class TestDigest < TestCase
     OpenSSL::Digest::DSS1.new.block_length
   end
 
+  def test_digest_extension
+    # BC supports these - we shall allow any supported algorithms to work
+    OpenSSL::Digest.new('RipeMD256').digest
+    OpenSSL::Digest.new('SHA224').digest
+    OpenSSL::Digest.new('SHA-384').digest
+    #OpenSSL::Digest.new('SHA3').digest
+    OpenSSL::Digest.new('Whirlpool').digest
+  end if defined? JRUBY_VERSION
+
   def setup
     require 'openssl'
     @d1 = OpenSSL::Digest::Digest::new("MD5")

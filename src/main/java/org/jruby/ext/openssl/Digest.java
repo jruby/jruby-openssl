@@ -183,10 +183,11 @@ public class Digest extends RubyObject {
         // DSS is equal to SHA and DSS1 is equal to SHA1)
         if ( "DSS".equalsIgnoreCase(name) ) return "SHA";
         if ( "DSS1".equalsIgnoreCase(name) ) return "SHA-1";
+        // BC accepts "SHA1" but it should be "SHA-1" per spec
+        if ( "SHA1".equalsIgnoreCase(name) ) return "SHA-1";
         if ( name.toUpperCase().startsWith("SHA") &&
-             name.length() > 3 && name.charAt(3) != '-' ) {
-            // BC accepts "SHA1" but it should be "SHA-1" per spec
-            return "SHA-" + name.substring(3);
+             name.length() > 4 && name.charAt(3) != '-' ) { // SHA512
+            return "SHA-" + name.substring(3); // SHA-512
         }
         // BC handles MD2, MD4 and RIPEMD160 names fine ...
         return name;
