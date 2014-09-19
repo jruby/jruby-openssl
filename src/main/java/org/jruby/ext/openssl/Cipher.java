@@ -132,7 +132,7 @@ public class Cipher extends RubyObject {
     }
 
     static RubyClass _Cipher(final Ruby runtime) {
-        return (RubyClass) runtime.getModule("OpenSSL").getConstant("Cipher");
+        return (RubyClass) runtime.getModule("OpenSSL").getConstantAt("Cipher");
     }
 
     @JRubyMethod(meta = true)
