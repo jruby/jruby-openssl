@@ -25,6 +25,26 @@ class TestOpenSSL < TestCase
     assert OpenSSL::OPENSSL_VERSION_NUMBER
   end
 
+  def test_debug
+    debug = OpenSSL.debug
+    assert (OpenSSL.debug == true || OpenSSL.debug == false)
+    assert OpenSSL.debug= true
+    assert_equal true, OpenSSL.debug
+  ensure
+    OpenSSL.debug = debug
+  end
+
+  def test_stubs
+    OpenSSL.deprecated_warning_flag
+    OpenSSL.check_func(:func, :header)
+    OpenSSL.fips_mode = false
+  end
+
+  def test_Digest
+    digest = OpenSSL.Digest('MD5')
+    assert_equal OpenSSL::Digest::MD5, digest
+  end
+
 end # unless defined? OpenSSL::OPENSSL_DUMMY
 
 

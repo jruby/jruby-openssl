@@ -143,6 +143,14 @@ public final class OpenSSL {
         return debug;
     }
 
+    @JRubyMethod(name = "Digest", meta = true)
+    public static IRubyObject Digest(final IRubyObject self, final IRubyObject name) {
+        // OpenSSL::Digest("MD5") -> OpenSSL::Digest::MD5
+        final Ruby runtime = self.getRuntime();
+        final RubyClass Digest = runtime.getModule("OpenSSL").getClass("Digest");
+        return Digest.getConstantAt( name.asString().toString() );
+    }
+
     // API "stubs" in JRuby-OpenSSL :
 
     @JRubyMethod(meta = true)
