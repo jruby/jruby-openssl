@@ -4,7 +4,7 @@ require File.expand_path('test_helper', File.dirname(__FILE__))
 class TestHMAC < TestCase
 
   def setup
-    require 'jopenssl/load'
+    super
 
     @digest = OpenSSL::Digest::MD5
     @key = "KEY"
