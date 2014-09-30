@@ -57,12 +57,11 @@ public class HMAC extends RubyObject {
         }
     };
 
-    public static void createHMAC(Ruby runtime, RubyModule ossl) {
-        RubyClass cHMAC = ossl.defineClassUnder("HMAC",runtime.getObject(),HMAC_ALLOCATOR);
-        RubyClass openSSLError = ossl.getClass("OpenSSLError");
-        ossl.defineClassUnder("HMACError",openSSLError,openSSLError.getAllocator());
-
-        cHMAC.defineAnnotatedMethods(HMAC.class);
+    public static void createHMAC(final Ruby runtime, final RubyModule OpenSSL) {
+        RubyClass HMAC = OpenSSL.defineClassUnder("HMAC",runtime.getObject(),HMAC_ALLOCATOR);
+        RubyClass openSSLError = OpenSSL.getClass("OpenSSLError");
+        OpenSSL.defineClassUnder("HMACError",openSSLError,openSSLError.getAllocator());
+        HMAC.defineAnnotatedMethods(HMAC.class);
     }
 
     private static Mac getMacInstance(final String algorithmName) throws NoSuchAlgorithmException {

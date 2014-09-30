@@ -63,7 +63,6 @@ public final class OpenSSL {
         _OpenSSL.defineClassUnder("OpenSSLError", _StandardError, _StandardError.getAllocator());
         _OpenSSL.defineAnnotatedMethods(OpenSSL.class);
 
-        // those are BC provider free (uses BC class but does not use BC provider)
         PKey.createPKey(runtime, _OpenSSL);
         BN.createBN(runtime, _OpenSSL);
         Digest.createDigest(runtime, _OpenSSL);
@@ -74,8 +73,9 @@ public final class OpenSSL {
         ASN1.createASN1(runtime, _OpenSSL);
         X509.createX509(runtime, _OpenSSL);
         NetscapeSPKI.createNetscapeSPKI(runtime, _OpenSSL);
-        PKCS7.createPKCS7(runtime, _OpenSSL);
         SSL.createSSL(runtime, _OpenSSL);
+        PKCS7.createPKCS7(runtime, _OpenSSL);
+        PKCS5.createPKCS5(runtime, _OpenSSL);
 
         runtime.getLoadService().require("jopenssl/version");
 

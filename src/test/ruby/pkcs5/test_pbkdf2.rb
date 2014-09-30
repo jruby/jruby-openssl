@@ -13,5 +13,21 @@ module Jopenssl
       assert_equal expected, OpenSSL::PKCS5.pbkdf2_hmac_sha1(pass, salt, iter, keylen)
     end
 
+    def test_pbkdf2_hmac
+      pass = 'SecreT2'
+      salt = '0123456789001234567890'
+
+      digest = OpenSSL::Digest::MD5.new
+      expected = "\xC10D2\x8F\xEA}\xF7ag\xB5\xC8Ad\xFBN9Ff\x9D}\xA6\a\x86\x8F\xC4&HI\x85\x89<cGl\x02W\xF9\xD8\xF9\x1C\xAB\xFF\xA3\xC9C>U"
+      expected.force_encoding('ASCII-8BIT') if ''.respond_to?(:force_encoding)
+      assert_equal expected, OpenSSL::PKCS5.pbkdf2_hmac(pass, salt, 120, 48, digest)
+      assert_equal expected, OpenSSL::PKCS5.pbkdf2_hmac(pass, salt, 120, 48, digest)
+
+      digest = OpenSSL::Digest::SHA256.new
+      expected = "}\xF4\xE3\xBF\xA7u\xB3[l\xE0(\x84\x96W\xFA\x00h\xA1l#\xB8\xC0Ptirz\v\xBA\x0Es\n<\xF8\xB5(\x85\xDA\xFE\x02y\x14\xB5A`\x8F\xA3\x03\x95\xA7G\xB4pU\xB6pf=Q\x1Fz\x12u\x83"
+      expected.force_encoding('ASCII-8BIT') if ''.respond_to?(:force_encoding)
+      assert_equal expected, OpenSSL::PKCS5.pbkdf2_hmac(pass, salt, 100, 64, digest)
+    end
+
   end
 end

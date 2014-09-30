@@ -149,6 +149,10 @@ public class Digest extends RubyObject {
         return osslToJava(name.toString());
     }
 
+    MessageDigest getDigestImpl() {
+        return digest;
+    }
+
     public String getName() {
         return name.toString();
     }
