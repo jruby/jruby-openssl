@@ -240,7 +240,6 @@
               <optimize>true</optimize>
               <compilerArgs>
                 <compilerArg>-XDignore.symbol.file=true</compilerArg>
-                <compilerArg>-J-Dfile.encoding=UTF-8</compilerArg>
               </compilerArgs>
             </configuration>
           </execution>
@@ -267,6 +266,7 @@
         <version>${jruby.plugins.version}</version>
         <executions>
           <execution>
+            <phase>package</phase>
             <goals>
               <goal>test</goal>
             </goals>

@@ -103,7 +103,9 @@ properties( 'jruby.plugins.version' => '1.0.5',
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true )
 
-jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
+phase :package do # we need to assure the jars are installed in ./lib
+  jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
+end
 
 invoker_run_options = {
     :id => 'tests-with-different-bc-versions',
