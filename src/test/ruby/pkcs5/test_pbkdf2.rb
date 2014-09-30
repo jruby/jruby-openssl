@@ -27,6 +27,10 @@ module Jopenssl
       expected = "}\xF4\xE3\xBF\xA7u\xB3[l\xE0(\x84\x96W\xFA\x00h\xA1l#\xB8\xC0Ptirz\v\xBA\x0Es\n<\xF8\xB5(\x85\xDA\xFE\x02y\x14\xB5A`\x8F\xA3\x03\x95\xA7G\xB4pU\xB6pf=Q\x1Fz\x12u\x83"
       expected.force_encoding('ASCII-8BIT') if ''.respond_to?(:force_encoding)
       assert_equal expected, OpenSSL::PKCS5.pbkdf2_hmac(pass, salt, 100, 64, digest)
+
+      expected = "\x03\x1C\x86\xC7N?\xC3\xBC\xF30W\xEC\x9B\x89I\x8D\xE6|\xA1Y\xEF\bt\xB4\x17\xA9\x87\xCB\xEA\x7F\x92\xDB\x88N@\xCB\x17\xDF\xC4\x8F\xE48L\x1Dy<\xD8\x9B\x8Cx\x85\x93\n\xA3`\xE9]\x90\xA2\x10I[\xE9\x84"
+      expected.force_encoding('ASCII-8BIT') if ''.respond_to?(:force_encoding)
+      assert_equal expected, OpenSSL::PKCS5.pbkdf2_hmac(pass, salt, 100, 64, 'SHA512')
     end
 
   end

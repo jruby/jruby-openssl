@@ -70,24 +70,18 @@ public class PKCS5 {
         final int iter = (int) args[2].convertToInteger().getLongValue();
         final int keylen = (int) args[3].convertToInteger().getLongValue();
 
-        //PBEParametersGenerator generator = new PKCS5S2ParametersGenerator();
-        //generator.init(PKCS5S2ParametersGenerator.PKCS5PasswordToBytes(pass), salt, iter);
-
-        //cipher.init(false, new ParametersWithIV(generator.generateDerivedParameters(keylen * 8), salt));
-
         final String digestAlg;
         final IRubyObject digest = args[4];
         if ( digest instanceof Digest ) {
             digestAlg = mapDigestName( ((Digest) digest).getRealName() );
         }
         else {
-            digestAlg = digest.asString().toString();
+            digestAlg = mapDigestName( digest.asString().toString() );
         }
 
         // NOTE: on our own since e.g. "PBKDF2WithHmacMD5" not supported by Java
 
         final String macAlg = "Hmac" + digestAlg;
-        //SecretKeySpec keySpec = new SecretKeySpec( password, macAlg ); // "HmacSHA256"
         final Ruby runtime = self.getRuntime();
         try {
             final Mac mac = SecurityHelper.getMac( macAlg );
@@ -101,8 +95,6 @@ public class PKCS5 {
         catch (InvalidKeyException ex) {
             throw Utils.newRuntimeError(runtime, ex); // TODO
         }
-
-        //return generatePBEKey(self.getRuntime(), pass, salt, iter, keylen, alg); */
     }
 
     private static String mapDigestName(final String name) {
