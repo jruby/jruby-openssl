@@ -94,7 +94,6 @@ TestCase.class_eval do
     ef.subject_certificate = cert
     ef.issuer_certificate = issuer
     extensions.each do |oid, value, critical|
-      puts "create_extension: #{oid} #{value.inspect}\n"
       cert.add_extension ef.create_extension(oid, value, critical)
     end
     cert.sign(issuer_key, digest)
@@ -122,9 +121,9 @@ TestCase.class_eval do
     ef.crl = crl
     crlnum = OpenSSL::ASN1::Integer(serial)
     crl.add_extension(OpenSSL::X509::Extension.new("crlNumber", crlnum))
-    extensions.each{|oid, value, critical|
-      crl.add_extension(ef.create_extension(oid, value, critical))
-    }
+    extensions.each do |oid, value, critical|
+      crl.add_extension ef.create_extension(oid, value, critical)
+    end
     crl.sign(issuer_key, digest)
     crl
   end

@@ -180,8 +180,7 @@ public class X509Name extends RubyObject {
 
     private void fromASN1Sequence(final byte[] encoded) {
         try {
-            ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(encoded).readObject();
-            fromASN1Sequence(seq);
+            fromASN1Sequence((ASN1Sequence) new ASN1InputStream(encoded).readObject());
         }
         catch (IOException e) {
             throw newNameError(getRuntime(), e.getClass().getName() + ":" + e.getMessage());
@@ -193,11 +192,13 @@ public class X509Name extends RubyObject {
         if ( seq != null ) {
             for ( Enumeration e = seq.getObjects(); e.hasMoreElements(); ) {
                 ASN1Object element = (ASN1Object) e.nextElement();
-                if (element instanceof RDN) {
+                if ( element instanceof RDN ) {
                     fromRDNElement((RDN) element);
-                } else if (element instanceof ASN1Sequence) {
+                }
+                else if ( element instanceof ASN1Sequence ) {
                     fromASN1Sequence(element);
-                } else {
+                }
+                else {
                     fromASN1Set(element);
                 }
             }
@@ -214,14 +215,14 @@ public class X509Name extends RubyObject {
         }
     }
 
-    private void fromASN1Set(Object element) {
+    private void fromASN1Set(final ASN1Object element) {
         ASN1Set typeAndValue = ASN1Set.getInstance(element);
-        for (Enumeration e = typeAndValue.getObjects(); e.hasMoreElements();) {
-            fromASN1Sequence( e.nextElement() );
+        for ( int i = 0; i < typeAndValue.size(); i++ ) {
+            fromASN1Sequence( typeAndValue.getObjectAt(i) );
         }
     }
 
-    private void fromASN1Sequence(Object element) {
+    private void fromASN1Sequence(final ASN1Encodable element) {
         ASN1Sequence typeAndValue = ASN1Sequence.getInstance(element);
         oids.add( (ASN1ObjectIdentifier) typeAndValue.getObjectAt(0) );
         final ASN1Encodable val = typeAndValue.getObjectAt(1);
@@ -389,6 +390,7 @@ public class X509Name extends RubyObject {
         return template.callMethod(context, "[]", oid);
     }
 
+    @SuppressWarnings("unchecked")
     @JRubyMethod(name = "to_s", rest = true)
     public IRubyObject to_s(IRubyObject[] args) {
         final Ruby runtime = getRuntime();
@@ -473,6 +475,7 @@ public class X509Name extends RubyObject {
         final Ruby runtime = getRuntime();
         final RubyArray entries = runtime.newArray( oids.size() );
         final Iterator<ASN1ObjectIdentifier> oidsIter = oids.iterator();
+        @SuppressWarnings("unchecked")
         final Iterator<Object> valuesIter = (Iterator) values.iterator();
         final Iterator<RubyInteger> typesIter = types.iterator();
         while ( oidsIter.hasNext() ) {
@@ -592,7 +595,8 @@ public class X509Name extends RubyObject {
 
                 if ( lastOid == null ) {
                     sVec.add(new DLSequence(v));
-                } else {
+                }
+                else {
                     vec.add(new DLSet(sVec));
                     sVec = new ASN1EncodableVector();
                     sVec.add(new DLSequence(v));

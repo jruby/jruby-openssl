@@ -82,6 +82,7 @@ import org.bouncycastle.asn1.DERUTCTime;
 import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.DERUniversalString;
 import org.bouncycastle.asn1.DERVisibleString;
+import org.bouncycastle.asn1.DLSet;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -1350,6 +1351,10 @@ public class ASN1 {
         }
 
         ASN1Encodable toASN1(final ThreadContext context) {
+            return toASN1TaggedObject(context);
+        }
+
+        final ASN1TaggedObject toASN1TaggedObject(final ThreadContext context) {
             final int tag = getTag(context);
 
             final IRubyObject val = callMethod(context, "value");
@@ -1586,7 +1591,7 @@ public class ASN1 {
             }
 
             final IRubyObject val = callMethod(context, "value");
-            if ( type == ASN1ObjectIdentifier.class ) {
+            if ( type == ASN1ObjectIdentifier.class || type == DERObjectIdentifier.class ) {
                 return getObjectID(context.runtime, val.toString());
             }
             if ( type == DERNull.class || type == ASN1Null.class ) {
@@ -1777,6 +1782,34 @@ public class ASN1 {
         }
 
         @Override
+        ASN1Encodable toASN1(final ThreadContext context) {
+            if ( isInfiniteLength() ) return super.toASN1(context);
+
+            if ( isSequence() ) {
+                return new DERSequence( toASN1EncodableVector(context) );
+            }
+            if ( isSet() ) {
+                return new DLSet( toASN1EncodableVector(context) ); // return new BERSet(values);
+                //return ASN1Set.getInstance(toASN1TaggedObject(context), isExplicitTagging());
+            }
+            switch ( getTag(context) ) { // "raw" Constructive ?!?
+            case OCTET_STRING:
+                final ASN1EncodableVector values = toASN1EncodableVector(context);
+                ASN1OctetString[] octets = new ASN1OctetString[ values.size() ];
+                for ( int i = 0; i < values.size(); i++ ) {
+                    octets[i] = (ASN1OctetString) values.get(i).toASN1Primitive();
+                }
+                return new BEROctetString(octets);
+            case SEQUENCE:
+                return new DERSequence( toASN1EncodableVector(context) );
+            case SET:
+                return new DLSet( toASN1EncodableVector(context) ); // return new BERSet(values);
+                //return ASN1Set.getInstance(toASN1TaggedObject(context), isExplicitTagging());
+            }
+            throw new UnsupportedOperationException( this.inspect().toString() );
+        }
+
+        @Override
         @JRubyMethod
         public IRubyObject to_der(final ThreadContext context) {
             if ( rawConstructive() ) { // MRI compatibility
@@ -1791,28 +1824,32 @@ public class ASN1 {
 
         @Override
         byte[] toDER(final ThreadContext context) throws IOException {
-            if ( isSequence() ) {
-                return sequenceToDER(context);
-            }
-            else if ( isSet() ) {
-                return setToDER(context);
-            }
-            else { // "raw" Constructive
-                switch ( getTag(context) ) {
-                case OCTET_STRING:
-                    final ASN1EncodableVector values = toASN1EncodableVector(context);
-                    ASN1OctetString[] octets = new ASN1OctetString[ values.size() ];
-                    for ( int i = 0; i < values.size(); i++ ) {
-                        octets[i] = (ASN1OctetString) values.get(i).toASN1Primitive();
-                    }
-                    return new BEROctetString(octets).getEncoded();
-                case SEQUENCE:
+            if ( isInfiniteLength() ) {
+                if ( isSequence() ) {
                     return sequenceToDER(context);
-                case SET:
+                }
+                else if ( isSet() ) {
                     return setToDER(context);
                 }
-                throw new UnsupportedOperationException( this.inspect().toString() );
+                else { // "raw" Constructive
+                    switch ( getTag(context) ) {
+                    case OCTET_STRING:
+                        final ASN1EncodableVector values = toASN1EncodableVector(context);
+                        ASN1OctetString[] octets = new ASN1OctetString[ values.size() ];
+                        for ( int i = 0; i < values.size(); i++ ) {
+                            octets[i] = (ASN1OctetString) values.get(i).toASN1Primitive();
+                        }
+                        return new BEROctetString(octets).getEncoded();
+                    case SEQUENCE:
+                        return sequenceToDER(context);
+                    case SET:
+                        return setToDER(context);
+                    }
+                    throw new UnsupportedOperationException( this.inspect().toString() );
+                }
             }
+
+            return super.toDER(context);
         }
 
         private byte[] sequenceToDER(final ThreadContext context) throws IOException {

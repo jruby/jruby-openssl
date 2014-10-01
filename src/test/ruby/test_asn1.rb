@@ -101,6 +101,70 @@ class TestASN1 < TestCase
     assert_equal "0\x800\x80\x02\x01\x01\x00\x00\x00\x00", outer.to_der
   end
 
+  def test_constructive_nesting
+    seq = OpenSSL::ASN1::Sequence.new([
+        OpenSSL::ASN1::ObjectId.new('DC'),
+        OpenSSL::ASN1::IA5String.new('the-borg')
+    ])
+
+    expected = "0\x16\x06\n\t\x92&\x89\x93\xF2,d\x01\x19\x16\bthe-borg"
+    assert_equal expected, seq.to_der
+
+    set = OpenSSL::ASN1::Set.new([
+        OpenSSL::ASN1::Sequence.new([
+            OpenSSL::ASN1::ObjectId.new('CN'),
+            OpenSSL::ASN1::UTF8String('Queen_42')
+        ])
+    ])
+    expected = "1\x110\x0F\x06\x03U\x04\x03\f\bQueen_42"
+    assert_equal expected, set.to_der
+
+    name = OpenSSL::ASN1::Sequence.new([
+        OpenSSL::ASN1::Set.new([
+            OpenSSL::ASN1::Sequence.new([
+                OpenSSL::ASN1::ObjectId.new('DC'),
+                OpenSSL::ASN1::IA5String.new('org')
+            ]),
+            OpenSSL::ASN1::Set.new([
+                OpenSSL::ASN1::Sequence.new([
+                    OpenSSL::ASN1::ObjectId.new('DC'),
+                    OpenSSL::ASN1::IA5String.new('the-borg')
+                ]),
+                OpenSSL::ASN1::Set.new([
+                    OpenSSL::ASN1::Sequence.new([
+                        OpenSSL::ASN1::ObjectId.new('CN'),
+                        OpenSSL::ASN1::UTF8String('Queen_42')
+                    ])
+                ])
+            ])
+        ])
+    ])
+
+    name = OpenSSL::ASN1::Sequence.new([
+        OpenSSL::ASN1::Set.new([
+            OpenSSL::ASN1::Sequence.new([
+                OpenSSL::ASN1::ObjectId.new('DC'),
+                OpenSSL::ASN1::IA5String.new('org')
+            ]),
+            OpenSSL::ASN1::Set.new([
+                OpenSSL::ASN1::Sequence.new([
+                    OpenSSL::ASN1::ObjectId.new('DC'),
+                    OpenSSL::ASN1::IA5String.new('the-borg')
+                ]),
+                OpenSSL::ASN1::Set.new([
+                    OpenSSL::ASN1::Sequence.new([
+                        OpenSSL::ASN1::ObjectId.new('CN'),
+                        OpenSSL::ASN1::UTF8String('Queen_42')
+                    ])
+                ])
+            ])
+        ])
+    ])
+
+    expected = "0B1@0\x11\x06\n\t\x92&\x89\x93\xF2,d\x01\x19\x16\x03org1+0\x16\x06\n\t\x92&\x89\x93\xF2,d\x01\x19\x16\bthe-borg1\x110\x0F\x06\x03U\x04\x03\f\bQueen_42"
+    assert_equal expected, name.to_der
+  end
+
   def test_raw_constructive
     eoc = OpenSSL::ASN1::EndOfContent.new
     #puts "eoc: #{eoc.inspect}"
@@ -219,8 +283,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
 
     dn = tbs_cert.value[3] # issuer
 
-    # TODO
-    #assert_equal(subj.hash, OpenSSL::X509::Name.new(dn).hash)
+    assert_equal(subj.hash, OpenSSL::X509::Name.new(dn).hash)
 
     assert_equal(OpenSSL::ASN1::Sequence, dn.class)
 
@@ -263,8 +326,8 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
 
     dn = tbs_cert.value[5] # subject
 
-    # TODO
-    #assert_equal(subj.hash, OpenSSL::X509::Name.new(dn).hash)
+    assert_equal(subj, OpenSSL::X509::Name.new(dn))
+    assert_equal(subj.hash, OpenSSL::X509::Name.new(dn).hash)
 
     assert_equal(OpenSSL::ASN1::Sequence, dn.class)
     assert_equal(3, dn.value.size)
@@ -388,7 +451,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal(OpenSSL::ASN1::BitString, sig_val.class)
 
     cert_der = tbs_cert.to_der
-    # TODO 462 on JRuby
+    # TODO 458 on JRuby
     #assert_equal 442, cert_der.size
 
     #cululated_sig = key.sign(OpenSSL::Digest::SHA1.new, cert_der)

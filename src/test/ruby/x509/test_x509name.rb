@@ -52,4 +52,10 @@ class TestX509Name < TestCase
     assert e.message.start_with? 'invalid field name'
   end
 
+  def test_new_from_der
+    der = "0A1\x130\x11\x06\n\t\x92&\x89\x93\xF2,d\x01\x19\x16\x03org1\x190\x17\x06\n\t\x92&\x89\x93\xF2,d\x01\x19\x16\truby-lang1\x0F0\r\x06\x03U\x04\x03\f\x06TestCA"
+    name = OpenSSL::X509::Name.new der
+    assert_equal [["DC", "org", 22], ["DC", "ruby-lang", 22], ["CN", "TestCA", 12]], name.to_a
+  end
+
 end
