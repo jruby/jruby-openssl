@@ -283,13 +283,13 @@
         <version>${tesla.version}</version>
         <executions>
           <execution>
-            <id>work_around_wrong_behaviour_in_runit_plugin</id>
+            <id>workaround_wrong_behaviour_in_runit_plugin</id>
             <phase>prepare-package</phase>
             <goals>
               <goal>execute</goal>
             </goals>
             <configuration>
-              <taskId>work_around_wrong_behaviour_in_runit_plugin</taskId>
+              <taskId>workaround_wrong_behaviour_in_runit_plugin</taskId>
               <nativePom>Mavenfile</nativePom>
             </configuration>
           </execution>
