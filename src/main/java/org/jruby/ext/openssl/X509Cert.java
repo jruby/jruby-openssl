@@ -545,7 +545,7 @@ public class X509Cert extends RubyObject {
         changed = true;
         final X509Extension newExtension = (X509Extension) ext;
         final ASN1ObjectIdentifier oid = newExtension.getRealObjectID();
-        if ( oid.getId().equals( "2.5.29.17" ) ) {
+        if ( oid.getId().equals( "2.5.29.17" ) ) { // subjectAltName (2.5.29.14 - subjectKeyIdentifier)
             boolean one = true;
             for ( final X509Extension curExtension : extensions ) {
                 if ( curExtension.getRealObjectID().equals( oid ) ) {
