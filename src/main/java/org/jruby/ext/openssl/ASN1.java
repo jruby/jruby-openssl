@@ -1408,6 +1408,8 @@ public class ASN1 {
             return callMethod(context, "value");
         }
 
+        final String getClassBaseName() { return getMetaClass().getBaseName(); }
+
         @Override
         public String toString() {
             return value().toString();
@@ -1555,8 +1557,10 @@ public class ASN1 {
 
         @Override
         boolean isEOC() {
-            return "EndOfContent".equals( getMetaClass().getSimpleName() );
+            return "EndOfContent".equals( getClassBaseName() );
         }
+
+
 
         @Override
         byte[] toDER(final ThreadContext context) throws IOException {
@@ -1754,15 +1758,15 @@ public class ASN1 {
         }
 
         private boolean rawConstructive() {
-            return "Constructive".equals( getMetaClass().getSimpleName() );
+            return "Constructive".equals( getClassBaseName() );
         }
 
         private boolean isSequence() {
-            return "Sequence".equals( getMetaClass().getSimpleName() );
+            return "Sequence".equals( getClassBaseName() );
         }
 
         private boolean isSet() {
-            return "Set".equals( getMetaClass().getSimpleName() );
+            return "Set".equals( getClassBaseName() );
         }
 
         private boolean isInfiniteLength() {
