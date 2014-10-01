@@ -103,15 +103,12 @@ properties( 'jruby.plugins.version' => '1.0.5',
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true )
 
-execute :workaround_wrong_behaviour_in_runit_plugin, 'prepare-package' do |ctx|
-  FileUtils.mkdir_p 'pkg/rubygems/specifications/'
-  FileUtils.touch 'pkg/rubygems/specifications/jruby-openssl-0.9.6.dev-java.gemspec'
+# make sure we have the embedded jars in place before we run runit plugin
+plugin :dependency do
+  execute_goal 'copy-dependencies', :phase => 'generate-test-resources', :outputDirectory => '${basedir}/lib', :useRepositoryLayout => true, :includeGroupIds => 'org.bouncycastle'
 end
 
-phase :package do # we need to assure the jars are installed in ./lib
-
-  jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
-end
+jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
 
 invoker_run_options = {
     :id => 'tests-with-different-bc-versions',

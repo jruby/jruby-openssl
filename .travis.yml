@@ -11,8 +11,6 @@ env:
   - TEST_PROFILE=test-1.7.13
   - TEST_PROFILE=test-1.7.15
   - TEST_PROFILE=test-9000
-# mvn de.saumya.mojo:gem-maven-plugin:package :
-before_script: mvn package -Dmaven.test.skip=true # jopenssl.jar + include bc jars
 script: mvn verify -P $TEST_PROFILE
 matrix:
   # NOTE: 9k needs a compatible runit version (due minitest changes) !
