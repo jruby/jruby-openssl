@@ -81,6 +81,7 @@ import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.DERUTCTime;
 import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.DERUniversalString;
+import org.bouncycastle.asn1.DERVisibleString;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -1637,11 +1638,32 @@ public class ASN1 {
                 }
                 return new DERBitString(bs, unused);
             }
+            if ( type == DERIA5String.class ) {
+                return new DERIA5String( val.asString().toString() );
+            }
+            if ( type == DERUTF8String.class ) {
+                return new DERUTF8String( val.asString().toString() );
+            }
+            if ( type == DERBMPString.class ) {
+                return new DERBMPString( val.asString().toString() );
+            }
+            if ( type == DERUniversalString.class ) {
+                return new DERUniversalString( val.asString().getBytes() );
+            }
+
+            if ( type == DERGeneralString.class ) {
+                return DERGeneralString.getInstance( val.asString().getBytes() );
+            }
+            if ( type == DERVisibleString.class ) {
+                return DERVisibleString.getInstance( val.asString().getBytes() );
+            }
+            if ( type == DERNumericString.class ) {
+                return DERNumericString.getInstance( val.asString().getBytes() );
+            }
 
             if ( val instanceof RubyString ) {
                 try {
                     return typeInstance(type, ( (RubyString) val ).getBytes());
-                    //return type.getConstructor(String.class).newInstance(val.toString());
                 }
                 catch (Exception e) { // TODO exception handling
                     debugStackTrace(context.runtime, e);
@@ -1856,8 +1878,13 @@ public class ASN1 {
             final ASN1EncodableVector vec, final IRubyObject entry) {
             try {
                 if ( entry instanceof Constructive ) {
-                    // TODO NOT IMPLEMENTED vec.add( (Constructive) entry );
-                    vec.add( new InternalEncodable( (Constructive) entry) );
+                    final Constructive constructive = (Constructive) entry;
+                    if ( constructive.isInfiniteLength() || constructive.rawConstructive() ) {
+                        vec.add( new InternalEncodable( (Constructive) entry) );
+                    }
+                    else {
+                        vec.add( constructive.toASN1(context) );
+                    }
                 }
                 else if ( entry instanceof ASN1Data ) {
                     final ASN1Data data = ( (ASN1Data) entry );

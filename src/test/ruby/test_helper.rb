@@ -76,6 +76,59 @@ TestCase.class_eval do
     ENV_JAVA[ 'java.specification.version' ].split('.')
   end
 
+  private
+
+  def issue_cert(dn, key, serial, not_before, not_after, extensions,
+                 issuer, issuer_key, digest)
+    cert = OpenSSL::X509::Certificate.new
+    issuer = cert unless issuer
+    issuer_key = key unless issuer_key
+    cert.version = 2
+    cert.serial = serial
+    cert.subject = dn
+    cert.issuer = issuer.subject
+    cert.public_key = key.public_key
+    cert.not_before = not_before
+    cert.not_after = not_after
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = cert
+    ef.issuer_certificate = issuer
+    extensions.each do |oid, value, critical|
+      puts "create_extension: #{oid} #{value.inspect}\n"
+      cert.add_extension ef.create_extension(oid, value, critical)
+    end
+    cert.sign(issuer_key, digest)
+    cert
+  end
+
+  def issue_crl(revoke_info, serial, lastup, nextup, extensions,
+                issuer, issuer_key, digest)
+    crl = OpenSSL::X509::CRL.new
+    crl.issuer = issuer.subject
+    crl.version = 1
+    crl.last_update = lastup
+    crl.next_update = nextup
+    revoke_info.each{|rserial, time, reason_code|
+      revoked = OpenSSL::X509::Revoked.new
+      revoked.serial = rserial
+      revoked.time = time
+      enum = OpenSSL::ASN1::Enumerated(reason_code)
+      ext = OpenSSL::X509::Extension.new("CRLReason", enum)
+      revoked.add_extension(ext)
+      crl.add_revoked(revoked)
+    }
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.issuer_certificate = issuer
+    ef.crl = crl
+    crlnum = OpenSSL::ASN1::Integer(serial)
+    crl.add_extension(OpenSSL::X509::Extension.new("crlNumber", crlnum))
+    extensions.each{|oid, value, critical|
+      crl.add_extension(ef.create_extension(oid, value, critical))
+    }
+    crl.sign(issuer_key, digest)
+    crl
+  end
+
 end
 
 begin
