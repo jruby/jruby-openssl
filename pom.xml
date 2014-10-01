@@ -35,6 +35,7 @@
   </scm>
   <properties>
     <bc.versions>1.50</bc.versions>
+    <tesla.version>0.1.1</tesla.version>
     <jruby.plugins.version>1.0.5</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <jruby.version>1.7.13</jruby.version>
@@ -275,6 +276,31 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>io.tesla.polyglot</groupId>
+        <artifactId>tesla-polyglot-maven-plugin</artifactId>
+        <version>${tesla.version}</version>
+        <executions>
+          <execution>
+            <id>work_around_wrong_behaviour_in_runit_plugin</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>execute</goal>
+            </goals>
+            <configuration>
+              <taskId>work_around_wrong_behaviour_in_runit_plugin</taskId>
+              <nativePom>Mavenfile</nativePom>
+            </configuration>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>io.tesla.polyglot</groupId>
+            <artifactId>tesla-polyglot-ruby</artifactId>
+            <version>${tesla.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>
