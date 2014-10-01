@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DLSequence;
@@ -551,13 +552,14 @@ public class X509Cert extends RubyObject {
                 if ( curExtension.getRealObjectID().equals( oid ) ) {
                     final ASN1EncodableVector vec = new ASN1EncodableVector();
                     try {
-                        GeneralName[] n1 = GeneralNames.getInstance(curExtension.getRealValue()).getNames();
-                        GeneralName[] n2 = GeneralNames.getInstance(newExtension.getRealValue()).getNames();
+                        GeneralName[] n1 = extRealNames(curExtension);
+                        GeneralName[] n2 = extRealNames(newExtension);
 
                         for ( int i = 0; i < n1.length; i++ ) vec.add( n1[i] );
                         for ( int i = 0; i < n2.length; i++ ) vec.add( n2[i] );
 
-                        curExtension.setRealValue( GeneralNames.getInstance(new DLSequence(vec)) );
+                        GeneralNames nn = GeneralNames.getInstance(new DLSequence(vec));
+                        curExtension.setRealValue( nn );
                     }
                     catch (IOException ex) {
                         throw getRuntime().newIOErrorFromException(ex);
@@ -572,6 +574,14 @@ public class X509Cert extends RubyObject {
             extensions.add(newExtension);
         }
         return ext;
+    }
+
+    private static GeneralName[] extRealNames(final X509Extension extension) throws IOException {
+        final ASN1Encodable value = extension.getRealValue();
+        if ( value instanceof GeneralName ) {
+            return new GeneralName[] { (GeneralName) value };
+        }
+        return GeneralNames.getInstance( value ).getNames();
     }
 
 }// X509Cert
