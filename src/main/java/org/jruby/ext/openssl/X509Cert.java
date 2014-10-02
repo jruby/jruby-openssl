@@ -108,10 +108,13 @@ public class X509Cert extends RubyObject {
     private RubyTime not_before;
     private RubyTime not_after;
 
-    private IRubyObject public_key;
-
     private IRubyObject sig_alg;
     private IRubyObject version;
+
+    private PKey public_key;
+
+    private String public_key_algorithm;
+    private byte[] public_key_encoded;
 
     private final List<X509Extension> extensions = new ArrayList<X509Extension>();
 
@@ -119,8 +122,6 @@ public class X509Cert extends RubyObject {
 
     private X509V3CertificateGenerator generator = new X509V3CertificateGenerator();
     private X509Certificate cert;
-    private String public_key_algorithm;
-    private byte[] public_key_encoded;
 
     X509AuxCertificate getAuxCert() {
         if ( cert == null ) return null;
@@ -221,7 +222,7 @@ public class X509Cert extends RubyObject {
     }
 
     private void addExtension(final ThreadContext context,
-        final RubyClass _Extension, final String extOID, final boolean critical) {
+        final RubyClass Extension, final String extOID, final boolean critical) {
         try {
             final IRubyObject extension = newExtension(context, extOID, cert, critical);
             if ( extension != null ) add_extension(extension);
@@ -270,7 +271,7 @@ public class X509Cert extends RubyObject {
         }
     }
 
-    @JRubyMethod(name={"to_pem", "to_s"})
+    @JRubyMethod(name = {"to_pem", "to_s"})
     public IRubyObject to_pem() {
         final StringWriter str = new StringWriter();
         try {
@@ -309,7 +310,7 @@ public class X509Cert extends RubyObject {
         return version;
     }
 
-    @JRubyMethod(name="version=")
+    @JRubyMethod(name = "version=")
     public IRubyObject set_version(final IRubyObject version) {
         if ( ! version.equals(this.version) ) {
             this.changed = true;
@@ -327,7 +328,7 @@ public class X509Cert extends RubyObject {
         return BN.newBN(getRuntime(), serial);
     }
 
-    @JRubyMethod(name="serial=")
+    @JRubyMethod(name = "serial=")
     public IRubyObject set_serial(final IRubyObject serial) {
         if ( ! serial.equals(this.serial) ) {
             this.changed = true;
@@ -349,7 +350,7 @@ public class X509Cert extends RubyObject {
         return subject;
     }
 
-    @JRubyMethod(name="subject=")
+    @JRubyMethod(name = "subject=")
     public IRubyObject set_subject(final IRubyObject subject) {
         if ( ! subject.equals(this.subject) ) this.changed = true;
         generator.setSubjectDN( ((X509Name) subject).getRealName() );
@@ -361,7 +362,7 @@ public class X509Cert extends RubyObject {
         return issuer;
     }
 
-    @JRubyMethod(name="issuer=")
+    @JRubyMethod(name = "issuer=")
     public IRubyObject set_issuer(final IRubyObject issuer) {
         if ( ! issuer.equals(this.issuer) ) this.changed = true;
         generator.setIssuerDN( ((X509Name) issuer).getRealName() );
@@ -374,7 +375,7 @@ public class X509Cert extends RubyObject {
 
     }
 
-    @JRubyMethod(name="not_before=")
+    @JRubyMethod(name = "not_before=")
     public IRubyObject set_not_before(final ThreadContext context, final IRubyObject time) {
         changed = true;
         not_before = (RubyTime) time.callMethod(context, "getutc");
@@ -388,7 +389,7 @@ public class X509Cert extends RubyObject {
         return not_after == null ? getRuntime().getNil() : not_after;
     }
 
-    @JRubyMethod(name="not_after=")
+    @JRubyMethod(name = "not_after=")
     public IRubyObject set_not_after(final ThreadContext context, final IRubyObject time) {
         changed = true;
         not_after = (RubyTime) time.callMethod(context, "getutc");
@@ -399,13 +400,10 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod
     public IRubyObject public_key(final ThreadContext context) {
-        if ( this.public_key == null ) {
-            lazyInitializePublicKey(context);
-        }
-        return public_key.callMethod(context, "public_key");
+        return getPublicKey(context).callMethod(context, "public_key");
     }
 
-    @JRubyMethod(name="public_key=")
+    @JRubyMethod(name = "public_key=")
     public IRubyObject set_public_key(IRubyObject public_key) {
         if ( ! ( public_key instanceof PKey ) ) {
             throw getRuntime().newTypeError("OpenSSL::PKey::PKey expected but got " + public_key.getMetaClass().getName());
@@ -413,37 +411,44 @@ public class X509Cert extends RubyObject {
         if ( ! public_key.equals(this.public_key) ) {
             this.changed = true;
         }
+        
         generator.setPublicKey(((PKey) public_key).getPublicKey());
-        return this.public_key = public_key;
+        return this.public_key = (PKey) public_key;
+    }
+
+    private PKey getPublicKey(final ThreadContext context) {
+        if ( this.public_key == null ) {
+            lazyInitializePublicKey(context);
+        }
+        return this.public_key;
     }
 
     private void lazyInitializePublicKey(final ThreadContext context) {
+        final boolean changed = this.changed;
 
-        final boolean _changed = changed;
-
-        RubyModule _OpenSSL = context.runtime.getModule("OpenSSL");
-        RubyModule _PKey = (RubyModule) _OpenSSL.getConstant("PKey");
+        RubyModule OpenSSL = context.runtime.getModule("OpenSSL");
+        RubyModule PKey = (RubyModule) OpenSSL.getConstant("PKey");
 
         if ( "RSA".equalsIgnoreCase(public_key_algorithm) ) {
             if ( public_key_encoded == null ) {
                 throw new IllegalStateException("no public key encoded data");
             }
             RubyString encoded = RubyString.newString(context.runtime, public_key_encoded);
-            set_public_key( _PKey.getConstant("RSA").callMethod(context, "new", encoded) );
+            set_public_key( PKey.getConstant("RSA").callMethod(context, "new", encoded) );
         }
         else if ( "DSA".equalsIgnoreCase(public_key_algorithm) ) {
             if ( public_key_encoded == null ) {
                 throw new IllegalStateException("no public key encoded data");
             }
             RubyString encoded = RubyString.newString(context.runtime, public_key_encoded);
-            set_public_key( _PKey.getConstant("DSA").callMethod(context, "new", encoded) );
+            set_public_key( PKey.getConstant("DSA").callMethod(context, "new", encoded) );
         }
         else {
             String message = "unsupported algorithm";
             if ( public_key_algorithm != null ) message += " '" + public_key_algorithm + "'";
             throw newCertificateError(context.runtime, message);
         }
-        changed = _changed;
+        this.changed = changed;
     }
 
     @JRubyMethod
