@@ -15,6 +15,13 @@ class TestX509Certificate < TestCase
     assert_raise(OpenSSL::X509::CertificateError) { cert.public_key }
   end
 
+
+  def test_alt_name_extension
+    cert = OpenSSL::X509::Certificate.new
+    cert.add_extension OpenSSL::X509::Extension.new('subjectAltName', 'email:self@jruby.org, IP:127.0.0.1', false)
+    assert_equal 'email:self@jruby.org, IP:127.0.0.1', cert.extensions[0].value
+  end
+
   def test_extensions
     rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
     ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
@@ -50,7 +57,7 @@ class TestX509Certificate < TestCase
       when 'clientAuth, emailProtection, codeSigning'
         assert_equal 'TLS Web Client Authentication, E-mail Protection, Code Signing', ext.value
       when /IP\:/
-        #assert_equal 'IP Address:174.129.31.214', ext.value
+        assert_equal 'IP Address:174.129.31.214', ext.value
       else
         assert_equal ca_exts[i][1], ext.value
       end

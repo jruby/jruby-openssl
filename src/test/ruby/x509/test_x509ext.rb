@@ -50,6 +50,30 @@ class TestX509Extension < TestCase
     assert_equal 'member-body', ext.oid
   end
 
+  def test_set_value
+    ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
+    assert_equal 'foo', ext.value
+    ext.oid = '1.2'
+    assert_equal 'foo', ext.value
+
+    ext = OpenSSL::X509::Extension.new('keyUsage', 'XXXXXXXXXX')
+    assert_equal 'XXXXXXXXXX', ext.value
+  end
+
+  def test_subject_alt_name
+    ext = OpenSSL::X509::Extension.new('subjectAltName', 'IP:127.0.0.1')
+    assert_equal 'subjectAltName', ext.oid
+    assert_equal 'IP:127.0.0.1', ext.value
+
+    ext = OpenSSL::X509::Extension.new('2.5.29.17', 'IP Address:127.0.0.1')
+    assert_equal 'subjectAltName', ext.oid
+    assert_equal 'IP Address:127.0.0.1', ext.value
+
+    ext = OpenSSL::X509::Extension.new('2.5.29.17', 'IP:127.0.0.1,email:some@example.com')
+    assert_equal 'subjectAltName', ext.oid
+    assert_equal 'IP:127.0.0.1,email:some@example.com', ext.value
+  end
+
   def test_to_a
     ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
     assert_equal [ '1.1.1.1.1.1', 'foo', false ], ext.to_a

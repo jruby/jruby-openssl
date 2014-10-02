@@ -28,13 +28,12 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1TaggedObject;
@@ -171,8 +170,8 @@ public class X509Extension extends RubyObject {
         if ( value instanceof RubyString ) return ((RubyString) value).getBytes();
         if ( value instanceof String ) return ByteList.plain((String) value);
 
-        if ( value instanceof DEROctetString ) { // initialize
-            return ((DEROctetString) value).getOctets();
+        if ( value instanceof ASN1OctetString ) { // initialize
+            return ((ASN1OctetString) value).getOctets();
         }
 
         return getRealValue().toASN1Primitive().getEncoded(ASN1Encoding.DER);
@@ -287,6 +286,10 @@ public class X509Extension extends RubyObject {
 
     @JRubyMethod
     public RubyString value(final ThreadContext context) {
+        if ( this.value instanceof RubyString ) { // return the same as set
+            return (RubyString) this.value;
+        }
+        
         final Ruby runtime = context.runtime;
         final String oid = getRealObjectID().getId();
         try {
@@ -380,8 +383,8 @@ public class X509Extension extends RubyObject {
                     keyid = ((ASN1TaggedObject) keyid).getObject();
                 }
                 final byte[] bytes;
-                if (keyid instanceof DEROctetString) {
-                    bytes = ((DEROctetString) keyid).getOctets();
+                if (keyid instanceof ASN1OctetString) {
+                    bytes = ((ASN1OctetString) keyid).getOctets();
                 } else {
                     bytes = keyid.getEncoded(ASN1Encoding.DER);
                 }
@@ -415,7 +418,7 @@ public class X509Extension extends RubyObject {
             }
             if ( oid.equals("2.5.29.17") || oid.equals("2.5.29.18") ) { // subjectAltName || issuerAltName
                 try {
-                    ASN1Primitive seq = ASN1.readObject( getRealValueEncoded() );
+                    final ASN1Encodable seq = getRealValue();
                     final ByteList val = new ByteList(64);
                     if ( seq instanceof ASN1TaggedObject ) {
                         formatGeneralName(GeneralName.getInstance(seq), val);
@@ -474,9 +477,9 @@ public class X509Extension extends RubyObject {
                 return runtime.newString( val );
             }
 
-            final IRubyObject val = getValue(runtime); // e.g. [ ASN1::UTF8String, ... ]
-            if ( val instanceof RubyArray ) {
-                final RubyArray arr = (RubyArray) val;
+            final IRubyObject value = getValue(runtime); // e.g. [ ASN1::UTF8String, ... ]
+            if ( value instanceof RubyArray ) {
+                final RubyArray arr = (RubyArray) value;
                 final ByteList strVal = new ByteList(64);
                 final int len = arr.size();
                 for ( int i = 0; i < len; i++ ) {
@@ -489,7 +492,7 @@ public class X509Extension extends RubyObject {
                 }
                 return runtime.newString(strVal);
             }
-            return val.asString();
+            return value.asString();
         }
         catch (IOException e) {
             debugStackTrace(runtime, e);
@@ -524,7 +527,7 @@ public class X509Extension extends RubyObject {
         case GeneralName.iPAddress:
             out.append('I').append('P').
                 append(':');
-            byte[] ip = ((DEROctetString) name.getName()).getOctets();
+            final byte[] ip = ((ASN1OctetString) name.getName()).getOctets();
             int len = ip.length; boolean ip4 = len == 4;
             for ( int i = 0; i < ip.length; i++ ) {
                 out.append( ConvertBytes.intToCharBytes( ((int) ip[i]) & 0xff ) );
