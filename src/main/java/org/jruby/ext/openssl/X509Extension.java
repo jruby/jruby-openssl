@@ -421,7 +421,10 @@ public class X509Extension extends RubyObject {
                     else {
                         GeneralName[] names = GeneralNames.getInstance(seq).getNames();
                         for ( int i = 0; i < names.length; i++ ) {
-                            formatGeneralName(names[i], val);
+                            boolean other = formatGeneralName(names[i], val);
+                            if ( i < names.length - 1 ) {
+                                if ( other ) val.append(';'); else val.append(',');
+                            }
                         }
                     }
                     return runtime.newString( val );
@@ -492,7 +495,7 @@ public class X509Extension extends RubyObject {
         }
     }
 
-    private static void formatGeneralName(final GeneralName name, final ByteList out) {
+    private static boolean formatGeneralName(final GeneralName name, final ByteList out) {
         final ASN1Encodable obj = name.getName();
         String val; boolean tagged = false;
         switch ( name.getTagNo() ) {
@@ -532,6 +535,8 @@ public class X509Extension extends RubyObject {
         case GeneralName.otherName:
             out.append('o').append('t').append('h').append('e').append('r').append('N').append('a').append('m').append('e').
                 append(':');
+            out.append( ByteList.plain( obj.toString() ) );
+            return true;
             //tagged = true;
         case GeneralName.registeredID:
             out.append('R').append('I').append('D').
@@ -540,6 +545,7 @@ public class X509Extension extends RubyObject {
         default:
             out.append( ByteList.plain( obj.toString() ) );
         }
+        return false;
     }
 
     @JRubyMethod(name = "value=")
