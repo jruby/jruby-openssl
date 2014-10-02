@@ -44,12 +44,16 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
@@ -466,7 +470,7 @@ public class X509Cert extends RubyObject {
 
         org.bouncycastle.x509.X509V3CertificateGenerator builder = getCertificateBuilder();
 
-        for ( X509Extension ext : extensions ) { // TODO
+        for ( X509Extension ext : uniqueExtensions() ) {
             try {
                 final byte[] bytes = ext.getRealValueEncoded();
                 builder.addExtension(ext.getRealObjectID(), ext.isRealCritical(), bytes);
@@ -509,7 +513,7 @@ public class X509Cert extends RubyObject {
 
         if ( public_key == null ) lazyInitializePublicKey(getRuntime().getCurrentContext());
         generator.setPublicKey( public_key.getPublicKey() );
-        
+
         return generator;
     }
 
@@ -567,36 +571,68 @@ public class X509Cert extends RubyObject {
     @JRubyMethod
     public IRubyObject add_extension(final IRubyObject ext) {
         changed = true;
-        final X509Extension newExtension = (X509Extension) ext;
-        final ASN1ObjectIdentifier oid = newExtension.getRealObjectID();
-        if ( oid.getId().equals( "2.5.29.17" ) ) { // subjectAltName (2.5.29.14 - subjectKeyIdentifier)
-            boolean one = true;
-            for ( final X509Extension curExtension : extensions ) {
-                if ( curExtension.getRealObjectID().equals( oid ) ) {
-                    final ASN1EncodableVector vec = new ASN1EncodableVector();
-                    try {
-                        GeneralName[] n1 = extRealNames(curExtension);
-                        GeneralName[] n2 = extRealNames(newExtension);
-
-                        for ( int i = 0; i < n1.length; i++ ) vec.add( n1[i] );
-                        for ( int i = 0; i < n2.length; i++ ) vec.add( n2[i] );
-
-                        GeneralNames nn = GeneralNames.getInstance(new DLSequence(vec));
-                        curExtension.setRealValue( nn );
-                    }
-                    catch (IOException ex) {
-                        throw getRuntime().newIOErrorFromException(ex);
-                    }
-                    one = false;
-                    break;
-                }
-            }
-            if ( one ) extensions.add(newExtension);
-        }
-        else {
-            extensions.add(newExtension);
-        }
+        extensions.add((X509Extension) ext);
         return ext;
+    }
+
+    private Collection<X509Extension> uniqueExtensions() {
+        final Map<ASN1ObjectIdentifier, X509Extension> unique =
+            new LinkedHashMap<ASN1ObjectIdentifier, X509Extension>();
+
+        for ( X509Extension current : this.extensions ) {
+
+            final ASN1ObjectIdentifier oid = current.getRealObjectID();
+            final X509Extension existing = unique.get( oid );
+            if ( existing == null ) {
+                unique.put( oid, current ); continue;
+            }
+
+            // NOTE: dealing with Java API limits here since it does not
+            // handle multiple OID mappings to a sequence out of the box
+
+            // commonly used e.g. with subjectAltName || issuserAltName :
+            if ( "2.5.29.17".equals( oid.getId() ) || "2.5.29.18".equals( oid.getId() ) ) {
+                final ASN1EncodableVector vec = new ASN1EncodableVector();
+                try {
+                    GeneralName[] n1 = extRealNames(existing);
+                    for ( int i = 0; i < n1.length; i++ ) vec.add( n1[i] );
+                    GeneralName[] n2 = extRealNames(current);
+                    for ( int i = 0; i < n2.length; i++ ) vec.add( n2[i] );
+
+                    GeneralNames nn = GeneralNames.getInstance(new DLSequence(vec));
+                    final X509Extension existingDup = (X509Extension) existing.clone();
+                    existingDup.setRealValue( nn );
+                    unique.put( oid, existingDup );
+                }
+                catch (IOException ex) { throw getRuntime().newIOErrorFromException(ex); }
+                continue;
+            }
+
+            // TODO do we need special care for any others here ?!?
+
+            final ASN1EncodableVector vec = new ASN1EncodableVector();
+            try {
+                final ASN1Encodable existingValue = existing.getRealValue();
+                if ( existingValue instanceof ASN1Sequence ) {
+                    final ASN1Sequence seq = (ASN1Sequence) existingValue;
+                    for ( int i = 0; i < seq.size(); i++ ) {
+                        vec.add( seq.getObjectAt(i) );
+                    }
+                }
+                else {
+                    vec.add(existingValue);
+                }
+                vec.add( current.getRealValue() );
+
+                // existing.setRealValue( new DLSequence(vec) );
+                final X509Extension existingDup = (X509Extension) existing.clone();
+                existingDup.setRealValue( new DLSequence(vec) );
+                unique.put( oid, existingDup );
+            }
+            catch (IOException ex) { throw getRuntime().newIOErrorFromException(ex); }
+
+        }
+        return unique.values();
     }
 
     private static GeneralName[] extRealNames(final X509Extension extension) throws IOException {

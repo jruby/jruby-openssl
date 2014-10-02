@@ -34,6 +34,7 @@ class TestX509Certificate < TestCase
     ca_cert = issue_cert(ca, rsa2048, 1, now, now + 3600, ca_exts,
                          nil, nil, OpenSSL::Digest::SHA1.new)
 
+    assert_equal 8, ca_cert.extensions.size
     ca_cert.extensions.each_with_index do |ext, i|
 
       assert_equal ca_exts[i][0], ext.oid
@@ -51,7 +52,7 @@ class TestX509Certificate < TestCase
       when /IP\:/
         #assert_equal 'IP Address:174.129.31.214', ext.value
       else
-        #assert_equal ca_exts[i][1], ext.value
+        assert_equal ca_exts[i][1], ext.value
       end
 
     end
