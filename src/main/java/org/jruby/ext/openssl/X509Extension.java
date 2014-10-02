@@ -28,6 +28,8 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -622,6 +624,16 @@ public class X509Extension extends RubyObject {
         });
         str.getByteList().append(value.getByteList());
         return str;
+    }
+
+    @Override
+    public X509Extension clone() {
+        try {
+            return (X509Extension) super.clone();
+        }
+        catch (CloneNotSupportedException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     @Override
