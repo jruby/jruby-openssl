@@ -756,30 +756,6 @@ public class ASN1 {
         ASN1.defineClassUnder("Set", Constructive, Constructive.getAllocator());
     }
 
-
-    static String shortName(Ruby runtime, String nameOrOid) {
-        return getNameImpl(runtime, nameOrOid, true);
-    }
-
-    static String longName(Ruby runtime, String nameOrOid) {
-        return getNameImpl(runtime, nameOrOid, false);
-    }
-
-    private static String getNameImpl(final Ruby runtime, final String nameOrOid, final boolean shortName) {
-        ASN1ObjectIdentifier oid = getObjectID(runtime, nameOrOid);
-        Map<String, ASN1ObjectIdentifier> lookup = getOIDLookup(runtime);
-        String name = null;
-        for ( final String key : lookup.keySet() ) {
-            if ( oid.equals( lookup.get(key) ) ) {
-                if ( name == null ||
-                ( shortName ? key.length() < name.length() : key.length() > name.length() ) ) {
-                    name = key;
-                }
-            }
-        }
-        return name;
-    }
-
     static ASN1ObjectIdentifier getObjectID(final Ruby runtime, final String nameOrOid)
         throws IllegalArgumentException {
         final String name = nameOrOid.toLowerCase();
@@ -937,14 +913,12 @@ public class ASN1 {
 
         @JRubyMethod(name = { "sn", "short_name" })
         public static RubyString sn(final ThreadContext context, final IRubyObject self) {
-            final Ruby runtime = context.runtime;
-            return runtime.newString( shortName(runtime, self.callMethod(context, "value").toString()) );
+            return name(context, self.callMethod(context, "value"), false);
         }
 
         @JRubyMethod(name = { "ln", "long_name" })
         public static RubyString ln(final ThreadContext context, final IRubyObject self) {
-            final Ruby runtime = context.runtime;
-            return runtime.newString( longName(runtime, self.callMethod(context, "value").toString()) );
+            return name(context, self.callMethod(context, "value"), true);
         }
 
         @JRubyMethod
@@ -953,9 +927,23 @@ public class ASN1 {
             return runtime.newString( getObjectID(runtime, self.callMethod(context, "value").toString()).getId() );
         }
 
-    }
+        private static RubyString name(final ThreadContext context, IRubyObject value,
+            final boolean longName) {
+            final Ruby runtime = context.runtime;
+            final String oid = value.toString(); // name or oid
+            Integer nid = null;
+            try {
+                nid = ASN1.oid2nid(runtime, ASN1.getObjectID(runtime, oid));
+            }
+            catch (IllegalArgumentException e) { /* ignored */ } // not an oid
+            if ( nid != null ) {
+                String val = longName ? nid2ln(runtime, nid) : nid2sn(runtime, nid);
+                if ( val != null ) return runtime.newString(val);
+            }
+            return value.asString();
+        }
 
-    //private static final DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmssz");
+    } // ObjectId
 
     static IRubyObject decodeObject(final ThreadContext context,
         final RubyModule ASN1, final org.bouncycastle.asn1.ASN1Encodable obj)
