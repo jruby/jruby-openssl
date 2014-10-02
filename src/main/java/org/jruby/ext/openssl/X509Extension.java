@@ -102,9 +102,7 @@ public class X509Extension extends RubyObject {
         return _X509(runtime).getClass("Extension");
     }
 
-    static final byte[] critical__ = new byte[] {
-        'c','r','i','t','i','c','a','l',',',' '
-    };
+    static final byte[] critical__ = new byte[] { 'c','r','i','t','i','c','a','l',',',' ' };
 
     static X509Extension newExtension(final ThreadContext context,
         final String oid, final java.security.cert.X509Extension ext,
@@ -178,7 +176,7 @@ public class X509Extension extends RubyObject {
         return getRealValue().toASN1Primitive().getEncoded(ASN1Encoding.DER);
     }
 
-    private RubyString getValueString(final Ruby runtime) throws IOException {
+    private IRubyObject getValue(final Ruby runtime) throws IOException {
         if ( value instanceof RubyString ) {
             return (RubyString) value; // explicitly set value
         }
@@ -186,7 +184,7 @@ public class X509Extension extends RubyObject {
         final byte[] enc = getRealValueEncoded();
         IRubyObject extValue = runtime.newString( new ByteList(enc, false) );
         extValue = ASN1.decodeImpl(context, _ASN1(runtime), extValue);
-        return extValue.callMethod(context, "value").asString();
+        return extValue.callMethod(context, "value");
     }
 
     void setRealValue(final ASN1Encodable value) {
@@ -290,7 +288,7 @@ public class X509Extension extends RubyObject {
         final Ruby runtime = context.runtime;
         final String oid = getRealObjectID().getId();
         try {
-            if ( oid.equals("2.5.29.19") ) { //basicConstraints
+            if ( oid.equals("2.5.29.19") ) { // basicConstraints
                 ASN1Sequence seq2 = (ASN1Sequence) ASN1.readObject( getRealValueEncoded() );
                 final ByteList val = new ByteList(32);
                 if (seq2.size() > 0) {
@@ -303,7 +301,7 @@ public class X509Extension extends RubyObject {
                 }
                 return runtime.newString(val);
             }
-            if ( oid.equals("2.5.29.15") ) { //keyUsage
+            if ( oid.equals("2.5.29.15") ) { // keyUsage
                 final byte[] enc = getRealValueEncoded();
                 byte b1 = 0; byte b2 = enc[2]; if ( enc.length > 3 ) b1 = enc[3];
                 final ByteList val = new ByteList(64); byte[] sep = _;
@@ -336,7 +334,7 @@ public class X509Extension extends RubyObject {
                 }
                 return runtime.newString(val);
             }
-            if ( oid.equals("2.16.840.1.113730.1.1") ) { //nsCertType
+            if ( oid.equals("2.16.840.1.113730.1.1") ) { // nsCertType
                 final byte b = getRealValueEncoded()[0];
                 final ByteList val = new ByteList(64); byte[] sep = _;
                 if ((b & (byte) 128) != 0) {
@@ -365,7 +363,7 @@ public class X509Extension extends RubyObject {
                 }
                 return runtime.newString(val);
             }
-            if ( oid.equals("2.5.29.14") ) { //subjectKeyIdentifier
+            if ( oid.equals("2.5.29.14") ) { // subjectKeyIdentifier
                 final byte[] bytes = getRealValueEncoded();
                 return runtime.newString(hexBytes(bytes, 2));
             }
@@ -434,7 +432,59 @@ public class X509Extension extends RubyObject {
                 }
             }
 
-            return getValueString(runtime);
+            if ( oid.equals("2.5.29.37") ) { // extendedKeyUsage
+                final ByteList val = new ByteList(64);
+
+                if ( this.value instanceof ASN1Sequence ) { // opt "short" path
+                    final ASN1Sequence seq = (ASN1Sequence) this.value;
+                    final int size = seq.size();
+                    for ( int i = 0; i < size; i++ ) {
+                        ASN1Encodable o = seq.getObjectAt(i);
+                        String name = o.toString();
+                        Integer nid = ASN1.oid2nid(runtime, new ASN1ObjectIdentifier(name));
+                        if ( nid != null ) name = ASN1.nid2ln(runtime, nid);
+                        if ( name == null ) name = o.toString();
+                        val.append( ByteList.plain(name) );
+                        if ( i < size - 1 ) val.append(',').append(' ');
+                    }
+                    return runtime.newString( val );
+                }
+
+                final IRubyObject value = getValue(runtime);
+                if ( value instanceof RubyArray ) {
+                    final RubyArray arr = (RubyArray) value;
+                    final int size = arr.size();
+                    for ( int i = 0; i < size; i++ ) {
+                        IRubyObject entry = arr.eltInternal(i);
+                        if ( "ObjectId".equals(entry.getMetaClass().getBaseName()) ) {
+                            entry = entry.callMethod(context, "ln");
+                        }
+                        else if ( entry.respondsTo("value") ) {
+                            entry = entry.callMethod(context, "value");
+                        }
+                        val.append( entry.asString().getByteList() );
+                        if ( i < size - 1 ) val.append(',').append(' ');
+                    }
+                }
+                return runtime.newString( val );
+            }
+
+            final IRubyObject val = getValue(runtime); // e.g. [ ASN1::UTF8String, ... ]
+            if ( val instanceof RubyArray ) {
+                final RubyArray arr = (RubyArray) val;
+                final ByteList strVal = new ByteList(64);
+                final int len = arr.size();
+                for ( int i = 0; i < len; i++ ) {
+                    IRubyObject entry = arr.eltInternal(i);
+                    if ( entry.respondsTo("value") ) {
+                        entry = entry.callMethod(context, "value");
+                    }
+                    strVal.append( entry.asString().getByteList() );
+                    if ( i < len - 1 ) strVal.append(',').append(' ');
+                }
+                return runtime.newString(strVal);
+            }
+            return val.asString();
         }
         catch (IOException e) {
             debugStackTrace(runtime, e);
