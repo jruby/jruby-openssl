@@ -63,7 +63,8 @@ import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorSt
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class X509StoreContext extends RubyObject {
-
+    private static final long serialVersionUID = -4165247923898746888L;
+    
     private static ObjectAllocator X509STORECTX_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
             return new X509StoreContext(runtime, klass);
