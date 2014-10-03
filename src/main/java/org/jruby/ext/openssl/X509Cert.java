@@ -197,44 +197,33 @@ public class X509Cert extends RubyObject {
             throw newCertificateError(runtime, (String) null);
         }
 
-        final RubyModule _OpenSSL = runtime.getModule("OpenSSL");
-        final RubyModule _X509 = (RubyModule) _OpenSSL.getConstant("X509");
-        final RubyClass _Name = _X509.getClass("Name");
-
         set_serial( RubyNumeric.str2inum(runtime, runtime.newString(cert.getSerialNumber().toString()), 10) );
         set_not_before( context, RubyTime.newTime( runtime, cert.getNotBefore().getTime() ) );
         set_not_after( context, RubyTime.newTime( runtime, cert.getNotAfter().getTime() ) );
-        bytes = cert.getSubjectX500Principal().getEncoded();
-        set_subject( _Name.callMethod(context, "new", StringHelper.newString(runtime, bytes) ) );
-        bytes = cert.getIssuerX500Principal().getEncoded();
-        set_issuer( _Name.callMethod(context, "new", StringHelper.newString(runtime, bytes) ) );
+        set_subject( X509Name.newName(runtime, cert.getSubjectX500Principal()) );
+        set_issuer( X509Name.newName(runtime, cert.getIssuerX500Principal()) );
 
         final String algorithm = cert.getPublicKey().getAlgorithm();
         set_public_key( algorithm, cert.getPublicKey().getEncoded() );
 
-        IRubyObject extFact = ((RubyClass)(_X509.getConstant("ExtensionFactory"))).callMethod(context,"new");
-        extFact.callMethod(context, "subject_certificate=", this);
-
-        final RubyClass _Extension = _X509.getClass("Extension");
-
         final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
         if ( criticalExtOIDs != null ) {
             for ( final String extOID : criticalExtOIDs ) {
-                addExtension(context, _Extension, extOID, true);
+                addExtension(context, extOID, true);
             }
         }
 
         final Set<String> nonCriticalExtOIDs = cert.getNonCriticalExtensionOIDs();
         if ( nonCriticalExtOIDs != null ) {
             for ( final String extOID : nonCriticalExtOIDs ) {
-                addExtension(context, _Extension, extOID, false);
+                addExtension(context, extOID, false);
             }
         }
         changed = false;
     }
 
     private void addExtension(final ThreadContext context,
-        final RubyClass Extension, final String extOID, final boolean critical) {
+        final String extOID, final boolean critical) {
         try {
             final IRubyObject extension = newExtension(context, extOID, cert, critical);
             if ( extension != null ) add_extension(extension);
