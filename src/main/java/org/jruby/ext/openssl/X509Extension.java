@@ -308,62 +308,62 @@ public class X509Extension extends RubyObject {
             }
             if ( oid.equals("2.5.29.15") ) { // keyUsage
                 final byte[] enc = getRealValueEncoded();
-                byte b1 = 0; byte b2 = enc[2]; if ( enc.length > 3 ) b1 = enc[3];
+                byte b3 = 0; byte b2 = enc[2]; if ( enc.length > 3 ) b3 = enc[3];
                 final ByteList val = new ByteList(64); byte[] sep = _;
                 if ((b2 & (byte) 128) != 0) {
                     val.append(sep); val.append(Decipher_Only); sep = SEP;
                 }
-                if ((b1 & (byte) 128) != 0) {
+                if ((b3 & (byte) 128) != 0) {
                     val.append(sep); val.append(Digital_Signature); sep = SEP;
                 }
-                if ((b1 & (byte) 64) != 0) {
+                if ((b3 & (byte) 64) != 0) {
                     val.append(sep); val.append(Non_Repudiation); sep = SEP;
                 }
-                if ((b1 & (byte) 32) != 0) {
+                if ((b3 & (byte) 32) != 0) {
                     val.append(sep); val.append(Key_Encipherment); sep = SEP;
                 }
-                if ((b1 & (byte) 16) != 0) {
+                if ((b3 & (byte) 16) != 0) {
                     val.append(sep); val.append(Data_Encipherment); sep = SEP;
                 }
-                if ((b1 & (byte) 8) != 0) {
+                if ((b3 & (byte) 8) != 0) {
                     val.append(sep); val.append(Key_Agreement); sep = SEP;
                 }
-                if ((b1 & (byte) 4) != 0) {
+                if ((b3 & (byte) 4) != 0) {
                     val.append(sep); val.append(Certificate_Sign); sep = SEP;
                 }
-                if ((b1 & (byte) 2) != 0) {
+                if ((b3 & (byte) 2) != 0) {
                     val.append(sep); val.append(CRL_Sign); sep = SEP;
                 }
-                if ((b1 & (byte) 1) != 0) {
+                if ((b3 & (byte) 1) != 0) {
                     val.append(sep); val.append(Encipher_Only); // sep = SEP;
                 }
                 return runtime.newString(val);
             }
             if ( oid.equals("2.16.840.1.113730.1.1") ) { // nsCertType
-                final byte b = getRealValueEncoded()[0];
+                final byte b0 = getRealValueEncoded()[0];
                 final ByteList val = new ByteList(64); byte[] sep = _;
-                if ((b & (byte) 128) != 0) {
+                if ((b0 & (byte) 128) != 0) {
                     val.append(sep); val.append(SSL_Client); sep = SEP;
                 }
-                if ((b & (byte) 64) != 0) {
+                if ((b0 & (byte) 64) != 0) {
                     val.append(sep); val.append(SSL_Server); sep = SEP;
                 }
-                if ((b & (byte) 32) != 0) {
+                if ((b0 & (byte) 32) != 0) {
                     val.append(sep); val.append(SMIME); sep = SEP;
                 }
-                if ((b & (byte) 16) != 0) {
+                if ((b0 & (byte) 16) != 0) {
                     val.append(sep); val.append(Object_Signing); sep = SEP;
                 }
-                if ((b & (byte) 8) != 0) {
+                if ((b0 & (byte) 8) != 0) {
                     val.append(sep); val.append(Unused); sep = SEP;
                 }
-                if ((b & (byte) 4) != 0) {
+                if ((b0 & (byte) 4) != 0) {
                     val.append(sep); val.append(SSL_CA); sep = SEP;
                 }
-                if ((b & (byte) 2) != 0) {
+                if ((b0 & (byte) 2) != 0) {
                     val.append(sep); val.append(SMIME_CA); sep = SEP;
                 }
-                if ((b & (byte) 1) != 0) {
+                if ((b0 & (byte) 1) != 0) {
                     val.append(sep); val.append(Object_Signing_CA);
                 }
                 return runtime.newString(val);
@@ -392,8 +392,8 @@ public class X509Extension extends RubyObject {
                 return runtime.newString(hexBytes(bytes, val).append('\n'));
             }
             if ( oid.equals("2.5.29.21") ) { // CRLReason
-                IRubyObject val = ((IRubyObject) value).callMethod(context, "value");
-                switch (RubyNumeric.fix2int(val)) {
+                final IRubyObject value = getValue(runtime);
+                switch ( RubyNumeric.fix2int(value) ) {
                     case 0:
                         return runtime.newString(new ByteList(Unspecified));
                     case 1:
