@@ -104,7 +104,11 @@ public class X509Cert extends RubyObject {
     }
 
     public X509Cert(Ruby runtime, RubyClass type) {
-        super(runtime,type);
+        super(runtime, type);
+    }
+
+    private X509Cert(Ruby runtime) {
+        super(runtime, _Certificate(runtime));
     }
 
     private IRubyObject subject;
@@ -135,9 +139,9 @@ public class X509Cert extends RubyObject {
         return new X509AuxCertificate(cert);
     }
 
-    public static IRubyObject wrap(Ruby runtime, Certificate cert) throws CertificateEncodingException {
-        final RubyString encoded = StringHelper.newString(runtime, cert.getEncoded());
-        return _Certificate(runtime).callMethod(runtime.getCurrentContext(), "new", encoded);
+    public static IRubyObject wrap(Ruby runtime, Certificate cert)
+        throws CertificateEncodingException {
+        return wrap(runtime.getCurrentContext(), cert.getEncoded());
     }
 
     // this is the javax.security counterpart of the previous wrap method
@@ -146,9 +150,13 @@ public class X509Cert extends RubyObject {
         return wrap(runtime.getCurrentContext(), cert.getEncoded());
     }
 
-    static IRubyObject wrap(final ThreadContext context, final byte[] encodedCert) {
-        final RubyString encoded = StringHelper.newString(context.runtime, encodedCert);
-        return _Certificate(context.runtime).callMethod(context, "new", encoded);
+    static IRubyObject wrap(final ThreadContext context, final byte[] encoded) {
+        //final Ruby runtime = context.runtime;
+        //final RubyString enc = StringHelper.newString(runtime, encoded);
+        //return _Certificate(runtime).callMethod(context, "new", enc);
+        final X509Cert cert = new X509Cert(context.runtime);
+        cert.initialize(context, encoded);
+        return cert;
     }
 
     @JRubyMethod(name="initialize", optional = 1, visibility = Visibility.PRIVATE)
@@ -168,11 +176,11 @@ public class X509Cert extends RubyObject {
         return this;
     }
 
-    void initialize(final ThreadContext context, final byte[] encoded) {
+    private void initialize(final ThreadContext context, final byte[] encoded) {
         initialize(context, encoded, 0, encoded.length);
     }
 
-    void initialize(final ThreadContext context, final byte[] encoded, final int offset, final int length) {
+    private void initialize(final ThreadContext context, final byte[] encoded, final int offset, final int length) {
         final Ruby runtime = context.runtime;
 
         byte[] bytes = StringHelper.readX509PEM(encoded, offset, length);
