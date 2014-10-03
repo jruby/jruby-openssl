@@ -84,20 +84,16 @@ public class X509Revoked extends RubyObject {
         revoked.time = RubyTime.newTime(runtime, entry.getRevocationDate().getTime());
 
         if ( entry.hasExtensions() ) {
-            final RubyModule _OpenSSL = runtime.getModule("OpenSSL");
-            final RubyModule _X509 = (RubyModule) _OpenSSL.getConstant("X509");
-            final RubyClass _Extension = _X509.getClass("Extension");
-
             final Set<String> criticalExtOIDs = entry.getCriticalExtensionOIDs();
             if ( criticalExtOIDs != null ) {
                 for ( final String extOID : criticalExtOIDs ) {
-                    revoked.addExtension(context, _Extension, entry, extOID, true);
+                    revoked.addExtension(context, entry, extOID, true);
                 }
             }
             final Set<String> nonCriticalExtOIDs = entry.getNonCriticalExtensionOIDs();
             if ( nonCriticalExtOIDs != null ) {
                 for ( final String extOID : nonCriticalExtOIDs ) {
-                    revoked.addExtension(context, _Extension, entry, extOID, false);
+                    revoked.addExtension(context, entry, extOID, false);
                 }
             }
         }
@@ -105,8 +101,7 @@ public class X509Revoked extends RubyObject {
     }
 
     private void addExtension(final ThreadContext context,
-        final RubyClass _Extension, final X509CRLEntry entry,
-        final String extOID, final boolean critical) {
+        final X509CRLEntry entry, final String extOID, final boolean critical) {
         try {
             final IRubyObject extension = newExtension(context, extOID, entry, critical);
             if ( extension != null ) extensions().append( extension );
