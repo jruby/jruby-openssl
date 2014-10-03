@@ -289,7 +289,7 @@ public class X509Extension extends RubyObject {
         if ( this.value instanceof RubyString ) { // return the same as set
             return (RubyString) this.value;
         }
-        
+
         final Ruby runtime = context.runtime;
         final String oid = getRealObjectID().getId();
         try {
@@ -418,13 +418,16 @@ public class X509Extension extends RubyObject {
             }
             if ( oid.equals("2.5.29.17") || oid.equals("2.5.29.18") ) { // subjectAltName || issuerAltName
                 try {
-                    final ASN1Encodable seq = getRealValue();
+                    final ASN1Encodable value = getRealValue();
                     final ByteList val = new ByteList(64);
-                    if ( seq instanceof ASN1TaggedObject ) {
-                        formatGeneralName(GeneralName.getInstance(seq), val);
+                    if ( value instanceof ASN1TaggedObject ) {
+                        formatGeneralName(GeneralName.getInstance(value), val);
+                    }
+                    else if ( value instanceof GeneralName ) {
+                        formatGeneralName((GeneralName) value, val);
                     }
                     else {
-                        GeneralName[] names = GeneralNames.getInstance(seq).getNames();
+                        GeneralName[] names = GeneralNames.getInstance(value).getNames();
                         for ( int i = 0; i < names.length; i++ ) {
                             boolean other = formatGeneralName(names[i], val);
                             if ( i < names.length - 1 ) {
