@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -120,6 +121,33 @@ public class X509Extension extends RubyObject {
         final Ruby runtime = context.runtime;
         final ASN1Encodable value = ASN1.readObject(extValue);
         return newExtension(runtime, ASN1.getObjectID(runtime, oid), value, critical);
+    }
+
+    static X509Extension[] newExtension(final ThreadContext context,
+        final String oid, final byte[] extValue, final boolean critical)
+        throws IOException {
+
+        final Ruby runtime = context.runtime;
+        final ASN1ObjectIdentifier objectId = ASN1.getObjectID(runtime, oid);
+        final ASN1Encodable value = ASN1.readObject(extValue);
+
+        if ( oid.equals("2.5.29.17") || oid.equals("2.5.29.18") ) { // subjectAltName || issuerAltName
+            if ( value instanceof ASN1OctetString ) { // DEROctetString
+                final ASN1Sequence seq = (ASN1Sequence)
+                      ASN1.readObject( ((ASN1OctetString) value).getOctets() );
+                final X509Extension[] ext = new X509Extension[ seq.size() ];
+                final RubyClass Extension = _Extension(runtime);
+                for ( int i = 0; i < ext.length; i++ ) {
+                    ext[i] = new X509Extension(runtime, Extension);
+                    ext[i].setRealObjectID( objectId );
+                    ext[i].setRealValue( seq.getObjectAt(i) );
+                    ext[i].setRealCritical( critical );
+                }
+                return ext;
+            }
+        }
+
+        return new X509Extension[] { newExtension(runtime, objectId, value, critical) };
     }
 
     static X509Extension newExtension(final Ruby runtime, ASN1ObjectIdentifier objectId,
@@ -416,30 +444,36 @@ public class X509Extension extends RubyObject {
                         return runtime.newString(new ByteList(Unspecified));
                 }
             }
+
             if ( oid.equals("2.5.29.17") || oid.equals("2.5.29.18") ) { // subjectAltName || issuerAltName
                 try {
-                    final ASN1Encodable value = getRealValue();
+                    ASN1Encodable value = getRealValue();
                     final ByteList val = new ByteList(64);
                     if ( value instanceof ASN1TaggedObject ) {
                         formatGeneralName(GeneralName.getInstance(value), val);
+                        return runtime.newString( val );
                     }
-                    else if ( value instanceof GeneralName ) {
+                    if ( value instanceof GeneralName ) {
                         formatGeneralName((GeneralName) value, val);
+                        return runtime.newString( val );
                     }
-                    else {
-                        GeneralName[] names = GeneralNames.getInstance(value).getNames();
-                        for ( int i = 0; i < names.length; i++ ) {
-                            boolean other = formatGeneralName(names[i], val);
-                            if ( i < names.length - 1 ) {
-                                if ( other ) val.append(';'); else val.append(',');
-                            }
+                    if ( value instanceof ASN1OctetString ) {
+                        // decoded octets will end up as an ASN1Sequence instance :
+                        value = ASN1.readObject( ((ASN1OctetString) value).getOctets());
+                    }
+
+                    GeneralName[] names = GeneralNames.getInstance(value).getNames();
+                    for ( int i = 0; i < names.length; i++ ) {
+                        boolean other = formatGeneralName(names[i], val);
+                        if ( i < names.length - 1 ) {
+                            if ( other ) val.append(';'); else val.append(',');
                         }
                     }
                     return runtime.newString( val );
                 }
-                catch (RuntimeException e) {
+                catch (IllegalArgumentException e) {
                     debugStackTrace(runtime, e);
-                    return runtime.newString(getRealValue().toString());
+                    return rawValueAsString(context);
                 }
             }
 
@@ -480,27 +514,32 @@ public class X509Extension extends RubyObject {
                 return runtime.newString( val );
             }
 
-            final IRubyObject value = getValue(runtime); // e.g. [ ASN1::UTF8String, ... ]
-            if ( value instanceof RubyArray ) {
-                final RubyArray arr = (RubyArray) value;
-                final ByteList strVal = new ByteList(64);
-                final int len = arr.size();
-                for ( int i = 0; i < len; i++ ) {
-                    IRubyObject entry = arr.eltInternal(i);
-                    if ( entry.respondsTo("value") ) {
-                        entry = entry.callMethod(context, "value");
-                    }
-                    strVal.append( entry.asString().getByteList() );
-                    if ( i < len - 1 ) strVal.append(',').append(' ');
-                }
-                return runtime.newString(strVal);
-            }
-            return value.asString();
+            return rawValueAsString(context);
         }
         catch (IOException e) {
             debugStackTrace(runtime, e);
             throw newExtensionError(runtime, e);
         }
+    }
+
+    private RubyString rawValueAsString(final ThreadContext context) throws IOException {
+        final Ruby runtime = context.runtime;
+        final IRubyObject value = getValue(runtime); // e.g. [ ASN1::UTF8String, ... ]
+        if ( value instanceof RubyArray ) {
+            final RubyArray arr = (RubyArray) value;
+            final ByteList strVal = new ByteList(64);
+            final int len = arr.size();
+            for ( int i = 0; i < len; i++ ) {
+                IRubyObject entry = arr.eltInternal(i);
+                if ( entry.respondsTo("value") ) {
+                    entry = entry.callMethod(context, "value");
+                }
+                strVal.append( entry.asString().getByteList() );
+                if ( i < len - 1 ) strVal.append(',').append(' ');
+            }
+            return runtime.newString(strVal);
+        }
+        return value.asString();
     }
 
     private static boolean formatGeneralName(final GeneralName name, final ByteList out) {

@@ -15,11 +15,36 @@ class TestX509Certificate < TestCase
     assert_raise(OpenSSL::X509::CertificateError) { cert.public_key }
   end
 
-
   def test_alt_name_extension
     cert = OpenSSL::X509::Certificate.new
     cert.add_extension OpenSSL::X509::Extension.new('subjectAltName', 'email:self@jruby.org, IP:127.0.0.1', false)
     assert_equal 'email:self@jruby.org, IP:127.0.0.1', cert.extensions[0].value
+  end
+
+  def test_resolve_extensions
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    ca_exts = [
+      [ "basicConstraints", "CA:TRUE", true ],
+      [ "keyUsage", "keyCertSign, cRLSign", true ],
+      [ "subjectKeyIdentifier", "hash", false ],
+      [ "authorityKeyIdentifier", "keyid:always", false ],
+      [ "subjectAltName", "email:self@jruby.org", false ],
+      [ "subjectAltName", "DNS:jruby.org", false ],
+    ]
+
+    now = Time.now
+    ca_cert = issue_cert(ca, rsa2048, 1, now, now + 3600, ca_exts,
+                         nil, nil, OpenSSL::Digest::SHA1.new)
+
+    assert_equal 6, ca_cert.extensions.size
+
+    cert = OpenSSL::X509::Certificate.new ca_cert.to_der
+    assert_equal 6, cert.extensions.size
+
+    assert_equal 'email:self@jruby.org', cert.extensions[4].value
+    assert_equal 'DNS:jruby.org', cert.extensions[5].value
   end
 
   def test_extensions
