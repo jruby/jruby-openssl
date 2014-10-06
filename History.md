@@ -1,5 +1,29 @@
 == 0.9.6 (pending)
 
+* match X.509 extension short-comings of the Java API in order to align with MRI
+* improve cert.extension's value - *extendedKeyUsage* was not returned correctly
+* make sure ASN1::ObjectId.new(...).ln and ASN1::ObjectId.new(...).sn are correct!
+* better working to_der conversion esp. with constructives (indefinite lengths)
+* improve our ASN1 decoding for better MRI compatibility
+* avoiding Krypt gem dependency completely (was used for OpenSSL::PKCS5)
+* cleanup OpenSSL::Digest internals - make sure block_length works for more
+* OpenSSL deprecated_warning_flag and check_func API compatibility stubs
+* do not force loading of jar-dependencies + possibly respect jars skipped
+* X509::Name.to_a compatibility - MRI seems to never return "UNDEF"
+ experimental support for passing down "real" Java JCE cipher names
+* rewriten Cipher internals - now faster, slimmer and more compatible than ever!
+* rebuilt our global ASN1Registry and refactored it (back) internally to use string oids
+* report OpenSSL::VERSION **1.1.0** since 1.9.3
+* fill RaiseException's cause whenever we use a factory passing down a Throwable
+* allow X509::Revoked.serial= to receive an integer
+* make sure X509::CRL's to_text representation si (fully) MRI compatible
+* handle authority key-id unwrapping correctly in X509::Extension#value
+* long time coming - OpenSSL::X509::CRL support for loading revoked entries (#5)
+* Reflect Java cacert location in DEFAULT_CERT_* constants (jruby/jruby#1953)
+* X509::Certificate.new MRI compatibility + make sure inspect works the same
+* BN.inspect() and make sure BN.new(0) works just fine (both as in MRI)
+* X509::CRL instantiation compatibility with MRI
+* inspect() X509::Certificate an X509::CRL just like MRI does
 * handle OpenSSL::X509::Store.add error messages correctly (fix based on #6)
 * update to using BC 1.49 by default (still compatible with older versions)
 * implement X509::StoreContext#current_crl method
