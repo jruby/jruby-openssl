@@ -37,9 +37,9 @@
     <bc.versions>1.50</bc.versions>
     <jruby.plugins.version>1.0.5</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
-    <jruby.version>1.7.16</jruby.version>
+    <jruby.version>1.7.13</jruby.version>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
-    <jruby.versions>1.7.16</jruby.versions>
+    <jruby.versions>1.7.13</jruby.versions>
     <project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
     <tesla.dump.readonly>true</tesla.dump.readonly>
@@ -73,7 +73,7 @@
     <dependency>
       <groupId>org.jruby</groupId>
       <artifactId>jruby-core</artifactId>
-      <version>1.7.16</version>
+      <version>1.7.10</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
