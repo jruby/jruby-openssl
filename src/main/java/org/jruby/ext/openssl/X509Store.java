@@ -46,8 +46,10 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSL.isDebug;
 import static org.jruby.ext.openssl.OpenSSL.warn;
+import static org.jruby.ext.openssl.X509._X509;
 import org.jruby.ext.openssl.x509store.X509Error;
 
 /**
@@ -63,29 +65,41 @@ public class X509Store extends RubyObject {
         }
     };
 
-    public static void createX509Store(final Ruby runtime, final RubyModule _X509) {
-        RubyClass _Store = _X509.defineClassUnder("Store", runtime.getObject(), X509STORE_ALLOCATOR);
-        RubyClass _OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        _X509.defineClassUnder("StoreError", _OpenSSLError, _OpenSSLError.getAllocator());
-        _Store.addReadWriteAttribute(runtime.getCurrentContext(), "verify_callback");
-        _Store.addReadWriteAttribute(runtime.getCurrentContext(), "error");
-        _Store.addReadWriteAttribute(runtime.getCurrentContext(), "error_string");
-        _Store.addReadWriteAttribute(runtime.getCurrentContext(), "chain");
-        _Store.defineAnnotatedMethods(X509Store.class);
-        X509StoreContext.createX509StoreContext(runtime, _X509);
+    public static void createX509Store(final Ruby runtime, final RubyModule X509) {
+        RubyClass Store = X509.defineClassUnder("Store", runtime.getObject(), X509STORE_ALLOCATOR);
+        RubyClass OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
+        X509.defineClassUnder("StoreError", OpenSSLError, OpenSSLError.getAllocator());
+
+        final ThreadContext context = runtime.getCurrentContext();
+
+        Store.addReadWriteAttribute(context, "error");
+        Store.addReadWriteAttribute(context, "error_string");
+        Store.addReadWriteAttribute(context, "chain");
+        Store.defineAnnotatedMethods(X509Store.class);
+
+        X509StoreContext.createX509StoreContext(runtime, X509);
     }
 
     public X509Store(Ruby runtime, RubyClass type) {
-        super(runtime,type);
-        store = new Store();
+        super(runtime, type);
     }
 
-    private final Store store;
+    private X509Store(Ruby runtime) {
+        super(runtime, _X509(runtime).getClass("Store"));
+    }
+
+    static X509Store newStore(final Ruby runtime) {
+        final X509Store store = new X509Store(runtime);
+        store.initialize(runtime.getCurrentContext(), NULL_ARRAY);
+        return store;
+    }
+
+    private final Store store = new Store();
 
     final Store getStore() { return store; }
 
-    @JRubyMethod(name="initialize", rest=true, visibility = Visibility.PRIVATE)
-    public IRubyObject _initialize(final ThreadContext context, final IRubyObject[] args, final Block block) {
+    @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
 
         final IRubyObject nil = runtime.getNil();
@@ -105,32 +119,37 @@ public class X509Store extends RubyObject {
         return this;
     }
 
-    @JRubyMethod(name="verify_callback=")
-    public IRubyObject set_verify_callback(IRubyObject cb) {
-        store.setExtraData(1, cb);
-        this.setInstanceVariable("@verify_callback", cb);
-        return cb;
+    @JRubyMethod
+    public IRubyObject verify_callback() {
+        return this.getInstanceVariable("@verify_callback");
     }
 
-    @JRubyMethod(name="flags=")
-    public IRubyObject set_flags(IRubyObject arg) {
+    @JRubyMethod(name = "verify_callback=")
+    public IRubyObject set_verify_callback(final IRubyObject callback) {
+        store.setExtraData(1, callback);
+        this.setInstanceVariable("@verify_callback", callback);
+        return callback;
+    }
+
+    @JRubyMethod(name = "flags=")
+    public IRubyObject set_flags(final IRubyObject arg) {
         store.setFlags(RubyNumeric.fix2long(arg));
         return arg;
     }
 
-    @JRubyMethod(name="purpose=")
-    public IRubyObject set_purpose(IRubyObject arg) {
+    @JRubyMethod(name = "purpose=")
+    public IRubyObject set_purpose(final IRubyObject arg) {
         store.setPurpose(RubyNumeric.fix2int(arg));
         return arg;
     }
 
-    @JRubyMethod(name="trust=")
-    public IRubyObject set_trust(IRubyObject arg) {
+    @JRubyMethod(name = "trust=")
+    public IRubyObject set_trust(final IRubyObject arg) {
         store.setTrust(RubyNumeric.fix2int(arg));
         return arg;
     }
 
-    @JRubyMethod(name="time=")
+    @JRubyMethod(name = "time=")
     public IRubyObject set_time(final IRubyObject arg) {
         setInstanceVariable("@time", arg);
         return arg;
@@ -139,18 +158,19 @@ public class X509Store extends RubyObject {
     @JRubyMethod
     public IRubyObject add_path(final ThreadContext context, final IRubyObject arg) {
         warn(context, "WARNING: unimplemented method called: Store#add_path");
-        return context.runtime.getNil();
+        return context.nil;
     }
 
     @JRubyMethod
-    public IRubyObject add_file(final ThreadContext context, final IRubyObject arg) {
+    public IRubyObject add_file(final IRubyObject arg) {
         String file = arg.toString();
         try {
             store.loadLocations(file, null);
         }
         catch (Exception e) {
-            if ( isDebug(context.runtime) ) e.printStackTrace( context.runtime.getOut() );
-            raiseStoreError(context, "loading file failed: " + e.getMessage());
+            final Ruby runtime = getRuntime();
+            debugStackTrace(runtime, e);
+            throw newStoreError(runtime, "loading file failed: " + e.getMessage());
         }
         return this;
     }
@@ -161,17 +181,18 @@ public class X509Store extends RubyObject {
             store.setDefaultPaths();
         }
         catch (Exception e) {
-            if ( isDebug(context.runtime) ) e.printStackTrace( context.runtime.getOut() );
-            raiseStoreError(context, "setting default path failed: " + e.getMessage());
+            final Ruby runtime = getRuntime();
+            if ( isDebug(runtime) ) e.printStackTrace( context.runtime.getOut() );
+            throw newStoreError(runtime, "setting default path failed: " + e.getMessage());
         }
-        return context.runtime.getNil();
+        return getRuntime().getNil();
     }
 
     @JRubyMethod
     public IRubyObject add_cert(final ThreadContext context, final IRubyObject _cert) {
         X509AuxCertificate cert = (_cert instanceof X509Cert) ? ((X509Cert)_cert).getAuxCert() : (X509AuxCertificate)null;
         if ( store.addCertificate(cert) != 1 ) {
-            raiseStoreError(context, X509Error.getLastErrorMessage());
+            throw newStoreError(context.runtime, X509Error.getLastErrorMessage());
         }
         return this;
     }
@@ -180,12 +201,12 @@ public class X509Store extends RubyObject {
     public IRubyObject add_crl(final ThreadContext context, final IRubyObject arg) {
         java.security.cert.X509CRL crl = (arg instanceof X509CRL) ? ((X509CRL) arg).getCRL() : null;
         if ( store.addCRL(crl) != 1 ) {
-            raiseStoreError(context, X509Error.getLastErrorMessage());
+            throw newStoreError(context.runtime, X509Error.getLastErrorMessage());
         }
         return this;
     }
 
-    @JRubyMethod(rest=true)
+    @JRubyMethod(rest = true)
     public IRubyObject verify(final ThreadContext context, final IRubyObject[] args, final Block block) {
         final Ruby runtime = context.runtime;
         final IRubyObject cert = args[0], chain;
@@ -202,22 +223,19 @@ public class X509Store extends RubyObject {
             verify_callback = getInstanceVariable("@verify_callback");
         }
 
-        final RubyClass _StoreContext = getX509StoreContext(runtime);
-        final X509StoreContext storeContext = (X509StoreContext)
-            _StoreContext.callMethod(context, "new", new IRubyObject[]{ this, cert, chain });
+        final X509StoreContext store_context = X509StoreContext.newStoreContext(context, this, cert, chain);
+        store_context.setInstanceVariable("@verify_callback", verify_callback);
 
-        storeContext.setInstanceVariable("@verify_callback", verify_callback);
-
-        IRubyObject result = storeContext.callMethod(context, "verify");
-        this.setInstanceVariable("@error", storeContext.error(context));
-        this.setInstanceVariable("@error_string", storeContext.error_string(context));
-        this.setInstanceVariable("@chain", storeContext.chain(context));
+        IRubyObject result = store_context.callMethod(context, "verify");
+        this.setInstanceVariable("@error", store_context.error(context));
+        this.setInstanceVariable("@error_string", store_context.error_string(context));
+        this.setInstanceVariable("@chain", store_context.chain(context));
         return result;
     }
 
     private static Store.VerifyCallbackFunction verifyCallback = new Store.VerifyCallbackFunction() {
 
-        public int call(final StoreContext context, Integer outcome) {
+        public int call(final StoreContext context, final Integer outcome) {
             int ok = outcome.intValue();
             IRubyObject proc = (IRubyObject) context.getExtraData(1);
             if (proc == null) {
@@ -228,10 +246,9 @@ public class X509Store extends RubyObject {
 
             if ( ! proc.isNil() ) {
                 final Ruby runtime = proc.getRuntime();
-                final RubyClass _StoreContext = getX509StoreContext(runtime);
-                X509StoreContext rubyContext = new X509StoreContext(runtime, _StoreContext, context);
+                X509StoreContext store_context = X509StoreContext.newStoreContext(runtime, context);
                 IRubyObject ret = proc.callMethod(runtime.getCurrentContext(), "call",
-                    new IRubyObject[]{ runtime.newBoolean(ok != 0), rubyContext }
+                    new IRubyObject[] { runtime.newBoolean(ok != 0), store_context }
                 );
                 if (ret.isTrue()) {
                     context.setError(X509Utils.V_OK);
@@ -248,17 +265,12 @@ public class X509Store extends RubyObject {
         }
     };
 
-    private static RubyClass getX509StoreError(final Ruby runtime) {
-        return (RubyClass) runtime.getClassFromPath("OpenSSL::X509::StoreError");
+    private static RubyClass _StoreError(final Ruby runtime) {
+        return _X509(runtime).getClass("StoreError");
     }
 
-    private static RubyClass getX509StoreContext(final Ruby runtime) {
-        return (RubyClass) runtime.getClassFromPath("OpenSSL::X509::StoreContext");
-    }
-
-    private static void raiseStoreError(final ThreadContext context, final String msg) {
-        final RubyClass _StoreError = getX509StoreError(context.runtime);
-        throw new RaiseException(context.runtime, _StoreError, msg, true);
+    private static RaiseException newStoreError(final Ruby runtime, final String message) {
+        return Utils.newError(runtime, _StoreError(runtime), message);
     }
 
 }// X509Store

@@ -43,20 +43,19 @@ import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
-import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
-import org.jruby.ext.openssl.x509store.Store;
 import org.jruby.ext.openssl.x509store.StoreContext;
 
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSL.warn;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509CRL._CRL;
+import static org.jruby.ext.openssl.X509Cert._Certificate;
 import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorString;
 
 /**
@@ -64,16 +63,20 @@ import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorSt
  */
 public class X509StoreContext extends RubyObject {
     private static final long serialVersionUID = -4165247923898746888L;
-    
+
     private static ObjectAllocator X509STORECTX_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
             return new X509StoreContext(runtime, klass);
         }
     };
 
-    public static void createX509StoreContext(Ruby runtime, RubyModule mX509) {
-        RubyClass cX509StoreContext = mX509.defineClassUnder("StoreContext", runtime.getObject(), X509STORECTX_ALLOCATOR);
-        cX509StoreContext.defineAnnotatedMethods(X509StoreContext.class);
+    public static void createX509StoreContext(final Ruby runtime, final RubyModule X509) {
+        RubyClass StoreContext = X509.defineClassUnder("StoreContext", runtime.getObject(), X509STORECTX_ALLOCATOR);
+        StoreContext.defineAnnotatedMethods(X509StoreContext.class);
+    }
+
+    private static RubyClass _StoreContext(final Ruby runtime) {
+        return _X509(runtime).getClass("StoreContext");
     }
 
     private final StoreContext storeContext;
@@ -84,26 +87,34 @@ public class X509StoreContext extends RubyObject {
     }
 
     // constructor for creating callback parameter object of verify_cb
-    X509StoreContext(Ruby runtime, RubyClass type, StoreContext storeContext) {
+    private X509StoreContext(Ruby runtime, RubyClass type, StoreContext storeContext) {
         super(runtime, type);
         this.storeContext = storeContext;
     }
 
-    @JRubyMethod(name="initialize", rest=true, visibility = Visibility.PRIVATE)
-    public IRubyObject _initialize(final ThreadContext context, final IRubyObject[] args, final Block block) {
-        IRubyObject store, cert, chain;
-        cert = chain = context.runtime.getNil();
+    static X509StoreContext newStoreContext(final Ruby runtime, final StoreContext storeContext) {
+        return new X509StoreContext(runtime, _StoreContext(runtime), storeContext);
+    }
 
-        store = args[0];
+    static X509StoreContext newStoreContext(final ThreadContext context, final X509Store store,
+        final IRubyObject cert, final IRubyObject chain) {
+        final Ruby runtime = context.runtime;
+        X509StoreContext instance = new X509StoreContext(runtime, _StoreContext(runtime));
+        instance.initialize(context, new IRubyObject[] { store, cert, chain } );
+        return instance;
+    }
+
+    @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+        X509Store store; IRubyObject cert, chain; cert = chain = context.nil;
+
+        store = (X509Store) args[0];
 
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 3) > 1 ) {
             cert = args[1];
-        }
-        if ( args.length > 2) {
-            chain = args[2];
+            if ( args.length > 2) chain = args[2];
         }
 
-        final Store x509Store = ((X509Store) store).getStore();
         final X509AuxCertificate x509Cert = cert.isNil() ? null : ((X509Cert) cert).getAuxCert();
         final List<X509AuxCertificate> x509Certs;
         if ( ! chain.isNil() ) {
@@ -116,15 +127,13 @@ public class X509StoreContext extends RubyObject {
             x509Certs = new ArrayList<X509AuxCertificate>(4);
         }
 
-        if ( storeContext.init(x509Store, x509Cert, x509Certs) != 1 ) {
+        if ( storeContext.init(store.getStore(), x509Cert, x509Certs) != 1 ) {
             throw newStoreError(context.runtime, null);
         }
 
         IRubyObject time = store.getInstanceVariables().getInstanceVariable("@time");
         if ( ! time.isNil() ) set_time(time);
-
-        IRubyObject vc = store.getInstanceVariables().getInstanceVariable("@verify_callback");
-        this.setInstanceVariable("@verify_callback", vc);
+        this.setInstanceVariable("@verify_callback", store.verify_callback());
         this.setInstanceVariable("@cert", cert);
         return this;
     }
@@ -226,25 +235,25 @@ public class X509StoreContext extends RubyObject {
         return context.runtime.getNil();
     }
 
-    @JRubyMethod(name="flags=")
+    @JRubyMethod(name = "flags=")
     public IRubyObject set_flags(final ThreadContext context, final IRubyObject arg) {
         warn(context, "WARNING: unimplemented method called: StoreContext#flags=");
         return context.runtime.getNil();
     }
 
-    @JRubyMethod(name="purpose=")
+    @JRubyMethod(name = "purpose=")
     public IRubyObject set_purpose(final ThreadContext context, final IRubyObject arg) {
         warn(context, "WARNING: unimplemented method called: StoreContext#purpose=");
         return context.runtime.getNil();
     }
 
-    @JRubyMethod(name="trust=")
+    @JRubyMethod(name = "trust=")
     public IRubyObject set_trust(final ThreadContext context, final IRubyObject arg) {
         warn(context, "WARNING: unimplemented method called: StoreContext#trust=");
         return context.runtime.getNil();
     }
 
-    @JRubyMethod(name="time=")
+    @JRubyMethod(name = "time=")
     public IRubyObject set_time(IRubyObject arg) {
         storeContext.setTime( 0, ( (RubyTime) arg ).getJavaDate() );
         return arg;
@@ -252,10 +261,6 @@ public class X509StoreContext extends RubyObject {
 
     private static RaiseException newStoreError(Ruby runtime, String message) {
         return Utils.newError(runtime, _X509(runtime).getClass("StoreError"), message);
-    }
-
-    private static RubyClass _Certificate(final Ruby runtime) {
-        return _X509(runtime).getClass("Certificate");
     }
 
 }// X509StoreContext

@@ -97,8 +97,7 @@ public class SSLSocket extends RubyObject {
     }
 
     public SSLSocket(Ruby runtime, RubyClass type) {
-        super(runtime,type);
-        verifyResult = X509Utils.V_OK;
+        super(runtime, type);
     }
 
     private static RaiseException newSSLError(Ruby runtime, Exception exception) {
@@ -123,7 +122,7 @@ public class SSLSocket extends RubyObject {
     private SSLEngineResult.HandshakeStatus hsStatus;
     private SSLEngineResult.Status status = null;
 
-    int verifyResult;
+    int verifyResult = X509Utils.V_OK;
 
     @JRubyMethod(name = "initialize", rest = true, frame = true, visibility = Visibility.PRIVATE)
     public IRubyObject _initialize(final ThreadContext context,
@@ -140,12 +139,12 @@ public class SSLSocket extends RubyObject {
         if ( ! ( args[0] instanceof RubyIO ) ) {
             throw runtime.newTypeError("IO expected but got " + args[0].getMetaClass().getName());
         }
-        io = (RubyIO) args[0];
-        this.callMethod(context, "io=", io);
+        this.callMethod(context, "io=", this.io = (RubyIO) args[0]);
         this.callMethod(context, "hostname=", runtime.newString(""));
-        // This is a bit of a hack: SSLSocket should share code with RubyBasicSocket, which always sets sync to true.
+        // This is a bit of a hack: SSLSocket should share code with
+        // RubyBasicSocket, which always sets sync to true.
         // Instead we set it here for now.
-        io.callMethod(context, "sync=", runtime.getTrue());
+        this.io.callMethod(context, "sync=", runtime.getTrue());
         this.callMethod(context, "context=", sslContext);
         this.callMethod(context, "sync_close=", runtime.getFalse());
         sslContext.setup(context);
@@ -351,9 +350,7 @@ public class SSLSocket extends RubyObject {
 
             if ( result[0] >= 1 ) {
                 Set<SelectionKey> keySet = selector.selectedKeys();
-                if ( keySet.iterator().next() == key ) {
-                    return true;
-                }
+                if ( keySet.iterator().next() == key ) return true;
             }
 
             return false;
