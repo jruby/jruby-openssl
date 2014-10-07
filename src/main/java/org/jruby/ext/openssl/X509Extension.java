@@ -28,7 +28,8 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.lang.reflect.Field;
+import java.util.Hashtable;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -42,7 +43,10 @@ import org.bouncycastle.asn1.DERBoolean;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
@@ -396,29 +400,55 @@ public class X509Extension extends RubyObject {
                 }
                 return runtime.newString(val);
             }
+
             if ( oid.equals("2.5.29.14") ) { // subjectKeyIdentifier
                 final byte[] bytes = getRealValueEncoded();
                 return runtime.newString(hexBytes(bytes, 0));
             }
+
             if ( oid.equals("2.5.29.35") ) { // authorityKeyIdentifier
-                ASN1Primitive keyid = ASN1.readObject( getRealValueEncoded() );
-                if ( keyid instanceof ASN1Sequence ) {
-                    final ASN1Sequence seq = (ASN1Sequence) keyid;
-                    if ( seq.size() == 0 ) return RubyString.newEmptyString(runtime);
-                    keyid = seq.getObjectAt(0).toASN1Primitive();
+                ASN1Encodable value = getRealValue();
+
+                if ( value instanceof ASN1OctetString ) {
+                    value = ASN1.readObject( ((ASN1OctetString) value).getOctets() );
                 }
-                if (keyid instanceof ASN1TaggedObject) {
-                    keyid = ((ASN1TaggedObject) keyid).getObject();
-                }
-                final byte[] bytes;
-                if (keyid instanceof ASN1OctetString) {
-                    bytes = ((ASN1OctetString) keyid).getOctets();
-                } else {
-                    bytes = keyid.getEncoded(ASN1Encoding.DER);
-                }
+
                 final ByteList val = new ByteList(72); val.append(keyid_);
-                return runtime.newString(hexBytes(bytes, val).append('\n'));
+
+                if ( value instanceof ASN1Sequence ) {
+                    final ASN1Sequence seq = (ASN1Sequence) value;
+                    final int size = seq.size();
+                    if ( size == 0 ) return RubyString.newEmptyString(runtime);
+
+                    ASN1Primitive keyid = seq.getObjectAt(0).toASN1Primitive();
+                    hexBytes( keyidBytes(keyid), val ).append('\n');
+
+                    for ( int i = 1; i < size; i++ ) {
+                        final ASN1Encodable issuer = seq.getObjectAt(i);
+                        // NOTE: blindly got OpenSSL tests passing (likely in-complete) :
+                        if ( issuer instanceof ASN1TaggedObject ) {
+                            ASN1Primitive obj = ((ASN1TaggedObject) issuer).getObject();
+                            switch( ((ASN1TaggedObject) issuer).getTagNo() ) {
+                                case 1 :
+                                    if ( obj instanceof ASN1TaggedObject ) {
+                                        formatGeneralName(GeneralName.getInstance(obj), val, true);
+                                    }
+                                    break;
+                                case 2 : // serial
+                                    val.append(new byte[] { 's','e','r','i','a','l',':' });
+                                    hexBytes( ((ASN1OctetString) obj).getOctets(), val );
+                                    break;
+                            }
+                        }
+                        val.append('\n');
+                    }
+                    return runtime.newString( val );
+                }
+
+                hexBytes( keyidBytes((ASN1Primitive) value), val ).append('\n');
+                return runtime.newString( val );
             }
+
             if ( oid.equals("2.5.29.21") ) { // CRLReason
                 final IRubyObject value = getValue(runtime);
                 switch ( RubyNumeric.fix2int(value) ) {
@@ -450,11 +480,11 @@ public class X509Extension extends RubyObject {
                     ASN1Encodable value = getRealValue();
                     final ByteList val = new ByteList(64);
                     if ( value instanceof ASN1TaggedObject ) {
-                        formatGeneralName(GeneralName.getInstance(value), val);
+                        formatGeneralName(GeneralName.getInstance(value), val, false);
                         return runtime.newString( val );
                     }
                     if ( value instanceof GeneralName ) {
-                        formatGeneralName((GeneralName) value, val);
+                        formatGeneralName((GeneralName) value, val, false);
                         return runtime.newString( val );
                     }
                     if ( value instanceof ASN1OctetString ) {
@@ -464,7 +494,7 @@ public class X509Extension extends RubyObject {
 
                     GeneralName[] names = GeneralNames.getInstance(value).getNames();
                     for ( int i = 0; i < names.length; i++ ) {
-                        boolean other = formatGeneralName(names[i], val);
+                        boolean other = formatGeneralName(names[i], val, false);
                         if ( i < names.length - 1 ) {
                             if ( other ) val.append(';'); else val.append(',');
                         }
@@ -542,7 +572,17 @@ public class X509Extension extends RubyObject {
         return value.asString();
     }
 
-    private static boolean formatGeneralName(final GeneralName name, final ByteList out) {
+    private static byte[] keyidBytes(ASN1Primitive keyid) throws IOException {
+        if ( keyid instanceof ASN1TaggedObject ) {
+            keyid = ((ASN1TaggedObject) keyid).getObject();
+        }
+        if ( keyid instanceof ASN1OctetString ) {
+            return ((ASN1OctetString) keyid).getOctets();
+        }
+        return keyid.getEncoded(ASN1Encoding.DER);
+    }
+
+    private static boolean formatGeneralName(final GeneralName name, final ByteList out, final boolean slashed) {
         final ASN1Encodable obj = name.getName();
         String val; boolean tagged = false;
         switch ( name.getTagNo() ) {
@@ -563,8 +603,23 @@ public class X509Extension extends RubyObject {
         case GeneralName.directoryName:
             out.append('d').append('i').append('r').append('N').append('a').append('m').append('e').
                 append(':');
-            val = X500Name.getInstance(obj).toString();
-            out.append( ByteList.plain(val) );
+            final X500Name dirName = X500Name.getInstance(obj);
+            if ( slashed ) {
+                final StringBuffer buf = new StringBuffer();
+                final RDN[] rdns = dirName.getRDNs();
+                final Hashtable defaultSymbols = getDefaultSymbols();
+                for (int i = 0; i < rdns.length; i++) {
+                    out.append('/');
+
+                    buf.setLength(0);
+                    IETFUtils.appendRDN(buf, rdns[i], defaultSymbols);
+
+                    out.append( ByteList.plain(buf) );
+                }
+            }
+            else {
+                out.append( ByteList.plain(dirName.toString()) );
+            }
             break;
         case GeneralName.iPAddress:
             out.append('I').append('P').
@@ -593,6 +648,24 @@ public class X509Extension extends RubyObject {
             out.append( ByteList.plain( obj.toString() ) );
         }
         return false;
+    }
+
+    private static Hashtable getDefaultSymbols() {
+        try {
+            Field field = BCStyle.class.getDeclaredField("DefaultSymbols");
+            field.setAccessible(true);
+            return (Hashtable) field.get(null);
+        }
+        catch (NoSuchFieldException ex) {
+            debug("getDefaultSymbols", ex);
+        }
+        catch (SecurityException ex) {
+            debug("getDefaultSymbols", ex);
+        }
+        catch (IllegalAccessException ex) {
+            debug("getDefaultSymbols", ex);
+        }
+        return new Hashtable();
     }
 
     @JRubyMethod(name = "value=")
