@@ -79,6 +79,7 @@ import org.jruby.ext.openssl.x509store.X509Utils;
 
 import static org.jruby.ext.openssl.StringHelper.*;
 import static org.jruby.ext.openssl.SSL.*;
+import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
 import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
@@ -134,8 +135,8 @@ public class SSLContext extends RubyObject {
         }
     };
 
-    public static void createSSLContext(final Ruby runtime, final RubyModule _SSL) { // OpenSSL::SSL
-        RubyClass _SSLContext = _SSL.defineClassUnder("SSLContext", runtime.getObject(), SSLCONTEXT_ALLOCATOR);
+    public static void createSSLContext(final Ruby runtime, final RubyModule SSL) { // OpenSSL::SSL
+        RubyClass SSLContext = SSL.defineClassUnder("SSLContext", runtime.getObject(), SSLCONTEXT_ALLOCATOR);
 
         final String[] attributes = {
             "cert", "key", "client_ca", "ca_file", "ca_path",
@@ -145,37 +146,74 @@ public class SSLContext extends RubyObject {
         };
         final ThreadContext context = runtime.getCurrentContext();
         for ( int i = 0; i < attributes.length; i++ ) {
-            _SSLContext.addReadWriteAttribute(context, attributes[i]);
+            SSLContext.addReadWriteAttribute(context, attributes[i]);
         }
 
-        _SSLContext.defineAlias("ssl_timeout", "timeout");
-        _SSLContext.defineAlias("ssl_timeout=", "timeout=");
+        SSLContext.defineAlias("ssl_timeout", "timeout");
+        SSLContext.defineAlias("ssl_timeout=", "timeout=");
 
-        _SSLContext.defineAnnotatedMethods(SSLContext.class);
+        SSLContext.defineAnnotatedMethods(SSLContext.class);
 
         final Set<String> methodKeys = SSL_VERSION_OSSL2JSSE.keySet();
         final RubyArray methods = runtime.newArray( methodKeys.size() );
         for ( String method : methodKeys ) {
             methods.append( runtime.newSymbol(method) );
         }
-        _SSLContext.defineConstant("METHODS", methods);
+        SSLContext.defineConstant("METHODS", methods);
         // in 1.8.7 as well as 1.9.3 :
         // [:TLSv1, :TLSv1_server, :TLSv1_client, :SSLv3, :SSLv3_server, :SSLv3_client, :SSLv23, :SSLv23_server, :SSLv23_client]
 
-        _SSLContext.setConstant("SESSION_CACHE_OFF", runtime.newFixnum(SESSION_CACHE_OFF));
-        _SSLContext.setConstant("SESSION_CACHE_CLIENT", runtime.newFixnum(SESSION_CACHE_CLIENT));
-        _SSLContext.setConstant("SESSION_CACHE_SERVER", runtime.newFixnum(SESSION_CACHE_SERVER));
-        _SSLContext.setConstant("SESSION_CACHE_BOTH", runtime.newFixnum(SESSION_CACHE_BOTH));
-        _SSLContext.setConstant("SESSION_CACHE_NO_AUTO_CLEAR", runtime.newFixnum(SESSION_CACHE_NO_AUTO_CLEAR));
-        _SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_LOOKUP", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_LOOKUP));
-        _SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_STORE", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_STORE));
-        _SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL));
+        SSLContext.setConstant("SESSION_CACHE_OFF", runtime.newFixnum(SESSION_CACHE_OFF));
+        SSLContext.setConstant("SESSION_CACHE_CLIENT", runtime.newFixnum(SESSION_CACHE_CLIENT));
+        SSLContext.setConstant("SESSION_CACHE_SERVER", runtime.newFixnum(SESSION_CACHE_SERVER));
+        SSLContext.setConstant("SESSION_CACHE_BOTH", runtime.newFixnum(SESSION_CACHE_BOTH));
+        SSLContext.setConstant("SESSION_CACHE_NO_AUTO_CLEAR", runtime.newFixnum(SESSION_CACHE_NO_AUTO_CLEAR));
+        SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_LOOKUP", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_LOOKUP));
+        SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_STORE", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_STORE));
+        SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL));
 
-        // NOTE probably worth doing are :
-        // OpenSSL::SSL::SSLContext::DEFAULT_CERT_STORE
-        // => #<OpenSSL::X509::Store:0x00000001c69f48>
-        // OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
-        // => {:ssl_version=>"SSLv23", :verify_mode=>1, :ciphers=>"ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM:+LOW", :options=>-2147480577}
+        // DEFAULT_CERT_STORE = OpenSSL::X509::Store.new
+        // DEFAULT_CERT_STORE.set_default_paths
+        // if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
+        //   DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
+        // end
+        final X509Store DEFAULT_CERT_STORE = X509Store.newStore(runtime);
+        DEFAULT_CERT_STORE.set_default_paths(context);
+        final IRubyObject V_FLAG_CRL_CHECK_ALL = _X509(runtime).getConstantAt("V_FLAG_CRL_CHECK_ALL");
+        if ( V_FLAG_CRL_CHECK_ALL != null ) DEFAULT_CERT_STORE.set_flags(V_FLAG_CRL_CHECK_ALL);
+
+        SSLContext.setConstant("DEFAULT_CERT_STORE", DEFAULT_CERT_STORE);
+
+        // DEFAULT_PARAMS = {
+        //   :ssl_version => "SSLv23",
+        //   :verify_mode => OpenSSL::SSL::VERIFY_PEER,
+        //   :ciphers => "ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM:+LOW",
+        //   :options => OpenSSL::SSL::OP_ALL,
+        // }
+        // on MRI 2.1 (should not matter for us) :
+        //  :options => defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS) ?
+        //    OpenSSL::SSL::OP_ALL & ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS :
+        //    OpenSSL::SSL::OP_ALL
+        final RubyHash DEFAULT_PARAMS = new RubyHash(runtime, 4);
+        IRubyObject ssl_version = StringHelper.newString(runtime, new byte[] { 'S','S','L','v','2','3' });
+        DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("ssl_version"), ssl_version);
+        IRubyObject verify_mode = runtime.newFixnum(VERIFY_PEER);
+        DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("verify_mode"), verify_mode);
+        IRubyObject ciphers = StringHelper.newString(runtime, new byte[] {
+            'A','L','L',':',
+            '!','A','D','H',':',
+            '!','E','X','P','O','R','T',':',
+            '!','S','S','L','v','2',':',
+            'R','C','4','+','R','S','A',':',
+            '+','H','I','G','H',':',
+            '+','M','E','D','I','U','M',':',
+            '+','L','O','W'
+        });
+        DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("ciphers"), ciphers);
+        IRubyObject options = runtime.newFixnum(OP_ALL);
+        DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("options"), options);
+
+        SSLContext.setConstant("DEFAULT_PARAMS", DEFAULT_PARAMS);
     }
 
     static final int SESSION_CACHE_OFF = 0;
@@ -437,6 +475,55 @@ public class SSLContext extends RubyObject {
         return version;
     }
 
+    // ##
+    // # Sets the parameters for this SSL context to the values in +params+.
+    // # The keys in +params+ must be assignment methods on SSLContext.
+    // #
+    // # If the verify_mode is not VERIFY_NONE and ca_file, ca_path and
+    // # cert_store are not set then the system default certificate store is
+    // # used.
+    //
+    //  def set_params(params={})
+    //    params = DEFAULT_PARAMS.merge(params)
+    //    params.each{|name, value| self.__send__("#{name}=", value) }
+    //    if self.verify_mode != OpenSSL::SSL::VERIFY_NONE
+    //      unless self.ca_file or self.ca_path or self.cert_store
+    //        self.cert_store = DEFAULT_CERT_STORE
+    //      end
+    //    end
+    //    return params
+    //  end
+
+    @JRubyMethod(optional = 1)
+    public IRubyObject set_params(final ThreadContext context, final IRubyObject[] args) {
+        final RubyHash params;
+        final RubyClass SSLContext = _SSLContext(context.runtime);
+        RubyHash DEFAULT_PARAMS = (RubyHash) SSLContext.getConstantAt("DEFAULT_PARAMS");
+        if ( args.length == 0 ) params = DEFAULT_PARAMS;
+        else {
+            params = (RubyHash) DEFAULT_PARAMS.callMethod(context, "merge", args[0]);
+        }
+        final SSLContext self = this;
+        params.visitAll(new RubyHash.Visitor() {
+            @Override
+            public void visit(IRubyObject name, IRubyObject value) {
+                self.callMethod(context, name.toString() + '=', value);
+            }
+        });
+        IRubyObject verify_mode = getInstanceVariable("@verify_mode");
+        if ( verify_mode != null && ! verify_mode.isNil()
+          && RubyNumeric.fix2int(verify_mode) != SSL.VERIFY_NONE ) {
+          if ( getInstanceVariable("@ca_file").isNil()
+            && getInstanceVariable("@ca_path").isNil()
+            && getInstanceVariable("@cert_store").isNil() ) {
+            IRubyObject DEFAULT_CERT_STORE = SSLContext.getConstantAt("DEFAULT_CERT_STORE");
+            setInstanceVariable("@cert_store", DEFAULT_CERT_STORE);
+          }
+        }
+        internalContext.verifyMode = SSL.VERIFY_NONE;
+        return params;
+    }
+
     // NOTE: mostly stubs since SSL session (cache) not yet implemented :
 
     @JRubyMethod(name = "session_cache_mode")
@@ -628,7 +715,7 @@ public class SSLContext extends RubyObject {
     private String getCaFile() {
         IRubyObject ca_file = getInstanceVariable("@ca_file");
         if ( ca_file != null && ! ca_file.isNil() ) {
-            return ca_file.convertToString().toString();
+            return ca_file.asString().toString();
         }
         return null;
     }
@@ -636,7 +723,7 @@ public class SSLContext extends RubyObject {
     private String getCaPath() {
         IRubyObject ca_path = getInstanceVariable("@ca_path");
         if ( ca_path != null && ! ca_path.isNil() ) {
-            return ca_path.convertToString().toString();
+            return ca_path.asString().toString();
         }
         return null;
     }
@@ -651,15 +738,15 @@ public class SSLContext extends RubyObject {
 
     private List<X509Cert> convertToX509Certs(final ThreadContext context, IRubyObject value) {
         final ArrayList<X509Cert> result = new ArrayList<X509Cert>();
-        final RubyModule _SSLContext = _SSLContext(context.runtime);
-        final RubyModule _Certificate = _Certificate(context.runtime);
+        final RubyModule SSLContext = _SSLContext(context.runtime);
+        final RubyModule Certificate = _Certificate(context.runtime);
         Utils.invoke(context, value, "each",
-            CallBlock.newCallClosure(value, _SSLContext, Arity.NO_ARGUMENTS, new BlockCallback() {
+            CallBlock.newCallClosure(value, SSLContext, Arity.NO_ARGUMENTS, new BlockCallback() {
 
                 public IRubyObject call(ThreadContext context, IRubyObject[] args, Block block) {
                     final IRubyObject cert = args[0];
-                    if ( ! ( _Certificate.isInstance(cert) ) ) {
-                        throw context.runtime.newTypeError("wrong argument : " + cert.inspect() + " is not a " + _Certificate.getName());
+                    if ( ! ( Certificate.isInstance(cert) ) ) {
+                        throw context.runtime.newTypeError("wrong argument : " + cert.inspect() + " is not a " + Certificate.getName());
                     }
                     result.add( (X509Cert) cert );
                     return context.nil;
@@ -670,8 +757,8 @@ public class SSLContext extends RubyObject {
         return result;
     }
 
-    static RubyModule _SSLContext(final Ruby runtime) {
-        return (RubyModule) _SSL(runtime).getConstant("SSLContext");
+    static RubyClass _SSLContext(final Ruby runtime) {
+        return (RubyClass) _SSL(runtime).getConstantAt("SSLContext");
     }
 
     /**

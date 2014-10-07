@@ -177,31 +177,31 @@ public class X509Store extends RubyObject {
 
     @JRubyMethod
     public IRubyObject set_default_paths(final ThreadContext context) {
+        final Ruby runtime = context.runtime;
         try {
             store.setDefaultPaths();
         }
         catch (Exception e) {
-            final Ruby runtime = getRuntime();
-            if ( isDebug(runtime) ) e.printStackTrace( context.runtime.getOut() );
+            debugStackTrace(runtime, e);
             throw newStoreError(runtime, "setting default path failed: " + e.getMessage());
         }
-        return getRuntime().getNil();
+        return runtime.getNil();
     }
 
     @JRubyMethod
-    public IRubyObject add_cert(final ThreadContext context, final IRubyObject _cert) {
-        X509AuxCertificate cert = (_cert instanceof X509Cert) ? ((X509Cert)_cert).getAuxCert() : (X509AuxCertificate)null;
-        if ( store.addCertificate(cert) != 1 ) {
-            throw newStoreError(context.runtime, X509Error.getLastErrorMessage());
+    public X509Store add_cert(final IRubyObject cert) {
+        X509AuxCertificate auxCert = (cert instanceof X509Cert) ? ((X509Cert) cert).getAuxCert() : (X509AuxCertificate)null;
+        if ( store.addCertificate(auxCert) != 1 ) {
+            throw newStoreError(getRuntime(), X509Error.getLastErrorMessage());
         }
         return this;
     }
 
     @JRubyMethod
-    public IRubyObject add_crl(final ThreadContext context, final IRubyObject arg) {
-        java.security.cert.X509CRL crl = (arg instanceof X509CRL) ? ((X509CRL) arg).getCRL() : null;
-        if ( store.addCRL(crl) != 1 ) {
-            throw newStoreError(context.runtime, X509Error.getLastErrorMessage());
+    public X509Store add_crl(final IRubyObject crl) {
+        java.security.cert.X509CRL jCRL = (crl instanceof X509CRL) ? ((X509CRL) crl).getCRL() : null;
+        if ( store.addCRL(jCRL) != 1 ) {
+            throw newStoreError(getRuntime(), X509Error.getLastErrorMessage());
         }
         return this;
     }

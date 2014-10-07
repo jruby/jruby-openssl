@@ -19,42 +19,6 @@ require "fcntl"
 
 module OpenSSL
   module SSL
-    class SSLContext
-      DEFAULT_PARAMS = {
-        :ssl_version => "SSLv23",
-        :verify_mode => OpenSSL::SSL::VERIFY_PEER,
-        :ciphers => "ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM:+LOW",
-        :options => defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS) ?
-          OpenSSL::SSL::OP_ALL & ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS :
-          OpenSSL::SSL::OP_ALL,
-      }
-
-      DEFAULT_CERT_STORE = OpenSSL::X509::Store.new
-      DEFAULT_CERT_STORE.set_default_paths
-      if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
-        DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
-      end
-
-      ##
-      # Sets the parameters for this SSL context to the values in +params+.
-      # The keys in +params+ must be assignment methods on SSLContext.
-      #
-      # If the verify_mode is not VERIFY_NONE and ca_file, ca_path and
-      # cert_store are not set then the system default certificate store is
-      # used.
-
-      def set_params(params={})
-        params = DEFAULT_PARAMS.merge(params)
-        params.each{|name, value| self.__send__("#{name}=", value) }
-        if self.verify_mode != OpenSSL::SSL::VERIFY_NONE
-          unless self.ca_file or self.ca_path or self.cert_store
-            self.cert_store = DEFAULT_CERT_STORE
-          end
-        end
-        return params
-      end
-    end
-
     module SocketForwarder
       def addr
         to_io.addr
