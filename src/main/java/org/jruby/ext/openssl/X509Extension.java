@@ -608,7 +608,7 @@ public class X509Extension extends RubyObject {
             out.append( ByteList.plain(val) );
             break;
         case GeneralName.directoryName:
-            out.append('d').append('i').append('r').append('N').append('a').append('m').append('e').
+            out.append('D').append('i').append('r').append('N').append('a').append('m').append('e').
                 append(':');
             final X500Name dirName = X500Name.getInstance(obj);
             if ( slashed ) {

@@ -21,6 +21,58 @@ class TestX509Certificate < TestCase
     assert_equal 'email:self@jruby.org, IP:127.0.0.1', cert.extensions[0].value
   end
 
+  def test_cert_extensions # JRUBY-3468
+    pem_cert = <<END
+-----BEGIN CERTIFICATE-----
+MIIC/jCCAmegAwIBAgIBATANBgkqhkiG9w0BAQUFADBNMQswCQYDVQQGEwJKUDER
+MA8GA1UECgwIY3Rvci5vcmcxFDASBgNVBAsMC0RldmVsb3BtZW50MRUwEwYDVQQD
+DAxodHRwLWFjY2VzczIwHhcNMDcwOTExMTM1ODMxWhcNMDkwOTEwMTM1ODMxWjBN
+MQswCQYDVQQGEwJKUDERMA8GA1UECgwIY3Rvci5vcmcxFDASBgNVBAsMC0RldmVs
+b3BtZW50MRUwEwYDVQQDDAxodHRwLWFjY2VzczIwgZ8wDQYJKoZIhvcNAQEBBQAD
+gY0AMIGJAoGBALi66ujWtUCQm5HpMSyr/AAIFYVXC/dmn7C8TR/HMiUuW3waY4uX
+LFqCDAGOX4gf177pX+b99t3mpaiAjJuqc858D9xEECzhDWgXdLbhRqWhUOble4RY
+c1yWYC990IgXJDMKx7VAuZ3cBhdBxtlE9sb1ZCzmHQsvTy/OoRzcJCrTAgMBAAGj
+ge0wgeowDwYDVR0TAQH/BAUwAwEB/zAxBglghkgBhvhCAQ0EJBYiUnVieS9PcGVu
+U1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUJNE0GGaRKmN2qhnO
+FyBWVl4Qj6owDgYDVR0PAQH/BAQDAgEGMHUGA1UdIwRuMGyAFCTRNBhmkSpjdqoZ
+zhcgVlZeEI+qoVGkTzBNMQswCQYDVQQGEwJKUDERMA8GA1UECgwIY3Rvci5vcmcx
+FDASBgNVBAsMC0RldmVsb3BtZW50MRUwEwYDVQQDDAxodHRwLWFjY2VzczKCAQEw
+DQYJKoZIhvcNAQEFBQADgYEAH11tstSUuqFpMqoh/vM5l3Nqb8ygblbqEYQs/iG/
+UeQkOZk/P1TxB6Ozn2htJ1srqDpUsncFVZ/ecP19GkeOZ6BmIhppcHhE5WyLBcPX
+It5q1BW0PiAzT9LlEGoaiW0nw39so0Pr1whJDfc1t4fjdk+kSiMIzRHbTDvHWfpV
+nTA=
+-----END CERTIFICATE-----
+END
+
+    cert   = OpenSSL::X509::Certificate.new(pem_cert)
+    keyid = '24:D1:34:18:66:91:2A:63:76:AA:19:CE:17:20:56:56:5E:10:8F:AA'
+    cert.extensions.each do |ext|
+      value = ext.value
+      crit = ext.critical?
+      case ext.oid
+      when "keyUsage"
+        assert_equal true, crit
+        assert_equal "Certificate Sign, CRL Sign", value
+      when "basicConstraints"
+        assert_equal true, crit
+        assert_equal "CA:TRUE", value
+      when "authorityKeyIdentifier"
+        assert_equal false, crit
+        expected = "keyid:#{keyid}\n"
+        # NOTE: this behavior is matched against MRI 1.8.7/1.9.3/2.1.2 :
+        expected << "DirName:/C=JP/O=ctor.org/OU=Development/CN=http-access2\n"
+        expected << "serial:01\n"
+        assert_equal expected, value
+      when "subjectKeyIdentifier"
+        assert_equal false, crit
+        assert_equal keyid, value
+      when "nsComment"
+        assert_equal false, crit
+        assert_equal "Ruby/OpenSSL Generated Certificate", value
+      end
+    end
+  end
+
   def test_resolve_extensions
     rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
     ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
