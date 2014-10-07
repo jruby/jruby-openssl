@@ -133,17 +133,17 @@ public class X509Extension extends RubyObject {
 
         if ( oid.equals("2.5.29.17") || oid.equals("2.5.29.18") ) { // subjectAltName || issuerAltName
             if ( value instanceof ASN1OctetString ) { // DEROctetString
-                final ASN1Sequence seq = (ASN1Sequence)
-                      ASN1.readObject( ((ASN1OctetString) value).getOctets() );
-                final X509Extension[] ext = new X509Extension[ seq.size() ];
-                final RubyClass Extension = _Extension(runtime);
-                for ( int i = 0; i < ext.length; i++ ) {
-                    ext[i] = new X509Extension(runtime, Extension);
-                    ext[i].setRealObjectID( objectId );
-                    ext[i].setRealValue( seq.getObjectAt(i) );
-                    ext[i].setRealCritical( critical );
+                final ASN1Encodable oct = ASN1.readObject( ((ASN1OctetString) value).getOctets() );
+                if ( oct instanceof ASN1Sequence ) {
+                    final ASN1Sequence seq = (ASN1Sequence) oct;
+                    final X509Extension[] ext = new X509Extension[ seq.size() ];
+                    for ( int i = 0; i < ext.length; i++ ) {
+                        ext[i] = newExtension(runtime, objectId, seq.getObjectAt(i), critical);
+                    }
+                    return ext;
                 }
-                return ext;
+                // NOTE need to unwrap ((ASN1TaggedObject) oct).getObject() - likely not ?!?
+                return new X509Extension[] { newExtension(runtime, objectId, oct, critical) };
             }
         }
 
