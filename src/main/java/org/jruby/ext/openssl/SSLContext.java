@@ -195,7 +195,7 @@ public class SSLContext extends RubyObject {
         //  :options => defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS) ?
         //    OpenSSL::SSL::OP_ALL & ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS :
         //    OpenSSL::SSL::OP_ALL
-        final RubyHash DEFAULT_PARAMS = new RubyHash(runtime, 4);
+        final RubyHash DEFAULT_PARAMS = new RubyHash(runtime);
         IRubyObject ssl_version = StringHelper.newString(runtime, new byte[] { 'S','S','L','v','2','3' });
         DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("ssl_version"), ssl_version);
         IRubyObject verify_mode = runtime.newFixnum(VERIFY_PEER);
