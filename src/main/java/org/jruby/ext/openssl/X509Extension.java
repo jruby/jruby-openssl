@@ -39,6 +39,7 @@ import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1TaggedObject;
+import org.bouncycastle.asn1.BERTags;
 import org.bouncycastle.asn1.DERBoolean;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
@@ -402,8 +403,14 @@ public class X509Extension extends RubyObject {
             }
 
             if ( oid.equals("2.5.29.14") ) { // subjectKeyIdentifier
-                final byte[] bytes = getRealValueEncoded();
-                return runtime.newString(hexBytes(bytes, 0));
+                ASN1Encodable value = getRealValue();
+                if ( value instanceof ASN1OctetString ) {
+                    byte[] octets = ((ASN1OctetString) value).getOctets();
+                    if ( octets.length > 0 && octets[0] == BERTags.OCTET_STRING ) {
+                        value = ASN1.readObject( octets ); // read nested octets
+                    }
+                }
+                return runtime.newString( hexBytes( keyidBytes(value.toASN1Primitive()), 0 ) );
             }
 
             if ( oid.equals("2.5.29.35") ) { // authorityKeyIdentifier
@@ -445,7 +452,7 @@ public class X509Extension extends RubyObject {
                     return runtime.newString( val );
                 }
 
-                hexBytes( keyidBytes((ASN1Primitive) value), val ).append('\n');
+                hexBytes( keyidBytes(value.toASN1Primitive()), val ).append('\n');
                 return runtime.newString( val );
             }
 
