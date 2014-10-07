@@ -83,6 +83,7 @@ import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
 import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
+import static org.jruby.ext.openssl.Utils.hasNonNilInstanceVariable;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -510,14 +511,14 @@ public class SSLContext extends RubyObject {
                 self.callMethod(context, name.toString() + '=', value);
             }
         });
-        IRubyObject verify_mode = getInstanceVariable("@verify_mode");
+        IRubyObject verify_mode = self.getInstanceVariable("@verify_mode");
         if ( verify_mode != null && ! verify_mode.isNil()
           && RubyNumeric.fix2int(verify_mode) != SSL.VERIFY_NONE ) {
-          if ( getInstanceVariable("@ca_file").isNil()
-            && getInstanceVariable("@ca_path").isNil()
-            && getInstanceVariable("@cert_store").isNil() ) {
+          if ( ! hasNonNilInstanceVariable(self, "@ca_file")
+            && ! hasNonNilInstanceVariable(self, "@ca_path")
+            && ! hasNonNilInstanceVariable(self, "@cert_store") ) {
             IRubyObject DEFAULT_CERT_STORE = SSLContext.getConstantAt("DEFAULT_CERT_STORE");
-            setInstanceVariable("@cert_store", DEFAULT_CERT_STORE);
+            self.setInstanceVariable("@cert_store", DEFAULT_CERT_STORE);
           }
         }
         return params;

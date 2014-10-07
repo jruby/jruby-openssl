@@ -30,6 +30,7 @@ package org.jruby.ext.openssl;
 import java.io.IOException;
 
 import org.jruby.Ruby;
+import org.jruby.RubyBasicObject;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.exceptions.RaiseException;
@@ -86,6 +87,11 @@ final class Utils {
         RaiseException ex = newError(runtime, errorClass, msg);
         ex.initCause(e);
         return ex;
+    }
+
+    static boolean hasNonNilInstanceVariable(final IRubyObject self, final String var) {
+        final IRubyObject val = self.getInstanceVariables().getInstanceVariable(var);
+        return val != null && ! val.isNil();
     }
 
     // reinvented parts of org.jruby.runtime.Helpers for compatibility with "older" JRuby :
