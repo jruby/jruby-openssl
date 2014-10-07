@@ -398,7 +398,7 @@ public class X509Extension extends RubyObject {
             }
             if ( oid.equals("2.5.29.14") ) { // subjectKeyIdentifier
                 final byte[] bytes = getRealValueEncoded();
-                return runtime.newString(hexBytes(bytes, 2));
+                return runtime.newString(hexBytes(bytes, 0));
             }
             if ( oid.equals("2.5.29.35") ) { // authorityKeyIdentifier
                 ASN1Primitive keyid = ASN1.readObject( getRealValueEncoded() );

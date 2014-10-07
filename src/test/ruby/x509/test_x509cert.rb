@@ -46,6 +46,7 @@ class TestX509Certificate < TestCase
     # Java 6/7 seems to maintain same order but Java 8 does definitely not :
     # TODO there must be something going on under - maybe not BC parsing ?!?
     if self.class.java6? || self.class.java7?
+      assert_equal '97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB', cert.extensions[2].value
       assert_equal 'email:self@jruby.org', cert.extensions[4].value
       assert_equal 'DNS:jruby.org', cert.extensions[5].value
     end
@@ -58,6 +59,10 @@ class TestX509Certificate < TestCase
 
     assert ext = exts.find { |ext| ext.oid == 'authorityKeyIdentifier' }, "missing 'authorityKeyIdentifier' among: #{exts.join(', ')}"
     assert_equal "keyid:97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB\n", ext.value
+    assert ! ext.critical?
+
+    assert ext = exts.find { |ext| ext.oid == 'subjectKeyIdentifier' }, "missing 'subjectKeyIdentifier' among: #{exts.join(', ')}"
+    assert_equal "97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB", ext.value
     assert ! ext.critical?
 
     assert ext = exts.find { |ext| ext.oid == 'subjectAltName' }, "missing 'subjectAltName' among: #{exts.join(', ')}"
@@ -74,7 +79,7 @@ class TestX509Certificate < TestCase
     ca_exts = [
       [ "basicConstraints", "CA:TRUE", true ],
       [ "keyUsage", "keyCertSign, cRLSign", true ],
-      [ "subjectKeyIdentifier", "hash",false ],
+      [ "subjectKeyIdentifier", "hash", false ],
       [ "authorityKeyIdentifier", "keyid:always", false ],
       [ "extendedKeyUsage", "clientAuth, emailProtection, codeSigning", false ],
       [ "subjectAltName", "email:self@jruby.org", false ],
