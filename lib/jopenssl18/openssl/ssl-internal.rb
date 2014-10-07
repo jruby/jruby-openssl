@@ -67,7 +67,11 @@ module OpenSSL
             should_verify_common_name = false
             reg = Regexp.escape($1).gsub(/\\\*/, "[^.]+")
             return true if /\A#{reg}\z/i =~ hostname
-          elsif /\AIP Address:(.*)/ =~ general_name
+          # NOTE: somehow we need the IP: canonical form
+          # seems there were failures elsewhere when not
+          # not sure how that's possible possible to-do!
+          elsif /\AIP(?: Address)?:(.*)/ =~ general_name
+          #elsif /\AIP Address:(.*)/ =~ general_name
             should_verify_common_name = false
             return true if $1 == hostname
           end
