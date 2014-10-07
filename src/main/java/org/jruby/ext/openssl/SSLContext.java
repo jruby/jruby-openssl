@@ -520,7 +520,6 @@ public class SSLContext extends RubyObject {
             setInstanceVariable("@cert_store", DEFAULT_CERT_STORE);
           }
         }
-        internalContext.verifyMode = SSL.VERIFY_NONE;
         return params;
     }
 
