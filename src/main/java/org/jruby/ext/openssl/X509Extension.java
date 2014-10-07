@@ -30,6 +30,7 @@ package org.jruby.ext.openssl;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Hashtable;
+import java.util.Map;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -38,19 +39,22 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.ASN1String;
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.BERTags;
 import org.bouncycastle.asn1.DERBoolean;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
+import org.bouncycastle.asn1.DERUniversalString;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
-import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.util.encoders.Hex;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -612,16 +616,10 @@ public class X509Extension extends RubyObject {
                 append(':');
             final X500Name dirName = X500Name.getInstance(obj);
             if ( slashed ) {
-                final StringBuffer buf = new StringBuffer();
                 final RDN[] rdns = dirName.getRDNs();
                 final Hashtable defaultSymbols = getDefaultSymbols();
                 for (int i = 0; i < rdns.length; i++) {
-                    out.append('/');
-
-                    buf.setLength(0);
-                    IETFUtils.appendRDN(buf, rdns[i], defaultSymbols);
-
-                    out.append( ByteList.plain(buf) );
+                    appendRDN(out.append('/'), rdns[i], defaultSymbols);
                 }
             }
             else {
@@ -655,6 +653,95 @@ public class X509Extension extends RubyObject {
             out.append( ByteList.plain( obj.toString() ) );
         }
         return false;
+    }
+
+    // re-invented IETFUtils.appendRDN related pieces :
+
+    public static ByteList appendRDN(final ByteList out,
+        final RDN rdn,
+        final Map<ASN1ObjectIdentifier, String> oidSymbols) {
+
+        if ( rdn.isMultiValued() ) {
+            AttributeTypeAndValue[] atv = rdn.getTypesAndValues();
+
+            boolean firstAtv = true;
+            for ( int j = 0; j != atv.length; j++ ) {
+                if (firstAtv) firstAtv = false;
+                else out.append('+');
+
+                appendTypeAndValue(out, atv[j], oidSymbols);
+            }
+            return out;
+        }
+        return appendTypeAndValue(out, rdn.getFirst(), oidSymbols);
+    }
+
+    private static ByteList appendTypeAndValue(final ByteList out,
+        final AttributeTypeAndValue typeAndValue,
+        final Map<ASN1ObjectIdentifier, String> oidSymbols) {
+        ASN1ObjectIdentifier type = typeAndValue.getType();
+        final String sym = oidSymbols.get(type);
+
+        if (sym != null) {
+            out.append( ByteList.plain(sym) );
+        }
+        else {
+            out.append( ByteList.plain(type.getId()) );
+        }
+
+        out.append('=');
+        valueToString(typeAndValue.getValue(), out);
+        return out;
+    }
+
+    private static void valueToString(final ASN1Encodable value, final ByteList out) {
+        final int size = out.getRealSize();
+
+        if ( value instanceof ASN1String && !(value instanceof DERUniversalString) ) {
+            final String str = ((ASN1String) value).getString();
+            if ( str.length() > 0 && str.charAt(0) == '#' ) {
+                out.append('\\');
+            }
+            out.append( ByteList.plain(str) );
+        }
+        else {
+            try {
+                byte[] val = value.toASN1Primitive().getEncoded(ASN1Encoding.DER);
+                out.append('#').append( Hex.encode(val) );
+            }
+            catch (IOException e) {
+                throw new IllegalArgumentException("Other value has no encoded form", e);
+            }
+        }
+
+        int index = size; // 0
+        int end = out.getRealSize() - size;
+
+        if (end >= 2 && out.charAt(index) == '\\' && out.charAt(index + 1) == '#') {
+            index += 2;
+        }
+
+        while ( index <= end ) {
+            final char c = out.charAt(index);
+            if ( c == ',' || c == '"' || c == '\\' || c == '+' ||
+                 c == '=' || c == '<' || c == '>'  || c == ';' ) {
+                out.insert(index, '\\');
+                index++; end++;
+            }
+            index++;
+        }
+
+        if ( out.getRealSize() - size > 0 ) {
+            index = size; // 0
+            while ( out.charAt(index) == ' ' ) {
+                out.insert(index, '\\'); index += 2;
+            }
+        }
+
+        index = out.getRealSize() - 1; // length - 1
+        while ( index >= size && out.charAt(index) == ' ' ) {
+            out.insert(index, '\\'); index--;
+        }
     }
 
     private static Hashtable getDefaultSymbols() {
