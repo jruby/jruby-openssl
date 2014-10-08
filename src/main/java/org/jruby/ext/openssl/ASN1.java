@@ -612,7 +612,7 @@ public class ASN1 {
     private final static int EOC = 0; // OpenSSL::ASN1::EOC (0)
     //private final static int BOOLEAN = 1; // OpenSSL::ASN1::BOOLEAN (1)
     //private final static int INTEGER = 2; //  OpenSSL::ASN1::INTEGER (2)
-    //private final static int BIT_STRING = 3; // OpenSSL::ASN1::BIT_STRING (3)
+    private final static int BIT_STRING = 3; // OpenSSL::ASN1::BIT_STRING (3)
     private final static int OCTET_STRING = 4; // OpenSSL::ASN1::OCTET_STRING (4)
     //private final static int NULL = 5; // OpenSSL::ASN1::NULL (5)
     //private final static int OBJECT = 6; // OpenSSL::ASN1::OBJECT (6)
@@ -1825,12 +1825,9 @@ public class ASN1 {
                 else { // "raw" Constructive
                     switch ( getTag(context) ) {
                     case OCTET_STRING:
-                        final ASN1EncodableVector values = toASN1EncodableVector(context);
-                        ASN1OctetString[] octets = new ASN1OctetString[ values.size() ];
-                        for ( int i = 0; i < values.size(); i++ ) {
-                            octets[i] = (ASN1OctetString) values.get(i).toASN1Primitive();
-                        }
-                        return new BEROctetString(octets).getEncoded();
+                        return octetStringToDER(context);
+                    case BIT_STRING:
+                        return bitStringToDER(context);
                     case SEQUENCE:
                         return sequenceToDER(context);
                     case SET:
@@ -1841,6 +1838,27 @@ public class ASN1 {
             }
 
             return super.toDER(context);
+        }
+
+        private byte[] bitStringToDER(final ThreadContext context) throws IOException {
+            final ASN1EncodableVector values = toASN1EncodableVector(context);
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            out.write(BERTags.CONSTRUCTED | BERTags.BIT_STRING);
+            out.write(0x80); // infinite-length
+            for ( int i = 0; i < values.size(); i++ ) {
+                out.write( values.get(i).toASN1Primitive().getEncoded() );
+            }
+            out.write(0x00); out.write(0x00); // writeBEREnd
+            return out.toByteArray();
+        }
+
+        private byte[] octetStringToDER(final ThreadContext context) throws IOException {
+            final ASN1EncodableVector values = toASN1EncodableVector(context);
+            ASN1OctetString[] octets = new ASN1OctetString[ values.size() ];
+            for ( int i = 0; i < values.size(); i++ ) {
+                octets[i] = (ASN1OctetString) values.get(i).toASN1Primitive();
+            }
+            return new BEROctetString(octets).getEncoded();
         }
 
         private byte[] sequenceToDER(final ThreadContext context) throws IOException {

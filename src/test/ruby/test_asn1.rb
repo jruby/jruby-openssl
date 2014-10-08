@@ -458,6 +458,19 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     #assert_equal cululated_sig, sig_val.value
   end
 
+  def test_bit_string_infinite_length
+    begin
+      content = [ OpenSSL::ASN1::BitString.new("\x01"), OpenSSL::ASN1::EndOfContent.new() ]
+      cons = OpenSSL::ASN1::Constructive.new content, OpenSSL::ASN1::BIT_STRING, nil, :UNIVERSAL
+      cons.infinite_length = true
+      expected = %w{ 23 80 03 02 00 01 00 00 }
+      raw = [expected.join('')].pack('H*')
+      assert_equal raw, cons.to_der
+      # TODO for now we can no decode our own sh*t :
+      #assert_equal raw, OpenSSL::ASN1.decode(raw).to_der
+    end
+  end
+
   def test_decode_all
     expected = %w{ 02 01 01 02 01 02 02 01 03 }
     raw = [expected.join('')].pack('H*')
