@@ -135,10 +135,14 @@ begin
 rescue LoadError => e
   warn "#{e} to run all tests please `gem install mocha'"
 else
-  if defined? MiniTest
-    require 'mocha/mini_test'
-  else
-    require 'mocha/test_unit'
+  begin
+    if defined? MiniTest
+      require 'mocha/mini_test'
+    else
+      require 'mocha/test_unit'
+    end
+  rescue LoadError => e
+    warn "current mocha version might not work (try `gem install mocha'): #{e}"
   end
 end
 
