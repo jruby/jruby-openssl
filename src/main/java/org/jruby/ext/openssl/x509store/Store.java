@@ -106,7 +106,7 @@ public class Store implements X509TrustManager {
         };
     }
 
-    @Deprecated int cache; // not-used
+    @Deprecated int cache = 1; // not-used
 
     final List<X509Object> objects;
     final List<Lookup> certificateMethods;
@@ -132,7 +132,6 @@ public class Store implements X509TrustManager {
      */
     public Store() {
         objects = new ArrayList<X509Object>();
-        cache = 1;
         certificateMethods = new ArrayList<Lookup>();
 
         verifyParameter = new VerifyParameter();

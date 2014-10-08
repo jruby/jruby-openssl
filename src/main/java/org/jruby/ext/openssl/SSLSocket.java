@@ -233,7 +233,7 @@ public class SSLSocket extends RubyObject {
         return acceptCommon(context, false);
     }
 
-    public IRubyObject acceptCommon(final ThreadContext context, boolean blocking) {
+    public SSLSocket acceptCommon(final ThreadContext context, boolean blocking) {
         final Ruby runtime = context.runtime;
 
         if ( ! sslContext.isProtocolForServer() ) {
