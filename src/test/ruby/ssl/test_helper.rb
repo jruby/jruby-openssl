@@ -106,7 +106,8 @@ module SSLTestHelper
         flunk("TCPServer was closed and SSLServer is still alive") unless $!
       end
     end
-  end if RUBY_VERSION < '1.9.0'
+  end if RUBY_VERSION < '1.9.0' ||
+  ( defined? JRUBY_VERSION && JRUBY_VERSION < '1.7.0' )
   private :tcp_server_close
 
   def server_loop(context, server, server_proc)
