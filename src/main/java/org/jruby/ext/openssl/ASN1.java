@@ -48,6 +48,7 @@ import org.bouncycastle.asn1.ASN1Boolean;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1Enumerated;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
@@ -86,6 +87,7 @@ import org.bouncycastle.asn1.DLSet;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
+import org.jruby.RubyBignum;
 import org.jruby.RubyClass;
 import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
@@ -1040,12 +1042,8 @@ public class ASN1 {
             return ASN1.getClass("GeneralizedTime").callMethod(context,"new", time);
         }
 
-        if ( obj instanceof DERObjectIdentifier ) {
+        if ( obj instanceof DERObjectIdentifier ) { // ASN1ObjectIdentifier extends DERObjectIdentifier
             final String objId = ((DERObjectIdentifier) obj).getId();
-            return ASN1.getClass("ObjectId").callMethod(context, "new", runtime.newString(objId));
-        }
-        if ( obj instanceof ASN1ObjectIdentifier ) {
-            final String objId = ((ASN1ObjectIdentifier) obj).getId();
             return ASN1.getClass("ObjectId").callMethod(context, "new", runtime.newString(objId));
         }
 
@@ -1069,6 +1067,11 @@ public class ASN1 {
             @SuppressWarnings("unchecked")
             RubyArray arr = decodeObjects(context, ASN1, ((ASN1Set) obj).getObjects());
             return ASN1.getClass("Set").callMethod(context, "new", arr);
+        }
+
+        if ( obj instanceof ASN1Enumerated ) {
+            final RubyInteger value = RubyBignum.bignorm(runtime, ((ASN1Enumerated) obj).getValue());
+            return ASN1.getClass("Enumerated").callMethod(context, "new", value);
         }
 
         throw new IllegalArgumentException("unable to decode object: " + obj + " (" + ( obj == null ? "" : obj.getClass().getName() ) + ")");
@@ -1612,6 +1615,9 @@ public class ASN1 {
             }
             if ( type == DEREnumerated.class ) {
                 return new DEREnumerated( val.asString().getBytes() );
+            }
+            if ( type == ASN1Enumerated.class ) {
+                return new ASN1Enumerated( new BigInteger(val.asString().getBytes()) );
             }
             //if ( type == DEROctetString.class ) {
             if ( ASN1OctetString.class.isAssignableFrom( type ) ) {
