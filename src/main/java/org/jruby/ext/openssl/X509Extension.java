@@ -502,8 +502,12 @@ public class X509Extension extends RubyObject {
                         // decoded octets will end up as an ASN1Sequence instance :
                         value = ASN1.readObject( ((ASN1OctetString) value).getOctets());
                     }
+                    if ( value instanceof ASN1TaggedObject ) { // DERTaggedObject (issuerAltName wrapping)
+                        formatGeneralName(GeneralName.getInstance(value), val, false);
+                        return runtime.newString( val );
+                    }
 
-                    GeneralName[] names = GeneralNames.getInstance(value).getNames();
+                    final GeneralName[] names = GeneralNames.getInstance(value).getNames();
                     for ( int i = 0; i < names.length; i++ ) {
                         boolean other = formatGeneralName(names[i], val, false);
                         if ( i < names.length - 1 ) {
