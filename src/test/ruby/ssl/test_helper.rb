@@ -71,28 +71,43 @@ module SSLTestHelper
 
       block.call(server, port.to_i)
     ensure
-      begin
-        begin
-          tcp_server.shutdown
-        rescue Errno::ENOTCONN
-          # when `Errno::ENOTCONN: Socket is not connected' on some platforms,
-          # call #close instead of #shutdown.
-          tcp_server.close
-          tcp_server = nil
-        end if (tcp_server)
-        if (server)
-          server.join(5)
-          if server.alive?
-            server.kill
-            server.join
-            flunk("TCPServer was closed and SSLServer is still alive") unless $!
-          end
-        end
-      ensure
-        tcp_server.close if tcp_server
-      end
+      tcp_server_close(server, tcp_server)
     end
   end
+
+  def tcp_server_close(thread, tcp_server)
+    begin
+      tcp_server.shutdown
+    rescue Errno::ENOTCONN
+      # when `Errno::ENOTCONN: Socket is not connected' on some platforms,
+      # call #close instead of #shutdown.
+      tcp_server.close
+      tcp_server = nil
+    end if (tcp_server)
+    if thread
+      thread.join(5)
+      if thread.alive?
+        thread.kill
+        thread.join
+        flunk("TCPServer was closed and SSLServer is still alive") unless $!
+      end
+    end
+  ensure
+    tcp_server.close if tcp_server
+  end
+
+  def tcp_server_close(thread, tcp_server)
+    tcp_server.close if (tcp_server)
+    if thread
+      thread.join(5)
+      if thread.alive?
+        thread.kill
+        thread.join
+        flunk("TCPServer was closed and SSLServer is still alive") unless $!
+      end
+    end
+  end if RUBY_VERSION < '1.9.0'
+  private :tcp_server_close
 
   def server_loop(context, server, server_proc)
     loop do
