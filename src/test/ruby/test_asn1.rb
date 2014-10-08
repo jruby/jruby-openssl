@@ -458,6 +458,17 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     #assert_equal cululated_sig, sig_val.value
   end
 
+  def test_decode_all
+    expected = %w{ 02 01 01 02 01 02 02 01 03 }
+    raw = [expected.join('')].pack('H*')
+    ary = OpenSSL::ASN1.decode_all(raw)
+    assert_equal(3, ary.size)
+    ary.each_with_index do |asn1, i|
+      assert_universal(OpenSSL::ASN1::INTEGER, asn1)
+      assert_equal(i + 1, asn1.value)
+    end
+  end
+
   private
 
   def assert_universal(tag, asn1, inf_len=false)

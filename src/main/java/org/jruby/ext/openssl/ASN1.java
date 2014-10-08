@@ -714,6 +714,7 @@ public class ASN1 {
         final ObjectAllocator primitiveAllocator = Primitive.ALLOCATOR;
         RubyClass Primitive = ASN1.defineClassUnder("Primitive", _ASN1Data, primitiveAllocator);
         Primitive.addReadWriteAttribute(context, "tagging");
+        Primitive.addReadWriteAttribute(context, "infinite_length");
         Primitive.defineAnnotatedMethods(Primitive.class);
 
         final ObjectAllocator constructiveAllocator = Constructive.ALLOCATOR;
@@ -1529,6 +1530,7 @@ public class ASN1 {
             self.setInstanceVariable("@value", value);
             self.setInstanceVariable("@tag_class", tag_class);
             self.setInstanceVariable("@tagging", tagging);
+            self.setInstanceVariable("@infinite_length", runtime.getFalse());
         }
 
         @Override
@@ -1547,8 +1549,6 @@ public class ASN1 {
         boolean isEOC() {
             return "EndOfContent".equals( getClassBaseName() );
         }
-
-
 
         @Override
         byte[] toDER(final ThreadContext context) throws IOException {
@@ -1712,7 +1712,6 @@ public class ASN1 {
         @JRubyMethod(required = 1, optional = 3, visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
             Primitive.initializeImpl(context, this, args);
-            setInstanceVariable("@infinite_length", context.runtime.getFalse());
             return this;
         }
 
