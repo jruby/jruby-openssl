@@ -4,12 +4,6 @@ require 'date'
 
 class TestX509CRL < TestCase
 
-  if defined? JRUBY_VERSION
-    def setup; require 'jopenssl/load' end
-  else
-    def setup; require 'openssl' end
-  end
-
   def test_new_crl
     crl = OpenSSL::X509::CRL.new
     assert_equal 0, crl.version
@@ -105,5 +99,108 @@ EOF
 
     assert_equal Date.new(2014, 07, 07), Date.parse(revoked.time.strftime('%Y/%m/%d'))
   end
+
+  # NOTE: same as OpenSSL's test_extension but without extension order requirement ...
+  def test_extension
+    _rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    _ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    cert_exts = [
+      ["basicConstraints", "CA:TRUE", true],
+      ["subjectKeyIdentifier", "hash", false],
+      ["authorityKeyIdentifier", "keyid:always", false],
+      ["subjectAltName", "email:xyzzy@ruby-lang.org", false],
+      ["keyUsage", "cRLSign, keyCertSign", true],
+    ]
+    crl_exts = [
+      ["authorityKeyIdentifier", "keyid:always", false],
+      ["issuerAltName", "issuer:copy", false],
+    ]
+
+    now = Time.now
+    cert = issue_cert(_ca, _rsa2048, 1, now, now + 3600, cert_exts, nil, nil, OpenSSL::Digest::SHA1.new)
+    crl = issue_crl([], 1, now, now+1600, crl_exts, cert, _rsa2048, OpenSSL::Digest::SHA1.new)
+
+    exts = crl.extensions
+    assert_equal(3, exts.size)
+    assert_equal("1", exts[0].value)
+    assert_equal("crlNumber", exts[0].oid)
+    assert_equal(false, exts[0].critical?)
+
+    assert_equal("authorityKeyIdentifier", exts[1].oid)
+    keyid = get_subject_key_id(cert)
+    assert_match(/^keyid:#{keyid}/, exts[1].value)
+    assert_equal(false, exts[1].critical?)
+
+    assert_equal("issuerAltName", exts[2].oid)
+    assert_equal("email:xyzzy@ruby-lang.org", exts[2].value)
+    assert_equal(false, exts[2].critical?)
+
+    crl = OpenSSL::X509::CRL.new(crl.to_der)
+    exts = crl.extensions
+
+    # MRI expects to retain extension order : crlNumber, authorityKeyIdentifier, issuerAltName
+    exts = exts.dup;
+    ext1 = exts.find { |ext| ext.oid == 'authorityKeyIdentifier' }
+    exts.delete(ext1); exts.unshift(ext1)
+    ext0 = exts.find { |ext| ext.oid == 'crlNumber' }
+    exts.delete(ext0); exts.unshift(ext0)
+    # MRI
+
+    assert_equal(3, exts.size)
+    assert_equal("1", exts[0].value)
+    assert_equal("crlNumber", exts[0].oid)
+    assert_equal(false, exts[0].critical?)
+
+    assert_equal("authorityKeyIdentifier", exts[1].oid)
+    keyid = get_subject_key_id(cert)
+    assert_match(/^keyid:#{keyid}/, exts[1].value)
+    assert_equal(false, exts[1].critical?)
+
+    assert_equal("issuerAltName", exts[2].oid)
+    assert_equal("email:xyzzy@ruby-lang.org", exts[2].value)
+    assert_equal(false, exts[2].critical?)
+  end
+
+  private
+
+  def get_subject_key_id(cert)
+    asn1_cert = OpenSSL::ASN1.decode(cert)
+    tbscert   = asn1_cert.value[0]
+    pkinfo    = tbscert.value[6]
+    publickey = pkinfo.value[1]
+    pkvalue   = publickey.value
+    OpenSSL::Digest::SHA1.hexdigest(pkvalue).scan(/../).join(":").upcase
+  end
+
+  TEST_KEY_RSA2048 = <<-_end_of_pem_
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAuV9ht9J7k4NBs38jOXvvTKY9gW8nLICSno5EETR1cuF7i4pN
+s9I1QJGAFAX0BEO4KbzXmuOvfCpD3CU+Slp1enenfzq/t/e/1IRW0wkJUJUFQign
+4CtrkJL+P07yx18UjyPlBXb81ApEmAB5mrJVSrWmqbjs07JbuS4QQGGXLc+Su96D
+kYKmSNVjBiLxVVSpyZfAY3hD37d60uG+X8xdW5v68JkRFIhdGlb6JL8fllf/A/bl
+NwdJOhVr9mESHhwGjwfSeTDPfd8ZLE027E5lyAVX9KZYcU00mOX+fdxOSnGqS/8J
+DRh0EPHDL15RcJjV2J6vZjPb0rOYGDoMcH+94wIDAQABAoIBAAzsamqfYQAqwXTb
+I0CJtGg6msUgU7HVkOM+9d3hM2L791oGHV6xBAdpXW2H8LgvZHJ8eOeSghR8+dgq
+PIqAffo4x1Oma+FOg3A0fb0evyiACyrOk+EcBdbBeLo/LcvahBtqnDfiUMQTpy6V
+seSoFCwuN91TSCeGIsDpRjbG1vxZgtx+uI+oH5+ytqJOmfCksRDCkMglGkzyfcl0
+Xc5CUhIJ0my53xijEUQl19rtWdMnNnnkdbG8PT3LZlOta5Do86BElzUYka0C6dUc
+VsBDQ0Nup0P6rEQgy7tephHoRlUGTYamsajGJaAo1F3IQVIrRSuagi7+YpSpCqsW
+wORqorkCgYEA7RdX6MDVrbw7LePnhyuaqTiMK+055/R1TqhB1JvvxJ1CXk2rDL6G
+0TLHQ7oGofd5LYiemg4ZVtWdJe43BPZlVgT6lvL/iGo8JnrncB9Da6L7nrq/+Rvj
+XGjf1qODCK+LmreZWEsaLPURIoR/Ewwxb9J2zd0CaMjeTwafJo1CZvcCgYEAyCgb
+aqoWvUecX8VvARfuA593Lsi50t4MEArnOXXcd1RnXoZWhbx5rgO8/ATKfXr0BK/n
+h2GF9PfKzHFm/4V6e82OL7gu/kLy2u9bXN74vOvWFL5NOrOKPM7Kg+9I131kNYOw
+Ivnr/VtHE5s0dY7JChYWE1F3vArrOw3T00a4CXUCgYEA0SqY+dS2LvIzW4cHCe9k
+IQqsT0yYm5TFsUEr4sA3xcPfe4cV8sZb9k/QEGYb1+SWWZ+AHPV3UW5fl8kTbSNb
+v4ng8i8rVVQ0ANbJO9e5CUrepein2MPL0AkOATR8M7t7dGGpvYV0cFk8ZrFx0oId
+U0PgYDotF/iueBWlbsOM430CgYEAqYI95dFyPI5/AiSkY5queeb8+mQH62sdcCCr
+vd/w/CZA/K5sbAo4SoTj8dLk4evU6HtIa0DOP63y071eaxvRpTNqLUOgmLh+D6gS
+Cc7TfLuFrD+WDBatBd5jZ+SoHccVrLR/4L8jeodo5FPW05A+9gnKXEXsTxY4LOUC
+9bS4e1kCgYAqVXZh63JsMwoaxCYmQ66eJojKa47VNrOeIZDZvd2BPVf30glBOT41
+gBoDG3WMPZoQj9pb7uMcrnvs4APj2FIhMU8U15LcPAj59cD6S6rWnAxO8NFK7HQG
+4Jxg3JNNf8ErQoCHb1B3oVdXJkmbJkARoDpBKmTCgKtP8ADYLmVPQw==
+-----END RSA PRIVATE KEY-----
+  _end_of_pem_
 
 end
