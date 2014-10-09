@@ -42,6 +42,8 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.DSAPublicKey;
+import java.security.interfaces.RSAPublicKey;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -58,6 +60,7 @@ import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 
+import org.joda.time.DateTime;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
@@ -83,12 +86,17 @@ import org.jruby.util.ByteList;
 
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Extension.newExtension;
+import static org.jruby.ext.openssl.X509CRL.extensions_to_text;
+import static org.jruby.ext.openssl.StringHelper.appendGMTDateTime;
+import static org.jruby.ext.openssl.StringHelper.appendLowerHexValue;
+import static org.jruby.ext.openssl.StringHelper.gsub;
+import static org.jruby.ext.openssl.StringHelper.lowerHexBytes;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class X509Cert extends RubyObject {
-    private static final long serialVersionUID = -9030291728129266789L;
+    private static final long serialVersionUID = -6524431607032364369L;
 
     private static ObjectAllocator X509CERT_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
@@ -120,18 +128,15 @@ public class X509Cert extends RubyObject {
     private IRubyObject sig_alg;
     private IRubyObject version;
 
-    private PKey public_key;
+    private X509Certificate cert;
 
-    private String public_key_algorithm;
-    private byte[] public_key_encoded;
+    private transient PKey public_key; // lazy initialized
 
     private final List<X509Extension> extensions = new ArrayList<X509Extension>();
 
     private boolean changed = true;
 
-    private X509Certificate cert;
-
-    X509AuxCertificate getAuxCert() {
+    final X509AuxCertificate getAuxCert() {
         if ( cert == null ) return null;
         if ( cert instanceof X509AuxCertificate ) {
             return (X509AuxCertificate) cert;
@@ -203,9 +208,6 @@ public class X509Cert extends RubyObject {
         set_subject( X509Name.newName(runtime, cert.getSubjectX500Principal()) );
         set_issuer( X509Name.newName(runtime, cert.getIssuerX500Principal()) );
 
-        final String algorithm = cert.getPublicKey().getAlgorithm();
-        set_public_key( algorithm, cert.getPublicKey().getEncoded() );
-
         final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
         if ( criticalExtOIDs != null ) {
             for ( final String extOID : criticalExtOIDs ) {
@@ -231,12 +233,6 @@ public class X509Cert extends RubyObject {
             for ( int i = 0; i < extension.length; i++ ) this.extensions.add( extension[i] );
         }
         catch (IOException e) { throw newCertificateError(context.runtime, e); }
-    }
-
-    //Lazy method for public key instantiation
-    private void set_public_key(String algorithm, byte[] encoded) {
-        this.public_key_algorithm = algorithm;
-        this.public_key_encoded = encoded;
     }
 
     private static RubyClass _CertificateError(final Ruby runtime) {
@@ -287,8 +283,67 @@ public class X509Cert extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject to_text() {
-        return getRuntime().newString( getAuxCert().toString() );
+    public IRubyObject to_text(final ThreadContext context) {
+        final Ruby runtime = context.runtime;
+        final char[] S20 = StringHelper.S20;
+        final StringBuilder text = new StringBuilder(240);
+
+        text.append("Certificate:\n");
+        text.append(S20,0,4).append("Data:\n");
+        final int version = RubyNumeric.fix2int(this.version);
+        text.append(S20,0,8).append("Version: ").append( version + 1 ).
+             append(" (0x").append( Integer.toString( version, 16 ) ).append(")\n");
+        text.append(S20,0,8).append("Serial Number:\n");
+        text.append(S20,0,12).append( lowerHexBytes(serial.toByteArray(), 1) ).append('\n');
+
+        text.append(S20,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
+        //final RubyString issuer = issuer().asString(); ByteList bytes = issuer.getByteList();
+        //StringHelper.gsub(runtime, bytes, (byte) '/', (byte) ' ');
+        //if ( bytes.charAt(0) == ' ' ) bytes.setBegin(bytes.getBegin() + 1);
+        text.append(S20,0,8).append("Issuer: ").append( issuer ).append('\n');
+        text.append(S20,0,8).append("Validity\n");
+        text.append(S20,0,12).append("Not Before: ");
+        appendGMTDateTime( text, getNotBefore() ).append('\n');
+        text.append(S20,0,12).append("Not After : ");
+        appendGMTDateTime( text, getNotAfter() ).append('\n');
+
+        text.append(S20,0,8).append("Subject: ").append( subject() ).append('\n');
+        text.append(S20,0,8).append("Subject Public Key Info:\n");
+
+        final PublicKey publicKey = getPublicKey();
+        text.append(S20,0,12).append("Public Key Algorithm: ").append(publicKey.getAlgorithm()).append('\n');
+
+        if ( "RSA".equals( publicKey.getAlgorithm() ) ) {
+            final RSAPublicKey rsaKey = ((RSAPublicKey) publicKey);
+            text.append(S20,0,16).append("Public-Key: (").append( rsaKey.getModulus().bitLength() ).append(" bit)\n");
+
+            text.append(S20,0,16).append("Modulus:\n");
+            appendLowerHexValue(text, rsaKey.getModulus().toByteArray(), 20, 45);
+
+            final BigInteger exponent = rsaKey.getPublicExponent();
+            text.append(S20,0,16).append("Exponent: ").append(exponent).
+                 append(" (0x").append( exponent.toString(16) ).append(")\n");
+        }
+        else if ( "DSA".equals( publicKey.getAlgorithm() ) ) {
+            final DSAPublicKey dsaKey = ((DSAPublicKey) publicKey);
+            text.append(S20,0,16).append("Public-Key: (").append( dsaKey.getY().bitLength() ).append(" bit)\n");
+
+            text.append(S20,0,16).append("TODO: not-implemented (PR HOME-WORK)").append('\n'); // left-TODO
+        }
+        else {
+            text.append(S20,0,16).append("TODO: not-implemented (PRs WELCOME!)").append('\n'); // left-TODO
+        }
+
+        if ( extensions != null && extensions.size() > 0 ) {
+            text.append(S20,0,8).append("X509v3 extensions:\n");
+            extensions_to_text(context, extensions, text, 12);
+        }
+
+        text.append(S20,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
+
+        appendLowerHexValue(text, getSignature(), 9, 54);
+
+        return RubyString.newString( runtime, text );
     }
 
     @Override
@@ -321,6 +376,10 @@ public class X509Cert extends RubyObject {
     @JRubyMethod
     public IRubyObject signature_algorithm() {
         return sig_alg;
+    }
+
+    private byte[] getSignature() {
+        return cert.getSignature();
     }
 
     @JRubyMethod
@@ -372,7 +431,6 @@ public class X509Cert extends RubyObject {
     @JRubyMethod
     public IRubyObject not_before() {
         return not_before == null ? getRuntime().getNil() : not_before;
-
     }
 
     @JRubyMethod(name = "not_before=")
@@ -382,6 +440,10 @@ public class X509Cert extends RubyObject {
         not_before.setMicroseconds(0);
         //generator.setNotBefore( not_before.getJavaDate() );
         return time;
+    }
+
+    DateTime getNotBefore() {
+        return not_before == null ? null : not_before.getDateTime();
     }
 
     @JRubyMethod
@@ -398,9 +460,16 @@ public class X509Cert extends RubyObject {
         return time;
     }
 
+    DateTime getNotAfter() {
+        return not_after == null ? null : not_after.getDateTime();
+    }
+
     @JRubyMethod
     public IRubyObject public_key(final ThreadContext context) {
-        return getPublicKey(context).callMethod(context, "public_key");
+        if ( this.public_key == null ) {
+            initializePublicKey(context);
+        }
+        return public_key.callMethod(context, "public_key");
     }
 
     @JRubyMethod(name = "public_key=")
@@ -415,36 +484,38 @@ public class X509Cert extends RubyObject {
         return this.public_key = (PKey) public_key;
     }
 
-    private PKey getPublicKey(final ThreadContext context) {
-        if ( this.public_key == null ) {
-            lazyInitializePublicKey(context);
-        }
-        return this.public_key;
-    }
+    private PublicKey getPublicKey() { return cert == null ? null : cert.getPublicKey(); }
 
-    private void lazyInitializePublicKey(final ThreadContext context) {
+    private void initializePublicKey(final ThreadContext context) throws RaiseException {
         final boolean changed = this.changed;
 
         RubyModule OpenSSL = context.runtime.getModule("OpenSSL");
         RubyModule PKey = (RubyModule) OpenSSL.getConstant("PKey");
 
-        if ( "RSA".equalsIgnoreCase(public_key_algorithm) ) {
-            if ( public_key_encoded == null ) {
+        if ( getPublicKey() == null ) {
+            throw newCertificateError(context.runtime, "no certificate");
+        }
+
+        final String algorithm = getPublicKey().getAlgorithm();
+        final byte[] public_key = getPublicKey().getEncoded();
+
+        if ( "RSA".equalsIgnoreCase(algorithm) ) {
+            if ( public_key == null ) {
                 throw new IllegalStateException("no public key encoded data");
             }
-            RubyString encoded = RubyString.newString(context.runtime, public_key_encoded);
+            RubyString encoded = RubyString.newString(context.runtime, public_key);
             set_public_key( PKey.getConstant("RSA").callMethod(context, "new", encoded) );
         }
-        else if ( "DSA".equalsIgnoreCase(public_key_algorithm) ) {
-            if ( public_key_encoded == null ) {
+        else if ( "DSA".equalsIgnoreCase(algorithm) ) {
+            if ( public_key == null ) {
                 throw new IllegalStateException("no public key encoded data");
             }
-            RubyString encoded = RubyString.newString(context.runtime, public_key_encoded);
+            RubyString encoded = RubyString.newString(context.runtime, public_key);
             set_public_key( PKey.getConstant("DSA").callMethod(context, "new", encoded) );
         }
         else {
             String message = "unsupported algorithm";
-            if ( public_key_algorithm != null ) message += " '" + public_key_algorithm + "'";
+            if ( algorithm != null ) message += " '" + algorithm + "'";
             throw newCertificateError(context.runtime, message);
         }
         this.changed = changed;
@@ -507,7 +578,7 @@ public class X509Cert extends RubyObject {
         generator.setNotBefore( not_before.getJavaDate() );
         generator.setNotAfter( not_after.getJavaDate() );
 
-        if ( public_key == null ) lazyInitializePublicKey(getRuntime().getCurrentContext());
+        if ( public_key == null ) initializePublicKey(getRuntime().getCurrentContext());
         generator.setPublicKey( public_key.getPublicKey() );
 
         return generator;

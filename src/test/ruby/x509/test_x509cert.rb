@@ -169,6 +169,87 @@ END
     end
   end
 
+  def test_inspect_to_text
+    subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCA")
+    key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
+    now = Time.at 1412840060 # Time.now.to_i suppress usec
+    s = 0xdeadbeafdeadbeafdeadbeafdeadbeaf
+    exts = [
+      [ "basicConstraints", "CA:TRUE,pathlen:1", true ],
+      [ "keyUsage", "keyCertSign, cRLSign", true ],
+      [ "subjectKeyIdentifier", "hash", false ],
+    ]
+
+    dgst = OpenSSL::Digest::SHA1.new # NOTE: does it match MRI ?!
+
+    cert = issue_cert(subj, key, s, now, now + 3600, exts, nil, nil, dgst)
+
+    assert cert.inspect.start_with?('#<OpenSSL::X509::Certificate:')
+    assert cert.inspect.index('subject=/DC=org/DC=ruby-lang/CN=TestCA, issuer=/DC=org/DC=ruby-lang/CN=TestCA')
+    assert cert.inspect.index('serial=295990750012446699619010157040970350255')
+    assert cert.inspect.index('not_before=2014-10-09 07:34:20 UTC, not_after=2014-10-09 08:34:20 UTC')
+
+    text_without_signature = <<-TEXT
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            de:ad:be:af:de:ad:be:af:de:ad:be:af:de:ad:be:af
+    Signature Algorithm: sha1WithRSAEncryption
+        Issuer: DC=org, DC=ruby-lang, CN=TestCA
+        Validity
+            Not Before: Oct  9 07:34:20 2014 GMT
+            Not After : Oct  9 08:34:20 2014 GMT
+        Subject: DC=org, DC=ruby-lang, CN=TestCA
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (1024 bit)
+                Modulus:
+                    00:cb:c2:c4:b0:d4:40:a7:3e:d4:fe:3e:43:a0:1e:
+                    17:06:03:bd:67:c0:2d:bf:9c:bf:39:54:11:a7:46:
+                    a0:f1:3a:a8:d5:87:b0:b1:68:a3:c4:45:81:ec:93:
+                    80:4f:0a:41:37:6e:bb:53:84:f5:9c:f6:48:c7:11:
+                    04:3b:b9:ff:58:d6:b6:c2:cf:49:5a:c8:da:87:cb:
+                    2c:10:11:52:c5:9a:9d:5c:a4:8b:7f:43:78:1e:2e:
+                    ff:19:0f:da:62:86:8c:0a:24:3c:8c:0e:23:7a:02:
+                    b6:14:99:97:33:bd:6e:3d:ef:a3:14:df:e9:79:e0:
+                    4e:a5:17:f2:5f:14:45:39:87
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints: critical
+                CA:TRUE, pathlen:1
+            X509v3 Key Usage: critical
+                Certificate Sign, CRL Sign
+            X509v3 Subject Key Identifier:\s
+                D1:FE:F9:FB:F8:AE:1B:C1:60:CB:FA:03:E2:59:6D:D8:73:08:92:13
+    Signature Algorithm: sha1WithRSAEncryption
+TEXT
+
+    cert.to_text
+
+    unless defined? JRUBY_VERSION # TODO "/DC=org,/DC=ruby-lang,/CN=TestCA"
+      assert_equal text_without_signature, cert.to_text[0, text_without_signature.size]
+    end
+  end
+
+  TEST_KEY_RSA1024 = <<-_end_of_pem_
+-----BEGIN RSA PRIVATE KEY-----
+MIICXgIBAAKBgQDLwsSw1ECnPtT+PkOgHhcGA71nwC2/nL85VBGnRqDxOqjVh7Cx
+aKPERYHsk4BPCkE3brtThPWc9kjHEQQ7uf9Y1rbCz0layNqHyywQEVLFmp1cpIt/
+Q3geLv8ZD9pihowKJDyMDiN6ArYUmZczvW4976MU3+l54E6lF/JfFEU5hwIDAQAB
+AoGBAKSl/MQarye1yOysqX6P8fDFQt68VvtXkNmlSiKOGuzyho0M+UVSFcs6k1L0
+maDE25AMZUiGzuWHyaU55d7RXDgeskDMakD1v6ZejYtxJkSXbETOTLDwUWTn618T
+gnb17tU1jktUtU67xK/08i/XodlgnQhs6VoHTuCh3Hu77O6RAkEA7+gxqBuZR572
+74/akiW/SuXm0SXPEviyO1MuSRwtI87B02D0qgV8D1UHRm4AhMnJ8MCs1809kMQE
+JiQUCrp9mQJBANlt2ngBO14us6NnhuAseFDTBzCHXwUUu1YKHpMMmxpnGqaldGgX
+sOZB3lgJsT9VlGf3YGYdkLTNVbogQKlKpB8CQQDiSwkb4vyQfDe8/NpU5Not0fII
+8jsDUCb+opWUTMmfbxWRR3FBNu8wnym/m19N4fFj8LqYzHX4KY0oVPu6qvJxAkEA
+wa5snNekFcqONLIE4G5cosrIrb74sqL8GbGb+KuTAprzj5z1K8Bm0UW9lTjVDjDi
+qRYgZfZSL+x1P/54+xTFSwJAY1FxA/N3QPCXCjPh5YqFxAMQs2VVYTfg+t0MEcJD
+dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
+-----END RSA PRIVATE KEY-----
+  _end_of_pem_
+
   TEST_KEY_RSA2048 = <<-_end_of_pem_
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAuV9ht9J7k4NBs38jOXvvTKY9gW8nLICSno5EETR1cuF7i4pN

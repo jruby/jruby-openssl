@@ -28,6 +28,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import org.jcodings.specific.UTF8Encoding;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.jruby.Ruby;
 import org.jruby.RubyEncoding;
 import org.jruby.RubyFile;
@@ -116,6 +120,54 @@ abstract class StringHelper {
         final byte[] bytes = str.getUnsafeBytes();
         for ( int i = begin; i < begin + slen; i++ ) {
             if ( bytes[i] == match ) bytes[i] = replace;
+        }
+    }
+
+    static final char[] S20 = new char[] {
+        ' ',' ',' ',' ',  ' ',' ',' ',' ',
+        ' ',' ',' ',' ',  ' ',' ',' ',' ',
+        ' ',' ',' ',' ',
+    };
+
+    private static final DateTimeFormatter ASN_DATE_NO_ZONE =
+        DateTimeFormat.forPattern("MMM dd HH:mm:ss yyyy") // + " zzz"
+                      .withZone(DateTimeZone.UTC);
+
+    static StringBuilder appendGMTDateTime(final StringBuilder text, final DateTime time) {
+        final String date = ASN_DATE_NO_ZONE.print( time.getMillis() );
+        final int len = text.length();
+        text.append(date).append(' ').append("GMT");
+        if ( date.charAt(4) == '0' ) { // Jul 07 -> Jul  7
+            text.setCharAt(len + 4, ' ');
+        }
+        return text;
+    }
+
+    //static StringBuilder lowerHexBytes(final BigInteger bytes) {
+    //    return lowerHexBytes(bytes.toByteArray(), 1); // skip the sign bit
+    //}
+
+    static StringBuilder lowerHexBytes(final byte[] bytes, final int offset) {
+        final int len = bytes.length;
+        final StringBuilder hex = new StringBuilder(len * 3);
+        for (int i = offset; i < bytes.length; i++ ) {
+            final String h = Integer.toHexString( bytes[i] & 0xFF );
+            if ( h.length() == 1 ) hex.append('0');
+            hex.append( h ).append(':');
+        }
+        if ( len > 0 ) hex.setLength( hex.length() - 1 );
+        return hex;
+    }
+
+    static void appendLowerHexValue(final StringBuilder text, final byte[] hex,
+        final int indent, final int rowLength) {
+        final StringBuilder hexStr = lowerHexBytes( hex, 0 );
+        final int len = hexStr.length(); int left = len;
+        while ( left > 0 ) {
+            int print = rowLength; if ( left < rowLength ) print = left;
+            final int start = len - left;
+            text.append(S20,0,indent).append( hexStr, start, start + print ).append('\n');
+            left -= print;
         }
     }
 

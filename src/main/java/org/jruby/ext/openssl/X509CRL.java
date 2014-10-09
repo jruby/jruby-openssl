@@ -59,9 +59,6 @@ import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.x509.X509V2CRLGenerator;
 
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
@@ -87,6 +84,8 @@ import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Extension._Extension;
 import static org.jruby.ext.openssl.X509Extension.newExtension;
+import static org.jruby.ext.openssl.StringHelper.appendGMTDateTime;
+import static org.jruby.ext.openssl.StringHelper.appendLowerHexValue;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -250,14 +249,11 @@ public class X509CRL extends RubyObject {
         }
     }
 
-    private static final char[] S16 = new char[] {
-        ' ',' ',' ',' ',  ' ',' ',' ',' ',
-        ' ',' ',' ',' ',  ' ',' ',' ',' ',
-    };
-
     @JRubyMethod
+    @SuppressWarnings("unchecked")
     public IRubyObject to_text(final ThreadContext context) {
         final Ruby runtime = context.runtime;
+        final char[] S16 = StringHelper.S20;
         final StringBuilder text = new StringBuilder(160);
 
         text.append("Certificate Revocation List (CRL):\n");
@@ -304,57 +300,25 @@ public class X509CRL extends RubyObject {
         // TODO we shall parse / use crlValue when != null :
         text.append(S16,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
 
-        final StringBuilder signature = lowerHexBytes( crl.getSignature() );
-        final int len = signature.length(); int left = len;
-        while ( left > 0 ) {
-            int print = 54; if ( left < 54 ) print = left;
-            final int start = len - left;
-            text.append(S16,0,9).append( signature, start, start + print ).append('\n');
-            left -= print;
-        }
+        appendLowerHexValue(text, crl.getSignature(), 9, 54);
 
         return RubyString.newString( runtime, text );
     }
 
-    private static final DateTimeFormatter ASN_DATE_NO_ZONE =
-        DateTimeFormat.forPattern("MMM dd HH:mm:ss yyyy") // + " zzz"
-                      .withZone(DateTimeZone.UTC);
-
-    private static StringBuilder appendGMTDateTime(final StringBuilder text, final DateTime time) {
-        final String date = ASN_DATE_NO_ZONE.print( time.getMillis() );
-        final int len = text.length();
-        text.append(date).append(' ').append("GMT");
-        if ( date.charAt(4) == '0' ) { // Jul 07 -> Jul  7
-            text.setCharAt(len + 4, ' ');
-        }
-        return text;
-    }
-
-    private static void extensions_to_text(final ThreadContext context,
-        final RubyArray exts, final StringBuilder text, final int indent) {
+    static void extensions_to_text(final ThreadContext context,
+        final List<X509Extension> exts, final StringBuilder text, final int indent) {
+        final char[] S20 = StringHelper.S20;
         for ( int i = 0; i < exts.size(); i++ ) {
-            final X509Extension ext = (X509Extension) exts.entry(i);
+            final X509Extension ext = exts.get(i);
             final ASN1ObjectIdentifier oid = ext.getRealObjectID();
             final String no = ASN1.o2a(context.runtime, oid);
-            text.append(S16,0,indent).append( no ).append(": ");
+            text.append(S20,0,indent).append( no ).append(": ");
             if ( ext.isRealCritical() ) text.append("critical");
             text.append('\n');
             final String value = ext.value(context).toString();
-            text.append(S16).append( value );
+            text.append(S20,0,16).append( value );
             if ( value.charAt(value.length() - 1) != '\n' ) text.append('\n');
         }
-    }
-
-    private static StringBuilder lowerHexBytes(final byte[] bytes) {
-        final int len = bytes.length;
-        final StringBuilder hex = new StringBuilder(len * 3);
-        for (int i = 0; i < bytes.length; i++ ) {
-            final String h = Integer.toHexString( bytes[i] & 0xFF );
-            if ( h.length() == 1 ) hex.append('0');
-            hex.append( h ).append(':');
-        }
-        if ( len > 0 ) hex.setLength( hex.length() - 1 );
-        return hex;
     }
 
     @Override
