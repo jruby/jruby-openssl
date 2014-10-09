@@ -29,8 +29,10 @@ package org.jruby.ext.openssl;
 
 import java.io.Reader;
 import java.io.Writer;
+import java.lang.reflect.Method;
+import java.security.SecureRandom;
 
-import org.bouncycastle.openssl.PEMReader; // uses Security API directly
+//import org.bouncycastle.openssl.PEMReader; // uses Security API directly
 import org.bouncycastle.openssl.PEMWriter;
 import org.bouncycastle.openssl.PasswordFinder;
 
@@ -40,20 +42,29 @@ import org.bouncycastle.openssl.PasswordFinder;
 @Deprecated
 public class BouncyCastlePEMHandler implements PEMHandler {
 
+    @SuppressWarnings("unchecked")
     public Object readPEM(Reader read, String password) throws Exception {
-        return new PEMReader(read, new BasicPasswordFinder(password)).readObject();
+        // NOTE: class not longer available since BC 1.50 :
+        // return new PEMReader(read, new BasicPasswordFinder(password)).readObject();
+        Class PEMReader = Class.forName("org.bouncycastle.openssl.PEMReader");
+        Object pemReader = PEMReader.getConstructor(java.io.Reader.class, PasswordFinder.class).
+                newInstance(read, new BasicPasswordFinder(password));
+        return PEMReader.getMethod("readObject").invoke(pemReader);
     }
 
-    public void writePEM(Writer writ, Object obj, String algorithm, char[] password) throws Exception {
-        PEMWriter p = new PEMWriter(writ);
-        p.writeObject(obj,algorithm,password,null);
-        p.flush();
+    public void writePEM(Writer writer, Object obj, String algorithm, char[] password) throws Exception {
+        final PEMWriter pemWriter = new PEMWriter(writer);
+        // NOTE: method parameters changed since BC 1.50 :
+        // pemWriter.writeObject(obj, algorithm, password, null);
+        Method writeObject = PEMWriter.class.getMethod("writeObject", Object.class, String.class, char[].class, SecureRandom.class);
+        writeObject.invoke(pemWriter, obj, algorithm, password, null);
+        pemWriter.flush();
     }
 
-    public void writePEM(Writer writ, Object obj) throws Exception {
-        PEMWriter p = new PEMWriter(writ);
-        p.writeObject(obj);
-        p.flush();
+    public void writePEM(Writer writer, Object obj) throws Exception {
+        PEMWriter pemWriter = new PEMWriter(writer);
+        pemWriter.writeObject(obj);
+        pemWriter.flush();
     }
 
     private static class BasicPasswordFinder implements PasswordFinder {
