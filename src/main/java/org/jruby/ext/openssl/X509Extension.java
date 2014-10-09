@@ -32,6 +32,7 @@ import java.lang.reflect.Field;
 import java.util.Hashtable;
 import java.util.Map;
 
+import org.bouncycastle.asn1.ASN1Boolean;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
@@ -250,7 +251,11 @@ public class X509Extension extends RubyObject {
                 ASN1Sequence seq = (ASN1Sequence) ASN1.readObject(bytes);
                 setRealObjectID( (ASN1ObjectIdentifier) seq.getObjectAt(0) );
                 final ASN1Encodable criticalOrValue = seq.getObjectAt(1);
-                if ( criticalOrValue instanceof DERBoolean ) {
+                if ( criticalOrValue instanceof ASN1Boolean ) {
+                    setRealCritical( ((ASN1Boolean) criticalOrValue).isTrue() );
+                    this.value = ( (DEROctetString) seq.getObjectAt(2) ).getOctets(); // byte[]
+                }
+                else if ( criticalOrValue instanceof DERBoolean ) { // NOTE: keep it due BC <= 1.50
                     setRealCritical( ((DERBoolean) criticalOrValue).isTrue() );
                     this.value = ( (DEROctetString) seq.getObjectAt(2) ).getOctets(); // byte[]
                 }
@@ -335,7 +340,15 @@ public class X509Extension extends RubyObject {
                 final ByteList val = new ByteList(32);
                 if (seq2.size() > 0) {
                     val.append(CA_);
-                    val.append(((DERBoolean) seq2.getObjectAt(0)).isTrue() ? TRUE : FALSE);
+                    ASN1Encodable obj0 = seq2.getObjectAt(0);
+                    final boolean bool;
+                    if ( obj0 instanceof ASN1Boolean ) {
+                        bool = ((ASN1Boolean) obj0).isTrue();
+                    }
+                    else { // NOTE: keep it due BC <= 1.50
+                        bool = ((DERBoolean) obj0).isTrue();
+                    }
+                    val.append( bool ? TRUE : FALSE );
                 }
                 if (seq2.size() > 1) {
                     val.append(", pathlen:".getBytes());
@@ -597,6 +610,7 @@ public class X509Extension extends RubyObject {
         return keyid.getEncoded(ASN1Encoding.DER);
     }
 
+    @SuppressWarnings("unchecked")
     private static boolean formatGeneralName(final GeneralName name, final ByteList out, final boolean slashed) {
         final ASN1Encodable obj = name.getName();
         String val; boolean tagged = false;
