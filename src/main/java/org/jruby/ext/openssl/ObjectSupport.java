@@ -38,17 +38,18 @@ import org.jruby.runtime.builtin.Variable;
  */
 abstract class ObjectSupport {
 
+    @SuppressWarnings("unchecked")
     static RubyString inspect(final RubyBasicObject self) {
-        return inspect(self, self.getInstanceVariableList());
+        return inspect(self, (List) self.getInstanceVariableList());
     }
 
-    static RubyString inspect(final RubyBasicObject self, final List<Variable<IRubyObject>> variableList) {
+    static RubyString inspect(final RubyBasicObject self, final List<Variable> variableList) {
         final Ruby runtime = self.getRuntime();
         return RubyString.newString(runtime, inspect(runtime, self, variableList));
     }
 
     private static StringBuilder inspect(final Ruby runtime, final RubyBasicObject self,
-        final List<Variable<IRubyObject>> variableList) {
+        final List<Variable> variableList) {
         final StringBuilder part = new StringBuilder();
         String cname = self.getMetaClass().getRealClass().getName();
         part.append("#<").append(cname).append(":0x");
@@ -69,16 +70,22 @@ abstract class ObjectSupport {
     }
 
     private static StringBuilder inspectObj(final ThreadContext context,
-        final List<Variable<IRubyObject>> variableList,
+        final List<Variable> variableList,
         final StringBuilder part) {
         String sep = "";
 
-        for ( final Variable<IRubyObject> ivar : variableList ) {
-            part.append(sep).append(" ").append( ivar.getName() ).append("=");
-            part.append( ivar.getValue().callMethod(context, "inspect") );
+        for ( final Variable ivar : variableList ) {
+            part.append(sep).append(' ').append( ivar.getName() ).append('=');
+            final Object ival = ivar.getValue();
+            if ( ival instanceof IRubyObject ) {
+                part.append( ((IRubyObject) ival).callMethod(context, "inspect") );
+            }
+            else { // allow the variable to come formatted (as is) already :
+                part.append( ival ); // ival == null ? "nil" : ival.toString()
+            }
             sep = ",";
         }
-        part.append(">");
+        part.append('>');
         return part;
     }
 
