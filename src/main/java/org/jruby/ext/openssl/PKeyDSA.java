@@ -79,12 +79,13 @@ public class PKeyDSA extends PKey {
         }
     };
 
-    public static void createPKeyDSA(final Ruby runtime, final RubyModule _PKey) {
-        RubyClass _DSA = _PKey.defineClassUnder("DSA",_PKey.getClass("PKey"),PKEYDSA_ALLOCATOR);
-        RubyClass _PKeyError = _PKey.getClass("PKeyError");
-        _PKey.defineClassUnder("DSAError", _PKeyError, _PKeyError.getAllocator());
+    public static void createPKeyDSA(final Ruby runtime, final RubyModule PKey,
+        final RubyClass PKeyPKey) {
+        RubyClass DSA = PKey.defineClassUnder("DSA", PKeyPKey, PKEYDSA_ALLOCATOR);
+        RubyClass PKeyError = PKey.getClass("PKeyError");
+        PKey.defineClassUnder("DSAError", PKeyError, PKeyError.getAllocator());
 
-        _DSA.defineAnnotatedMethods(PKeyDSA.class);
+        DSA.defineAnnotatedMethods(PKeyDSA.class);
     }
 
     static RubyClass _DSA(final Ruby runtime) {
@@ -105,8 +106,8 @@ public class PKeyDSA extends PKey {
         this.pubKey = pubKey;
     }
 
-    public PKeyDSA(Ruby runtime, RubyClass type, DSAPublicKey pubKey) {
-        this(runtime, type, null, pubKey);
+    PKeyDSA(Ruby runtime, DSAPublicKey pubKey) {
+        this(runtime, _DSA(runtime), null, pubKey);
     }
 
     private DSAPrivateKey privKey;
@@ -124,19 +125,13 @@ public class PKeyDSA extends PKey {
     private static final int SPEC_G = 3;
 
     @Override
-    PublicKey getPublicKey() {
-        return pubKey;
-    }
+    public PublicKey getPublicKey() { return pubKey; }
 
     @Override
-    PrivateKey getPrivateKey() {
-        return privKey;
-    }
+    public PrivateKey getPrivateKey() { return privKey; }
 
     @Override
-    String getAlgorithm() {
-        return "DSA";
-    }
+    public String getAlgorithm() { return "DSA"; }
 
     @JRubyMethod(name = "generate", meta = true)
     public static IRubyObject generate(IRubyObject self, IRubyObject arg) {
@@ -282,7 +277,7 @@ public class PKeyDSA extends PKey {
 
     @Override
     @JRubyMethod
-    public IRubyObject to_der() {
+    public RubyString to_der() {
         final byte[] bytes;
         try {
             bytes = toDerDSAKey(pubKey, privKey);
@@ -293,11 +288,11 @@ public class PKeyDSA extends PKey {
         catch (IOException e) {
             throw newDSAError(getRuntime(), e.getMessage());
         }
-        return RubyString.newString(getRuntime(), bytes);
+        return StringHelper.newString(getRuntime(), bytes);
     }
 
     @JRubyMethod
-    public IRubyObject to_text() {
+    public RubyString to_text() {
         StringBuilder result = new StringBuilder();
         if (privKey != null) {
             int len = privKey.getParams().getP().bitLength();
@@ -313,15 +308,12 @@ public class PKeyDSA extends PKey {
         addSplittedAndFormatted(result, pubKey.getParams().getQ());
         result.append("G:");
         addSplittedAndFormatted(result, pubKey.getParams().getG());
-        return getRuntime().newString(result.toString());
+        return RubyString.newString(getRuntime(), result);
     }
 
     @JRubyMethod
-    public IRubyObject public_key() {
-        PKeyDSA val = new PKeyDSA(getRuntime(),getMetaClass().getRealClass());
-        val.privKey = null;
-        val.pubKey = this.pubKey;
-        return val;
+    public PKeyDSA public_key() {
+        return new PKeyDSA(getRuntime(), this.pubKey);
     }
 
     @JRubyMethod(name = { "export", "to_pem", "to_s" }, rest = true)

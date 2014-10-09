@@ -31,10 +31,17 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.HashMap;
 
 import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
 import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.DHPrivateKeySpec;
+import javax.crypto.spec.DHPublicKeySpec;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -47,6 +54,7 @@ import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ObjectAllocator;
+import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.runtime.Visibility;
@@ -60,17 +68,10 @@ import static org.jruby.ext.openssl.OpenSSL.bcExceptionMessage;
  * @author <a href="mailto:bill.dortch@gmail.com">Bill Dortch</a>
  */
 public class PKeyDH extends PKey {
-    private static final long serialVersionUID = 293266329939132250L;
 
-    // parameters used in generating 'p'; see [ossl]/crypto/dh/dh_gen.c #dh_builtin_genparams
-    private static final BigInteger GEN_2_ADD_PARAM = BigInteger.valueOf(24);
-    private static final BigInteger GEN_2_REM_PARAM = BigInteger.valueOf(11);
-    private static final BigInteger GEN_5_ADD_PARAM = BigInteger.valueOf(10);
-    private static final BigInteger GEN_5_REM_PARAM = BigInteger.valueOf(3);
-    private static final BigInteger DEFAULT_ADD_PARAM = BigInteger.valueOf(2);
-    private static final BigInteger DEFAULT_REM_PARAM = BigInteger.ONE;
+    private static final long serialVersionUID = -1893518804744046740L;
 
-    private static final BigInteger TWO = BigInteger.valueOf(2);
+    private static final BigInteger TWO = BN.TWO;
 
     // from [ossl]/crypto/dh/dh.h
     private static final int OPENSSL_DH_MAX_MODULUS_BITS = 10000;
@@ -81,13 +82,14 @@ public class PKeyDH extends PKey {
         }
     };
 
-    public static void createPKeyDH(Ruby runtime, RubyModule pkeyModule, RubyClass pkeyClass) {
-        RubyClass dh = pkeyModule.defineClassUnder("DH", pkeyClass, PKEYDH_ALLOCATOR);
+    public static void createPKeyDH(final Ruby runtime, final RubyModule PKey,
+        final RubyClass PKeyPKey) {
+        RubyClass DH = PKey.defineClassUnder("DH", PKeyPKey, PKEYDH_ALLOCATOR);
 
-        RubyClass pkeyError = pkeyModule.getClass("PKeyError");
-        pkeyModule.defineClassUnder("DHError",pkeyError,pkeyError.getAllocator());
+        RubyClass PKeyError = PKey.getClass("PKeyError");
+        PKey.defineClassUnder("DHError", PKeyError, PKeyError.getAllocator());
 
-        dh.defineAnnotatedMethods(PKeyDH.class);
+        DH.defineAnnotatedMethods(PKeyDH.class);
     }
 
     public static RaiseException newDHError(Ruby runtime, String message) {
@@ -109,8 +111,8 @@ public class PKeyDH extends PKey {
     // volatile because: permits unsynchronized reads in some cases
     private transient volatile BigInteger dh_p;
     private transient volatile BigInteger dh_g;
-    private transient volatile BigInteger dh_pub_key;
-    private transient volatile BigInteger dh_priv_key;
+    private transient volatile BigInteger dh_y;
+    private transient volatile BigInteger dh_x;
 
     // FIXME! need to figure out what it means in MRI/OSSL code to
     // claim a DH is(/has) private if an engine is present -- doesn't really
@@ -123,15 +125,17 @@ public class PKeyDH extends PKey {
     }
 
     @JRubyMethod(name="initialize", rest=true, visibility = Visibility.PRIVATE)
-    public synchronized IRubyObject dh_initialize(IRubyObject[] args) {
-        Ruby runtime = getRuntime();
-        if (this.dh_p != null || this.dh_g != null || this.dh_pub_key != null || this.dh_priv_key != null) {
+    public synchronized IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+        final Ruby runtime = context.runtime;
+
+        if (this.dh_p != null || this.dh_g != null || this.dh_y != null || this.dh_x != null) {
             throw newDHError(runtime, "illegal initialization");
         }
-        int argc = Arity.checkArgumentCount(runtime, args, 0, 2);
-        if (argc > 0) {
+
+        final int argc = Arity.checkArgumentCount(runtime, args, 0, 2);
+        if ( argc > 0 ) {
             IRubyObject arg0 = args[0];
-            if (argc == 1 && arg0 instanceof RubyString) {
+            if ( argc == 1 && arg0 instanceof RubyString ) {
                 try {
                     DHParameterSpec spec = PEMInputOutput.readDHParameters(new StringReader(arg0.toString()));
                     if (spec == null) {
@@ -162,8 +166,8 @@ public class PKeyDH extends PKey {
                 BigInteger y = generateY(p, g, x);
                 this.dh_p = p;
                 this.dh_g = g;
-                this.dh_priv_key = x;
-                this.dh_pub_key = y;
+                this.dh_x = x; // private key
+                this.dh_y = y; // public key
             }
         }
         return this;
@@ -182,16 +186,14 @@ public class PKeyDH extends PKey {
 
         // generate safe prime meeting appropriate add/rem (mod) criteria
 
-        switch(g) {
-        case 2:
-            // add = 24, rem = 11
-            return BN.generatePrime(bits, true, GEN_2_ADD_PARAM, GEN_2_REM_PARAM);
-        case 5:
-            // add = 10, rem = 3
-            return BN.generatePrime(bits, true, GEN_5_ADD_PARAM, GEN_5_REM_PARAM);
-        default:
-            // add = 2, rem = 1
-            return BN.generatePrime(bits, true, DEFAULT_ADD_PARAM, DEFAULT_REM_PARAM);
+        switch (g) {
+        // parameters used in generating 'p'; see [ossl]/crypto/dh/dh_gen.c #dh_builtin_genparams
+        case 2 : // add = 24, rem = 11
+            return BN.generatePrime(bits, true, BigInteger.valueOf(24), BigInteger.valueOf(11));
+        case 5 : // add = 10, rem = 3
+            return BN.generatePrime(bits, true, BigInteger.valueOf(10), BigInteger.valueOf(3));
+        default: // add = 2, rem = 1
+            return BN.generatePrime(bits, true, TWO, BigInteger.ONE);
         }
     }
 
@@ -232,28 +234,28 @@ public class PKeyDH extends PKey {
         return generateY(p, BigInteger.valueOf(g), x);
     }
 
-    @JRubyMethod(name="generate_key!")
-    public synchronized IRubyObject dh_generate_key() {
+    @JRubyMethod(name = "generate_key!")
+    public synchronized IRubyObject generate_key() {
         BigInteger p, g, x, y;
         if ((p = this.dh_p) == null || (g = this.dh_g) == null) {
             throw newDHError(getRuntime(), "can't generate key");
         }
-        if ((x = this.dh_priv_key) == null) {
+        if ((x = this.dh_x) == null) {
             x = generateX(p);
         }
         y = generateY(p, g, x);
-        this.dh_priv_key = x;
-        this.dh_pub_key = y;
+        this.dh_x = x;
+        this.dh_y = y;
         return this;
     }
 
-    @JRubyMethod(name="compute_key")
-    public synchronized IRubyObject dh_compute_key(IRubyObject other_pub_key) {
+    @JRubyMethod(name = "compute_key")
+    public synchronized IRubyObject compute_key(IRubyObject other_pub_key) {
         BigInteger x, y, p;
         if ((y = BN.getBigInteger(other_pub_key)) == null) {
             throw getRuntime().newArgumentError("invalid public key");
         }
-        if ((x = this.dh_priv_key) == null || (p = this.dh_p) == null) {
+        if ((x = this.dh_x) == null || (p = this.dh_p) == null) {
             throw newDHError(getRuntime(), "can't compute key");
         }
         int plen;
@@ -267,42 +269,42 @@ public class PKeyDH extends PKey {
         return y.modPow(x, p).toByteArray();
     }
 
-    @JRubyMethod(name="public?")
-    public IRubyObject dh_is_public() {
-        return getRuntime().newBoolean(dh_pub_key != null);
+    @JRubyMethod(name = "public?")
+    public IRubyObject public_p() {
+        return getRuntime().newBoolean(dh_y != null);
     }
 
-    @JRubyMethod(name="private?")
-    public IRubyObject dh_is_private() {
+    @JRubyMethod(name = "private?")
+    public IRubyObject private_p() {
         // FIXME! need to figure out what it means in MRI/OSSL code to
         // claim a DH is private if an engine is present -- doesn't really
         // map to Java implementation.
-        return getRuntime().newBoolean(dh_priv_key != null /* || haveEngine */);
+        return getRuntime().newBoolean(dh_x != null /* || haveEngine */);
     }
 
-    @JRubyMethod(name={"export", "to_pem", "to_s"})
-    public IRubyObject dh_export() {
+    @JRubyMethod(name = { "to_pem", "to_s" }, alias = "export")
+    public RubyString to_pem() {
         BigInteger p, g;
         synchronized(this) {
             p = this.dh_p;
             g = this.dh_g;
         }
-        StringWriter w = new StringWriter();
+        final StringWriter writer = new StringWriter();
         try {
-            PEMInputOutput.writeDHParameters(w, new DHParameterSpec(p, g));
-            w.flush();
-            w.close();
-        } catch (NoClassDefFoundError e) {
+            PEMInputOutput.writeDHParameters(writer, new DHParameterSpec(p, g));
+        }
+        catch (NoClassDefFoundError e) {
             throw newDHError(getRuntime(), bcExceptionMessage(e));
-        } catch (IOException e) {
-            // shouldn't happen (string/buffer io only)
+        }
+        catch (IOException e) { // shouldn't happen (string/buffer io only)
             throw getRuntime().newIOErrorFromException(e);
         }
-        return getRuntime().newString(w.toString());
+        return getRuntime().newString(writer.toString());
     }
 
-    @JRubyMethod(name = "to_der")
-    public IRubyObject dh_to_der() {
+    @Override
+    @JRubyMethod
+    public RubyString to_der() {
         BigInteger p, g;
         synchronized (this) {
             p = this.dh_p;
@@ -310,7 +312,7 @@ public class PKeyDH extends PKey {
         }
         try {
             byte[] bytes = org.jruby.ext.openssl.impl.PKey.toDerDHKey(p, g);
-            return RubyString.newString(getRuntime(), bytes);
+            return StringHelper.newString(getRuntime(), bytes);
         } catch (NoClassDefFoundError e) {
             throw newDHError(getRuntime(), bcExceptionMessage(e));
         } catch (IOException ioe) {
@@ -318,16 +320,16 @@ public class PKeyDH extends PKey {
         }
     }
 
-    @JRubyMethod(name="params")
-    public IRubyObject dh_get_params() {
+    @JRubyMethod(name = "params")
+    public IRubyObject params() {
         BigInteger p, g, x, y;
         synchronized(this) {
             p = this.dh_p;
             g = this.dh_g;
-            x = this.dh_priv_key;
-            y = this.dh_pub_key;
+            x = this.dh_x;
+            y = this.dh_y;
         }
-        Ruby runtime = getRuntime();
+        final Ruby runtime = getRuntime();
         HashMap<IRubyObject, IRubyObject> params = new HashMap<IRubyObject, IRubyObject>();
 
         params.put(runtime.newString("p"), BN.newBN(runtime, p));
@@ -339,63 +341,79 @@ public class PKeyDH extends PKey {
     }
 
     // don't need synchronized as value is volatile
-    @JRubyMethod(name="p")
-    public IRubyObject dh_get_p() {
-        return getBN(dh_p);
+    @JRubyMethod(name = "p")
+    public IRubyObject get_p() {
+        return newBN(dh_p);
     }
 
-    @JRubyMethod(name="p=")
-    public synchronized IRubyObject dh_set_p(IRubyObject arg) {
+    @JRubyMethod(name = "p=")
+    public synchronized IRubyObject set_p(IRubyObject arg) {
         this.dh_p = BN.getBigInteger(arg);
         return arg;
     }
 
     // don't need synchronized as value is volatile
-    @JRubyMethod(name="g")
-    public IRubyObject dh_get_g() {
-        return getBN(dh_g);
+    @JRubyMethod(name = "g")
+    public IRubyObject get_g() {
+        return newBN(dh_g);
     }
 
-    @JRubyMethod(name="g=")
-    public synchronized IRubyObject dh_set_g(IRubyObject arg) {
+    @JRubyMethod(name = "g=")
+    public synchronized IRubyObject set_g(IRubyObject arg) {
         this.dh_g = BN.getBigInteger(arg);
         return arg;
     }
 
     // don't need synchronized as value is volatile
-    @JRubyMethod(name="pub_key")
-    public IRubyObject dh_get_pub_key() {
-        return getBN(dh_pub_key);
+    @JRubyMethod(name = "pub_key")
+    public IRubyObject pub_key() {
+        return newBN(dh_y);
     }
 
-    @JRubyMethod(name="pub_key=")
-    public synchronized IRubyObject dh_set_pub_key(IRubyObject arg) {
-        this.dh_pub_key = BN.getBigInteger(arg);
+    @Override
+    public PublicKey getPublicKey() {
+        try {
+            return getKeyFactory().generatePublic(new DHPublicKeySpec(dh_y, dh_p, dh_g));
+        }
+        catch (InvalidKeySpecException ex) { throw new RuntimeException(ex); }
+    }
+
+    @JRubyMethod(name = "pub_key=")
+    public synchronized IRubyObject set_pub_key(IRubyObject arg) {
+        this.dh_y = BN.getBigInteger(arg);
         return arg;
     }
 
     // don't need synchronized as value is volatile
-    @JRubyMethod(name="priv_key")
-    public IRubyObject dh_get_priv_key() {
-        return getBN(dh_priv_key);
+    @JRubyMethod(name = "priv_key")
+    public IRubyObject priv_key() {
+        return newBN(dh_x);
     }
 
-    @JRubyMethod(name="priv_key=")
-    public synchronized IRubyObject dh_set_priv_key(IRubyObject arg) {
-        this.dh_priv_key = BN.getBigInteger(arg);
+    @Override
+    public PrivateKey getPrivateKey() {
+        try {
+            return getKeyFactory().generatePrivate(new DHPrivateKeySpec(dh_x, dh_p, dh_g));
+        }
+        catch (InvalidKeySpecException ex) { throw new RuntimeException(ex); }
+    }
+
+    @JRubyMethod(name = "priv_key=")
+    public synchronized IRubyObject set_priv_key(IRubyObject arg) {
+        this.dh_x = BN.getBigInteger(arg);
         return arg;
     }
 
-    private IRubyObject getBN(BigInteger value) {
-        if (value != null) {
-            return BN.newBN(getRuntime(), value);
-        }
-        return getRuntime().getNil();
+    private IRubyObject newBN(BigInteger value) {
+        if (value == null) return getRuntime().getNil();
+        return BN.newBN(getRuntime(), value);
     }
 
-    @Override // override differently-named abstract method from PKey
-    public IRubyObject to_der() {
-        return dh_to_der();
+    private static KeyFactory getKeyFactory() {
+        try {
+            return SecurityHelper.getKeyFactory("DiffieHellman");
+        }
+        catch (NoSuchAlgorithmException ex) { throw new RuntimeException(ex); }
     }
 
 }

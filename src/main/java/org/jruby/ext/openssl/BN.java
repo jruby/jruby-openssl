@@ -68,7 +68,7 @@ public class BN extends RubyObject {
     private static final long serialVersionUID = -5660938062191525498L;
 
     private static final BigInteger MAX_INT = BigInteger.valueOf(Integer.MAX_VALUE);
-    private static final BigInteger TWO = BigInteger.valueOf(2);
+    static final BigInteger TWO = BigInteger.valueOf(2);
 
     private static final BigInteger MIN_LONG = BigInteger.valueOf(Long.MIN_VALUE);
     private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);

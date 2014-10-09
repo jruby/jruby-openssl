@@ -87,17 +87,18 @@ public class PKeyRSA extends PKey {
         }
     };
 
-    public static void createPKeyRSA(final Ruby runtime, final RubyModule _PKey) {
-        RubyClass _RSA = _PKey.defineClassUnder("RSA", _PKey.getClass("PKey"), PKEYRSA_ALLOCATOR);
-        RubyClass _PKeyError = _PKey.getClass("PKeyError");
-        _PKey.defineClassUnder("RSAError", _PKeyError, _PKeyError.getAllocator());
+    public static void createPKeyRSA(final Ruby runtime, final RubyModule PKey,
+        final RubyClass PKeyPKey) {
+        RubyClass RSA = PKey.defineClassUnder("RSA", PKeyPKey, PKEYRSA_ALLOCATOR);
+        RubyClass PKeyError = PKey.getClass("PKeyError");
+        PKey.defineClassUnder("RSAError", PKeyError, PKeyError.getAllocator());
 
-        _RSA.defineAnnotatedMethods(PKeyRSA.class);
+        RSA.defineAnnotatedMethods(PKeyRSA.class);
 
-        _RSA.setConstant("PKCS1_PADDING", runtime.newFixnum(1));
-        _RSA.setConstant("SSLV23_PADDING", runtime.newFixnum(2));
-        _RSA.setConstant("NO_PADDING", runtime.newFixnum(3));
-        _RSA.setConstant("PKCS1_OAEP_PADDING", runtime.newFixnum(4));
+        RSA.setConstant("PKCS1_PADDING", runtime.newFixnum(1));
+        RSA.setConstant("SSLV23_PADDING", runtime.newFixnum(2));
+        RSA.setConstant("NO_PADDING", runtime.newFixnum(3));
+        RSA.setConstant("PKCS1_OAEP_PADDING", runtime.newFixnum(4));
     }
 
     static RubyClass _RSA(final Ruby runtime) {
@@ -118,8 +119,8 @@ public class PKeyRSA extends PKey {
         this.pubKey = pubKey;
     }
 
-    public PKeyRSA(Ruby runtime, RubyClass type, RSAPublicKey pubKey) {
-        this(runtime, type, null, pubKey);
+    PKeyRSA(Ruby runtime, RSAPublicKey pubKey) {
+        this(runtime, _RSA(runtime), null, pubKey);
     }
 
     private transient volatile RSAPrivateCrtKey privKey;
@@ -140,19 +141,13 @@ public class PKeyRSA extends PKey {
     private transient volatile BigInteger rsa_iqmp;
 
     @Override
-    PublicKey getPublicKey() {
-        return pubKey;
-    }
+    public PublicKey getPublicKey() { return pubKey; }
 
     @Override
-    PrivateKey getPrivateKey() {
-        return privKey;
-    }
+    public PrivateKey getPrivateKey() { return privKey; }
 
     @Override
-    String getAlgorithm() {
-        return "RSA";
-    }
+    public String getAlgorithm() { return "RSA"; }
 
     @JRubyMethod(name = "generate", meta = true, rest = true)
     public static IRubyObject generate(IRubyObject self, IRubyObject[] args) {
@@ -322,7 +317,7 @@ public class PKeyRSA extends PKey {
 
     @Override
     @JRubyMethod
-    public IRubyObject to_der() {
+    public RubyString to_der() {
         final byte[] bytes;
         try {
             bytes = toDerRSAKey(pubKey, privKey);
@@ -333,15 +328,12 @@ public class PKeyRSA extends PKey {
         catch (IOException e) {
             throw newRSAError(getRuntime(), e.getMessage());
         }
-        return RubyString.newString(getRuntime(), bytes);
+        return StringHelper.newString(getRuntime(), bytes);
     }
 
     @JRubyMethod
-    public IRubyObject public_key() {
-        PKeyRSA val = new PKeyRSA(getRuntime(),getMetaClass().getRealClass());
-        val.privKey = null;
-        val.pubKey = this.pubKey;
-        return val;
+    public PKeyRSA public_key() {
+        return new PKeyRSA(getRuntime(), this.pubKey);
     }
 
     @JRubyMethod

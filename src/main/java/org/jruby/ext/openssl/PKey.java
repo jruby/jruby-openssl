@@ -71,19 +71,20 @@ import static org.jruby.ext.openssl.impl.PKey.readPublicKey;
 public abstract class PKey extends RubyObject {
     private static final long serialVersionUID = 6114668087816965720L;
 
-    public static void createPKey(Ruby runtime, RubyModule ossl) {
-        RubyModule _PKey = ossl.defineModuleUnder("PKey");
-        _PKey.defineAnnotatedMethods(PKeyModule.class);
+    public static void createPKey(final Ruby runtime, final RubyModule OpenSSL) {
+        final RubyModule PKey = OpenSSL.defineModuleUnder("PKey");
+        PKey.defineAnnotatedMethods(PKeyModule.class);
+
         // PKey is abstract
-        RubyClass _PKeyPkey = _PKey.defineClassUnder("PKey", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR);
-        RubyClass _OpenSSLError = ossl.getClass("OpenSSLError");
-        _PKey.defineClassUnder("PKeyError", _OpenSSLError, _OpenSSLError.getAllocator());
+        RubyClass PKeyPKey = PKey.defineClassUnder("PKey", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR);
+        RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
+        PKey.defineClassUnder("PKeyError", OpenSSLError, OpenSSLError.getAllocator());
 
-        _PKeyPkey.defineAnnotatedMethods(PKey.class);
+        PKeyPKey.defineAnnotatedMethods(PKey.class);
 
-        PKeyRSA.createPKeyRSA(runtime, _PKey);
-        PKeyDSA.createPKeyDSA(runtime, _PKey);
-        PKeyDH.createPKeyDH(runtime, _PKey, _PKeyPkey);
+        PKeyRSA.createPKeyRSA(runtime, PKey, PKeyPKey);
+        PKeyDSA.createPKeyDSA(runtime, PKey, PKeyPKey);
+        PKeyDH.createPKeyDH(runtime, PKey, PKeyPKey);
     }
 
     public static RaiseException newPKeyError(Ruby runtime, String message) {
@@ -91,7 +92,7 @@ public abstract class PKey extends RubyObject {
     }
 
     static RubyModule _PKey(final Ruby runtime) {
-        return (RubyModule) runtime.getModule("OpenSSL").getConstant("PKey");
+        return (RubyModule) runtime.getModule("OpenSSL").getConstantAt("PKey");
     }
 
     public static class PKeyModule {
@@ -159,9 +160,9 @@ public abstract class PKey extends RubyObject {
 
             if (pubKey != null) {
                 if (pubKey.getAlgorithm().equals("RSA")) {
-                    return new PKeyRSA(runtime, _PKey(runtime).getClass("RSA"), (RSAPublicKey) pubKey);
+                    return new PKeyRSA(runtime, (RSAPublicKey) pubKey);
                 } else if (key.getPublic().getAlgorithm().equals("DSA")) {
-                    return new PKeyDSA(runtime, _PKey(runtime).getClass("DSA"), (DSAPublicKey) pubKey);
+                    return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
                 }
             }
 
@@ -179,17 +180,11 @@ public abstract class PKey extends RubyObject {
         return this;
     }
 
-    PublicKey getPublicKey() {
-        return null;
-    }
+    public abstract PublicKey getPublicKey() ;
 
-    PrivateKey getPrivateKey() {
-        return null;
-    }
+    public abstract PrivateKey getPrivateKey() ;
 
-    String getAlgorithm() {
-        return "NONE";
-    }
+    public String getAlgorithm() { return "NONE"; }
 
     // NetscapeSPKI uses it.
     public abstract IRubyObject to_der();
