@@ -49,23 +49,25 @@ import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Enumerated;
+import org.bouncycastle.asn1.ASN1GeneralizedTime;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1String;
-import org.bouncycastle.asn1.DERBitString;
-import org.bouncycastle.asn1.DERBoolean;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Null;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1TaggedObject;
+import org.bouncycastle.asn1.ASN1UTCTime;
+import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.BEROctetString;
 import org.bouncycastle.asn1.BERSequenceGenerator;
 import org.bouncycastle.asn1.BERSet;
 import org.bouncycastle.asn1.BERTags;
 import org.bouncycastle.asn1.DERBMPString;
+import org.bouncycastle.asn1.DERBoolean;
 import org.bouncycastle.asn1.DEREnumerated;
 import org.bouncycastle.asn1.DERGeneralString;
 import org.bouncycastle.asn1.DERGeneralizedTime;
@@ -957,6 +959,10 @@ public class ASN1 {
             final BN val = BN.newBN(runtime, ((ASN1Integer) obj).getValue());
             return ASN1.getClass("Integer").callMethod(context, "new", val);
         }
+        if ( obj instanceof DERInteger ) {
+            final BN val = BN.newBN(runtime, ((DERInteger) obj).getValue());
+            return ASN1.getClass("Integer").callMethod(context, "new", val);
+        }
 
         if ( obj instanceof DERBitString ) {
             final DERBitString derObj = (DERBitString) obj;
@@ -1006,6 +1012,11 @@ public class ASN1 {
             return ASN1.getClass(type).callMethod(context, "new", runtime.newString(bytes));
         }
 
+        //if ( obj instanceof DEROctetString ) {
+        //    byte[] octets = ((ASN1OctetString) obj).getOctets();
+        //    if ( (octets[0] & 0xFF) == 0xD1 ) Thread.dumpStack();
+        //}
+
         if ( obj instanceof ASN1OctetString ) {
             final ByteList octets = new ByteList(((ASN1OctetString) obj).getOctets(), false);
             // NOTE: sometimes MRI does include the tag but it really should not ;( !
@@ -1016,22 +1027,40 @@ public class ASN1 {
         if ( obj instanceof ASN1Null ) {
             return ASN1.getClass("Null").callMethod(context,"new", runtime.getNil());
         }
+        if ( obj instanceof ASN1Boolean ) {
+            final boolean val = ((ASN1Boolean) obj).isTrue();
+            return ASN1.getClass("Boolean").callMethod(context, "new", runtime.newBoolean(val));
+        }
+        // DERBoolean extends ASN1Boolean only since 1.51 (<= 1.50 the other way around)
         if ( obj instanceof DERBoolean ) {
             final boolean val = ((DERBoolean) obj).isTrue();
             return ASN1.getClass("Boolean").callMethod(context, "new", runtime.newBoolean(val));
         }
 
-        if ( obj instanceof DERUTCTime ) {
+        if ( obj instanceof ASN1UTCTime ) {
             final Date adjustedTime;
-            try {
-                adjustedTime = ((DERUTCTime) obj).getAdjustedDate();
-                //adjustedTime = dateFormat.parse( ((DERUTCTime) obj).getAdjustedTime() );
-            }
+            try { adjustedTime = ((ASN1UTCTime) obj).getAdjustedDate(); }
             catch (ParseException e) { throw new IOException(e); }
             final RubyTime time = RubyTime.newTime(runtime, adjustedTime.getTime());
             return ASN1.getClass("UTCTime").callMethod(context,"new", time);
-            // return RubyTime.newTime(context.runtime, adjustedTime.getTime());
         }
+        // NOTE: keep for BC versions compatibility ... extends ASN1UTCTime (since BC 1.51)
+        if ( obj instanceof DERUTCTime ) {
+            final Date adjustedTime;
+            try { adjustedTime = ((DERUTCTime) obj).getAdjustedDate(); }
+            catch (ParseException e) { throw new IOException(e); }
+            final RubyTime time = RubyTime.newTime(runtime, adjustedTime.getTime());
+            return ASN1.getClass("UTCTime").callMethod(context,"new", time);
+        }
+
+        if ( obj instanceof ASN1GeneralizedTime ) {
+            final Date generalTime;
+            try { generalTime = ((ASN1GeneralizedTime) obj).getDate(); }
+            catch (ParseException e) { throw new IOException(e); }
+            final RubyTime time = RubyTime.newTime(runtime, generalTime.getTime());
+            return ASN1.getClass("GeneralizedTime").callMethod(context,"new", time);
+        }
+        // NOTE: keep for BC versions compatibility ... extends ASN1GeneralizedTime (since BC 1.51)
         if ( obj instanceof DERGeneralizedTime ) {
             final Date generalTime;
             try {
@@ -1042,7 +1071,13 @@ public class ASN1 {
             return ASN1.getClass("GeneralizedTime").callMethod(context,"new", time);
         }
 
-        if ( obj instanceof DERObjectIdentifier ) { // ASN1ObjectIdentifier extends DERObjectIdentifier
+        if ( obj instanceof ASN1ObjectIdentifier ) {
+            final String objId = ((ASN1ObjectIdentifier) obj).getId();
+            return ASN1.getClass("ObjectId").callMethod(context, "new", runtime.newString(objId));
+        }
+        // ASN1ObjectIdentifier extends DERObjectIdentifier < 1.51
+        // DERObjectIdentifier extends ASN1ObjectIdentifier = 1.51
+        if ( obj instanceof DERObjectIdentifier ) {
             final String objId = ((DERObjectIdentifier) obj).getId();
             return ASN1.getClass("ObjectId").callMethod(context, "new", runtime.newString(objId));
         }
@@ -1571,6 +1606,17 @@ public class ASN1 {
             return newInstance(context, "EndOfContent", null);
         }
 
+        /*
+        private static final Class DERBooleanClass;
+        static {
+            Class klass;
+            try {
+                klass = Class.forName("org.bouncycastle.asn1.DERBoolean");
+            }
+            catch(ClassNotFoundException e) { klass = null; }
+            DERBooleanClass = klass;
+        } */
+
         @Override
         ASN1Encodable toASN1(final ThreadContext context) {
             Class<? extends ASN1Encodable> type = typeClass( getMetaClass() );
@@ -1592,8 +1638,11 @@ public class ASN1 {
             if ( type == DERNull.class || type == ASN1Null.class ) {
                 return DERNull.INSTANCE;
             }
-            if ( type == DERBoolean.class || type == ASN1Boolean.class ) {
+            if ( ASN1Boolean.class.isAssignableFrom( type ) ) {
                 return ASN1Boolean.getInstance(val.isTrue());
+            }
+            if ( type == DERBoolean.class ) {
+                return DERBoolean.getInstance(val.isTrue());
             }
             if ( type == DERUTCTime.class ) {
                 if ( val instanceof RubyTime ) {
@@ -1614,10 +1663,10 @@ public class ASN1 {
                 return new ASN1Integer( bigIntegerValue(val) );
             }
             if ( type == DEREnumerated.class ) {
-                return new DEREnumerated( val.asString().getBytes() );
+                return new DEREnumerated( bigIntegerValue(val) );
             }
             if ( type == ASN1Enumerated.class ) {
-                return new ASN1Enumerated( new BigInteger(val.asString().getBytes()) );
+                return new ASN1Enumerated( bigIntegerValue(val) );
             }
             //if ( type == DEROctetString.class ) {
             if ( ASN1OctetString.class.isAssignableFrom( type ) ) {
@@ -1687,7 +1736,6 @@ public class ASN1 {
                 return ((RubyInteger) val).getBigIntegerValue();
             }
             if ( val instanceof BN ) ((BN) val).getValue();
-            // return new BigInteger( val.toString() );
             return new BigInteger( val.asString().getBytes() );
         }
 
