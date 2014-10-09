@@ -293,19 +293,16 @@ public class X509Cert extends RubyObject {
 
     @Override
     @JRubyMethod
+    @SuppressWarnings("unchecked")
     public IRubyObject inspect() {
-        return ObjectSupport.inspect(this, getInstanceVariableList());
-    }
+        final ArrayList<Variable<String>> varList = new ArrayList<Variable<String>>(5);
+        varList.add(new VariableEntry<String>( "subject", subject().isNil() ? "nil" : subject().asString().toString() ));
+        varList.add(new VariableEntry<String>( "issuer", issuer().isNil() ? "nil" : issuer().asString().toString() ));
+        varList.add(new VariableEntry<String>( "serial", serial().isNil() ? "nil" : serial().asString().toString() ));
+        varList.add(new VariableEntry<String>( "not_before", not_before().isNil() ? "nil" : not_before().toString() ));
+        varList.add(new VariableEntry<String>( "not_after", not_after().isNil() ? "nil" : not_after().toString() ));
 
-    @Override // FAKE'em to include "instance" variables in inspect
-    public List<Variable<IRubyObject>> getInstanceVariableList() {
-        final ArrayList<Variable<IRubyObject>> list = new ArrayList<Variable<IRubyObject>>(5);
-        list.add(new VariableEntry<IRubyObject>( "subject", subject() ));
-        list.add(new VariableEntry<IRubyObject>( "issuer", issuer() ));
-        list.add(new VariableEntry<IRubyObject>( "serial", serial() ));
-        list.add(new VariableEntry<IRubyObject>( "not_before", not_before() ));
-        list.add(new VariableEntry<IRubyObject>( "not_after", not_after() ));
-        return list;
+        return ObjectSupport.inspect(this, (List) varList);
     }
 
     @JRubyMethod

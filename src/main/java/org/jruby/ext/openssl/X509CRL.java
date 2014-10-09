@@ -359,8 +359,9 @@ public class X509CRL extends RubyObject {
 
     @Override
     @JRubyMethod
+    @SuppressWarnings("unchecked")
     public IRubyObject inspect() {
-        return ObjectSupport.inspect(this, getInstanceVariableList());
+        return ObjectSupport.inspect(this, (List) getInstanceVariableList());
     }
 
     @Override // FAKE'em to include "instance" variables in inspect
