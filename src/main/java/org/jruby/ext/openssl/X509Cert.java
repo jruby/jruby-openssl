@@ -89,8 +89,9 @@ import static org.jruby.ext.openssl.X509Extension.newExtension;
 import static org.jruby.ext.openssl.X509CRL.extensions_to_text;
 import static org.jruby.ext.openssl.StringHelper.appendGMTDateTime;
 import static org.jruby.ext.openssl.StringHelper.appendLowerHexValue;
-import static org.jruby.ext.openssl.StringHelper.gsub;
 import static org.jruby.ext.openssl.StringHelper.lowerHexBytes;
+import static org.jruby.ext.openssl.OpenSSL.debug;
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -412,7 +413,6 @@ public class X509Cert extends RubyObject {
     @JRubyMethod(name = "subject=")
     public IRubyObject set_subject(final IRubyObject subject) {
         if ( ! subject.equals(this.subject) ) this.changed = true;
-        //generator.setSubjectDN( ((X509Name) subject).getRealName() );
         return this.subject = subject;
     }
 
@@ -424,7 +424,6 @@ public class X509Cert extends RubyObject {
     @JRubyMethod(name = "issuer=")
     public IRubyObject set_issuer(final IRubyObject issuer) {
         if ( ! issuer.equals(this.issuer) ) this.changed = true;
-        //generator.setIssuerDN( ((X509Name) issuer).getRealName() );
         return this.issuer = issuer;
     }
 
@@ -438,7 +437,6 @@ public class X509Cert extends RubyObject {
         changed = true;
         not_before = (RubyTime) time.callMethod(context, "getutc");
         not_before.setMicroseconds(0);
-        //generator.setNotBefore( not_before.getJavaDate() );
         return time;
     }
 
@@ -456,7 +454,6 @@ public class X509Cert extends RubyObject {
         changed = true;
         not_after = (RubyTime) time.callMethod(context, "getutc");
         not_after.setMicroseconds(0);
-        //generator.setNotAfter( not_after.getJavaDate() );
         return time;
     }
 
@@ -480,7 +477,6 @@ public class X509Cert extends RubyObject {
         if ( ! public_key.equals(this.public_key) ) {
             this.changed = true;
         }
-        //generator.setPublicKey(((PKey) public_key).getPublicKey());
         return this.public_key = (PKey) public_key;
     }
 
@@ -547,21 +543,19 @@ public class X509Cert extends RubyObject {
             }
         }
 
-        builder.setSignatureAlgorithm(digAlg + "WITH" + keyAlg);
+        builder.setSignatureAlgorithm(digAlg + "WITH" + keyAlg); // "SHA1WITHRSA"
 
         try {
             cert = builder.generate( ((PKey) key).getPrivateKey() );
         }
         catch (GeneralSecurityException e) {
-            throw newCertificateError(getRuntime(), e);
+            throw newCertificateError(runtime, e);
         }
-        if (cert == null) {
-            throw newCertificateError(runtime, (String) null);
-        }
+
+        if (cert == null) throw newCertificateError(runtime, (String) null);
+
         String name = ASN1Registry.o2a(cert.getSigAlgOID());
-        if (name == null) {
-            name = cert.getSigAlgOID();
-        }
+        if ( name == null ) name = cert.getSigAlgOID();
         this.sig_alg = runtime.newString(name);
         this.changed = false;
         return this;
@@ -587,36 +581,43 @@ public class X509Cert extends RubyObject {
     //private transient org.bouncycastle.x509.X509V3CertificateGenerator generator;
 
     @JRubyMethod
-    public IRubyObject verify(IRubyObject key) {
-        if ( changed ) return getRuntime().getFalse();
+    public RubyBoolean verify(final IRubyObject key) {
+        final Ruby runtime = getRuntime();
+
+        if ( changed ) return runtime.getFalse();
 
         try {
-            cert.verify(((PKey)key).getPublicKey());
-            return getRuntime().getTrue();
+            cert.verify(((PKey) key).getPublicKey());
+            return runtime.getTrue();
         }
         catch (CertificateException e) {
-            throw newCertificateError(getRuntime(), e);
+            debug(runtime, "Certificate#verify failed: ", e);
+            throw newCertificateError(runtime, e);
         }
         catch (NoSuchAlgorithmException e) {
-            throw newCertificateError(getRuntime(), e);
+            debugStackTrace(runtime, e);
+            throw newCertificateError(runtime, e);
         }
         catch (NoSuchProviderException e) {
-            throw newCertificateError(getRuntime(), e);
+            debugStackTrace(runtime, e);
+            throw newCertificateError(runtime, e);
         }
         catch (SignatureException e) {
-            return getRuntime().getFalse();
+            debug(runtime, "Certificate#verify failed: ", e);
+            return runtime.getFalse();
         }
         catch (InvalidKeyException e) {
-            return getRuntime().getFalse();
+            debug(runtime, "Certificate#verify failed: ", e);
+            return runtime.getFalse();
         }
     }
 
     @JRubyMethod
-    public RubyBoolean check_private_key(IRubyObject arg) {
-        PKey key = (PKey) arg;
-        PublicKey pubKey = key.getPublicKey();
-        PublicKey certPubKey = getAuxCert().getPublicKey();
-        if ( certPubKey.equals(pubKey) ) return getRuntime().getTrue();
+    public RubyBoolean check_private_key(final IRubyObject key) {
+        final PublicKey certPublicKey = cert.getPublicKey();
+        if ( certPublicKey.equals( ((PKey) key).getPublicKey() ) ) {
+            return getRuntime().getTrue();
+        }
         return getRuntime().getFalse();
     }
 
@@ -628,7 +629,7 @@ public class X509Cert extends RubyObject {
     }
 
     @SuppressWarnings("unchecked")
-    @JRubyMethod(name="extensions=")
+    @JRubyMethod(name = "extensions=")
     public IRubyObject set_extensions(final IRubyObject array) {
         extensions.clear(); // RubyArray is a List :
         extensions.addAll( (List<X509Extension>) array );

@@ -258,9 +258,8 @@ public class X509AuxCertificate extends X509Certificate {
         return wrap.hasUnsupportedCriticalExtension();
     }
 
-    private static final String NS_CERT_TYPE_OID = "2.16.840.1.113730.1.1";
-
     public Integer getNsCertType() throws CertificateException {
+        final String NS_CERT_TYPE_OID = "2.16.840.1.113730.1.1";
         final byte[] bytes = getExtensionValue(NS_CERT_TYPE_OID);
         if ( bytes == null ) return null;
 
@@ -269,7 +268,7 @@ public class X509AuxCertificate extends X509Certificate {
             if ( o instanceof DERBitString ) {
                 return ((DERBitString) o).intValue();
             }
-            else if ( o instanceof DEROctetString ) {
+            if ( o instanceof DEROctetString ) {
                 // just reads initial object for nsCertType definition and ignores trailing objects.
                 ASN1InputStream in = new ASN1InputStream(((DEROctetString) o).getOctets());
                 o = in.readObject();
