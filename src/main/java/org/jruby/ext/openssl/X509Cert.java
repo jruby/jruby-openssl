@@ -463,9 +463,7 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod
     public IRubyObject public_key(final ThreadContext context) {
-        if ( this.public_key == null ) {
-            initializePublicKey(context);
-        }
+        if ( public_key == null ) initializePublicKey();
         return public_key.callMethod(context, "public_key");
     }
 
@@ -480,40 +478,42 @@ public class X509Cert extends RubyObject {
         return this.public_key = (PKey) public_key;
     }
 
-    private PublicKey getPublicKey() { return cert == null ? null : cert.getPublicKey(); }
+    private PublicKey getPublicKey() {
+        if ( public_key == null ) initializePublicKey();
+        return public_key.getPublicKey();
+    }
 
-    private void initializePublicKey(final ThreadContext context) throws RaiseException {
+    private void initializePublicKey() throws RaiseException {
+        final Ruby runtime = getRuntime();
+
         final boolean changed = this.changed;
 
-        RubyModule OpenSSL = context.runtime.getModule("OpenSSL");
-        RubyModule PKey = (RubyModule) OpenSSL.getConstant("PKey");
-
-        if ( getPublicKey() == null ) {
-            throw newCertificateError(context.runtime, "no certificate");
+        if ( cert == null ) {
+            throw newCertificateError(runtime, "no certificate");
         }
 
-        final String algorithm = getPublicKey().getAlgorithm();
-        final byte[] public_key = getPublicKey().getEncoded();
+        final PublicKey publicKey = cert.getPublicKey();
+
+        final String algorithm = publicKey.getAlgorithm();
 
         if ( "RSA".equalsIgnoreCase(algorithm) ) {
-            if ( public_key == null ) {
-                throw new IllegalStateException("no public key encoded data");
-            }
-            RubyString encoded = RubyString.newString(context.runtime, public_key);
-            set_public_key( PKey.getConstant("RSA").callMethod(context, "new", encoded) );
+            //if ( public_key == null ) {
+            //    throw new IllegalStateException("no public key encoded data");
+            //}
+            set_public_key( PKeyRSA.newInstance(runtime, publicKey) );
         }
         else if ( "DSA".equalsIgnoreCase(algorithm) ) {
-            if ( public_key == null ) {
-                throw new IllegalStateException("no public key encoded data");
-            }
-            RubyString encoded = RubyString.newString(context.runtime, public_key);
-            set_public_key( PKey.getConstant("DSA").callMethod(context, "new", encoded) );
+            //if ( public_key == null ) {
+            //    throw new IllegalStateException("no public key encoded data");
+            //}
+            set_public_key( PKeyDSA.newInstance(runtime, publicKey) );
         }
         else {
             String message = "unsupported algorithm";
             if ( algorithm != null ) message += " '" + algorithm + "'";
-            throw newCertificateError(context.runtime, message);
+            throw newCertificateError(runtime, message);
         }
+
         this.changed = changed;
     }
 
@@ -571,9 +571,7 @@ public class X509Cert extends RubyObject {
 
         generator.setNotBefore( not_before.getJavaDate() );
         generator.setNotAfter( not_after.getJavaDate() );
-
-        if ( public_key == null ) initializePublicKey(getRuntime().getCurrentContext());
-        generator.setPublicKey( public_key.getPublicKey() );
+        generator.setPublicKey( getPublicKey() );
 
         return generator;
     }

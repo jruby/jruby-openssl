@@ -155,6 +155,12 @@ public class PKeyDSA extends PKey {
         }
     }
 
+    static PKeyDSA newInstance(final Ruby runtime, final PublicKey publicKey) {
+        //if ( publicKey instanceof DSAPublicKey ) {
+        return new PKeyDSA(runtime, (DSAPublicKey) publicKey);
+        //}
+    }
+
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;

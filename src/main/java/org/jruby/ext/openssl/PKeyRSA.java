@@ -192,6 +192,12 @@ public class PKeyRSA extends PKey {
         }
     }
 
+    static PKeyRSA newInstance(final Ruby runtime, final PublicKey publicKey) {
+        //if ( publicKey instanceof RSAPublicKey ) {
+        return new PKeyRSA(runtime, (RSAPublicKey) publicKey);
+        //}
+    }
+
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
