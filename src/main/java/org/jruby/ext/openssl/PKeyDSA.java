@@ -46,6 +46,7 @@ import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 
 import org.jruby.Ruby;
+import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
@@ -265,18 +266,18 @@ public class PKeyDSA extends PKey {
         return this;
     }
 
-    @JRubyMethod(name="public?")
-    public IRubyObject public_p() {
+    @JRubyMethod(name = "public?")
+    public RubyBoolean public_p() {
         return pubKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
-    @JRubyMethod(name="private?")
-    public IRubyObject private_p() {
+    @JRubyMethod(name = "private?")
+    public RubyBoolean private_p() {
         return privKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
     @Override
-    @JRubyMethod
+    @JRubyMethod(name = "to_der")
     public RubyString to_der() {
         final byte[] bytes;
         try {
@@ -316,28 +317,31 @@ public class PKeyDSA extends PKey {
         return new PKeyDSA(getRuntime(), this.pubKey);
     }
 
-    @JRubyMethod(name = { "export", "to_pem", "to_s" }, rest = true)
-    public IRubyObject export(IRubyObject[] args) {
+    @Override
+    @JRubyMethod(name = { "to_pem", "to_s" }, alias = "export", rest = true)
+    public RubyString to_pem(final IRubyObject[] args) {
         Arity.checkArgumentCount(getRuntime(), args, 0, 2);
+
         CipherSpec spec = null; char[] passwd = null;
-        if (args.length > 0 && !args[0].isNil()) {
-            final Cipher c = (Cipher) args[0];
-            spec = new CipherSpec(c.getCipherInstance(), c.getName(), c.getKeyLength() * 8);
-            if (args.length > 1 && !args[1].isNil()) {
-                passwd = args[1].toString().toCharArray();
-            }
+        if ( args.length > 0 ) {
+            spec = cipherSpec( args[0] );
+            if ( args.length > 1 ) passwd = password(args[1]);
         }
+
         try {
             final StringWriter writer = new StringWriter();
-            if (privKey != null) {
+            if ( privKey != null ) {
                 PEMInputOutput.writeDSAPrivateKey(writer, privKey, spec, passwd);
-            } else {
+            }
+            else {
                 PEMInputOutput.writeDSAPublicKey(writer, pubKey);
             }
-            return getRuntime().newString(writer.toString());
-        } catch (NoClassDefFoundError ncdfe) {
+            return RubyString.newString(getRuntime(), writer.getBuffer());
+        }
+        catch (NoClassDefFoundError ncdfe) {
             throw newDSAError(getRuntime(), bcExceptionMessage(ncdfe));
-        } catch (IOException ioe) {
+        }
+        catch (IOException ioe) {
             throw newDSAError(getRuntime(), ioe.getMessage());
         }
     }

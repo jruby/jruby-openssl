@@ -44,6 +44,7 @@ import javax.crypto.spec.DHPrivateKeySpec;
 import javax.crypto.spec.DHPublicKeySpec;
 
 import org.jruby.Ruby;
+import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyHash;
 import org.jruby.RubyModule;
@@ -61,6 +62,7 @@ import org.jruby.runtime.Visibility;
 
 import static org.jruby.ext.openssl.PKey._PKey;
 import static org.jruby.ext.openssl.OpenSSL.bcExceptionMessage;
+import org.jruby.ext.openssl.impl.CipherSpec;
 
 /**
  * OpenSSL::PKey::DH implementation.
@@ -270,20 +272,29 @@ public class PKeyDH extends PKey {
     }
 
     @JRubyMethod(name = "public?")
-    public IRubyObject public_p() {
+    public RubyBoolean public_p() {
         return getRuntime().newBoolean(dh_y != null);
     }
 
     @JRubyMethod(name = "private?")
-    public IRubyObject private_p() {
+    public RubyBoolean private_p() {
         // FIXME! need to figure out what it means in MRI/OSSL code to
         // claim a DH is private if an engine is present -- doesn't really
         // map to Java implementation.
         return getRuntime().newBoolean(dh_x != null /* || haveEngine */);
     }
 
-    @JRubyMethod(name = { "to_pem", "to_s" }, alias = "export")
-    public RubyString to_pem() {
+    @Override
+    @JRubyMethod(name = { "to_pem", "to_s" }, alias = "export", rest = true)
+    public RubyString to_pem(final IRubyObject[] args) {
+        //Arity.checkArgumentCount(getRuntime(), args, 0, 2);
+
+        //CipherSpec spec = null; char[] passwd = null;
+        //if ( args.length > 0 ) {
+        //    spec = cipherSpec( args[0] );
+        //    if ( args.length > 1 ) passwd = password(args[1]);
+        //}
+
         BigInteger p, g;
         synchronized(this) {
             p = this.dh_p;
@@ -299,11 +310,11 @@ public class PKeyDH extends PKey {
         catch (IOException e) { // shouldn't happen (string/buffer io only)
             throw getRuntime().newIOErrorFromException(e);
         }
-        return getRuntime().newString(writer.toString());
+        return RubyString.newString(getRuntime(), writer.getBuffer());
     }
 
     @Override
-    @JRubyMethod
+    @JRubyMethod(name = "to_der")
     public RubyString to_der() {
         BigInteger p, g;
         synchronized (this) {

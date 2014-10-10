@@ -62,6 +62,7 @@ import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import static org.jruby.ext.openssl.OpenSSL.*;
+import org.jruby.ext.openssl.impl.CipherSpec;
 import static org.jruby.ext.openssl.impl.PKey.readPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readPublicKey;
 
@@ -186,8 +187,14 @@ public abstract class PKey extends RubyObject {
 
     public String getAlgorithm() { return "NONE"; }
 
-    // NetscapeSPKI uses it.
-    public abstract IRubyObject to_der();
+    public abstract RubyString to_der() ;
+
+    public abstract RubyString to_pem(final IRubyObject[] args) ;
+
+    @Deprecated
+    public RubyString export(final IRubyObject[] args) {
+        return to_pem(args);
+    }
 
     @JRubyMethod(name = "sign")
     public IRubyObject sign(IRubyObject digest, IRubyObject data) {
@@ -326,6 +333,14 @@ public abstract class PKey extends RubyObject {
             sep = ":";
         }
         result.append("\n");
+    }
+
+    protected static CipherSpec cipherSpec(final IRubyObject cipher) {
+        if ( cipher != null && ! cipher.isNil() ) {
+            final Cipher c = (Cipher) cipher;
+            return new CipherSpec(c.getCipherInstance(), c.getName(), c.getKeyLength() * 8);
+        }
+        return null;
     }
 
     protected static char[] password(final IRubyObject pass) {

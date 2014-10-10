@@ -53,6 +53,7 @@ import static javax.crypto.Cipher.*;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyBignum;
+import org.jruby.RubyBoolean;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyHash;
 import org.jruby.RubyModule;
@@ -71,6 +72,7 @@ import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.PKey._PKey;
+import static org.jruby.ext.openssl.PKey.cipherSpec;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPublicKey;
 import static org.jruby.ext.openssl.impl.PKey.toDerRSAKey;
@@ -192,8 +194,7 @@ public class PKeyRSA extends PKey {
     }
 
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context,
-        final IRubyObject[] args, final Block block) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
 
         if ( Arity.checkArgumentCount(runtime, args, 0, 2) == 0 ) {
@@ -305,18 +306,18 @@ public class PKeyRSA extends PKey {
         return this;
     }
 
-    @JRubyMethod(name="public?")
-    public IRubyObject public_p() {
+    @JRubyMethod(name = "public?")
+    public RubyBoolean public_p() {
         return pubKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
-    @JRubyMethod(name="private?")
-    public IRubyObject private_p() {
+    @JRubyMethod(name = "private?")
+    public RubyBoolean private_p() {
         return privKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
     @Override
-    @JRubyMethod
+    @JRubyMethod(name = "to_der")
     public RubyString to_der() {
         final byte[] bytes;
         try {
@@ -364,7 +365,7 @@ public class PKeyRSA extends PKey {
     }
 
     @JRubyMethod
-    public IRubyObject to_text() {
+    public RubyString to_text() {
         StringBuilder result = new StringBuilder();
         if (privKey != null) {
             int len = privKey.getModulus().bitLength();
@@ -393,29 +394,31 @@ public class PKeyRSA extends PKey {
         return getRuntime().newString(result.toString());
     }
 
-    @JRubyMethod(name = { "export", "to_pem", "to_s" }, rest = true)
-    public IRubyObject export(IRubyObject[] args) {
-        StringWriter w = new StringWriter();
+    @Override
+    @JRubyMethod(name = { "to_pem", "to_s" }, alias = "export", rest = true)
+    public RubyString to_pem(final IRubyObject[] args) {
         Arity.checkArgumentCount(getRuntime(), args, 0, 2);
+
         CipherSpec spec = null; char[] passwd = null;
-        if (args.length > 0 && !args[0].isNil()) {
-            final Cipher c = (Cipher) args[0];
-            spec = new CipherSpec(c.getCipherInstance(), c.getName(), c.getKeyLength() * 8);
-            if (args.length > 1 && !args[1].isNil()) {
-                passwd = args[1].toString().toCharArray();
-            }
+        if ( args.length > 0 ) {
+            spec = cipherSpec( args[0] );
+            if ( args.length > 1 ) passwd = password(args[1]);
         }
+
         try {
-            if (privKey != null) {
-                PEMInputOutput.writeRSAPrivateKey(w, privKey, spec, passwd);
-            } else {
-                PEMInputOutput.writeRSAPublicKey(w, pubKey);
+            final StringWriter writer = new StringWriter();
+            if ( privKey != null ) {
+                PEMInputOutput.writeRSAPrivateKey(writer, privKey, spec, passwd);
             }
-            w.close();
-            return getRuntime().newString(w.toString());
-        } catch (NoClassDefFoundError ncdfe) {
+            else {
+                PEMInputOutput.writeRSAPublicKey(writer, pubKey);
+            }
+            return RubyString.newString(getRuntime(), writer.getBuffer());
+        }
+        catch (NoClassDefFoundError ncdfe) {
             throw newRSAError(getRuntime(), bcExceptionMessage(ncdfe));
-        } catch (IOException ioe) {
+        }
+        catch (IOException ioe) {
             throw newRSAError(getRuntime(), ioe.getMessage());
         }
     }
