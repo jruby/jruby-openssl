@@ -73,7 +73,7 @@ import static org.jruby.ext.openssl.PKey._PKey;
  */
 public class PKeyDSA extends PKey {
     private static final long serialVersionUID = 6351851846414049890L;
-    
+
     private static ObjectAllocator PKEYDSA_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
             return new PKeyDSA(runtime, klass);
@@ -107,8 +107,8 @@ public class PKeyDSA extends PKey {
         this(runtime, _DSA(runtime), null, pubKey);
     }
 
-    private DSAPublicKey publicKey;
-    private transient DSAPrivateKey privateKey;
+    private volatile DSAPublicKey publicKey;
+    private volatile transient DSAPrivateKey privateKey;
 
     // specValues holds individual DSAPublicKeySpec components. this allows
     // a public key to be constructed incrementally, as required by the
