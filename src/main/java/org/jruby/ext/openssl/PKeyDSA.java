@@ -72,8 +72,8 @@ import static org.jruby.ext.openssl.PKey._PKey;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class PKeyDSA extends PKey {
-    private static final long serialVersionUID = 2359742219218350277L;
-
+    private static final long serialVersionUID = 6351851846414049890L;
+    
     private static ObjectAllocator PKEYDSA_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
             return new PKeyDSA(runtime, klass);
@@ -93,43 +93,37 @@ public class PKeyDSA extends PKey {
         return _PKey(runtime).getClass("DSA");
     }
 
-    public static RaiseException newDSAError(Ruby runtime, String message) {
-        return Utils.newError(runtime, _PKey(runtime).getClass("DSAError"), message);
-    }
-
     public PKeyDSA(Ruby runtime, RubyClass type) {
         super(runtime, type);
     }
 
     public PKeyDSA(Ruby runtime, RubyClass type, DSAPrivateKey privKey, DSAPublicKey pubKey) {
         super(runtime, type);
-        this.privKey = privKey;
-        this.pubKey = pubKey;
+        this.privateKey = privKey;
+        this.publicKey = pubKey;
     }
 
     PKeyDSA(Ruby runtime, DSAPublicKey pubKey) {
         this(runtime, _DSA(runtime), null, pubKey);
     }
 
-    private DSAPrivateKey privKey;
-    private DSAPublicKey pubKey;
+    private DSAPublicKey publicKey;
+    private transient DSAPrivateKey privateKey;
 
     // specValues holds individual DSAPublicKeySpec components. this allows
     // a public key to be constructed incrementally, as required by the
     // current implementation of Net::SSH.
     // (see net-ssh-1.1.2/lib/net/ssh/transport/ossl/buffer.rb #read_keyblob)
-    private BigInteger[] specValues;
-
-    private static final int SPEC_Y = 0;
-    private static final int SPEC_P = 1;
-    private static final int SPEC_Q = 2;
-    private static final int SPEC_G = 3;
+    private transient volatile BigInteger dsa_y;
+    private transient volatile BigInteger dsa_p;
+    private transient volatile BigInteger dsa_q;
+    private transient volatile BigInteger dsa_g;
 
     @Override
-    public PublicKey getPublicKey() { return pubKey; }
+    public PublicKey getPublicKey() { return publicKey; }
 
     @Override
-    public PrivateKey getPrivateKey() { return privKey; }
+    public PrivateKey getPrivateKey() { return privateKey; }
 
     @Override
     public String getAlgorithm() { return "DSA"; }
@@ -150,14 +144,14 @@ public class PKeyDSA extends PKey {
             KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("DSA");
             gen.initialize(keysize, new SecureRandom());
             KeyPair pair = gen.generateKeyPair();
-            dsa.privKey = (DSAPrivateKey) pair.getPrivate();
-            dsa.pubKey = (DSAPublicKey) pair.getPublic();
+            dsa.privateKey = (DSAPrivateKey) pair.getPrivate();
+            dsa.publicKey = (DSAPublicKey) pair.getPublic();
         }
         catch (NoSuchAlgorithmException e) {
             throw newDSAError(dsa.getRuntime(), e.getMessage());
         }
         catch (RuntimeException e) {
-            throw newDSAError(dsa.getRuntime(), e.getMessage());
+            throw newDSAError(dsa.getRuntime(), e.getMessage(), e);
         }
     }
 
@@ -166,7 +160,7 @@ public class PKeyDSA extends PKey {
         final Ruby runtime = context.runtime;
 
         if ( Arity.checkArgumentCount(runtime, args, 0, 2) == 0 ) {
-            this.privKey = null; this.pubKey = null; return this;
+            this.privateKey = null; this.publicKey = null; return this;
         }
 
         IRubyObject arg = args[0]; IRubyObject pass = null;
@@ -243,22 +237,22 @@ public class PKeyDSA extends PKey {
         if ( key == null ) throw newDSAError(runtime, "Neither PUB key nor PRIV key:");
 
         if ( key instanceof KeyPair ) {
-            PublicKey publicKey = ((KeyPair) key).getPublic();
-            PrivateKey privateKey = ((KeyPair) key).getPrivate();
-            if ( ! ( privateKey instanceof DSAPrivateKey ) ) {
-                if ( privateKey == null ) {
+            final PublicKey pubKey = ((KeyPair) key).getPublic();
+            final PrivateKey privKey = ((KeyPair) key).getPrivate();
+            if ( ! ( privKey instanceof DSAPrivateKey ) ) {
+                if ( privKey == null ) {
                     throw newDSAError(runtime, "Neither PUB key nor PRIV key: (private key is null)");
                 }
-                throw newDSAError(runtime, "Neither PUB key nor PRIV key: (invalid key type " + privateKey.getClass().getName() + ")");
+                throw newDSAError(runtime, "Neither PUB key nor PRIV key: (invalid key type " + privKey.getClass().getName() + ")");
             }
-            this.privKey = (DSAPrivateKey) privateKey;
-            this.pubKey = (DSAPublicKey) publicKey;
+            this.privateKey = (DSAPrivateKey) privKey;
+            this.publicKey = (DSAPublicKey) pubKey;
         }
         else if ( key instanceof DSAPrivateKey ) {
-            this.privKey = (DSAPrivateKey) key;
+            this.privateKey = (DSAPrivateKey) key;
         }
         else if ( key instanceof DSAPublicKey ) {
-            this.pubKey = (DSAPublicKey) key; this.privKey = null;
+            this.publicKey = (DSAPublicKey) key; this.privateKey = null;
         }
         else {
             throw newDSAError(runtime, "Neither PUB key nor PRIV key: "  + key.getClass().getName());
@@ -268,12 +262,12 @@ public class PKeyDSA extends PKey {
 
     @JRubyMethod(name = "public?")
     public RubyBoolean public_p() {
-        return pubKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
+        return publicKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
     @JRubyMethod(name = "private?")
     public RubyBoolean private_p() {
-        return privKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
+        return privateKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
     @Override
@@ -281,13 +275,13 @@ public class PKeyDSA extends PKey {
     public RubyString to_der() {
         final byte[] bytes;
         try {
-            bytes = toDerDSAKey(pubKey, privKey);
+            bytes = toDerDSAKey(publicKey, privateKey);
         }
         catch (NoClassDefFoundError e) {
             throw newDSAError(getRuntime(), bcExceptionMessage(e));
         }
         catch (IOException e) {
-            throw newDSAError(getRuntime(), e.getMessage());
+            throw newDSAError(getRuntime(), e.getMessage(), e);
         }
         return StringHelper.newString(getRuntime(), bytes);
     }
@@ -295,26 +289,26 @@ public class PKeyDSA extends PKey {
     @JRubyMethod
     public RubyString to_text() {
         StringBuilder result = new StringBuilder();
-        if (privKey != null) {
-            int len = privKey.getParams().getP().bitLength();
+        if (privateKey != null) {
+            int len = privateKey.getParams().getP().bitLength();
             result.append("Private-Key: (").append(len).append(" bit)").append("\n");
             result.append("priv:");
-            addSplittedAndFormatted(result, privKey.getX());
+            addSplittedAndFormatted(result, privateKey.getX());
         }
         result.append("pub:");
-        addSplittedAndFormatted(result, pubKey.getY());
+        addSplittedAndFormatted(result, publicKey.getY());
         result.append("P:");
-        addSplittedAndFormatted(result, pubKey.getParams().getP());
+        addSplittedAndFormatted(result, publicKey.getParams().getP());
         result.append("Q:");
-        addSplittedAndFormatted(result, pubKey.getParams().getQ());
+        addSplittedAndFormatted(result, publicKey.getParams().getQ());
         result.append("G:");
-        addSplittedAndFormatted(result, pubKey.getParams().getG());
+        addSplittedAndFormatted(result, publicKey.getParams().getG());
         return RubyString.newString(getRuntime(), result);
     }
 
     @JRubyMethod
     public PKeyDSA public_key() {
-        return new PKeyDSA(getRuntime(), this.pubKey);
+        return new PKeyDSA(getRuntime(), this.publicKey);
     }
 
     @Override
@@ -330,19 +324,19 @@ public class PKeyDSA extends PKey {
 
         try {
             final StringWriter writer = new StringWriter();
-            if ( privKey != null ) {
-                PEMInputOutput.writeDSAPrivateKey(writer, privKey, spec, passwd);
+            if ( privateKey != null ) {
+                PEMInputOutput.writeDSAPrivateKey(writer, privateKey, spec, passwd);
             }
             else {
-                PEMInputOutput.writeDSAPublicKey(writer, pubKey);
+                PEMInputOutput.writeDSAPublicKey(writer, publicKey);
             }
             return RubyString.newString(getRuntime(), writer.getBuffer());
         }
         catch (NoClassDefFoundError ncdfe) {
             throw newDSAError(getRuntime(), bcExceptionMessage(ncdfe));
         }
-        catch (IOException ioe) {
-            throw newDSAError(getRuntime(), ioe.getMessage());
+        catch (IOException e) {
+            throw newDSAError(getRuntime(), e.getMessage(), e);
         }
     }
 
@@ -358,140 +352,132 @@ public class PKeyDSA extends PKey {
         return getRuntime().getNil();
     }
 
-    @JRubyMethod(name="p")
+    @JRubyMethod(name = "p")
     public synchronized IRubyObject get_p() {
         // FIXME: return only for public?
-        DSAKey key;
-        BigInteger param;
-        if ((key = this.pubKey) != null || (key = this.privKey) != null) {
+        DSAKey key; BigInteger param;
+        if ((key = this.publicKey) != null || (key = this.privateKey) != null) {
             if ((param = key.getParams().getP()) != null) {
                 return BN.newBN(getRuntime(), param);
             }
-        } else if (specValues != null) {
-            if ((param = specValues[SPEC_P]) != null) {
-                return BN.newBN(getRuntime(), param);
-            }
+        }
+        else if (dsa_p != null) {
+            return BN.newBN(getRuntime(), dsa_p);
         }
         return getRuntime().getNil();
     }
 
-    @JRubyMethod(name="p=")
+    @JRubyMethod(name = "p=")
     public synchronized IRubyObject set_p(IRubyObject p) {
         return setKeySpecComponent(SPEC_P, p);
     }
 
-    @JRubyMethod(name="q")
+    @JRubyMethod(name = "q")
     public synchronized IRubyObject get_q() {
         // FIXME: return only for public?
-        DSAKey key;
-        BigInteger param;
-        if ((key = this.pubKey) != null || (key = this.privKey) != null) {
+        DSAKey key; BigInteger param;
+        if ((key = this.publicKey) != null || (key = this.privateKey) != null) {
             if ((param = key.getParams().getQ()) != null) {
                 return BN.newBN(getRuntime(), param);
             }
-        } else if (specValues != null) {
-            if ((param = specValues[SPEC_Q]) != null) {
-                return BN.newBN(getRuntime(), param);
-            }
+        }
+        else if (dsa_q != null) {
+            return BN.newBN(getRuntime(), dsa_q);
         }
         return getRuntime().getNil();
     }
 
-    @JRubyMethod(name="q=")
+    @JRubyMethod(name = "q=")
     public synchronized IRubyObject set_q(IRubyObject q) {
         return setKeySpecComponent(SPEC_Q, q);
     }
 
-    @JRubyMethod(name="g")
+    @JRubyMethod(name = "g")
     public synchronized IRubyObject get_g() {
         // FIXME: return only for public?
-        DSAKey key;
-        BigInteger param;
-        if ((key = this.pubKey) != null || (key = this.privKey) != null) {
+        DSAKey key; BigInteger param;
+        if ((key = this.publicKey) != null || (key = this.privateKey) != null) {
             if ((param = key.getParams().getG()) != null) {
                 return BN.newBN(getRuntime(), param);
             }
-        } else if (specValues != null) {
-            if ((param = specValues[SPEC_G]) != null) {
-                return BN.newBN(getRuntime(), param);
-            }
+        }
+        else if (dsa_g != null) {
+            return BN.newBN(getRuntime(), dsa_g);
         }
         return getRuntime().getNil();
     }
 
-    @JRubyMethod(name="g=")
+    @JRubyMethod(name = "g=")
     public synchronized IRubyObject set_g(IRubyObject g) {
         return setKeySpecComponent(SPEC_G, g);
     }
 
-    @JRubyMethod(name="pub_key")
+    @JRubyMethod(name = "pub_key")
     public synchronized IRubyObject get_pub_key() {
         DSAPublicKey key;
-        BigInteger param;
-        if ((key = this.pubKey) != null) {
+        if ( ( key = this.publicKey ) != null ) {
             return BN.newBN(getRuntime(), key.getY());
-        } else if (specValues != null) {
-            if ((param = specValues[SPEC_Y]) != null) {
-                return BN.newBN(getRuntime(), param);
-            }
+        }
+        else if (dsa_y != null) {
+            return BN.newBN(getRuntime(), dsa_y);
         }
         return getRuntime().getNil();
     }
 
-    @JRubyMethod(name="priv_key")
+    @JRubyMethod(name = "priv_key")
     public synchronized IRubyObject get_priv_key() {
         DSAPrivateKey key;
-        if ((key = this.privKey) != null) {
+        if ((key = this.privateKey) != null) {
             return BN.newBN(getRuntime(), key.getX());
         }
         return getRuntime().getNil();
     }
 
-    @JRubyMethod(name="pub_key=")
+    @JRubyMethod(name = "pub_key=")
     public synchronized IRubyObject set_pub_key(IRubyObject pub_key) {
         return setKeySpecComponent(SPEC_Y, pub_key);
     }
 
-    private IRubyObject setKeySpecComponent(int index, IRubyObject value) {
-        BigInteger[] vals;
-        // illegal to set if we already have a key for this component
-        // FIXME: allow changes after keys are created? MRI doesn't prevent it...
-        if (this.pubKey != null || this.privKey != null ||
-                (vals = this.specValues) != null && vals[index] != null) {
-            throw newDSAError(getRuntime(), "illegal modification");
-        }
-        // get the BigInteger value
-        BigInteger bival = BN.getBigInteger(value);
+    private IRubyObject setKeySpecComponent(final int index, final IRubyObject value) {
+        final BigInteger val = BN.getBigInteger(value);
 
-        if (vals != null) {
-            // we already have some vals stored, store this one, too
-            vals[index] = bival;
-            // check to see if we have all values yet
-            for (int i = vals.length; --i >= 0; ) {
-                if (vals[i] == null) {
-                    // still missing components, return
-                    return value;
-                }
-            }
-            // we now have all components. create the key.
-            DSAPublicKeySpec spec = new DSAPublicKeySpec(vals[SPEC_Y], vals[SPEC_P], vals[SPEC_Q], vals[SPEC_G]);
+        switch (index) {
+            case SPEC_Y: this.dsa_y = val; break;
+            case SPEC_P: this.dsa_p = val; break;
+            case SPEC_Q: this.dsa_q = val; break;
+            case SPEC_G: this.dsa_g = val; break;
+        }
+
+        if ( dsa_y != null && dsa_p != null && dsa_q != null && dsa_g != null ) {
+            // we now have all components. create the key :
+            DSAPublicKeySpec spec = new DSAPublicKeySpec(dsa_y, dsa_p, dsa_q, dsa_g);
             try {
-                this.pubKey = (DSAPublicKey) SecurityHelper.getKeyFactory("DSA").generatePublic(spec);
-            } catch (InvalidKeySpecException e) {
-                throw newDSAError(getRuntime(), "invalid keyspec");
-            } catch (NoSuchAlgorithmException e) {
-                throw newDSAError(getRuntime(), "unsupported key algorithm (DSA)");
+                this.publicKey = (DSAPublicKey) SecurityHelper.getKeyFactory("DSA").generatePublic(spec);
+            }
+            catch (InvalidKeySpecException e) {
+                throw newDSAError(getRuntime(), "invalid keyspec", e);
+            }
+            catch (NoSuchAlgorithmException e) {
+                throw newDSAError(getRuntime(), "unsupported key algorithm (DSA)", e);
             }
             // clear out the specValues
-            this.specValues = null;
-
-        } else {
-
-            // first value received, save
-            this.specValues = new BigInteger[4];
-            this.specValues[index] = bival;
+            this.dsa_y = this.dsa_p = this.dsa_q = this.dsa_g = null;
         }
+
         return value;
+    }
+
+    private static final int SPEC_Y = 0;
+    private static final int SPEC_P = 1;
+    private static final int SPEC_Q = 2;
+    private static final int SPEC_G = 3;
+
+    public static RaiseException newDSAError(Ruby runtime, String message) {
+        return Utils.newError(runtime, _PKey(runtime).getClass("DSAError"), message);
+    }
+
+    static RaiseException newDSAError(Ruby runtime, String message, Exception cause) {
+        return Utils.newError(runtime, _PKey(runtime).getClass("DSAError"), message, cause);
     }
 
 }// PKeyDSA
