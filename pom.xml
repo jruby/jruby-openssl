@@ -261,6 +261,28 @@
         </configuration>
       </plugin>
       <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>lib</directory>
+              <includes>
+                <include>jopenssl.jar</include>
+              </includes>
+            </fileset>
+            <fileset>
+              <directory>lib/org</directory>
+            </fileset>
+            <fileset>
+              <directory>target</directory>
+              <includes>
+                <include>*</include>
+              </includes>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+      <plugin>
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>

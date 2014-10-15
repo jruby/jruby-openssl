@@ -76,6 +76,12 @@ plugin( :compiler, '3.1',
       # NOTE: maybe '-J-Xbootclasspath/p:${unsafe.jar}' ... as well ?!
 end
 
+plugin :clean, :filesets => [
+                    { :directory => 'lib', :includes => [ 'jopenssl.jar' ] },
+                    { :directory => 'lib/org' },
+                    { :directory => 'target', :includes => [ '*' ] },
+                ]
+
 # NOTE: unfortunately we can not use 1.6.8 to generate invokers ...
 # although we'd like to compile against 1.6 to make sure all is well
 jar 'org.jruby:jruby-core', '1.7.17', :scope => :provided  # 1.6.8
