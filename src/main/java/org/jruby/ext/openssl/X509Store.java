@@ -27,6 +27,10 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl;
 
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
+import static org.jruby.ext.openssl.OpenSSL.warn;
+import static org.jruby.ext.openssl.X509._X509;
+
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
@@ -35,22 +39,17 @@ import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
-import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.Store;
 import org.jruby.ext.openssl.x509store.StoreContext;
+import org.jruby.ext.openssl.x509store.X509AuxCertificate;
+import org.jruby.ext.openssl.x509store.X509Error;
 import org.jruby.ext.openssl.x509store.X509Utils;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
-import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
-
-import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
-import static org.jruby.ext.openssl.OpenSSL.isDebug;
-import static org.jruby.ext.openssl.OpenSSL.warn;
-import static org.jruby.ext.openssl.X509._X509;
-import org.jruby.ext.openssl.x509store.X509Error;
+import org.jruby.runtime.builtin.IRubyObject;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -164,11 +163,11 @@ public class X509Store extends RubyObject {
     @JRubyMethod
     public IRubyObject add_file(final IRubyObject arg) {
         String file = arg.toString();
+        final Ruby runtime = getRuntime();
         try {
-            store.loadLocations(file, null);
+            store.loadLocations(runtime, file, null);
         }
         catch (Exception e) {
-            final Ruby runtime = getRuntime();
             debugStackTrace(runtime, e);
             throw newStoreError(runtime, "loading file failed: ", e);
         }
@@ -179,7 +178,7 @@ public class X509Store extends RubyObject {
     public IRubyObject set_default_paths(final ThreadContext context) {
         final Ruby runtime = context.runtime;
         try {
-            store.setDefaultPaths();
+            store.setDefaultPaths(runtime);
         }
         catch (Exception e) {
             debugStackTrace(runtime, e);

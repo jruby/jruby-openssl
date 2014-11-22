@@ -336,7 +336,7 @@ public class SSLContext extends RubyObject {
         String caPath = getCaPath();
         if (caFile != null || caPath != null) {
             try {
-                if (internalContext.store.loadLocations(caFile, caPath) == 0) {
+                if (internalContext.store.loadLocations(runtime, caFile, caPath) == 0) {
                     runtime.getWarnings().warn(ID.MISCELLANEOUS, "can't set verify locations");
                 }
             }

@@ -78,7 +78,7 @@ end
 
 # NOTE: unfortunately we can not use 1.6.8 to generate invokers ...
 # although we'd like to compile against 1.6 to make sure all is well
-jar 'org.jruby:jruby-core', '1.7.10', :scope => :provided  # 1.6.8
+jar 'org.jruby:jruby-core', '1.7.16', :scope => :provided  # 1.6.8
 jar 'junit:junit', '4.11', :scope => :test
 
 jruby_plugin! :gem do

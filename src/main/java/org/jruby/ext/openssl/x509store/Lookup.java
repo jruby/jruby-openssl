@@ -27,33 +27,47 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import static org.jruby.ext.openssl.x509store.X509Utils.CRYPTO_LOCK_X509_STORE;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_ASN1;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_DEFAULT;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_PEM;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_CRL;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_FAIL;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_X509;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_L_ADD_DIR;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_L_FILE_LOAD;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_BAD_X509_FILETYPE;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_INVALID_DIRECTORY;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_LOADING_CERT_DIR;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_LOADING_DEFAULTS;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_WRONG_LOOKUP_TYPE;
+import static org.jruby.ext.openssl.x509store.X509Utils.getDefaultCertificateDirectoryEnvironment;
+import static org.jruby.ext.openssl.x509store.X509Utils.getDefaultCertificateFileEnvironment;
+
 import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.InputStream;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-
+import java.io.Reader;
 import java.math.BigInteger;
-
 import java.security.KeyStore;
+import java.security.cert.CRL;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
-import java.security.cert.CRL;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
 import org.jruby.Ruby;
 import org.jruby.RubyHash;
-
 import org.jruby.ext.openssl.SecurityHelper;
-
-import static org.jruby.ext.openssl.x509store.X509Utils.*;
+import org.jruby.util.FileResource;
+import org.jruby.util.JRubyFile;
 
 /**
  * X509_LOOKUP
@@ -65,17 +79,19 @@ public class Lookup {
     boolean init = false;
     boolean skip = false;
     final LookupMethod method;
+    final Ruby runtime;
     Object methodData;
     Store store;
 
     /**
      * c: X509_LOOKUP_new
      */
-    public Lookup(LookupMethod method) {
+    public Lookup(Ruby runtime, LookupMethod method) {
         if ( method == null ) {
             throw new IllegalArgumentException("null method");
         }
         this.method = method;
+        this.runtime = runtime;
 
         final LookupMethod.NewItemFunction newItem = method.newItem;
         if ( newItem != null && newItem != Function1.EMPTY ) {
@@ -278,7 +294,29 @@ public class Lookup {
     }
 
     private InputStream wrapJRubyNormalizedInputStream(String file) throws IOException {
-        return new BufferedInputStream(new FileInputStream(file));
+        try {
+            FileResource resource = JRubyFile.createResource(runtime, file);
+            if(!resource.exists()) {
+                throw new FileNotFoundException(file + " (No such file or directory)");
+            }
+            if(resource.isDirectory()) {
+                throw new IOException(file + " is a directory");
+            }
+            InputStream is = resource.openInputStream();
+            if (is instanceof BufferedInputStream) {
+                return is;
+            }
+            else {
+                return new BufferedInputStream(is);
+            }
+        }
+        catch(NoSuchMethodError e){
+            File f = new File(file);
+            if(!f.isAbsolute()) {
+                f = new File(runtime.getCurrentDirectory(), file);
+            }
+            return new BufferedInputStream(new FileInputStream(f));
+        }
     }
 
     /**
