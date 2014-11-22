@@ -32,18 +32,18 @@ import java.security.PublicKey;
 import java.security.cert.X509CRL;
 import java.security.cert.X509Certificate;
 import java.security.cert.X509Extension;
-
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.HashSet;
 
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.jruby.Ruby;
 import org.jruby.ext.openssl.SecurityHelper;
 
 /**
@@ -448,7 +448,7 @@ public class StoreContext {
     /**
      * c: SSL_CTX_load_verify_locations
      */
-    public int loadVerifyLocations(String CAfile, String CApath) {
+    public int loadVerifyLocations(Ruby runtime, String CAfile, String CApath) {
         boolean reset = false;
         try {
             if ( store == null ) {
@@ -483,7 +483,7 @@ public class StoreContext {
                 }
             }
 
-            final int ret = store.loadLocations(CAfile, CApath);
+            final int ret = store.loadLocations(runtime, CAfile, CApath);
             if ( ret == 0 && reset ) resetSettingsToWithoutStore();
 
             return ret;

@@ -27,33 +27,47 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import static org.jruby.ext.openssl.x509store.X509Utils.CRYPTO_LOCK_X509_STORE;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_ASN1;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_DEFAULT;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_PEM;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_CRL;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_FAIL;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_X509;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_L_ADD_DIR;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_L_FILE_LOAD;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_BAD_X509_FILETYPE;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_INVALID_DIRECTORY;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_LOADING_CERT_DIR;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_LOADING_DEFAULTS;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_WRONG_LOOKUP_TYPE;
+import static org.jruby.ext.openssl.x509store.X509Utils.getDefaultCertificateDirectoryEnvironment;
+import static org.jruby.ext.openssl.x509store.X509Utils.getDefaultCertificateFileEnvironment;
+
 import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.InputStream;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-
+import java.io.Reader;
 import java.math.BigInteger;
-
 import java.security.KeyStore;
+import java.security.cert.CRL;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
-import java.security.cert.CRL;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
 import org.jruby.Ruby;
 import org.jruby.RubyHash;
-
 import org.jruby.ext.openssl.SecurityHelper;
-
-import static org.jruby.ext.openssl.x509store.X509Utils.*;
+import org.jruby.util.FileResource;
+import org.jruby.util.JRubyFile;
 
 /**
  * X509_LOOKUP
@@ -65,17 +79,19 @@ public class Lookup {
     boolean init = false;
     boolean skip = false;
     final LookupMethod method;
+    final Ruby runtime;
     Object methodData;
     Store store;
 
     /**
      * c: X509_LOOKUP_new
      */
-    public Lookup(LookupMethod method) {
+    public Lookup(Ruby runtime, LookupMethod method) {
         if ( method == null ) {
             throw new IllegalArgumentException("null method");
         }
         this.method = method;
+        this.runtime = runtime;
 
         final LookupMethod.NewItemFunction newItem = method.newItem;
         if ( newItem != null && newItem != Function1.EMPTY ) {
@@ -134,14 +150,14 @@ public class Lookup {
     /**
      * c: X509_LOOKUP_load_cert_file
      */
-    public int loadCertificateFile(String file, int type) throws Exception {
+    public int loadCertificateFile(Ruby runtime, String file, int type) throws Exception {
         if ( file == null ) return 1;
 
         int count = 0;
         int ret = 0;
         Reader reader = null;
         try {
-            InputStream in = wrapJRubyNormalizedInputStream(file);
+            InputStream in = wrapJRubyNormalizedInputStream(runtime, file);
             X509AuxCertificate auxCert;
             if (type == X509_FILETYPE_PEM) {
                 reader = new BufferedReader(new InputStreamReader(in));
@@ -180,14 +196,14 @@ public class Lookup {
     /**
      * c: X509_LOOKUP_load_crl_file
      */
-    public int loadCRLFile(String file, int type) throws Exception {
+    public int loadCRLFile(Ruby runtime, String file, int type) throws Exception {
         if ( file == null ) return 1;
 
         int count = 0;
         int ret = 0;
         Reader reader = null;
         try {
-            InputStream in = wrapJRubyNormalizedInputStream(file);
+            InputStream in = wrapJRubyNormalizedInputStream(runtime, file);
             CRL crl;
             if (type == X509_FILETYPE_PEM) {
                 reader = new BufferedReader(new InputStreamReader(in));
@@ -225,13 +241,13 @@ public class Lookup {
     /**
      * c: X509_LOOKUP_load_cert_crl_file
      */
-    public int loadCertificateOrCRLFile(String file, int type) throws Exception {
-        if ( type != X509_FILETYPE_PEM ) return loadCertificateFile(file, type);
+    public int loadCertificateOrCRLFile(Ruby runtime, String file, int type) throws Exception {
+        if ( type != X509_FILETYPE_PEM ) return loadCertificateFile(runtime, file, type);
 
         int count = 0;
         Reader reader = null;
         try {
-            InputStream in = wrapJRubyNormalizedInputStream(file);
+            InputStream in = wrapJRubyNormalizedInputStream(runtime, file);
             reader = new BufferedReader(new InputStreamReader(in));
             for (;;) {
                 Object v = PEMInputOutput.readPEM(reader, null);
@@ -277,8 +293,30 @@ public class Lookup {
         return count;
     }
 
-    private InputStream wrapJRubyNormalizedInputStream(String file) throws IOException {
-        return new BufferedInputStream(new FileInputStream(file));
+    private InputStream wrapJRubyNormalizedInputStream(Ruby runtime, String file) throws IOException {
+        try {
+            FileResource resource = JRubyFile.createResource(runtime, file);
+            if(!resource.exists()) {
+                throw new FileNotFoundException(file + " (No such file or directory)");
+            }
+            if(resource.isDirectory()) {
+                throw new IOException(file + " is a directory");
+            }
+            InputStream is = resource.openInputStream();
+            if (is instanceof BufferedInputStream) {
+                return is;
+            }
+            else {
+                return new BufferedInputStream(is);
+            }
+        }
+        catch(NoSuchMethodError e){
+            File f = new File(file);
+            if(!f.isAbsolute()) {
+                f = new File(runtime.getCurrentDirectory(), file);
+            }
+            return new BufferedInputStream(new FileInputStream(f));
+        }
     }
 
     /**
@@ -393,7 +431,7 @@ public class Lookup {
                     } catch (Error error) {
                     }
                     if (file != null) {
-                        ok = ctx.loadCertificateOrCRLFile(file, X509_FILETYPE_PEM) != 0 ? 1 : 0;
+                        ok = ctx.loadCertificateOrCRLFile(ctx.runtime, file, X509_FILETYPE_PEM) != 0 ? 1 : 0;
                     } else {
                         ok = (ctx.loadDefaultJavaCACertsFile() != 0) ? 1: 0;
                     }
@@ -402,9 +440,9 @@ public class Lookup {
                     }
                 } else {
                     if (arglInt == X509_FILETYPE_PEM) {
-                        ok = (ctx.loadCertificateOrCRLFile(argp, X509_FILETYPE_PEM) != 0) ? 1 : 0;
+                        ok = (ctx.loadCertificateOrCRLFile(ctx.runtime, argp, X509_FILETYPE_PEM) != 0) ? 1 : 0;
                     } else {
-                        ok = (ctx.loadCertificateFile(argp, arglInt) != 0) ? 1 : 0;
+                        ok = (ctx.loadCertificateFile(ctx.runtime, argp, arglInt) != 0) ? 1 : 0;
                     }
                 }
                 break;
@@ -553,11 +591,11 @@ public class Lookup {
                     if ( ! new File(path).exists() ) break;
 
                     if ( type == X509_LU_X509 ) {
-                        if ( lookup.loadCertificateFile(path, dirType) == 0 ) {
+                        if ( lookup.loadCertificateFile(lookup.runtime, path, dirType) == 0 ) {
                             break;
                         }
                     } else if ( type == X509_LU_CRL ) {
-                        if ( lookup.loadCRLFile(path, dirType) == 0 ) {
+                        if ( lookup.loadCRLFile(lookup.runtime, path, dirType) == 0 ) {
                             break;
                         }
                     }

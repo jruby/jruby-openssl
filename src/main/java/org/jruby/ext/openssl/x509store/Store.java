@@ -27,13 +27,19 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import static org.jruby.ext.openssl.x509store.X509Utils.CRYPTO_LOCK_X509_STORE;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_DEFAULT;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_PEM;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_CERT_ALREADY_IN_HASH_TABLE;
+
 import java.io.FileNotFoundException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.net.ssl.X509TrustManager;
 
-import static org.jruby.ext.openssl.x509store.X509Utils.*;
+import org.jruby.Ruby;
 
 /**
  * c: X509_STORE
@@ -244,11 +250,11 @@ public class Store implements X509TrustManager {
     /**
      * c: X509_STORE_add_lookup
      */
-    public Lookup addLookup(final LookupMethod method) throws Exception {
+    public Lookup addLookup(Ruby runtime, final LookupMethod method) throws Exception {
         for ( Lookup lookup : certificateMethods ) {
             if ( lookup.equals(method) ) return lookup;
         }
-        Lookup lookup = new Lookup(method);
+        Lookup lookup = new Lookup(runtime, method);
         lookup.store = this;
         certificateMethods.add(lookup);
         return lookup;
@@ -300,9 +306,9 @@ public class Store implements X509TrustManager {
     /**
      * c: X509_STORE_load_locations
      */
-    public int loadLocations(String file, String path) throws Exception {
+    public int loadLocations(Ruby runtime, String file, String path) throws Exception {
         if ( file != null ) {
-            final Lookup lookup = addLookup( Lookup.fileLookup() );
+            final Lookup lookup = addLookup( runtime, Lookup.fileLookup() );
             if ( lookup == null ) {
                 return 0;
             }
@@ -312,7 +318,7 @@ public class Store implements X509TrustManager {
         }
 
         if ( path != null ) {
-            final Lookup lookup = addLookup( Lookup.hashDirLookup() );
+            final Lookup lookup = addLookup( runtime, Lookup.hashDirLookup() );
             if ( lookup == null ) {
                 return 0;
             }
@@ -328,9 +334,9 @@ public class Store implements X509TrustManager {
     /**
      * c: X509_STORE_set_default_paths
      */
-    public int setDefaultPaths() throws Exception {
+    public int setDefaultPaths(Ruby runtime) throws Exception {
 
-        Lookup lookup = addLookup(Lookup.fileLookup());
+        Lookup lookup = addLookup(runtime, Lookup.fileLookup());
         //if ( lookup == null ) return 0;
 
         try {
@@ -340,7 +346,7 @@ public class Store implements X509TrustManager {
             // set_default_paths ignores FileNotFound
         }
 
-        lookup = addLookup(Lookup.hashDirLookup());
+        lookup = addLookup(runtime, Lookup.hashDirLookup());
         //if ( lookup == null ) return 0;
 
         try {

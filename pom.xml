@@ -73,7 +73,7 @@
     <dependency>
       <groupId>org.jruby</groupId>
       <artifactId>jruby-core</artifactId>
-      <version>1.7.10</version>
+      <version>1.7.16</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
