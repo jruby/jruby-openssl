@@ -170,7 +170,7 @@ public class X509Store extends RubyObject {
         catch (Exception e) {
             final Ruby runtime = getRuntime();
             debugStackTrace(runtime, e);
-            throw newStoreError(runtime, "loading file failed: " + e.getMessage());
+            throw newStoreError(runtime, "loading file failed: ", e);
         }
         return this;
     }
@@ -183,7 +183,7 @@ public class X509Store extends RubyObject {
         }
         catch (Exception e) {
             debugStackTrace(runtime, e);
-            throw newStoreError(runtime, "setting default path failed: " + e.getMessage());
+            throw newStoreError(runtime, "setting default path failed: ", e);
         }
         return runtime.getNil();
     }
@@ -273,4 +273,7 @@ public class X509Store extends RubyObject {
         return Utils.newError(runtime, _StoreError(runtime), message);
     }
 
+    private static RaiseException newStoreError(final Ruby runtime, final String message, final Exception e) {
+    	return newStoreError(runtime, message + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+    }
 }// X509Store
