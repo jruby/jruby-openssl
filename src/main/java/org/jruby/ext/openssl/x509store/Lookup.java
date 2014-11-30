@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl.x509store;
 
 import static org.jruby.ext.openssl.x509store.X509Utils.CRYPTO_LOCK_X509_STORE;
+import static org.jruby.ext.openssl.x509store.X509Utils.X509_CERT_DIR;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_ASN1;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_DEFAULT;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_PEM;
@@ -78,8 +79,10 @@ public class Lookup {
 
     boolean init = false;
     boolean skip = false;
+    
     final LookupMethod method;
-    final Ruby runtime;
+    private final Ruby runtime;
+    
     Object methodData;
     Store store;
 
@@ -296,29 +299,29 @@ public class Lookup {
     private InputStream wrapJRubyNormalizedInputStream(String file) throws IOException {
         try {
             FileResource resource = JRubyFile.createResource(runtime, file);
-            if(!resource.exists()) {
+            if ( ! resource.exists() ) {
                 throw new FileNotFoundException(file + " (No such file or directory)");
             }
-            if(resource.isDirectory()) {
+            if ( resource.isDirectory() ) {
                 throw new IOException(file + " is a directory");
             }
             InputStream is = resource.openInputStream();
-            if (is instanceof BufferedInputStream) {
-                return is;
-            }
-            else {
-                return new BufferedInputStream(is);
-            }
+            return ( is instanceof BufferedInputStream ) ? is : new BufferedInputStream(is);
         }
-        catch(NoSuchMethodError e){
+        catch (NoSuchMethodError e) { // JRubyFile.createResource (JRuby < 1.7.13)
             File f = new File(file);
-            if(!f.isAbsolute()) {
+            if ( ! f.isAbsolute() ) {
                 f = new File(runtime.getCurrentDirectory(), file);
             }
             return new BufferedInputStream(new FileInputStream(f));
         }
     }
 
+    private String envEntry(final String key) {
+    	RubyHash env = (RubyHash) runtime.getObject().getConstant("ENV");
+        return (String) env.get( runtime.newString(key) );
+    }
+    
     /**
      * c: X509_LOOKUP_free
      */
@@ -426,10 +429,10 @@ public class Lookup {
             case X509_L_FILE_LOAD:
                 if (arglInt == X509_FILETYPE_DEFAULT) {
                     try {
-                        RubyHash env = (RubyHash)Ruby.getGlobalRuntime().getObject().getConstant("ENV");
-                        file = (String)env.get(Ruby.getGlobalRuntime().newString(getDefaultCertificateFileEnvironment()));
-                    } catch (Error error) {
+                        file = ctx.envEntry( getDefaultCertificateFileEnvironment() );
                     }
+                    catch (RuntimeException e) { }
+                    
                     if (file != null) {
                         ok = ctx.loadCertificateOrCRLFile(file, X509_FILETYPE_PEM) != 0 ? 1 : 0;
                     } else {
@@ -499,30 +502,29 @@ public class Lookup {
                 if ( argl.intValue() == X509_FILETYPE_DEFAULT ) {
                     String certDir = null;
                     try {
-                        certDir = getDefaultCertificateDirectory();
+                        certDir = getDefaultCertificateDirectory(ctx);
                     }
                     catch (RuntimeException e) { }
 
                     if ( certDir != null ) {
                         ret = addCertificateDirectory(lookupData, certDir, X509_FILETYPE_PEM);
                     } else {
-                        ret = addCertificateDirectory(lookupData, getDefaultCertificateDirectory(), X509_FILETYPE_PEM);
+                        ret = addCertificateDirectory(lookupData, X509_CERT_DIR, X509_FILETYPE_PEM);
                     }
                     if ( ret == 0 ) {
                         X509Error.addError(X509_R_LOADING_CERT_DIR);
                     }
                 }
                 else {
-                    ret = addCertificateDirectory(lookupData,argp, argl.intValue());
+                    ret = addCertificateDirectory(lookupData, argp, argl.intValue());
                 }
                 break;
             }
             return ret;
         }
 
-        private static String getDefaultCertificateDirectory() {
-            final RubyHash env = Ruby.getGlobalRuntime().getENV();
-            return (String) env.get( getDefaultCertificateDirectoryEnvironment() );
+        private static String getDefaultCertificateDirectory(final Lookup ctx) {
+        	return ctx.envEntry( getDefaultCertificateDirectoryEnvironment() );
         }
 
         /**

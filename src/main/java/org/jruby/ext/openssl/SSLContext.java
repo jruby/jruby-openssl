@@ -417,7 +417,6 @@ public class SSLContext extends RubyObject {
         final Ruby runtime = context.runtime;
         try {
             final String[] supported = getSupportedCipherSuites(this.protocol);
-            @SuppressWarnings("unchecked")
             final Collection<CipherStrings.Def> cipherDefs =
                     CipherStrings.matchingCiphers(this.ciphers, supported, false);
 
