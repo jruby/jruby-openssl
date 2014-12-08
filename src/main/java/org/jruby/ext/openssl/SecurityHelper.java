@@ -53,7 +53,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateFactorySpi;
 import java.security.cert.X509CRL;
+import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherSpi;
@@ -83,6 +85,7 @@ public abstract class SecurityHelper {
     static boolean setBouncyCastleProvider = true; // (package access for tests)
     static Provider securityProvider; // 'BC' provider (package access for tests)
     private static Boolean registerProvider = null;
+    private static final Map<String, Class> implEngines = new ConcurrentHashMap<String, Class>(16, 0.75f, 1);
 
     public static Provider getSecurityProvider() {
         if ( setBouncyCastleProvider && securityProvider == null ) {
@@ -607,31 +610,43 @@ public abstract class SecurityHelper {
     }
 
     private static Object findImplEngine(final String baseName, String algorithm) {
-        final Provider bcProvider = securityProvider;
-        String alias;
-        while ((alias = bcProvider.getProperty("Alg.Alias." + baseName + "." + algorithm)) != null) {
-            algorithm = alias;
-        }
-        final String className = bcProvider.getProperty(baseName + "." + algorithm);
-        if (className != null) {
-            try {
-                Class klass;
-                ClassLoader loader = bcProvider.getClass().getClassLoader();
-                if (loader != null) {
-                    klass = loader.loadClass(className);
-                } else {
-                    klass = Class.forName(className);
+        Class implEngineClass = implEngines.get(baseName + ":" + algorithm);
+
+        if (implEngineClass == null) {
+            final Provider bcProvider = securityProvider;
+            String alias;
+            while ((alias = bcProvider.getProperty("Alg.Alias." + baseName + "." + algorithm)) != null) {
+                algorithm = alias;
+            }
+            final String className = bcProvider.getProperty(baseName + "." + algorithm);
+            if (className != null) {
+                try {
+                    ClassLoader loader = bcProvider.getClass().getClassLoader();
+                    if (loader != null) {
+                        implEngineClass = loader.loadClass(className);
+                    } else {
+                        implEngineClass = Class.forName(className);
+                    }
+                    implEngineClass.newInstance(); // this instance is thrown away to test newInstance, but only once
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalStateException("algorithm " + algorithm + " in provider " + bcProvider.getName() + " but no class \"" + className + "\" found!");
+                } catch (Exception e) {
+                    throw new IllegalStateException("algorithm " + algorithm + " in provider " + bcProvider.getName() + " but class \"" + className + "\" inaccessible!");
                 }
-                return klass.newInstance();
+            } else {
+                return null;
             }
-            catch (ClassNotFoundException e) {
-                throw new IllegalStateException("algorithm " + algorithm + " in provider " + bcProvider.getName() + " but no class \"" + className + "\" found!");
-            }
-            catch (Exception e) {
-                throw new IllegalStateException("algorithm " + algorithm + " in provider " + bcProvider.getName() + " but class \"" + className + "\" inaccessible!");
-            }
+
+            implEngines.put(baseName + ":" + algorithm, implEngineClass);
         }
-        return null;
+
+        try {
+            return implEngineClass.newInstance();
+        } catch (Exception e) {
+            final Provider bcProvider = securityProvider;
+            String className = implEngineClass.getName();
+            throw new IllegalStateException("algorithm " + algorithm + " in provider " + bcProvider.getName() + " but class \"" + className + "\" inaccessible!");
+        }
     }
 
     // the obligratory "reflection crap" :
