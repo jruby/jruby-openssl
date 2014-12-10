@@ -114,7 +114,7 @@ public class Store implements X509TrustManager {
 
     @Deprecated int cache = 1; // not-used
 
-    final List<X509Object> objects;
+    private final List<X509Object> objects;
     private final List<Lookup> certificateMethods;
 
     public final VerifyParameter verifyParameter;
@@ -375,13 +375,15 @@ public class Store implements X509TrustManager {
 
     @Override
     public X509Certificate[] getAcceptedIssuers() {
-        ArrayList<X509Certificate> issuers = new ArrayList<X509Certificate>(objects.size());
-        for ( X509Object object : objects ) {
-            if ( object instanceof Certificate ) {
-                issuers.add( ( (Certificate) object ).x509 );
+        synchronized(CRYPTO_LOCK_X509_STORE) {
+            ArrayList<X509Certificate> issuers = new ArrayList<X509Certificate>(objects.size());
+            for ( X509Object object : objects ) {
+                if ( object instanceof Certificate ) {
+                    issuers.add( ( (Certificate) object ).x509 );
+                }
             }
+            return issuers.toArray( new X509Certificate[ issuers.size() ] );
         }
-        return issuers.toArray( new X509Certificate[ issuers.size() ] );
     }
 
 }// X509_STORE

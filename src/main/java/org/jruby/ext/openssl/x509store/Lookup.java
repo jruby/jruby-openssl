@@ -596,7 +596,7 @@ public class Lookup {
                 }
                 X509Object tmp = null;
                 synchronized ( CRYPTO_LOCK_X509_STORE ) {
-                    for ( X509Object obj : lookup.store.objects ) {
+                    for ( X509Object obj : lookup.store.getObjects() ) {
                         if ( obj.type() == type && obj.isName(name) ) {
                             tmp = obj; break;
                         }
