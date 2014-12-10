@@ -130,8 +130,7 @@ public class Store implements X509TrustManager {
     CertificateCRLFunction certificateCRL = CertificateCRLFunction.EMPTY;
     CleanupFunction cleanup = CleanupFunction.EMPTY;
 
-    public final List<Object> extraData;
-    public final int references;
+    private final List<Object> extraData;
 
     /**
      * c: X509_STORE_new
@@ -142,7 +141,6 @@ public class Store implements X509TrustManager {
 
         verifyParameter = new VerifyParameter();
 
-        references = 1;
         extraData = new ArrayList<Object>(10);
         this.extraData.add(null); this.extraData.add(null); this.extraData.add(null);
         this.extraData.add(null); this.extraData.add(null); this.extraData.add(null);
