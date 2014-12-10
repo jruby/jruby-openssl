@@ -607,17 +607,19 @@ public class StoreContext {
 
         X509Object tmp = X509Object.retrieveBySubject(c.objects,type,name);
         if ( tmp == null ) {
-            for(int i=currentMethod; i<c.certificateMethods.size(); i++) {
-                Lookup lu = c.certificateMethods.get(i);
-                X509Object[] stmp = new X509Object[1];
-                int j = lu.bySubject(type,name,stmp);
-                if ( j < 0 ) {
-                    currentMethod = i;
-                    return j;
-                }
-                else if( j > 0 ) {
-                    tmp = stmp[0];
-                    break;
+            synchronized(X509Utils.CRYPTO_LOCK_X509_STORE) {
+                for(int i=currentMethod; i<c.getCertificateMethods().size(); i++) {
+                    Lookup lu = c.getCertificateMethods().get(i);
+                    X509Object[] stmp = new X509Object[1];
+                    int j = lu.bySubject(type,name,stmp);
+                    if ( j < 0 ) {
+                       currentMethod = i;
+                       return j;
+                    }
+                    else if( j > 0 ) {
+                        tmp = stmp[0];
+                        break;
+                    }
                 }
             }
             currentMethod = 0;

@@ -9,6 +9,26 @@ class TestX509Store < TestCase
     def setup; require 'openssl' end
   end
 
+  def test_add_cert_concurrently
+    pem = File.expand_path('../EntrustnetSecureServerCertificationAuthority.pem', __FILE__)
+    store = OpenSSL::X509::Store.new
+    t = []
+    (0..25).each do |i|
+
+      t << Thread.new do
+        (0..2).each do
+          store.add_file pem
+        end
+      end
+    end
+
+    t.each do |t|
+      t.join
+    end
+    # just ensure there is no concurreny error
+    assert true
+  end
+
   define_method 'test_add_same_cert_twice jruby/jruby-openssl/issues/3' do
     root_key = OpenSSL::PKey::RSA.new 2048 # the CA's public/private key
     root_ca = OpenSSL::X509::Certificate.new

@@ -115,7 +115,7 @@ public class Store implements X509TrustManager {
     @Deprecated int cache = 1; // not-used
 
     final List<X509Object> objects;
-    final List<Lookup> certificateMethods;
+    private final List<Lookup> certificateMethods;
 
     public final VerifyParameter verifyParameter;
 
@@ -187,9 +187,11 @@ public class Store implements X509TrustManager {
      * c: X509_STORE_free
      */
     public void free() throws Exception {
-        for (Lookup lu : certificateMethods) {
-            lu.shutdown();
-            lu.free();
+        synchronized(CRYPTO_LOCK_X509_STORE) {
+            for (Lookup lu : certificateMethods) {
+                lu.shutdown();
+                lu.free();
+            }
         }
         if (verifyParameter != null) {
             verifyParameter.free();
@@ -251,13 +253,15 @@ public class Store implements X509TrustManager {
      * c: X509_STORE_add_lookup
      */
     public Lookup addLookup(Ruby runtime, final LookupMethod method) throws Exception {
-        for ( Lookup lookup : certificateMethods ) {
-            if ( lookup.equals(method) ) return lookup;
+        synchronized(CRYPTO_LOCK_X509_STORE) {
+            for ( Lookup lookup : certificateMethods ) {
+                if ( lookup.equals(method) ) return lookup;
+            }
+            Lookup lookup = new Lookup(runtime, method);
+            lookup.store = this;
+            certificateMethods.add(lookup);
+            return lookup;
         }
-        Lookup lookup = new Lookup(runtime, method);
-        lookup.store = this;
-        certificateMethods.add(lookup);
-        return lookup;
     }
 
     /**
