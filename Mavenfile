@@ -27,7 +27,7 @@ plugin( 'org.codehaus.mojo:exec-maven-plugin', '1.3.2' ) do
   invoker_main << ' org.jruby.anno.InvokerGenerator'
   invoker_main << " #{gen_sources}/annotated_classes.txt ${project.build.outputDirectory}"
 
-  dependency 'org.jruby', 'jruby-core', '1.7.10'
+  dependency 'org.jruby', 'jruby-core', '1.7.17'
 
   execute_goal :java, :id => 'invoker-generator', :phase => 'process-classes',
       :mainClass => 'org.jruby.anno.InvokerGenerator', :classpathScope => 'compile',
@@ -78,7 +78,7 @@ end
 
 # NOTE: unfortunately we can not use 1.6.8 to generate invokers ...
 # although we'd like to compile against 1.6 to make sure all is well
-jar 'org.jruby:jruby-core', '1.7.16', :scope => :provided  # 1.6.8
+jar 'org.jruby:jruby-core', '1.7.17', :scope => :provided  # 1.6.8
 jar 'junit:junit', '4.11', :scope => :test
 
 jruby_plugin! :gem do
@@ -90,15 +90,15 @@ end
 
 supported_bc_versions = [ '1.47', '1.48', '1.49', '1.50' ]
 
-properties( 'jruby.plugins.version' => '1.0.5',
-            'jruby.versions' => '1.7.13',
+properties( 'jruby.plugins.version' => '1.0.6',
+            'jruby.versions' => '1.7.17',
             'bc.versions' => supported_bc_versions.last,
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
             # use this version of jruby for ALL the jruby-maven-plugins
-            'jruby.version' => '1.7.13',
+            'jruby.version' => '1.7.17',
             # dump pom.xml as readonly when running 'rmvn'
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true )
@@ -160,7 +160,15 @@ profile :id => 'test-1.7.16' do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
   end
-  properties 'jruby.versions' => '1.7.16', 'jruby.modes' => '1.8,1.9,2.0',
+  properties 'jruby.versions' => '1.7.16.2', 'jruby.modes' => '1.8,1.9,2.0',
+             'bc.versions' => supported_bc_versions.join(',')
+end
+
+profile :id => 'test-1.7.17' do
+  plugin :invoker, '1.8' do
+    execute_goals( :install, :run, invoker_run_options )
+  end
+  properties 'jruby.versions' => '1.7.17', 'jruby.modes' => '1.8,1.9,2.0',
              'bc.versions' => supported_bc_versions.join(',')
 end
 

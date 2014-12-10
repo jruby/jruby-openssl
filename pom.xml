@@ -35,11 +35,11 @@
   </scm>
   <properties>
     <bc.versions>1.50</bc.versions>
-    <jruby.plugins.version>1.0.5</jruby.plugins.version>
+    <jruby.plugins.version>1.0.6</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
-    <jruby.version>1.7.13</jruby.version>
+    <jruby.version>1.7.17</jruby.version>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
-    <jruby.versions>1.7.13</jruby.versions>
+    <jruby.versions>1.7.17</jruby.versions>
     <project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
     <tesla.dump.readonly>true</tesla.dump.readonly>
@@ -73,7 +73,7 @@
     <dependency>
       <groupId>org.jruby</groupId>
       <artifactId>jruby-core</artifactId>
-      <version>1.7.16</version>
+      <version>1.7.17</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -482,7 +482,45 @@
       <properties>
         <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
-        <jruby.versions>1.7.16</jruby.versions>
+        <jruby.versions>1.7.16.2</jruby.versions>
+      </properties>
+    </profile>
+    <profile>
+      <id>test-1.7.17</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-invoker-plugin</artifactId>
+            <version>1.8</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>install</goal>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <projectsDirectory>integration</projectsDirectory>
+                  <pomIncludes>
+                    <pomInclude>*/pom.xml</pomInclude>
+                  </pomIncludes>
+                  <streamLogs>true</streamLogs>
+                  <properties>
+                    <jruby.versions>${jruby.versions}</jruby.versions>
+                    <jruby.modes>${jruby.modes}</jruby.modes>
+                    <jruby.openssl.version>${project.version}</jruby.openssl.version>
+                    <bc.versions>${bc.versions}</bc.versions>
+                    <runit.dir>${runit.dir}</runit.dir>
+                  </properties>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <properties>
+        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <jruby.modes>1.8,1.9,2.0</jruby.modes>
+        <jruby.versions>1.7.17</jruby.versions>
       </properties>
     </profile>
     <profile>
