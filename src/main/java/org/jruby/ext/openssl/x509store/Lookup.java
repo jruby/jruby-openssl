@@ -298,15 +298,7 @@ public class Lookup {
 
     private InputStream wrapJRubyNormalizedInputStream(String file) throws IOException {
         try {
-            FileResource resource = JRubyFile.createResource(runtime, file);
-            if ( ! resource.exists() ) {
-                throw new FileNotFoundException(file + " (No such file or directory)");
-            }
-            if ( resource.isDirectory() ) {
-                throw new IOException(file + " is a directory");
-            }
-            InputStream is = resource.openInputStream();
-            return ( is instanceof BufferedInputStream ) ? is : new BufferedInputStream(is);
+            return JRubyFile.createResource(runtime, file).inputStream();
         }
         catch (NoSuchMethodError e) { // JRubyFile.createResource (JRuby < 1.7.13)
             File f = new File(file);
