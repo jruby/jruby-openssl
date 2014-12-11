@@ -34,6 +34,7 @@ import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_CERT_ALREADY_IN_H
 import java.io.FileNotFoundException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.net.ssl.X509TrustManager;
@@ -113,8 +114,8 @@ public class Store implements X509TrustManager {
 
     @Deprecated int cache = 1; // not-used
 
-    private final List<X509Object> objects;
-    private final List<Lookup> certificateMethods;
+    private X509Object[] objects = new X509Object[0];
+    private Lookup[] certificateMethods = new Lookup[0];
 
     public final VerifyParameter verifyParameter;
 
@@ -135,9 +136,6 @@ public class Store implements X509TrustManager {
      * c: X509_STORE_new
      */
     public Store() {
-        objects = new ArrayList<X509Object>();
-        certificateMethods = new ArrayList<Lookup>();
-
         verifyParameter = new VerifyParameter();
 
         extraData = new ArrayList<Object>(10);
@@ -147,15 +145,11 @@ public class Store implements X509TrustManager {
     }
 
     public List<X509Object> getObjects() {
-        synchronized(objects) {
-            return new ArrayList<X509Object>(objects);
-        }
+        return Arrays.asList(objects);
     }
 
     public List<Lookup> getCertificateMethods() {
-        synchronized(certificateMethods) {
-            return new ArrayList<Lookup>(certificateMethods);
-        }
+        return Arrays.asList(certificateMethods);
     }
 
     public VerifyParameter getVerifyParameter() {
@@ -188,11 +182,9 @@ public class Store implements X509TrustManager {
      * c: X509_STORE_free
      */
     public void free() throws Exception {
-        synchronized(certificateMethods) {
-            for (Lookup lu : certificateMethods) {
-                lu.shutdown();
-                lu.free();
-            }
+       for (Lookup lu : certificateMethods) {
+           lu.shutdown();
+           lu.free();
         }
         if (verifyParameter != null) {
             verifyParameter.free();
@@ -258,35 +250,39 @@ public class Store implements X509TrustManager {
      * c: X509_STORE_add_lookup
      */
     public Lookup addLookup(Ruby runtime, final LookupMethod method) throws Exception {
-        synchronized(certificateMethods) {
-            for ( Lookup lookup : certificateMethods ) {
-                if ( lookup.equals(method) ) return lookup;
-            }
-            Lookup lookup = new Lookup(runtime, method);
-            lookup.store = this;
-            certificateMethods.add(lookup);
-            return lookup;
+        for ( Lookup lookup : certificateMethods ) {
+            if ( lookup.equals(method) ) return lookup;
         }
+        return doAddLookup(runtime, method);
+    }
+
+    private synchronized Lookup doAddLookup(Ruby runtime, final LookupMethod method) throws Exception {
+        Lookup lookup = new Lookup(runtime, method);
+        lookup.store = this;
+        Lookup[] newCertificateMethods = Arrays.copyOf(certificateMethods, certificateMethods.length + 1);
+        newCertificateMethods[certificateMethods.length] = lookup;
+        certificateMethods = newCertificateMethods;
+        return lookup;
     }
 
     /**
      * c: X509_STORE_add_cert
      */
-    public int addCertificate(final X509Certificate cert) {
+    public synchronized int addCertificate(final X509Certificate cert) {
         if ( cert == null ) return 0;
 
         final Certificate certObj = new Certificate();
         certObj.x509 = StoreContext.ensureAux(cert);
 
         int ret = 1;
-        synchronized (objects) {
-            if ( X509Object.retrieveMatch(objects,certObj) != null ) {
-                X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-                ret = 0;
-            }
-            else {
-                objects.add(certObj);
-            }
+        if ( X509Object.retrieveMatch(getObjects(), certObj) != null ) {
+            X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
+            ret = 0;
+        }
+        else {
+            X509Object[] newObjects = Arrays.copyOf(objects, objects.length + 1);
+            newObjects[objects.length] = certObj;
+            objects = newObjects;
         }
         return ret;
     }
@@ -294,20 +290,20 @@ public class Store implements X509TrustManager {
     /**
      * c: X509_STORE_add_crl
      */
-    public int addCRL(final java.security.cert.CRL crl) {
+    public synchronized int addCRL(final java.security.cert.CRL crl) {
         if ( crl == null ) return 0;
 
         final CRL crlObj = new CRL(); crlObj.crl = crl;
 
         int ret = 1;
-        synchronized (objects) {
-            if ( X509Object.retrieveMatch(objects,crlObj) != null ) {
-                X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-                ret = 0;
-            }
-            else {
-                objects.add(crlObj);
-            }
+        if ( X509Object.retrieveMatch(getObjects(), crlObj) != null ) {
+            X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
+            ret = 0;
+        }
+        else {
+            X509Object[] newObjects = Arrays.copyOf(objects, objects.length + 1);
+            newObjects[objects.length] = crlObj;
+            objects = newObjects;
         }
         return ret;
     }
@@ -379,16 +375,14 @@ public class Store implements X509TrustManager {
     }
 
     @Override
-    public X509Certificate[] getAcceptedIssuers() {
-        synchronized(objects) {
-            ArrayList<X509Certificate> issuers = new ArrayList<X509Certificate>(objects.size());
-            for ( X509Object object : objects ) {
-                if ( object instanceof Certificate ) {
-                    issuers.add( ( (Certificate) object ).x509 );
-                }
+    public synchronized X509Certificate[] getAcceptedIssuers() {
+        ArrayList<X509Certificate> issuers = new ArrayList<X509Certificate>(objects.length);
+        for ( X509Object object : objects ) {
+            if ( object instanceof Certificate ) {
+                issuers.add( ( (Certificate) object ).x509 );
             }
-            return issuers.toArray( new X509Certificate[ issuers.size() ] );
         }
+        return issuers.toArray( new X509Certificate[ issuers.size() ] );
     }
 
 }// X509_STORE
