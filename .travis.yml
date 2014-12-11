@@ -9,8 +9,9 @@ env:
   - TEST_PROFILE=test-1.6.8
   - TEST_PROFILE=test-1.7.4
   - TEST_PROFILE=test-1.7.13
-  - TEST_PROFILE=test-1.7.16
-  - TEST_PROFILE=test-9000
+  - TEST_PROFILE=test-1.7.17
+# there is not 9k artifact on maven repo anymore
+#  - TEST_PROFILE=test-9000
 script: mvn verify -P $TEST_PROFILE
 matrix:
   # NOTE: 9k needs a compatible runit version (due minitest changes) !
