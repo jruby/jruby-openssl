@@ -27,7 +27,6 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
-import static org.jruby.ext.openssl.x509store.X509Utils.CRYPTO_LOCK_X509_STORE;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_CERT_DIR;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_ASN1;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_DEFAULT;
@@ -595,11 +594,9 @@ public class Lookup {
                     }
                 }
                 X509Object tmp = null;
-                synchronized ( CRYPTO_LOCK_X509_STORE ) {
-                    for ( X509Object obj : lookup.store.getObjects() ) {
-                        if ( obj.type() == type && obj.isName(name) ) {
-                            tmp = obj; break;
-                        }
+                for ( X509Object obj : lookup.store.getObjects() ) {
+                    if ( obj.type() == type && obj.isName(name) ) {
+                        tmp = obj; break;
                     }
                 }
                 if ( tmp != null ) {

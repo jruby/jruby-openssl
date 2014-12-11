@@ -150,24 +150,23 @@ public class StoreContext {
             return 1;
         }
 
-        synchronized(X509Utils.CRYPTO_LOCK_X509_STORE) {
-            int idx = X509Object.indexBySubject(store.getObjects(), X509Utils.X509_LU_X509, xn);
-            if ( idx == -1 ) return 0;
+        List<X509Object> objects = store.getObjects();
+        int idx = X509Object.indexBySubject(objects, X509Utils.X509_LU_X509, xn);
+        if ( idx == -1 ) return 0;
 
-            /* Look through all matching certificates for a suitable issuer */
-            for ( int i = idx; i < store.getObjects().size(); i++ ) {
-                final X509Object pobj = store.getObjects().get(i);
-                if ( pobj.type() != X509Utils.X509_LU_X509 ) {
-                    return 0;
-                }
-                final X509AuxCertificate x509 = ((Certificate) pobj).x509;
-                if ( ! xn.equalTo( x509.getSubjectX500Principal() ) ) {
-                    return 0;
-                }
-                if ( checkIssued.call(this, x, x509) != 0 ) {
-                    issuers[0] = x509;
-                    return 1;
-                }
+        /* Look through all matching certificates for a suitable issuer */
+        for ( int i = idx; i < objects.size(); i++ ) {
+            final X509Object pobj = objects.get(i);
+            if ( pobj.type() != X509Utils.X509_LU_X509 ) {
+                return 0;
+            }
+            final X509AuxCertificate x509 = ((Certificate) pobj).x509;
+            if ( ! xn.equalTo( x509.getSubjectX500Principal() ) ) {
+                return 0;
+            }
+            if ( checkIssued.call(this, x, x509) != 0 ) {
+                issuers[0] = x509;
+                return 1;
             }
         }
         return 0;
@@ -607,21 +606,20 @@ public class StoreContext {
     public int getBySubject(int type,Name name,X509Object[] ret) throws Exception {
         Store c = store;
 
-        synchronized(X509Utils.CRYPTO_LOCK_X509_STORE) {
-            X509Object tmp = X509Object.retrieveBySubject(c.getObjects(),type,name);
-            if ( tmp == null ) {
-                for(int i=currentMethod; i<c.getCertificateMethods().size(); i++) {
-                    Lookup lu = c.getCertificateMethods().get(i);
-                    X509Object[] stmp = new X509Object[1];
-                    int j = lu.bySubject(type,name,stmp);
-                    if ( j < 0 ) {
-                       currentMethod = i;
-                       return j;
-                    }
-                    else if( j > 0 ) {
-                        tmp = stmp[0];
-                        break;
-                    }
+        X509Object tmp = X509Object.retrieveBySubject(c.getObjects(),type,name);
+        if ( tmp == null ) {
+            List<Lookup> certificateMethods = c.getCertificateMethods();
+            for(int i=currentMethod; i<certificateMethods.size(); i++) {
+                Lookup lu = certificateMethods.get(i);
+                X509Object[] stmp = new X509Object[1];
+                int j = lu.bySubject(type,name,stmp);
+                if ( j < 0 ) {
+                    currentMethod = i;
+                    return j;
+                }
+                else if( j > 0 ) {
+                    tmp = stmp[0];
+                    break;
                 }
             }
             currentMethod = 0;

@@ -292,8 +292,6 @@ public abstract class X509Utils {
     public static final String X509_CERT_DIR_EVP = "SSL_CERT_DIR";
     public static final String X509_CERT_FILE_EVP = "SSL_CERT_FILE";
 
-    public static final Object CRYPTO_LOCK_X509_STORE = new Object();
-
     public static final int X509_LU_RETRY=-1;
     public static final int X509_LU_FAIL=0;
     public static final int X509_LU_X509=1;

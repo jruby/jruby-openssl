@@ -27,7 +27,6 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
-import static org.jruby.ext.openssl.x509store.X509Utils.CRYPTO_LOCK_X509_STORE;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_DEFAULT;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_PEM;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_CERT_ALREADY_IN_HASH_TABLE;
@@ -148,11 +147,15 @@ public class Store implements X509TrustManager {
     }
 
     public List<X509Object> getObjects() {
-        return objects;
+        synchronized(objects) {
+            return new ArrayList<X509Object>(objects);
+        }
     }
 
     public List<Lookup> getCertificateMethods() {
-        return certificateMethods;
+        synchronized(certificateMethods) {
+            return new ArrayList<Lookup>(certificateMethods);
+        }
     }
 
     public VerifyParameter getVerifyParameter() {
@@ -185,7 +188,7 @@ public class Store implements X509TrustManager {
      * c: X509_STORE_free
      */
     public void free() throws Exception {
-        synchronized(CRYPTO_LOCK_X509_STORE) {
+        synchronized(certificateMethods) {
             for (Lookup lu : certificateMethods) {
                 lu.shutdown();
                 lu.free();
@@ -200,15 +203,19 @@ public class Store implements X509TrustManager {
      * c: X509_set_ex_data
      */
     public int setExtraData(int idx, Object data) {
-        extraData.set(idx,data);
-        return 1;
+        synchronized(extraData) {
+            extraData.set(idx,data);
+            return 1;
+        }
     }
 
     /**
      * c: X509_get_ex_data
      */
     public Object getExtraData(int idx) {
-        return extraData.get(idx);
+        synchronized(extraData) {
+            return extraData.get(idx);
+        }
     }
 
     /**
@@ -251,7 +258,7 @@ public class Store implements X509TrustManager {
      * c: X509_STORE_add_lookup
      */
     public Lookup addLookup(Ruby runtime, final LookupMethod method) throws Exception {
-        synchronized(CRYPTO_LOCK_X509_STORE) {
+        synchronized(certificateMethods) {
             for ( Lookup lookup : certificateMethods ) {
                 if ( lookup.equals(method) ) return lookup;
             }
@@ -272,7 +279,7 @@ public class Store implements X509TrustManager {
         certObj.x509 = StoreContext.ensureAux(cert);
 
         int ret = 1;
-        synchronized (CRYPTO_LOCK_X509_STORE) {
+        synchronized (objects) {
             if ( X509Object.retrieveMatch(objects,certObj) != null ) {
                 X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
                 ret = 0;
@@ -293,7 +300,7 @@ public class Store implements X509TrustManager {
         final CRL crlObj = new CRL(); crlObj.crl = crl;
 
         int ret = 1;
-        synchronized (CRYPTO_LOCK_X509_STORE) {
+        synchronized (objects) {
             if ( X509Object.retrieveMatch(objects,crlObj) != null ) {
                 X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
                 ret = 0;
@@ -373,7 +380,7 @@ public class Store implements X509TrustManager {
 
     @Override
     public X509Certificate[] getAcceptedIssuers() {
-        synchronized(CRYPTO_LOCK_X509_STORE) {
+        synchronized(objects) {
             ArrayList<X509Certificate> issuers = new ArrayList<X509Certificate>(objects.size());
             for ( X509Object object : objects ) {
                 if ( object instanceof Certificate ) {
