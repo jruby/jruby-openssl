@@ -718,7 +718,7 @@ public class ASN1 {
         final ObjectAllocator primitiveAllocator = Primitive.ALLOCATOR;
         RubyClass Primitive = ASN1.defineClassUnder("Primitive", _ASN1Data, primitiveAllocator);
         Primitive.addReadWriteAttribute(context, "tagging");
-        Primitive.addReadWriteAttribute(context, "infinite_length");
+        Primitive.addReadAttribute(context, "infinite_length");
         Primitive.defineAnnotatedMethods(Primitive.class);
 
         final ObjectAllocator constructiveAllocator = Constructive.ALLOCATOR;
