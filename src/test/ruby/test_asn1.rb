@@ -254,7 +254,6 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     cert = issue_cert( # OpenSSL::TestUtils.issue_cert
       subj, key, s, now, now+3600, exts, nil, nil, dgst)
 
-
     asn1 = OpenSSL::ASN1.decode(cert)
     assert_equal(OpenSSL::ASN1::Sequence, asn1.class)
     assert_equal(3, asn1.value.size)
@@ -425,14 +424,9 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal("2.5.29.14",  ext.value[0].oid)
     assert_equal(OpenSSL::ASN1::OctetString, ext.value[1].class)
 
-    octet_value = ext.value[1].value
+    assert OpenSSL::X509::Certificate.new( cert.to_der ).verify key
 
-    # NOTE: this seems another impossible to-do without re-inventing
-    # DER encoding/decoding on our own (previously might have worked but
-    # the "hack" to include the tag caused failures elsewhere) ?!
-    if defined? JRUBY_VERSION
-      octet_value = ext.value[1].to_der # HACK
-    end
+    octet_value = ext.value[1].value
 
     assert_equal "\x04\x14\xD1\xFE\xF9\xFB\xF8\xAE\e\xC1`\xCB\xFA\x03\xE2Ym\xD8s\b\x92\x13", octet_value
 
@@ -450,12 +444,13 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
 
     assert_equal(OpenSSL::ASN1::BitString, sig_val.class)
 
-    cert_der = tbs_cert.to_der
-    # TODO 458 on JRuby
-    #assert_equal 442, cert_der.size
+    cert_der = cert.to_der
+    assert_equal 593, cert_der.size
 
-    #cululated_sig = key.sign(OpenSSL::Digest::SHA1.new, cert_der)
-    #assert_equal cululated_sig, sig_val.value
+    assert OpenSSL::X509::Certificate.new( cert_der ).verify key
+    # running the same in MRI also fails
+    #calulated_sig = key.sign(OpenSSL::Digest::SHA1.new, cert_der)
+    #assert_equal calulated_sig, sig_val.value
   end
 
   def test_bit_string_infinite_length

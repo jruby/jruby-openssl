@@ -187,7 +187,7 @@ public class X509ExtensionFactory extends RubyObject {
         try {
             final String id = objectId.getId();
             if (id.equals("2.5.29.14")) { //subjectKeyIdentifier
-                value = parseSubjectKeyIdentifier(context, oid, valuex);
+                value = new DEROctetString(parseSubjectKeyIdentifier(context, oid, valuex));
             }
             else if (id.equals("2.5.29.35")) { //authorityKeyIdentifier
                 value = parseAuthorityKeyIdentifier(context, valuex);
