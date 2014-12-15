@@ -625,8 +625,8 @@ public class StoreContext {
             currentMethod = 0;
 
             if ( tmp == null ) return 0;
-            ret[0] = tmp;
         }
+        ret[0] = tmp;
         return 1;
     }
 
