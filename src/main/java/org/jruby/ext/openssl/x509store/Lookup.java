@@ -48,7 +48,6 @@ import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -66,8 +65,12 @@ import java.util.Iterator;
 import org.jruby.Ruby;
 import org.jruby.RubyHash;
 import org.jruby.ext.openssl.SecurityHelper;
-import org.jruby.util.FileResource;
 import org.jruby.util.JRubyFile;
+import org.jruby.util.io.ChannelDescriptor;
+import org.jruby.util.io.ChannelStream;
+import org.jruby.util.io.FileExistsException;
+import org.jruby.util.io.InvalidValueException;
+import org.jruby.util.io.ModeFlags;
 
 /**
  * X509_LOOKUP
@@ -299,12 +302,25 @@ public class Lookup {
         try {
             return JRubyFile.createResource(runtime, file).inputStream();
         }
-        catch (NoSuchMethodError e) { // JRubyFile.createResource (JRuby < 1.7.13)
-            File f = new File(file);
-            if ( ! f.isAbsolute() ) {
-                f = new File(runtime.getCurrentDirectory(), file);
+        catch (NoSuchMethodError e) { // JRubyFile.createResource.inputStream (JRuby < 1.7.17)
+            try {
+                ChannelDescriptor descriptor = ChannelDescriptor.open(runtime.getCurrentDirectory(), file, new ModeFlags(ModeFlags.RDONLY));
+                return ChannelStream.open(runtime, descriptor).newInputStream();
+            } catch (NoSuchMethodError nsme) {
+                File f = new File(file);
+                if ( ! f.isAbsolute() ) {
+                    f = new File(runtime.getCurrentDirectory(), file);
+                }
+                return new BufferedInputStream(new FileInputStream(f));
+            } catch (FileExistsException fee) {
+                // should not happen because ModeFlag does not contain CREAT.
+                fee.printStackTrace(System.err);
+                throw new IllegalStateException(fee.getMessage(), fee);
+            } catch (InvalidValueException ive) {
+                // should not happen because ModeFlasg does not contain APPEND.
+                ive.printStackTrace(System.err);
+                throw new IllegalStateException(ive.getMessage(), ive);
             }
-            return new BufferedInputStream(new FileInputStream(f));
         }
     }
 
