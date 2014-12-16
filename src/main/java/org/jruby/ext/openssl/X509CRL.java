@@ -34,16 +34,12 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.CRLException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509CRLEntry;
-import java.security.interfaces.DSAParams;
-import java.security.interfaces.DSAPublicKey;
-import java.security.interfaces.RSAPublicKey;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -59,22 +55,10 @@ import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
-import org.bouncycastle.cert.CertException;
 import org.bouncycastle.cert.X509CRLHolder;
 import org.bouncycastle.cert.X509v2CRLBuilder;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.params.DSAParameters;
-import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
-import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.operator.ContentSigner;
-import org.bouncycastle.operator.ContentVerifierProvider;
-import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
-import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder;
-import org.bouncycastle.operator.OperatorException;
-import org.bouncycastle.operator.bc.BcDSAContentVerifierProviderBuilder;
-import org.bouncycastle.operator.bc.BcRSAContentVerifierProviderBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-
 import org.joda.time.DateTime;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -700,42 +684,10 @@ public class X509CRL extends RubyObject {
         if ( changed ) return context.runtime.getFalse();
         final PublicKey publicKey = ((PKey) key).getPublicKey();
         try {
-            // NOTE: with BC 1.49 this seems to need BC provider installed ;(
-            // java.security.NoSuchProviderException: no such provider: BC
-            //    at sun.security.jca.GetInstance.getService(GetInstance.java:83)
-            //    at sun.security.jca.GetInstance.getInstance(GetInstance.java:206)
-            //    at java.security.Signature.getInstance(Signature.java:355)
-            //    at org.bouncycastle.jcajce.provider.asymmetric.x509.X509CRLObject.verify(Unknown Source)
-            //    at org.bouncycastle.jcajce.provider.asymmetric.x509.X509CRLObject.verify(Unknown Source)
-            //    at org.jruby.ext.openssl.SecurityHelper.verify(SecurityHelper.java:564)
-            //    at org.jruby.ext.openssl.X509CRL.verify(X509CRL.java:717)
-            //boolean valid = SecurityHelper.verify(getCRL(), publicKey, true);
-
-            final DigestAlgorithmIdentifierFinder digestAlgFinder = new DefaultDigestAlgorithmIdentifierFinder();
-            final ContentVerifierProvider verifierProvider;
-            if ( isDSA( (PKey) key ) ) {
-                BigInteger y = ((DSAPublicKey) publicKey).getY();
-                DSAParams params = ((DSAPublicKey) publicKey).getParams();
-                DSAParameters parameters = new DSAParameters(params.getP(), params.getQ(), params.getG());
-                AsymmetricKeyParameter dsaKey = new DSAPublicKeyParameters(y, parameters);
-                verifierProvider = new BcDSAContentVerifierProviderBuilder(digestAlgFinder).build(dsaKey);
-            }
-            else {
-                BigInteger mod = ((RSAPublicKey) publicKey).getModulus();
-                BigInteger exp = ((RSAPublicKey) publicKey).getPublicExponent();
-                AsymmetricKeyParameter rsaKey = new RSAKeyParameters(false, mod, exp);
-                verifierProvider = new BcRSAContentVerifierProviderBuilder(digestAlgFinder).build(rsaKey);
-            }
-            //final X509CRLHolder crl = getCRLHolder();
-            //final AlgorithmIdentifier algId = crl.toASN1Structure().getSignatureAlgorithm();
-            boolean valid = getCRLHolder(false).isSignatureValid( verifierProvider );
+            boolean valid = SecurityHelper.verify(getCRL(), publicKey, true);
             return context.runtime.newBoolean(valid);
         }
-        catch (OperatorException e) {
-            debug("CRL#verify() failed:", e);
-            return context.runtime.getFalse();
-        }
-        catch (CertException e) {
+        catch (GeneralSecurityException e) {
             debug("CRL#verify() failed:", e);
             return context.runtime.getFalse();
         }

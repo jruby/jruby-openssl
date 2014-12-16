@@ -25,10 +25,12 @@ package org.jruby.ext.openssl;
 
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyFactorySpi;
@@ -52,8 +54,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateFactorySpi;
 import java.security.cert.X509CRL;
-import java.util.LinkedList;
-import java.util.List;
+import java.security.interfaces.DSAParams;
+import java.security.interfaces.DSAPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Locale;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -72,7 +75,19 @@ import javax.net.ssl.SSLContext;
 
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.CertificateList;
+import org.bouncycastle.cert.CertException;
+import org.bouncycastle.cert.X509CRLHolder;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.DSAParameters;
+import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.jce.provider.X509CRLObject;
+import org.bouncycastle.operator.ContentVerifierProvider;
+import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.OperatorException;
+import org.bouncycastle.operator.bc.BcDSAContentVerifierProviderBuilder;
+import org.bouncycastle.operator.bc.BcRSAContentVerifierProviderBuilder;
 
 /**
  * Java Security (and JCE) helpers.
@@ -562,29 +577,35 @@ public abstract class SecurityHelper {
             }
             return true;
         }
-
-        // since we are using JCE here and BC might not be registered as Provider
-        // we need to find a provider which supports such CRL verification
-        // if we find a provider we will ignore the collected errors
-        // otherwise the errors get displayed
-        // TODO use BC directly for verifing CRL (probably needs quite some refactoring)
-        List<Exception> errors = new LinkedList<Exception>();
-        for(Provider p: Security.getProviders()) {
+        else {
             try {
-                crl.verify(publicKey, p.getName());
-                return true;
+                final DigestAlgorithmIdentifierFinder digestAlgFinder = new DefaultDigestAlgorithmIdentifierFinder();
+                final ContentVerifierProvider verifierProvider;
+                if ( "DSA".equalsIgnoreCase( publicKey.getAlgorithm() )) {
+                    BigInteger y = ((DSAPublicKey) publicKey).getY();
+                    DSAParams params = ((DSAPublicKey) publicKey).getParams();
+                    DSAParameters parameters = new DSAParameters(params.getP(), params.getQ(), params.getG());
+                    AsymmetricKeyParameter dsaKey = new DSAPublicKeyParameters(y, parameters);
+                    verifierProvider = new BcDSAContentVerifierProviderBuilder(digestAlgFinder).build(dsaKey);
+                }
+                else {
+                    BigInteger mod = ((RSAPublicKey) publicKey).getModulus();
+                    BigInteger exp = ((RSAPublicKey) publicKey).getPublicExponent();
+                    AsymmetricKeyParameter rsaKey = new RSAKeyParameters(false, mod, exp);
+                    verifierProvider = new BcRSAContentVerifierProviderBuilder(digestAlgFinder).build(rsaKey);
+                }
+                return new X509CRLHolder(crl.getEncoded()).isSignatureValid( verifierProvider );
             }
-            catch(SignatureException e) {
-                return false;
+            catch (OperatorException e) {
+                throw new SignatureException(e);
             }
-            catch(Exception e) {
-                errors.add(e);
+            catch (CertException e) {
+                throw new SignatureException(e);
+            }
+            catch (IOException e) {
+                throw new SignatureException(e);
             }
         }
-        for(Exception e: errors) {
-            debugStackTrace(e);
-		}
-        return false;
     }
 
     private static Object getCertificateList(final Object crl) { // X509CRLObject
