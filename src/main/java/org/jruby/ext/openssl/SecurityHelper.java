@@ -23,12 +23,12 @@
  */
 package org.jruby.ext.openssl;
 
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Locale;
-
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyFactorySpi;
@@ -39,7 +39,6 @@ import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.MessageDigestSpi;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -53,6 +52,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateFactorySpi;
 import java.security.cert.X509CRL;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,8 +73,6 @@ import javax.net.ssl.SSLContext;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.CertificateList;
 import org.bouncycastle.jce.provider.X509CRLObject;
-
-import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 
 /**
  * Java Security (and JCE) helpers.
@@ -563,26 +563,28 @@ public abstract class SecurityHelper {
             return true;
         }
 
-        try {
-            crl.verify(publicKey);
-            return true;
+        // since we are using JCE here and BC might not be registered as Provider
+        // we need to find a provider which supports such CRL verification
+        // if we find a provider we will ignore the collected errors
+        // otherwise the errors get displayed
+        // TODO use BC directly for verifing CRL (probably needs quite some refactoring)
+        List<Exception> errors = new LinkedList<Exception>();
+        for(Provider p: Security.getProviders()) {
+            try {
+                crl.verify(publicKey, p.getName());
+                return true;
+            }
+            catch(SignatureException e) {
+                return false;
+            }
+            catch(Exception e) {
+                errors.add(e);
+            }
         }
-        catch (NoSuchAlgorithmException ex) {
-            if ( silent ) return false; throw ex;
-        }
-        catch (CRLException ex) {
-            if ( silent ) return false; throw ex;
-        }
-        catch (InvalidKeyException ex) {
-            if ( silent ) return false; throw ex;
-        }
-        catch (SignatureException ex) {
-            if ( silent ) return false; throw ex;
-        }
-        catch (NoSuchProviderException e) {
+        for(Exception e: errors) {
             debugStackTrace(e);
-            throw new RuntimeException(e); // unexpected - might hide a bug
-        }
+		}
+        return false;
     }
 
     private static Object getCertificateList(final Object crl) { // X509CRLObject
