@@ -324,7 +324,7 @@ public class X509CRL extends RubyObject {
     public IRubyObject to_pem(final ThreadContext context) {
         StringWriter writer = new StringWriter();
         try {
-            PEMInputOutput.writeX509CRL(writer, getCRL());
+            PEMInputOutput.writeX509CRL(writer, crl);
             return RubyString.newString(context.runtime, writer.getBuffer());
         }
         catch (IOException e) {

@@ -32,7 +32,6 @@ import java.io.OutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
-
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -48,6 +47,7 @@ import java.util.Enumeration;
 
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
+import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
@@ -69,7 +69,6 @@ import org.bouncycastle.operator.ContentVerifier;
 import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
 import org.bouncycastle.pkcs.PKCSException;
-
 import org.jruby.ext.openssl.SecurityHelper;
 
 public class PKCS10Request {
@@ -169,7 +168,8 @@ public class PKCS10Request {
 
     public ASN1Sequence toASN1Structure() {
         if ( signedRequest == null ) {
-            throw new IllegalStateException("request not signed");
+            // return an empty Sequence
+            return new DLSequence();
         }
         return ASN1Sequence.getInstance( signedRequest.toASN1Structure() );
     }
