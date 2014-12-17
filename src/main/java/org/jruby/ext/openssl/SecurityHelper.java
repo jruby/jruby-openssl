@@ -602,6 +602,10 @@ public abstract class SecurityHelper {
             catch (CertException e) {
                 throw new SignatureException(e);
             }
+	    // can happen if the input is DER but does not match expected strucure
+            catch (ClassCastException e) {
+                throw new SignatureException(e);
+            }
             catch (IOException e) {
                 throw new SignatureException(e);
             }
