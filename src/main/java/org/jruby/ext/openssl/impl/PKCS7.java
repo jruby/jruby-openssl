@@ -36,7 +36,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
-
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -66,7 +65,7 @@ import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.pkcs.IssuerAndSerialNumber;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-
+import org.bouncycastle.pkcs.PKCSException;
 import org.jruby.ext.openssl.SecurityHelper;
 import org.jruby.ext.openssl.x509store.Name;
 import org.jruby.ext.openssl.x509store.Store;
@@ -130,26 +129,32 @@ public class PKCS7 {
     public static PKCS7 fromASN1(ASN1Encodable obj) throws PKCS7Exception {
         PKCS7 p7 = new PKCS7();
 
-        int size = ((ASN1Sequence) obj).size();
-        if (size == 0) {
-            return p7;
-        }
-
-        ASN1ObjectIdentifier contentType = (ASN1ObjectIdentifier) (((ASN1Sequence) obj).getObjectAt(0));
-        if ( EMPTY_PKCS7_OID.equals( contentType.getId() ) ) {
-            // OpenSSL behavior
-            p7.setType(ASN1Registry.NID_undef);
-        }
-        else {
-            final int nid = ASN1Registry.oid2nid(contentType);
-
-            ASN1Encodable content = size == 1 ? (ASN1Encodable) null : ((ASN1Sequence) obj).getObjectAt(1);
-
-            if (content != null && content instanceof ASN1TaggedObject && ((ASN1TaggedObject) content).getTagNo() == 0) {
-                content = ((ASN1TaggedObject) content).getObject();
+        try {
+            int size = ((ASN1Sequence) obj).size();
+            if (size == 0) {
+                return p7;
             }
-            p7.initiateWith(nid, content);
+            ASN1ObjectIdentifier contentType = (ASN1ObjectIdentifier) (((ASN1Sequence) obj).getObjectAt(0));
+            if ( EMPTY_PKCS7_OID.equals( contentType.getId() ) ) {
+                // OpenSSL behavior
+                p7.setType(ASN1Registry.NID_undef);
+            }
+            else {
+                final int nid = ASN1Registry.oid2nid(contentType);
+
+                ASN1Encodable content = size == 1 ? (ASN1Encodable) null : ((ASN1Sequence) obj).getObjectAt(1);
+
+                if (content != null && content instanceof ASN1TaggedObject && ((ASN1TaggedObject) content).getTagNo() == 0) {
+                    content = ((ASN1TaggedObject) content).getObject();
+                }
+                p7.initiateWith(nid, content);
+            }
         }
+        // somewhere the object does not obey to be PKCS7 object
+        catch (ClassCastException e) {
+            throw new IllegalArgumentException("not a PKCS7 Object");
+        }
+
         return p7;
     }
 

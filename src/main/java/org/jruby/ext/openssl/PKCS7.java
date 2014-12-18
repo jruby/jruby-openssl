@@ -311,6 +311,9 @@ public class PKCS7 extends RubyObject {
                 p7 = org.jruby.ext.openssl.impl.PKCS7.fromASN1(input);
             }
         }
+        catch (IllegalArgumentException e) {
+            throw getRuntime().newArgumentError(e.getMessage());
+        }
         catch (IOException ioe) {
             throw newPKCS7Error(getRuntime(), ioe.getMessage());
         }
