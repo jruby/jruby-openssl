@@ -155,7 +155,7 @@ abstract class StringHelper {
             if ( h.length() == 1 ) hex.append('0');
             hex.append( h ).append(':');
         }
-        if ( len > 0 ) hex.setLength( hex.length() - 1 );
+        if ( hex.length() > 0 ) hex.setLength( hex.length() - 1 );
         return hex;
     }
 
