@@ -9,7 +9,7 @@ env:
   - TEST_PROFILE=test-1.6.8
   - TEST_PROFILE=test-1.7.4
   - TEST_PROFILE=test-1.7.13
-  - TEST_PROFILE=test-1.7.17
+  - TEST_PROFILE=test-1.7.18
 # there is not 9k artifact on maven repo anymore
 #  - TEST_PROFILE=test-9000
 script: mvn verify -P $TEST_PROFILE
