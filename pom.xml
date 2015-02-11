@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.9.7.dev-SNAPSHOT</version>
+  <version>0.9.7.dev-SNAPSHOT-SNAPSHOT</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -12,12 +12,18 @@
   <licenses>
     <license>
       <name>EPL-1.0</name>
+      <url>http://opensource.org/licenses/EPL-1.0</url>
+      <comments>Eclipse Public License 1.0</comments>
     </license>
     <license>
       <name>GPL-2.0</name>
+      <url>http://opensource.org/licenses/GPL-2.0</url>
+      <comments>GNU General Public License version 2.0</comments>
     </license>
     <license>
       <name>LGPL-2.1</name>
+      <url>http://opensource.org/licenses/LGPL-2.1</url>
+      <comments>GNU Library or "Lesser" General Public License version 2.1</comments>
     </license>
   </licenses>
   <developers>
@@ -40,7 +46,6 @@
     <jruby.version>1.7.17</jruby.version>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
     <jruby.versions>1.7.17</jruby.versions>
-    <project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
     <tesla.dump.readonly>true</tesla.dump.readonly>
     <invoker.test>${bc.versions}</invoker.test>
@@ -139,6 +144,21 @@
             </fileset>
           </filesets>
         </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>generate-test-resources</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>lib</outputDirectory>
+              <useRepositoryLayout>true</useRepositoryLayout>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>de.saumya.mojo</groupId>
@@ -389,7 +409,7 @@
       </build>
       <properties>
         <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
-        <jruby.modes>1.8,1.9,2.0</jruby.modes>
+        <jruby.modes>1.8,1.9</jruby.modes>
         <jruby.versions>1.7.4</jruby.versions>
       </properties>
     </profile>
@@ -504,7 +524,7 @@
       <properties>
         <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
-        <jruby.versions>1.7.16.2</jruby.versions>
+        <jruby.versions>1.7.16</jruby.versions>
       </properties>
     </profile>
     <profile>
@@ -543,6 +563,44 @@
         <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
         <jruby.versions>1.7.17</jruby.versions>
+      </properties>
+    </profile>
+    <profile>
+      <id>test-1.7.18</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-invoker-plugin</artifactId>
+            <version>1.8</version>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>install</goal>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <projectsDirectory>integration</projectsDirectory>
+                  <pomIncludes>
+                    <pomInclude>*/pom.xml</pomInclude>
+                  </pomIncludes>
+                  <streamLogs>true</streamLogs>
+                  <properties>
+                    <jruby.versions>${jruby.versions}</jruby.versions>
+                    <jruby.modes>${jruby.modes}</jruby.modes>
+                    <jruby.openssl.version>${project.version}</jruby.openssl.version>
+                    <bc.versions>${bc.versions}</bc.versions>
+                    <runit.dir>${runit.dir}</runit.dir>
+                  </properties>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <properties>
+        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <jruby.modes>1.8,1.9,2.0</jruby.modes>
+        <jruby.versions>1.7.18</jruby.versions>
       </properties>
     </profile>
     <profile>

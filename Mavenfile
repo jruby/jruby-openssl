@@ -142,40 +142,20 @@ profile :id => 'test-1.7.4' do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
   end
-  properties 'jruby.versions' => '1.7.4', 'jruby.modes' => '1.8,1.9,2.0',
+  properties 'jruby.versions' => '1.7.4', 'jruby.modes' => '1.8,1.9',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
-profile :id => 'test-1.7.13' do
+%w{ 1.7.13 1.7.15 1.7.16 1.7.17 1.7.18 }.each do |version|
+
+profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
   end
-  properties 'jruby.versions' => '1.7.13', 'jruby.modes' => '1.8,1.9,2.0',
+  properties 'jruby.versions' => version, 'jruby.modes' => '1.8,1.9,2.0',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
-profile :id => 'test-1.7.15' do
-  plugin :invoker, '1.8' do
-    execute_goals( :install, :run, invoker_run_options )
-  end
-  properties 'jruby.versions' => '1.7.15', 'jruby.modes' => '1.8,1.9,2.0',
-             'bc.versions' => supported_bc_versions.join(',')
-end
-
-profile :id => 'test-1.7.16' do
-  plugin :invoker, '1.8' do
-    execute_goals( :install, :run, invoker_run_options )
-  end
-  properties 'jruby.versions' => '1.7.16.2', 'jruby.modes' => '1.8,1.9,2.0',
-             'bc.versions' => supported_bc_versions.join(',')
-end
-
-profile :id => 'test-1.7.17' do
-  plugin :invoker, '1.8' do
-    execute_goals( :install, :run, invoker_run_options )
-  end
-  properties 'jruby.versions' => '1.7.17', 'jruby.modes' => '1.8,1.9,2.0',
-             'bc.versions' => supported_bc_versions.join(',')
 end
 
 profile :id => 'test-9000' do
