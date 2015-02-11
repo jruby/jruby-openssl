@@ -1,5 +1,25 @@
-== 0.9.6 (pending)
+== 0.9.7 (pending)
 
+
+== 0.9.6
+
+* ClassCastException still happen deep within BC - turn them into SignatureExeption
+* make sure empty object can be serialize via to_pem
+* use the classname as message in case the exception has no message (jruby/jruby#2249)
+* make sure X509Object list is synchronized properly
+* use JRubyFile to get input-stream to file-resource fixes #11
+* Cache the discovered classes for digest engines. Fixes #15.
+* avoid the rest of Ruby.getGlobalRuntime usages - only worked in 1 runtime envs
+* refactored CRL - using light-weight BC API (avoids deprecated X.509 generator)
+* implement X509::Certificate#to_text for happiness (the MRI-way - only RSA for now)
+* allow to "fake" our inspect() support and match MRI's X509::Certificate#inspect
+* decode BC's ASN1Enumarated into a OpenSSL::ASN1::Enumerated
+* we can (ASN.1) encode an infinite-length bit-string constructive
+* turns out all ASN1 primitives in MRI have the infinite_length attribute
+* support (so-far only dummy) @servername_cb attribute on SSLSocket
+* handle (CRL) extension's issuerAltName wrapping without an exception
+* fix SSL (cert) verification - now working on 1.8/1.9 better than before
+* do not skip first 2 bytes of key identifier hash when encoding to hex!
 * match X.509 extension short-comings of the Java API in order to align with MRI
 * improve cert.extension's value - *extendedKeyUsage* was not returned correctly
 * make sure ASN1::ObjectId.new(...).ln and ASN1::ObjectId.new(...).sn are correct!
