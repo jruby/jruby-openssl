@@ -675,8 +675,8 @@
       </build>
       <properties>
         <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
-        <jruby.version>9000.dev-SNAPSHOT</jruby.version>
-        <jruby.versions>9000.dev-SNAPSHOT</jruby.versions>
+        <jruby.version>9.0.0.0.pre1</jruby.version>
+        <jruby.versions>9.0.0.0.pre1</jruby.versions>
       </properties>
     </profile>
   </profiles>
