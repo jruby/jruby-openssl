@@ -40,8 +40,8 @@
     <url>https://github.com/jruby/jruby-openssl</url>
   </scm>
   <properties>
-    <bc.versions>1.50</bc.versions>
-    <jruby.plugins.version>1.0.6</jruby.plugins.version>
+    <bc.versions>1.51</bc.versions>
+    <jruby.plugins.version>1.0.7</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <jruby.version>1.7.17</jruby.version>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
@@ -68,12 +68,12 @@
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
-      <version>1.49</version>
+      <version>1.50</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
-      <version>1.49</version>
+      <version>1.50</version>
     </dependency>
     <dependency>
       <groupId>org.jruby</groupId>
@@ -370,7 +370,7 @@
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
         <jruby.modes>1.8,1.9</jruby.modes>
         <jruby.versions>1.6.8</jruby.versions>
       </properties>
@@ -408,7 +408,7 @@
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
         <jruby.modes>1.8,1.9</jruby.modes>
         <jruby.versions>1.7.4</jruby.versions>
       </properties>
@@ -446,7 +446,7 @@
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
         <jruby.versions>1.7.13</jruby.versions>
       </properties>
@@ -484,7 +484,7 @@
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
         <jruby.versions>1.7.15</jruby.versions>
       </properties>
@@ -522,7 +522,7 @@
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
         <jruby.versions>1.7.16</jruby.versions>
       </properties>
@@ -560,7 +560,7 @@
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
         <jruby.versions>1.7.17</jruby.versions>
       </properties>
@@ -598,7 +598,7 @@
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
         <jruby.modes>1.8,1.9,2.0</jruby.modes>
         <jruby.versions>1.7.18</jruby.versions>
       </properties>
@@ -636,7 +636,7 @@
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.47,1.48,1.49,1.50</bc.versions>
+        <bc.versions>1.47,1.48,1.49,1.50,1.51</bc.versions>
         <jruby.version>9000.dev-SNAPSHOT</jruby.version>
         <jruby.versions>9000.dev-SNAPSHOT</jruby.versions>
       </properties>

@@ -94,9 +94,9 @@ jruby_plugin! :gem do
   execute_goals :id => 'default-push', :skip => true
 end
 
-supported_bc_versions = [ '1.47', '1.48', '1.49', '1.50' ]
+supported_bc_versions = [ '1.47', '1.48', '1.49', '1.50', '1.51' ]
 
-properties( 'jruby.plugins.version' => '1.0.6',
+properties( 'jruby.plugins.version' => '1.0.7',
             'jruby.versions' => '1.7.17',
             'bc.versions' => supported_bc_versions.last,
             'invoker.test' => '${bc.versions}',
