@@ -119,8 +119,8 @@ public class SSLSocket extends RubyObject {
 
     private boolean initialHandshake = false;
 
-    private SSLEngineResult.HandshakeStatus hsStatus;
-    private SSLEngineResult.Status status = null;
+    private SSLEngineResult.HandshakeStatus handshakeStatus;
+    private SSLEngineResult.Status status;
 
     int verifyResult = X509Utils.V_OK;
 
@@ -151,24 +151,26 @@ public class SSLSocket extends RubyObject {
         return Utils.invokeSuper(context, this, args, unused); // super()
     }
 
-    private void ossl_ssl_setup(final ThreadContext context)
+    private SSLEngine ossl_ssl_setup(final ThreadContext context)
         throws NoSuchAlgorithmException, KeyManagementException, IOException {
-        if ( engine == null ) {
-            final Socket socket = getSocketChannel().socket();
-            // Server Name Indication (SNI) RFC 3546
-            // SNI support will not be attempted unless hostname is explicitly set by the caller
-            String peerHost = this.callMethod(context, "hostname").toString();
-            int peerPort = socket.getPort();
-            engine = sslContext.createSSLEngine(peerHost, peerPort);
-            final SSLSession session = engine.getSession();
-            peerNetData = ByteBuffer.allocate(session.getPacketBufferSize());
-            peerAppData = ByteBuffer.allocate(session.getApplicationBufferSize());
-            netData = ByteBuffer.allocate(session.getPacketBufferSize());
-            peerNetData.limit(0);
-            peerAppData.limit(0);
-            netData.limit(0);
-            dummy = ByteBuffer.allocate(0);
-        }
+        SSLEngine engine = this.engine;
+        if ( engine != null ) return engine;
+
+        final Socket socket = getSocketChannel().socket();
+        // Server Name Indication (SNI) RFC 3546
+        // SNI support will not be attempted unless hostname is explicitly set by the caller
+        String peerHost = this.callMethod(context, "hostname").toString();
+        int peerPort = socket.getPort();
+        engine = sslContext.createSSLEngine(peerHost, peerPort);
+        final SSLSession session = engine.getSession();
+        peerNetData = ByteBuffer.allocate(session.getPacketBufferSize());
+        peerAppData = ByteBuffer.allocate(session.getApplicationBufferSize());
+        netData = ByteBuffer.allocate(session.getPacketBufferSize());
+        peerNetData.limit(0);
+        peerAppData.limit(0);
+        netData.limit(0);
+        dummy = ByteBuffer.allocate(0);
+        return this.engine = engine;
     }
 
     @JRubyMethod
@@ -190,10 +192,10 @@ public class SSLSocket extends RubyObject {
 
         try {
             if ( ! initialHandshake ) {
-                ossl_ssl_setup(context);
+                SSLEngine engine = ossl_ssl_setup(context);
                 engine.setUseClientMode(true);
                 engine.beginHandshake();
-                hsStatus = engine.getHandshakeStatus();
+                handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
             }
             doHandshake(blocking);
@@ -242,7 +244,7 @@ public class SSLSocket extends RubyObject {
 
         try {
             if ( ! initialHandshake ) {
-                ossl_ssl_setup(context);
+                SSLEngine engine = ossl_ssl_setup(context);
                 engine.setUseClientMode(false);
                 final IRubyObject verify_mode;
                 if( ! sslContext.isNil() &&
@@ -260,7 +262,7 @@ public class SSLSocket extends RubyObject {
                     }
                 }
                 engine.beginHandshake();
-                hsStatus = engine.getHandshakeStatus();
+                handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
             }
             doHandshake(blocking);
@@ -371,7 +373,7 @@ public class SSLSocket extends RubyObject {
                 if ( selector != null ) selector.selectNow();
             }
             catch (Exception e) { // ignore
-                debugStackTrace(getRuntime(), e);
+                debugStackTrace(runtime, e);
             }
 
             // shut down and null out the selector
@@ -381,7 +383,7 @@ public class SSLSocket extends RubyObject {
                 }
             }
             catch (Exception e) { // ignore
-                debugStackTrace(getRuntime(), e);
+                debugStackTrace(runtime, e);
             }
 
             // remove this thread as a blocker against the given IO
@@ -412,7 +414,7 @@ public class SSLSocket extends RubyObject {
 
             // otherwise, proceed as before
 
-            switch (hsStatus) {
+            switch (handshakeStatus) {
             case FINISHED:
             case NOT_HANDSHAKING:
                 if ( initialHandshake ) finishInitialHandshake();
@@ -421,7 +423,7 @@ public class SSLSocket extends RubyObject {
                 doTasks();
                 break;
             case NEED_UNWRAP:
-                if (readAndUnwrap(blocking) == -1 && hsStatus != SSLEngineResult.HandshakeStatus.FINISHED) {
+                if (readAndUnwrap(blocking) == -1 && handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED) {
                     throw new SSLHandshakeException("Socket closed");
                 }
                 // during initialHandshake, calling readAndUnwrap that results UNDERFLOW
@@ -437,12 +439,12 @@ public class SSLSocket extends RubyObject {
                 }
                 netData.clear();
                 res = engine.wrap(dummy, netData);
-                hsStatus = res.getHandshakeStatus();
+                handshakeStatus = res.getHandshakeStatus();
                 netData.flip();
                 flushData(blocking);
                 break;
             default:
-                throw new IllegalStateException("Unknown handshaking status: " + hsStatus);
+                throw new IllegalStateException("Unknown handshaking status: " + handshakeStatus);
             }
         }
     }
@@ -452,7 +454,7 @@ public class SSLSocket extends RubyObject {
         while ((task = engine.getDelegatedTask()) != null) {
             task.run();
         }
-        hsStatus = engine.getHandshakeStatus();
+        handshakeStatus = engine.getHandshakeStatus();
         verifyResult = sslContext.getLastVerifyResult();
     }
 
@@ -554,7 +556,7 @@ public class SSLSocket extends RubyObject {
             res = engine.unwrap(peerNetData, peerAppData);
         }
         status = res.getStatus();
-        hsStatus = res.getHandshakeStatus();
+        handshakeStatus = res.getHandshakeStatus();
         if ( bytesRead == -1 && !peerNetData.hasRemaining() ) {
             // now it's safe to call closeInbound().
             closeInbound();
@@ -565,9 +567,9 @@ public class SSLSocket extends RubyObject {
         }
         peerNetData.compact();
         peerAppData.flip();
-        if(!initialHandshake && (hsStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
-                                 hsStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
-                                 hsStatus == SSLEngineResult.HandshakeStatus.FINISHED)) {
+        if(!initialHandshake && (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
+                                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
+                                 handshakeStatus == SSLEngineResult.HandshakeStatus.FINISHED)) {
             doHandshake(blocking);
         }
         return peerAppData.remaining();
