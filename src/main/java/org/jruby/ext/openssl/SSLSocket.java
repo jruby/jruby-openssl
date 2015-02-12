@@ -77,7 +77,7 @@ import static org.jruby.ext.openssl.OpenSSL.*;
  */
 public class SSLSocket extends RubyObject {
 
-    private static final long serialVersionUID = 5170831655279559707L;
+    private static final long serialVersionUID = -2084816623554406237L;
 
     private static ObjectAllocator SSLSOCKET_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
@@ -140,12 +140,11 @@ public class SSLSocket extends RubyObject {
             throw runtime.newTypeError("IO expected but got " + args[0].getMetaClass().getName());
         }
         this.callMethod(context, "io=", this.io = (RubyIO) args[0]);
-        this.callMethod(context, "hostname=", runtime.newString(""));
+        this.callMethod(context, "context=", sslContext);
         // This is a bit of a hack: SSLSocket should share code with
         // RubyBasicSocket, which always sets sync to true.
         // Instead we set it here for now.
         this.io.callMethod(context, "sync=", runtime.getTrue());
-        this.callMethod(context, "context=", sslContext);
         this.callMethod(context, "sync_close=", runtime.getFalse());
         sslContext.setup(context);
         return Utils.invokeSuper(context, this, args, unused); // super()
@@ -819,6 +818,7 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject cipher() {
+        if ( engine == null ) return getRuntime().getNil();
         return getRuntime().newString( engine.getSession().getCipherSuite() );
     }
 
