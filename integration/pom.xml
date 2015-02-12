@@ -11,7 +11,7 @@
     <tesla.dump.readonly>true</tesla.dump.readonly>
     <jruby.openssl.version>0.9.6</jruby.openssl.version>
     <gem.path>${basedir}/../pkg/rubygems</gem.path>
-    <jruby.plugins.version>1.0.7</jruby.plugins.version>
+    <jruby.plugins.version>1.0.8</jruby.plugins.version>
     <gem.home>${basedir}/../pkg/rubygems</gem.home>
     <bc.version>1.50</bc.version>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>

@@ -20,7 +20,7 @@ properties( 'bc.version' => bc_version, # to satisfy maven
             'gem.path' => '${basedir}/../pkg/rubygems',
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true,
-            'jruby.plugins.version' => '1.0.7' )
+            'jruby.plugins.version' => '1.0.8' )
 
 jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
   execute_goal :initialize

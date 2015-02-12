@@ -41,7 +41,7 @@
   </scm>
   <properties>
     <bc.versions>1.50</bc.versions>
-    <jruby.plugins.version>1.0.7</jruby.plugins.version>
+    <jruby.plugins.version>1.0.8</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <jruby.version>1.7.18</jruby.version>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
