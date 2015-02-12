@@ -94,17 +94,19 @@ jruby_plugin! :gem do
   execute_goals :id => 'default-push', :skip => true
 end
 
-supported_bc_versions = [ '1.47', '1.48', '1.49', '1.50', '1.51' ]
+supported_bc_versions = %w{ 1.47 1.48 1.49 1.50 1.51 }
+
+default_bc_version = File.read('lib/jopenssl/version.rb')[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
 properties( 'jruby.plugins.version' => '1.0.7',
-            'jruby.versions' => '1.7.17',
-            'bc.versions' => supported_bc_versions.last,
+            'jruby.versions' => '1.7.18',
+            'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
             # use this version of jruby for ALL the jruby-maven-plugins
-            'jruby.version' => '1.7.17',
+            'jruby.version' => '1.7.18',
             # dump pom.xml as readonly when running 'rmvn'
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true )
@@ -146,7 +148,7 @@ profile :id => 'test-1.7.4' do
              'bc.versions' => supported_bc_versions.join(',')
 end
 
-%w{ 1.7.13 1.7.15 1.7.16 1.7.17 1.7.18 }.each do |version|
+%w{ 1.7.13 1.7.15 1.7.16 1.7.17 1.7.18 1.7.19 }.each do |version|
 
 profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
@@ -162,8 +164,8 @@ profile :id => 'test-9000' do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
   end
-  properties 'jruby.version' => '9000.dev-SNAPSHOT',
-             'jruby.versions' => '9000.dev-SNAPSHOT',
+  properties 'jruby.version' => '9.0.0.0.pre1',
+             'jruby.versions' => '9.0.0.0.pre1',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
