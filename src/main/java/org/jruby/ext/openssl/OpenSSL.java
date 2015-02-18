@@ -37,6 +37,7 @@ import org.jruby.anno.JRubyModule;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
+import org.jruby.util.SafePropertyAccessor;
 
 /**
  * OpenSSL (methods as well as an entry point)
@@ -55,7 +56,7 @@ public final class OpenSSL {
     }
 
     public static void createOpenSSL(final Ruby runtime) {
-        boolean registerProvider = Boolean.getBoolean("jruby.openssl.provider.register");
+        boolean registerProvider = SafePropertyAccessor.getBoolean("jruby.openssl.provider.register");
         SecurityHelper.setRegisterProvider( registerProvider );
 
         final RubyModule _OpenSSL = runtime.getOrCreateModule("OpenSSL");
@@ -109,9 +110,9 @@ public final class OpenSSL {
         _OpenSSL.setConstant("OPENSSL_VERSION", runtime.newString(OPENSSL_VERSION));
         _OpenSSL.setConstant("OPENSSL_VERSION_NUMBER", runtime.newFixnum(OPENSSL_VERSION_NUMBER));
 
-        setDebug(_OpenSSL, runtime.newBoolean( Boolean.getBoolean("jruby.openssl.debug") ) );
+        setDebug(_OpenSSL, runtime.newBoolean( SafePropertyAccessor.getBoolean("jruby.openssl.debug") ) );
 
-        final String warn = System.getProperty("jruby.openssl.warn");
+        final String warn = SafePropertyAccessor.getProperty("jruby.openssl.warn");
         if ( warn != null ) OpenSSL.warn = Boolean.parseBoolean(warn);
     }
 

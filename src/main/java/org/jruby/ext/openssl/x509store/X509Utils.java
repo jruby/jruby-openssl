@@ -45,6 +45,8 @@ import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
 import org.bouncycastle.asn1.x500.X500Name;
 
+import org.jruby.util.SafePropertyAccessor;
+
 /**
  * Contains most of the functionality that beings with X509 in
  * crypty/x509/x509_def.c, crypty/x509/x509_txt.c and others.
@@ -284,9 +286,9 @@ public abstract class X509Utils {
 
     public static final String OPENSSLDIR = "/usr/local/openssl";
 
-    public static final String X509_CERT_AREA = System.getProperty("java.home") + "/lib/security";
-    public static final String X509_CERT_DIR = System.getProperty("java.home") + "/lib/security";
-    public static final String X509_CERT_FILE = System.getProperty("java.home") + "/lib/security" + "/cacerts";
+    public static final String X509_CERT_AREA = SafePropertyAccessor.getProperty("java.home") + "/lib/security";
+    public static final String X509_CERT_DIR = SafePropertyAccessor.getProperty("java.home") + "/lib/security";
+    public static final String X509_CERT_FILE = SafePropertyAccessor.getProperty("java.home") + "/lib/security" + "/cacerts";
     public static final String X509_PRIVATE_DIR = "/usr/lib/ssl/private";
 
     public static final String X509_CERT_DIR_EVP = "SSL_CERT_DIR";

@@ -66,6 +66,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyHash;
 import org.jruby.ext.openssl.SecurityHelper;
 import org.jruby.util.JRubyFile;
+import org.jruby.util.SafePropertyAccessor;
 import org.jruby.util.io.ChannelDescriptor;
 import org.jruby.util.io.ChannelStream;
 import org.jruby.util.io.FileExistsException;
@@ -277,7 +278,7 @@ public class Lookup {
     }
 
     public int loadDefaultJavaCACertsFile() throws Exception {
-        final String certsFile = System.getProperty("java.home") +
+        final String certsFile = SafePropertyAccessor.getProperty("java.home") +
             "/lib/security/cacerts".replace('/', File.separatorChar);
         final FileInputStream fin = new FileInputStream(certsFile);
         int count = 0;
@@ -543,7 +544,7 @@ public class Lookup {
                 return 0;
             }
 
-            String[] dirs = dir.split(System.getProperty("path.separator"));
+            String[] dirs = dir.split(SafePropertyAccessor.getProperty("path.separator"));
 
             for ( int i=0; i<dirs.length; i++ ) {
                 if ( dirs[i].length() == 0 ) {
