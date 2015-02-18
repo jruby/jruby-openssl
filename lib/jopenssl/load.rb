@@ -11,10 +11,17 @@ begin
   require_jar( 'org.bouncycastle', 'bcprov-jdk15on', version )
   bc_jars = true
 rescue LoadError
-end if defined?(Jars) && ( ! Jars.skip? ) rescue nil
+end if (defined?(Jars) && ( ! Jars.skip? ) rescue nil)
 unless bc_jars
-  load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
-  load "org/bouncycastle/bcprov-jdk15on/#{version}/bcprov-jdk15on-#{version}.jar"
+  begin
+    # try regular require first
+    require "bcpkix-jdk15on-#{version}.jar"
+    require "bcprov-jdk15on-#{version}.jar"
+  rescue LoadError
+    # load from here
+    load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
+    load "org/bouncycastle/bcprov-jdk15on/#{version}/bcprov-jdk15on-#{version}.jar"
+  end
 end
 
 require 'jruby'
