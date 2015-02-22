@@ -55,7 +55,6 @@ import java.io.Reader;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.security.cert.CRL;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
@@ -68,7 +67,6 @@ import org.jruby.Ruby;
 import org.jruby.RubyHash;
 import org.jruby.ext.openssl.SecurityHelper;
 import org.jruby.util.JRubyFile;
-import org.jruby.util.SafePropertyAccessor;
 import org.jruby.util.io.ChannelDescriptor;
 import org.jruby.util.io.ChannelStream;
 import org.jruby.util.io.FileExistsException;
@@ -545,7 +543,7 @@ public class Lookup {
                 return 0;
             }
 
-            String[] dirs = dir.split(SafePropertyAccessor.getProperty("path.separator"));
+            String[] dirs = dir.split(File.pathSeparator);
 
             for ( int i=0; i<dirs.length; i++ ) {
                 if ( dirs[i].length() == 0 ) {
