@@ -53,6 +53,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.math.BigInteger;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.CRL;
 import java.security.cert.PKIXParameters;
@@ -66,7 +67,6 @@ import org.jruby.Ruby;
 import org.jruby.RubyHash;
 import org.jruby.ext.openssl.SecurityHelper;
 import org.jruby.util.JRubyFile;
-import org.jruby.util.SafePropertyAccessor;
 import org.jruby.util.io.ChannelDescriptor;
 import org.jruby.util.io.ChannelStream;
 import org.jruby.util.io.FileExistsException;
@@ -82,10 +82,10 @@ public class Lookup {
 
     boolean init = false;
     boolean skip = false;
-    
+
     final LookupMethod method;
     private final Ruby runtime;
-    
+
     Object methodData;
     Store store;
 
@@ -277,9 +277,8 @@ public class Lookup {
         return count;
     }
 
-    public int loadDefaultJavaCACertsFile() throws Exception {
-        final String certsFile = SafePropertyAccessor.getProperty("java.home") +
-            "/lib/security/cacerts".replace('/', File.separatorChar);
+    public int loadDefaultJavaCACertsFile() throws IOException, GeneralSecurityException {
+        final String certsFile = X509Utils.X509_CERT_FILE.replace('/', File.separatorChar);
         final FileInputStream fin = new FileInputStream(certsFile);
         int count = 0;
         try {
@@ -329,7 +328,7 @@ public class Lookup {
     	RubyHash env = (RubyHash) runtime.getObject().getConstant("ENV");
         return (String) env.get( runtime.newString(key) );
     }
-    
+
     /**
      * c: X509_LOOKUP_free
      */
@@ -440,7 +439,7 @@ public class Lookup {
                         file = ctx.envEntry( getDefaultCertificateFileEnvironment() );
                     }
                     catch (RuntimeException e) { }
-                    
+
                     if (file != null) {
                         ok = ctx.loadCertificateOrCRLFile(file, X509_FILETYPE_PEM) != 0 ? 1 : 0;
                     } else {
@@ -544,7 +543,7 @@ public class Lookup {
                 return 0;
             }
 
-            String[] dirs = dir.split(SafePropertyAccessor.getProperty("path.separator"));
+            String[] dirs = dir.split(File.pathSeparator);
 
             for ( int i=0; i<dirs.length; i++ ) {
                 if ( dirs[i].length() == 0 ) {

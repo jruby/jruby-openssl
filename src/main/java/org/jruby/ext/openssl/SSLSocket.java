@@ -403,7 +403,6 @@ public class SSLSocket extends RubyObject {
 
     private void doHandshake(boolean blocking) throws IOException {
         while (true) {
-            SSLEngineResult res;
             boolean ready = waitSelect(SelectionKey.OP_READ | SelectionKey.OP_WRITE, blocking);
 
             // if not blocking, raise EAGAIN
@@ -437,8 +436,8 @@ public class SSLSocket extends RubyObject {
                     while ( flushData(blocking) ) { /* loop */ }
                 }
                 netData.clear();
-                res = engine.wrap(dummy, netData);
-                handshakeStatus = res.getHandshakeStatus();
+                SSLEngineResult result = engine.wrap(dummy, netData);
+                handshakeStatus = result.getHandshakeStatus();
                 netData.flip();
                 flushData(blocking);
                 break;
