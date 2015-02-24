@@ -1,0 +1,43 @@
+PATH
+  remote: .
+  specs:
+    jruby-openssl (0.9.7.jg-java)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    axiom-types (0.1.1)
+      descendants_tracker (~> 0.0.4)
+      ice_nine (~> 0.11.0)
+      thread_safe (~> 0.3, >= 0.3.1)
+    coercible (1.0.0)
+      descendants_tracker (~> 0.0.1)
+    descendants_tracker (0.0.4)
+      thread_safe (~> 0.3, >= 0.3.1)
+    equalizer (0.0.9)
+    ice_nine (0.11.1)
+    jar-dependencies (0.0.9)
+    maven-tools (1.0.8)
+      virtus (~> 1.0)
+    metaclass (0.0.4)
+    mocha (1.1.0)
+      metaclass (~> 0.0.1)
+    ruby-maven (3.1.1.0.11)
+      maven-tools (~> 1.0.8)
+      ruby-maven-libs (= 3.1.1)
+    ruby-maven-libs (3.1.1)
+    thread_safe (0.3.4-java)
+    virtus (1.0.4)
+      axiom-types (~> 0.1)
+      coercible (~> 1.0)
+      descendants_tracker (~> 0.0, >= 0.0.3)
+      equalizer (~> 0.0, >= 0.0.9)
+
+PLATFORMS
+  java
+
+DEPENDENCIES
+  jar-dependencies (= 0.0.9)
+  jruby-openssl!
+  mocha (~> 1.1.0)
+  ruby-maven

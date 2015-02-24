@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'jar-dependencies', '0.0.9'
 
   s.add_development_dependency 'mocha', '~> 1.1.0'
+  s.add_development_dependency 'ruby-maven'
   # NOTE: runit-maven-plugin will use it's own :
   #s.add_development_dependency 'test-unit', '2.5.5'
 end
