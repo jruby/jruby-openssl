@@ -4,3 +4,4 @@ pkg
 target
 build.log
 .idea
+*.lock
