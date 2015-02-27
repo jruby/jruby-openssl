@@ -129,7 +129,7 @@ public class HMAC extends RubyObject {
 
     private Mac mac;
     private byte[] key;
-    private final StringBuilder data = new StringBuilder(64);
+    private ByteList data = new ByteList(64);
 
     @JRubyMethod(visibility = Visibility.PRIVATE)
     public IRubyObject initialize(IRubyObject key, IRubyObject digest) {
@@ -171,21 +171,20 @@ public class HMAC extends RubyObject {
             throw getRuntime().newNotImplementedError(e.getMessage());
         }
 
-        data.setLength(0);
-        data.append( that.data );
+        data = new ByteList(that.data);
 
         return this;
     }
 
     @JRubyMethod(name = { "update", "<<" })
     public IRubyObject update(final IRubyObject obj) {
-        data.append(obj);
+        data.append(obj.asString().getByteList());
         return this;
     }
 
     @JRubyMethod
     public IRubyObject reset() {
-        data.setLength(0);
+        data = new ByteList(64);
         return this;
     }
 
@@ -205,7 +204,8 @@ public class HMAC extends RubyObject {
 
     private byte[] getSignatureBytes() {
         mac.reset();
-        return mac.doFinal( data.toString().getBytes() );
+        mac.update(data.getUnsafeBytes(), data.getBegin(), data.getRealSize());
+        return mac.doFinal();
     }
 
     private static String getDigestAlgorithmName(final IRubyObject digest) {
