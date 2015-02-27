@@ -1,4 +1,3 @@
-# coding: US-ASCII
 require File.expand_path('test_helper', File.dirname(__FILE__))
 
 class TestHMAC < TestCase
@@ -32,6 +31,8 @@ class TestHMAC < TestCase
     assert_equal('c17c7b655b11574fea8d676a1fdc0ca8', @h2.hexdigest) # calculated on MRI
     @h2.update('DATA')
     assert_equal('9e50596c0fa1197f8587443a942d8afc', @h2.hexdigest) # calculated on MRI
+    @h2.reset
+    @h2.update("\xFF") # invalid utf-8 char
+    assert_equal('0770623462e782b51bb0689a8ba4f3f1', @h2.hexdigest) # calcualted on MRI
   end
-
 end
