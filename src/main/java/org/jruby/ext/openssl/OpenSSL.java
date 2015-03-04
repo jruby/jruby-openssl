@@ -64,6 +64,12 @@ public final class OpenSSL {
         _OpenSSL.defineClassUnder("OpenSSLError", _StandardError, _StandardError.getAllocator());
         _OpenSSL.defineAnnotatedMethods(OpenSSL.class);
 
+        // set OpenSSL debug internal flag early on so it can print traces even while loading extension
+        setDebug(_OpenSSL, runtime.newBoolean( SafePropertyAccessor.getBoolean("jruby.openssl.debug") ) );
+
+        final String warn = SafePropertyAccessor.getProperty("jruby.openssl.warn");
+        if ( warn != null ) OpenSSL.warn = Boolean.parseBoolean(warn);
+
         PKey.createPKey(runtime, _OpenSSL);
         BN.createBN(runtime, _OpenSSL);
         Digest.createDigest(runtime, _OpenSSL);
@@ -109,11 +115,6 @@ public final class OpenSSL {
         OPENSSL_VERSION.append( jVERSION.getByteList() );
         _OpenSSL.setConstant("OPENSSL_VERSION", runtime.newString(OPENSSL_VERSION));
         _OpenSSL.setConstant("OPENSSL_VERSION_NUMBER", runtime.newFixnum(OPENSSL_VERSION_NUMBER));
-
-        setDebug(_OpenSSL, runtime.newBoolean( SafePropertyAccessor.getBoolean("jruby.openssl.debug") ) );
-
-        final String warn = SafePropertyAccessor.getProperty("jruby.openssl.warn");
-        if ( warn != null ) OpenSSL.warn = Boolean.parseBoolean(warn);
     }
 
     static RubyClass _OpenSSLError(final Ruby runtime) {
