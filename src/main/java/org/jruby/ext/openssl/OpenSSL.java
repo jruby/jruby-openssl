@@ -125,7 +125,7 @@ public final class OpenSSL {
 
     @JRubyMethod(name = "errors", meta = true)
     public static IRubyObject errors(IRubyObject self) {
-        Ruby runtime = self.getRuntime();
+        final Ruby runtime = self.getRuntime();
         RubyArray result = runtime.newArray();
         for (Map.Entry<Integer, String> e : X509.getErrors().entrySet()) {
             result.add( runtime.newString( e.getValue() ) );
@@ -135,7 +135,11 @@ public final class OpenSSL {
 
     @JRubyMethod(name = "debug", meta = true)
     public static IRubyObject getDebug(IRubyObject self) {
-        return (IRubyObject) ((RubyModule) self).getInternalVariable("debug");
+        return (IRubyObject) getDebug((RubyModule) self);
+    }
+
+    private static Object getDebug(RubyModule self) {
+        return self.getInternalVariable("debug");
     }
 
     @JRubyMethod(name = "debug=", meta = true)
@@ -196,7 +200,9 @@ public final class OpenSSL {
     }
 
     static boolean isDebug(final Ruby runtime) {
-        return getDebug( runtime.getModule("OpenSSL") ).isTrue();
+        final RubyModule OpenSSL = runtime.getModule("OpenSSL");
+        if ( OpenSSL == null ) return debug; // debug early on
+        return getDebug( OpenSSL ) == runtime.getTrue();
     }
 
     static void debugStackTrace(final Ruby runtime, final Throwable e) {
