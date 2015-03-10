@@ -1062,7 +1062,7 @@ public class Cipher extends RubyObject {
         return idx <= 0 ? realName : realName.substring(0, idx);
     }
 
-    private byte[] lastIV = null;
+    private byte[] lastIV;
 
     @JRubyMethod
     public IRubyObject update(final ThreadContext context, final IRubyObject arg) {
@@ -1082,27 +1082,24 @@ public class Cipher extends RubyObject {
             //if ( debug ) runtime.getOut().println("AFTER INITING");
         }
 
-        byte[] str = ByteList.NULL_ARRAY;
+        final ByteList str;
         try {
             final byte[] out = cipher.update(data);
             if ( out != null ) {
-                str = out;
-
+                str = new ByteList(out, false);
                 if ( realIV != null ) {
-                    if ( lastIV == null ) lastIV = new byte[ivLength];
-                    final byte[] tmpIV = encryptMode ? out : data;
-                    if ( tmpIV.length >= ivLength ) {
-                        System.arraycopy(tmpIV, tmpIV.length - ivLength, lastIV, 0, ivLength);
-                    }
+                    setLastIVIfNeeded( encryptMode ? out : data );
                 }
+            }
+            else {
+                str = new ByteList(ByteList.NULL_ARRAY);
             }
         }
         catch (Exception e) {
             debugStackTrace( runtime, e );
             throw newCipherError(runtime, e);
         }
-
-        return StringHelper.newString(runtime, str);
+        return RubyString.newString(runtime, str);
     }
 
     @JRubyMethod(name = "<<")
@@ -1117,10 +1114,9 @@ public class Cipher extends RubyObject {
         checkCipherNotNull(runtime);
         if ( ! cipherInited ) doInitCipher(runtime);
         // trying to allow update after final like cruby-openssl. Bad idea.
-        if ( "RC4".equalsIgnoreCase(cryptoBase) ) {
-            return runtime.newString("");
-        }
-        ByteList str = null;
+        if ( "RC4".equalsIgnoreCase(cryptoBase) ) return runtime.newString("");
+
+        final ByteList str;
         try {
             final byte[] out = cipher.doFinal();
             if ( out != null ) {
@@ -1129,14 +1125,11 @@ public class Cipher extends RubyObject {
                 // not have a good reason for why. Best I can tell, lastIv needs
                 // to be set regardless of encryptMode, so we'll go with this
                 // for now. JRUBY-3335.
-                //if ( realIV != null && encryptMode ) {
-                if ( realIV != null ) {
-                    if ( lastIV == null ) lastIV = new byte[ivLength];
-                    byte[] tmpIV = out;
-                    if (tmpIV.length >= ivLength) {
-                        System.arraycopy(tmpIV, tmpIV.length - ivLength, lastIV, 0, ivLength);
-                    }
-                }
+                //if ( realIV != null && encryptMode ) ...
+                if ( realIV != null ) setLastIVIfNeeded(out);
+            }
+            else {
+                str = new ByteList(ByteList.NULL_ARRAY);
             }
             if (realIV != null) {
                 realIV = lastIV;
@@ -1150,7 +1143,15 @@ public class Cipher extends RubyObject {
             debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
-        return str == null ? RubyString.newEmptyString(runtime) : runtime.newString(str);
+        return RubyString.newString(runtime, str);
+    }
+
+    private void setLastIVIfNeeded(final byte[] tmpIV) {
+        final int len = ivLength;
+        if ( lastIV == null ) lastIV = new byte[len];
+        if ( tmpIV.length >= len ) {
+            System.arraycopy(tmpIV, tmpIV.length - len, lastIV, 0, len);
+        }
     }
 
     @JRubyMethod(name = "padding=")
