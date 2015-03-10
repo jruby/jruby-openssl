@@ -1049,12 +1049,7 @@ public class Cipher extends RubyObject {
             throw newCipherError(runtime, e);
         }
         cipherInited = true;
-    }
-
-    private static byte[] emptyKey(final int length) {
-        final byte[] key = new byte[length];
-        // Arrays.fill(key, (byte) '\0');
-        return key;
+        processedDataBytes = 0;
     }
 
     private String getCipherAlgorithm() {
@@ -1062,6 +1057,7 @@ public class Cipher extends RubyObject {
         return idx <= 0 ? realName : realName.substring(0, idx);
     }
 
+    private int processedDataBytes = 0;
     private byte[] lastIV;
 
     @JRubyMethod
@@ -1094,6 +1090,7 @@ public class Cipher extends RubyObject {
             else {
                 str = new ByteList(ByteList.NULL_ARRAY);
             }
+            processedDataBytes += data.length;
         }
         catch (Exception e) {
             debugStackTrace( runtime, e );
@@ -1131,6 +1128,14 @@ public class Cipher extends RubyObject {
             else {
                 str = new ByteList(ByteList.NULL_ARRAY);
             }
+
+            if ( ! isStreamCipher() ) {
+                if ( str.length() > processedDataBytes ) {
+                    // MRI compatibility only trailing bytes :
+                    str.setRealSize(processedDataBytes);
+                }
+            }
+
             if (realIV != null) {
                 realIV = lastIV;
                 doInitCipher(runtime);

@@ -85,7 +85,7 @@ class TestCipher < TestCase
     assert_equal 16, cipher.to_java.key.length
     assert_equal 16, cipher.random_iv.size
     assert_equal 16, cipher.to_java.realIV.length
-  end
+  end if defined? JRUBY_VERSION
 
   def test_cipher_init_default_key
     return skip('OpenSSL::Cipher key default not implemented') if defined? JRUBY_VERSION
@@ -123,6 +123,114 @@ class TestCipher < TestCase
       assert_raise OpenSSL::Cipher::CipherError, &block
     else
       assert_raise RuntimeError, &block
+    end
+  end
+
+#  def test_cipher_non_mod_length
+#    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
+#    cipher.encrypt
+#    length = 50
+#    cipher.iv = '0' * length
+#    cipher.key = '1' * length
+#    bytes = '01234' * 4
+#    expected = "L=\x8C\xD1_]\xD6\x8Dk\t\xC3\xF0s\x8D_\x91\x12\x93\x7F\x80" # from MRI
+#    assert_equal expected, cipher.update(bytes)
+#
+#    assert_equal 16, cipher.iv_len
+#    assert_equal 16, cipher.key_len
+#  end
+
+#  def test_cipher_mod_length
+#    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
+#    cipher.encrypt
+#    length = 48
+#    cipher.iv = '0' * length
+#    cipher.key = '1' * length
+#    bytes = '123456' * 8
+#    expected = "M4\xFE\xFF\xE3\xE7\x11*\xF2E\xA6\x815M\xCFO\xDFp\xB7\x87\xAC\xD0\xB0h" # ... from MRI
+#    actual = cipher.update(bytes)
+#    assert_equal expected, actual[0...24]
+#    assert_equal 48, actual.size
+#  end
+
+#  def test_cipher_32_length
+#    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
+#    cipher.encrypt
+#    length = 32
+#    cipher.iv = '0' * length
+#    cipher.key = '1' * length
+#    bytes = '01234' * 4
+#    expected = "L=\x8C\xD1_]\xD6\x8Dk\t\xC3\xF0s\x8D_\x91\x12\x93\x7F\x80" # from MRI
+#    assert_equal expected, cipher.update(bytes)
+#  end
+
+#  def test_cipher_16_length
+#    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
+#    assert_equal cipher, cipher.encrypt
+#    length = 16
+#    cipher.iv = '0' * length
+#    cipher.key = '1' * length
+#    bytes = '01234' * 4
+#    expected = "L=\x8C\xD1_]\xD6\x8Dk\t\xC3\xF0s\x8D_\x91\x12\x93\x7F\x80" # from MRI
+#    assert_equal expected, cipher.update(bytes)
+#  end
+
+  def test_encrypt_aes_cfb_4_incompatibility
+    cipher = OpenSSL::Cipher.new 'aes-128-cfb'
+    assert_equal cipher, cipher.encrypt
+    length = 16
+    cipher.iv = '0' * length
+    cipher.key = '1' * length
+    bytes = '0000'
+    expected = "f0@\x02" # from MRI
+    actual = cipher.update(bytes)
+    # NOTE: ugly but this is as far as JCE gets us :
+    if defined? JRUBY_VERSION
+      #assert_equal expected, actual
+      assert_equal expected, cipher.final
+    else
+      assert_equal expected, actual
+      assert_equal "", cipher.final
+    end
+  end
+
+  def test_encrypt_aes_cfb_16_incompatibility
+    cipher = OpenSSL::Cipher.new 'AES-128-CFB'
+    assert_equal cipher, cipher.encrypt
+    length = 16
+    cipher.iv = '0' * length
+    cipher.key = '1' * length
+    bytes = '0000' * 4
+    expected = "f0@\x02\xF6\xA8\xC2\rt\xCC\x83\x8F8e\x19R" # from MRI
+    actual = cipher.update(bytes)
+    # NOTE: ugly but this is as far as JCE gets us :
+    if defined? JRUBY_VERSION
+      #assert_equal expected, actual
+      assert_equal expected, cipher.final
+    else
+      assert_equal expected, actual
+      assert_equal "", cipher.final
+    end
+  end
+
+  def test_encrypt_aes_cfb_20_incompatibility
+    cipher = OpenSSL::Cipher.new 'AES-128-CFB'
+    assert_equal cipher, cipher.encrypt
+    length = 16
+    cipher.iv = '0' * length
+    cipher.key = '1' * length
+    bytes = '0000' * 5
+    expected = "f0@\x02\xF6\xA8\xC2\rt\xCC\x83\x8F8e\x19RZ\x8D5\xF8" # from MRI
+    actual = cipher.update(bytes)
+    # NOTE: ugly but this is as far as JCE gets us :
+    if defined? JRUBY_VERSION
+      assert_equal expected[0...16], actual
+      # since on Java the padding is handled internally by the Cipher
+      # we get :( "Z\x8D5\xF8\x10S|\xB7_R\xA2\x921\x93\x14]"
+      assert_equal expected[16..-1], cipher.final[0...4]
+    else
+      assert_equal expected, actual
+      assert_equal "", cipher.final
     end
   end
 
