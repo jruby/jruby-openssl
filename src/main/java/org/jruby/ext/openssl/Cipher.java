@@ -806,53 +806,48 @@ public class Cipher extends RubyObject {
 
     @JRubyMethod(name = "key=", required = 1)
     public IRubyObject set_key(final ThreadContext context, final IRubyObject key) {
-        byte[] keyBytes;
+        final ByteList keyBytes;
         try {
-            keyBytes = key.asString().getBytes();
+            keyBytes = key.asString().getByteList();
         }
         catch (Exception e) {
             final Ruby runtime = context.runtime;
             debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
-        if (keyBytes.length < keyLength) {
+        if ( keyBytes.length() < keyLength ) {
             throw newCipherError(context.runtime, "key length too short");
         }
 
-        if (keyBytes.length > keyLength) {
-            byte[] keys = new byte[keyLength];
-            System.arraycopy(keyBytes, 0, keys, 0, keyLength);
-            keyBytes = keys;
-        }
+        final byte[] k = new byte[keyLength];
+        System.arraycopy(keyBytes.unsafeBytes(), keyBytes.getBegin(), k, 0, keyLength);
+        this.key = k;
 
-        this.key = keyBytes;
         return key;
     }
 
     @JRubyMethod(name = "iv=", required = 1)
     public IRubyObject set_iv(final ThreadContext context, final IRubyObject iv) {
-        final byte[] ivBytes;
+        final ByteList ivBytes;
         try {
-            ivBytes = iv.asString().getBytes();
+            ivBytes = iv.asString().getByteList();
         }
         catch (Exception e) {
             final Ruby runtime = context.runtime;
             debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
-        if ( ivBytes.length < ivLength ) {
-            throw newCipherError(context.runtime, "iv length to short");
+        if ( ivBytes.length() < ivLength ) {
+            throw newCipherError(context.runtime, "iv length too short");
         }
-        else {
-            // EVP_CipherInit_ex uses leading IV length of given sequence.
-            byte[] iv2 = new byte[ivLength];
-            System.arraycopy(ivBytes, 0, iv2, 0, ivLength);
-            this.realIV = iv2;
-        }
+        // EVP_CipherInit_ex uses leading IV length of given sequence.
+        final byte[] i = new byte[ivLength];
+        System.arraycopy(ivBytes.unsafeBytes(), ivBytes.getBegin(), i, 0, ivLength);
+        this.realIV = i;
         this.orgIV = this.realIV;
-        if ( ! isStreamCipher() ) {
-            cipherInited = false;
-        }
+
+        if ( ! isStreamCipher() ) cipherInited = false;
+
         return iv;
     }
 
@@ -942,7 +937,7 @@ public class Cipher extends RubyObject {
         this.name = name.toUpperCase();
         this.padding = padding;
 
-        final Algorithm alg = Algorithm.osslToJava(name, padding);
+        final Algorithm alg = Algorithm.osslToJava(this.name, this.padding);
         cryptoBase = alg.base;
         cryptoVersion = alg.version;
         cryptoMode = alg.mode;
@@ -1095,7 +1090,7 @@ public class Cipher extends RubyObject {
 
                 if ( realIV != null ) {
                     if ( lastIV == null ) lastIV = new byte[ivLength];
-                    byte[] tmpIV = encryptMode ? out : data;
+                    final byte[] tmpIV = encryptMode ? out : data;
                     if ( tmpIV.length >= ivLength ) {
                         System.arraycopy(tmpIV, tmpIV.length - ivLength, lastIV, 0, ivLength);
                     }
