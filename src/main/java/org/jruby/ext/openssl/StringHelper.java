@@ -26,6 +26,7 @@ package org.jruby.ext.openssl;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 
 import org.jcodings.specific.UTF8Encoding;
 import org.joda.time.DateTime;
@@ -169,6 +170,24 @@ abstract class StringHelper {
             text.append(S20,0,indent).append( hexStr, start, start + print ).append('\n');
             left -= print;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T extends CharSequence> ArrayList<T> split(final T string, final char separator) {
+        final ArrayList<T> split = new ArrayList<T>(8); int last = 0;
+        for ( int i = 0; i < string.length(); i++ ) {
+            if ( string.charAt(i) == separator ) {
+                split.add( (T) string.subSequence(last, i) ); last = ++i;
+            }
+        }
+        if ( last == 0 ) split.add(string); // split.isEmpty
+        else split.add( (T) string.subSequence(last, string.length()) );
+        return split;
+    }
+
+    static String[] split(final String string, final char separator) {
+        final ArrayList<CharSequence> split = split((CharSequence) string, separator);
+        return split.toArray( new String[ split.size() ] );
     }
 
 }

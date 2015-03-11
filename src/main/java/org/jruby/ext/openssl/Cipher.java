@@ -40,6 +40,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import static javax.crypto.Cipher.DECRYPT_MODE;
 import static javax.crypto.Cipher.ENCRYPT_MODE;
@@ -177,7 +178,7 @@ public class Cipher extends RubyObject {
         if ( service != null ) {
             final String supportedModes = service.getAttribute("SupportedModes");
             if ( supportedModes == null ) return Algorithm.OPENSSL_BLOCK_MODES;
-            return supportedModes.split("|");
+            return StringHelper.split(supportedModes, '|');
         }
         return null;
     }
@@ -216,7 +217,7 @@ public class Cipher extends RubyObject {
             if ( service != null ) {
                 serviceFound = true;
                 final String supportedModes = service.getAttribute("SupportedModes");
-                if ( supportedModes != null ) return supportedModes.split("|");
+                if ( supportedModes != null ) return StringHelper.split(supportedModes, '|');
             }
         }
         // if a service is found but has no SupportedModes configuration included
@@ -388,14 +389,13 @@ public class Cipher extends RubyObject {
             String cryptoBase;
             String cryptoVersion = null;
             String cryptoMode = null;
-            final String[] parts = cipherName.split("/");
-            if ( parts.length != 1 && parts.length != 3 ) {
-                return null;
+            final List parts = StringHelper.split((CharSequence) cipherName, '/');
+            final int partsLength = parts.size();
+            if ( partsLength != 1 && partsLength != 3 ) return null;
+            if ( partsLength > 2 ) {
+                cryptoMode = (String) parts.get(1); // padding: parts[2] not used
             }
-            if ( parts.length > 2 ) {
-                cryptoMode = parts[1]; // padding: parts[2] not used
-            }
-            cryptoBase = parts[0];
+            cryptoBase = (String) parts.get(0);
             if ( ! KNOWN_BLOCK_MODES.contains(cryptoMode) ) {
                 cryptoVersion = cryptoMode;
                 cryptoMode = "CBC";
@@ -437,11 +437,11 @@ public class Cipher extends RubyObject {
             // EXPERIMENTAL: if there's '/' assume it's a "real" JCE name :
             if ( osslName.indexOf('/') != -1 ) {
                 // e.g. "DESedeWrap/CBC/NOPADDING"
-                final String[] names = osslName.split("/");
-                cryptoBase = names[0];
-                if ( names.length > 1 ) cryptoMode = names[1];
+                final List names = StringHelper.split((CharSequence) osslName, '/');
+                cryptoBase = (String) names.get(0);
+                if ( names.size() > 1 ) cryptoMode = (String) names.get(1);
                 paddingType = getPaddingType(padding, cryptoMode);
-                if ( names.length > 2 ) paddingType = names[2];
+                if ( names.size() > 2 ) paddingType = (String) names.get(2);
                 Algorithm alg = new Algorithm(cryptoBase, null, cryptoMode);
                 alg.realName = osslName;
                 alg.padding = paddingType;
@@ -670,6 +670,13 @@ public class Cipher extends RubyObject {
         public static int[] osslKeyIvLength(final String cipherName) {
             final Algorithm alg = Algorithm.osslToJava(cipherName);
             return new int[] { alg.getKeyLength(), alg.getIvLength() };
+        }
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName() + '@' + Integer.toHexString(hashCode()) +
+            "<base="+ base + " mode="+ mode +" version="+ version +" padding="+ padding +
+            " realName="+ realName +" realNameNeedsPadding="+ realNameNeedsPadding +">";
         }
 
     }
@@ -1187,7 +1194,7 @@ public class Cipher extends RubyObject {
     //    return this.cipher.getAlgorithm();
     //}
 
-    String getName() {
+    final String getName() {
         return this.name;
     }
 
@@ -1199,11 +1206,11 @@ public class Cipher extends RubyObject {
     //    return this.cryptoMode;
     //}
 
-    int getKeyLength() {
+    final int getKeyLength() {
         return keyLength;
     }
 
-    int getGenerateKeyLength() {
+    final int getGenerateKeyLength() {
         return (generateKeyLength == -1) ? keyLength : generateKeyLength;
     }
 

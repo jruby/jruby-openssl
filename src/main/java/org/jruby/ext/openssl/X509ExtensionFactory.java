@@ -279,7 +279,7 @@ public class X509ExtensionFactory extends RubyObject {
     private DERBitString parseKeyUsage(final String oid, final String valuex) {
         byte[] inp;
         try {
-            final String[] val = valuex.split(":");
+            final String[] val = StringHelper.split(valuex, ':');
             inp = new byte[val.length];
             for (int i = 0; i < val.length; i++) {
                 inp[i] = (byte) Integer.parseInt(val[i], 16);
@@ -293,7 +293,7 @@ public class X509ExtensionFactory extends RubyObject {
         if (inp == null) {
             byte v1 = 0;
             byte v2 = 0;
-            final String[] val = valuex.split(",");
+            final String[] val = StringHelper.split(valuex, ',');
             for (int i = 0; i < val.length; i++) {
                 final String value = val[i].trim();
                 if ("decipherOnly".equals(value) || "Decipher Only".equals(value)) {
@@ -344,7 +344,7 @@ public class X509ExtensionFactory extends RubyObject {
             byte[] inp = ByteList.plain(valuex);
             v = inp[0];
         } else {
-            final String[] val = valuex.split(",");
+            final String[] val = StringHelper.split(valuex, ',');
             for (int i = 0; i < val.length; i++) {
                 final String value = val[i].trim();
                 if ("SSL Client".equals(value) || "client".equals(value)) {
@@ -384,7 +384,7 @@ public class X509ExtensionFactory extends RubyObject {
     }
 
     private static DLSequence parseBasicConstrains(final String valuex) {
-        final String[] val = valuex.split(",");
+        final String[] val = StringHelper.split(valuex, ',');
         final ASN1EncodableVector vec = new ASN1EncodableVector();
         for (int i = 0; i < val.length; i++) {
             final String value = val[i] = val[i].trim();
