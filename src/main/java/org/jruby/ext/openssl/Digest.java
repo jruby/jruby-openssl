@@ -52,10 +52,8 @@ import static org.jruby.ext.openssl.OpenSSL.*;
 public class Digest extends RubyObject {
     private static final long serialVersionUID = 7409857414064319518L;
 
-    private static ObjectAllocator DIGEST_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new Digest(runtime, klass);
-        }
+    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+        public Digest allocate(Ruby runtime, RubyClass klass) { return new Digest(runtime, klass); }
     };
 
     public static void createDigest(Ruby runtime, RubyModule OpenSSL) {
@@ -63,7 +61,7 @@ public class Digest extends RubyObject {
 
         final RubyModule coreDigest = runtime.getModule("Digest");
         final RubyClass DigestClass = coreDigest.getClass("Class"); // ::Digest::Class
-        RubyClass Digest = OpenSSL.defineClassUnder("Digest", DigestClass, DIGEST_ALLOCATOR);
+        RubyClass Digest = OpenSSL.defineClassUnder("Digest", DigestClass, ALLOCATOR);
         Digest.defineAnnotatedMethods(Digest.class);
         RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         OpenSSL.defineClassUnder("DigestError", OpenSSLError, OpenSSLError.getAllocator());

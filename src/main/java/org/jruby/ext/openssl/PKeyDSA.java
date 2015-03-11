@@ -74,15 +74,12 @@ import static org.jruby.ext.openssl.PKey._PKey;
 public class PKeyDSA extends PKey {
     private static final long serialVersionUID = 6351851846414049890L;
 
-    private static ObjectAllocator PKEYDSA_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new PKeyDSA(runtime, klass);
-        }
+    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+        public PKeyDSA allocate(Ruby runtime, RubyClass klass) { return new PKeyDSA(runtime, klass); }
     };
 
-    public static void createPKeyDSA(final Ruby runtime, final RubyModule PKey,
-        final RubyClass PKeyPKey) {
-        RubyClass DSA = PKey.defineClassUnder("DSA", PKeyPKey, PKEYDSA_ALLOCATOR);
+    public static void createPKeyDSA(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey) {
+        RubyClass DSA = PKey.defineClassUnder("DSA", PKeyPKey, ALLOCATOR);
         RubyClass PKeyError = PKey.getClass("PKeyError");
         PKey.defineClassUnder("DSAError", PKeyError, PKeyError.getAllocator());
 

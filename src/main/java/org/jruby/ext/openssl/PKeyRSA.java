@@ -82,15 +82,12 @@ import static org.jruby.ext.openssl.impl.PKey.toDerRSAKey;
 public class PKeyRSA extends PKey {
     private static final long serialVersionUID = -2540383779256333197L;
 
-    private static ObjectAllocator PKEYRSA_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new PKeyRSA(runtime, klass);
-        }
+    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+        public PKeyRSA allocate(Ruby runtime, RubyClass klass) { return new PKeyRSA(runtime, klass); }
     };
 
-    public static void createPKeyRSA(final Ruby runtime, final RubyModule PKey,
-        final RubyClass PKeyPKey) {
-        RubyClass RSA = PKey.defineClassUnder("RSA", PKeyPKey, PKEYRSA_ALLOCATOR);
+    public static void createPKeyRSA(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey) {
+        RubyClass RSA = PKey.defineClassUnder("RSA", PKeyPKey, ALLOCATOR);
         RubyClass PKeyError = PKey.getClass("PKeyError");
         PKey.defineClassUnder("RSAError", PKeyError, PKeyError.getAllocator());
 

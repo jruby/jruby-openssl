@@ -73,14 +73,12 @@ import static org.jruby.ext.openssl.OpenSSL.*;
 public class Cipher extends RubyObject {
     private static final long serialVersionUID = -5390983669951165103L;
 
-    private static ObjectAllocator CIPHER_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new Cipher(runtime, klass);
-        }
+    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+        public Cipher allocate(Ruby runtime, RubyClass klass) { return new Cipher(runtime, klass); }
     };
 
     public static void createCipher(final Ruby runtime, final RubyModule OpenSSL) {
-        final RubyClass Cipher = OpenSSL.defineClassUnder("Cipher", runtime.getObject(), CIPHER_ALLOCATOR);
+        final RubyClass Cipher = OpenSSL.defineClassUnder("Cipher", runtime.getObject(), ALLOCATOR);
         Cipher.defineAnnotatedMethods(Cipher.class);
         final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         Cipher.defineClassUnder("CipherError", OpenSSLError, OpenSSLError.getAllocator());

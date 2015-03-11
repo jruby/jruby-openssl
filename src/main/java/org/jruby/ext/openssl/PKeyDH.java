@@ -62,7 +62,6 @@ import org.jruby.runtime.Visibility;
 
 import static org.jruby.ext.openssl.PKey._PKey;
 import static org.jruby.ext.openssl.OpenSSL.bcExceptionMessage;
-import org.jruby.ext.openssl.impl.CipherSpec;
 
 /**
  * OpenSSL::PKey::DH implementation.
@@ -78,15 +77,12 @@ public class PKeyDH extends PKey {
     // from [ossl]/crypto/dh/dh.h
     private static final int OPENSSL_DH_MAX_MODULUS_BITS = 10000;
 
-    private static ObjectAllocator PKEYDH_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new PKeyDH(runtime, klass);
-        }
+    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+        public PKeyDH allocate(Ruby runtime, RubyClass klass) { return new PKeyDH(runtime, klass); }
     };
 
-    public static void createPKeyDH(final Ruby runtime, final RubyModule PKey,
-        final RubyClass PKeyPKey) {
-        RubyClass DH = PKey.defineClassUnder("DH", PKeyPKey, PKEYDH_ALLOCATOR);
+    public static void createPKeyDH(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey) {
+        RubyClass DH = PKey.defineClassUnder("DH", PKeyPKey, ALLOCATOR);
 
         RubyClass PKeyError = PKey.getClass("PKeyError");
         PKey.defineClassUnder("DHError", PKeyError, PKeyError.getAllocator());

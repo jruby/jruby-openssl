@@ -75,10 +75,8 @@ public class BN extends RubyObject {
 
     private static final int DEFAULT_CERTAINTY = 100;
 
-    private static ObjectAllocator BN_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new BN(runtime, klass, BigInteger.ZERO);
-        }
+    private static final ObjectAllocator BN_ALLOCATOR = new ObjectAllocator() {
+        public BN allocate(Ruby runtime, RubyClass klass) { return new BN(runtime, klass); }
     };
 
     public static BN newBN(Ruby runtime, BigInteger value) {
@@ -104,12 +102,12 @@ public class BN extends RubyObject {
 
     private volatile BigInteger value;
 
-    private BN(Ruby runtime, RubyClass clazz, BigInteger value) {
+    private BN(Ruby runtime, RubyClass clazz) {
         super(runtime, clazz);
-        this.value = value;
+        this.value = BigInteger.ZERO;
     }
 
-    private BN(Ruby runtime, BigInteger value) {
+    protected BN(Ruby runtime, BigInteger value) {
         super(runtime, runtime.getModule("OpenSSL").getClass("BN"));
         this.value = value;
     }

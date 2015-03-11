@@ -185,7 +185,7 @@ abstract class StringHelper {
         return split;
     }
 
-    static String[] split(final String string, final char separator) {
+    public static String[] split(final String string, final char separator) {
         final ArrayList<CharSequence> split = split((CharSequence) string, separator);
         return split.toArray( new String[ split.size() ] );
     }
