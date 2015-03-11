@@ -666,7 +666,7 @@ public class X509Cert extends RubyObject {
                     for ( int i = 0; i < n2.length; i++ ) vec.add( n2[i] );
 
                     GeneralNames nn = GeneralNames.getInstance(new DLSequence(vec));
-                    final X509Extension existingDup = (X509Extension) existing.clone();
+                    final X509Extension existingDup = existing.clone();
                     existingDup.setRealValue( nn );
                     unique.put( oid, existingDup );
                 }
@@ -691,7 +691,7 @@ public class X509Cert extends RubyObject {
                 vec.add( current.getRealValue() );
 
                 // existing.setRealValue( new DLSequence(vec) );
-                final X509Extension existingDup = (X509Extension) existing.clone();
+                final X509Extension existingDup = existing.clone();
                 existingDup.setRealValue( new DLSequence(vec) );
                 unique.put( oid, existingDup );
             }
