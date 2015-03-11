@@ -126,54 +126,35 @@ class TestCipher < TestCase
     end
   end
 
-#  def test_cipher_non_mod_length
-#    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
-#    cipher.encrypt
-#    length = 50
-#    cipher.iv = '0' * length
-#    cipher.key = '1' * length
-#    bytes = '01234' * 4
-#    expected = "L=\x8C\xD1_]\xD6\x8Dk\t\xC3\xF0s\x8D_\x91\x12\x93\x7F\x80" # from MRI
-#    assert_equal expected, cipher.update(bytes)
-#
-#    assert_equal 16, cipher.iv_len
-#    assert_equal 16, cipher.key_len
-#  end
+  def test_cipher_update_non_mod_length
+    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
+    cipher.encrypt
+    # length = 50
+    cipher.iv = "8\xF2\xEF\xFC7\x97.\xE9\x02)\xED\x18\xA6h\x14\xD2Z0\x97\x8F\x0E\x04`6n\xD8\xB8\xED\x0E\x95\xF3\xBA\xFC\xB3\x16\xF0lC\x97;\xBB\xED\xF1\xEE\xCB\x869\x93k\xB5"
+    cipher.key = "\xBB;\x1A\x82\xFB'\xFB\xE4\xFBDP\xD8\x16.\xD1\x0EF.\xFD;\x9B\x8C\xE2\xBC\x18\xAD\x80\xB2\xBB\xF7U\x90y\xD2y\xCA\xE07\xBE\x97\an@\xB9\xE97\xF3\x9DA\xBC"
+    bytes = "\xACJ\xF5\xA6m\xE2\xE8W\x0Fy\x93\xEA\xCFA\x03\xCF"
+    expected = ",=\xC0\xD2\xEF\xE7(u,e\xD6l\xB4\x8E\x13\x00" # from MRI
+    actual = cipher.update(bytes)
+    assert_equal expected, actual
 
-#  def test_cipher_mod_length
-#    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
-#    cipher.encrypt
-#    length = 48
-#    cipher.iv = '0' * length
-#    cipher.key = '1' * length
-#    bytes = '123456' * 8
-#    expected = "M4\xFE\xFF\xE3\xE7\x11*\xF2E\xA6\x815M\xCFO\xDFp\xB7\x87\xAC\xD0\xB0h" # ... from MRI
-#    actual = cipher.update(bytes)
-#    assert_equal expected, actual[0...24]
-#    assert_equal 48, actual.size
-#  end
+    assert_equal 16, cipher.iv_len
+    assert_equal 16, cipher.key_len
+  end unless jruby? # blocked due #35
 
-#  def test_cipher_32_length
-#    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
-#    cipher.encrypt
-#    length = 32
-#    cipher.iv = '0' * length
-#    cipher.key = '1' * length
-#    bytes = '01234' * 4
-#    expected = "L=\x8C\xD1_]\xD6\x8Dk\t\xC3\xF0s\x8D_\x91\x12\x93\x7F\x80" # from MRI
-#    assert_equal expected, cipher.update(bytes)
-#  end
+  def test_cipher_update_mod_length
+    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
+    cipher.encrypt
+    # length = 48
+    cipher.iv = '1' * 16
+    cipher.key = '0' * 16
+    bytes = "\xACJ\xF5\xA6m\xE2\xE8W\x0Fy\x93\xEA\xCFA\x03\xCF"
+    expected = "\xDD\x88dDj\xB9\xE2\xC9\xC5\x97L\x84V\x18\xE0\x93" # from MRI
+    actual = cipher.update(bytes)
+    assert_equal expected, actual
 
-#  def test_cipher_16_length
-#    cipher = OpenSSL::Cipher.new 'AES-128-CFB1'
-#    assert_equal cipher, cipher.encrypt
-#    length = 16
-#    cipher.iv = '0' * length
-#    cipher.key = '1' * length
-#    bytes = '01234' * 4
-#    expected = "L=\x8C\xD1_]\xD6\x8Dk\t\xC3\xF0s\x8D_\x91\x12\x93\x7F\x80" # from MRI
-#    assert_equal expected, cipher.update(bytes)
-#  end
+    assert_equal 16, cipher.iv_len
+    assert_equal 16, cipher.key_len
+  end unless jruby? # blocked due #35
 
   def test_encrypt_aes_cfb_4_incompatibility
     cipher = OpenSSL::Cipher.new 'aes-128-cfb'
@@ -184,8 +165,7 @@ class TestCipher < TestCase
     bytes = '0000'
     expected = "f0@\x02" # from MRI
     actual = cipher.update(bytes)
-    # NOTE: ugly but this is as far as JCE gets us :
-    if defined? JRUBY_VERSION
+    if jruby? # NOTE: ugly but this is as far as JCE gets us :
       #assert_equal expected, actual
       assert_equal expected, cipher.final
     else
@@ -203,8 +183,7 @@ class TestCipher < TestCase
     bytes = '0000' * 4
     expected = "f0@\x02\xF6\xA8\xC2\rt\xCC\x83\x8F8e\x19R" # from MRI
     actual = cipher.update(bytes)
-    # NOTE: ugly but this is as far as JCE gets us :
-    if defined? JRUBY_VERSION
+    if jruby? # NOTE: ugly but this is as far as JCE gets us :
       #assert_equal expected, actual
       assert_equal expected, cipher.final
     else
@@ -222,8 +201,7 @@ class TestCipher < TestCase
     bytes = '0000' * 5
     expected = "f0@\x02\xF6\xA8\xC2\rt\xCC\x83\x8F8e\x19RZ\x8D5\xF8" # from MRI
     actual = cipher.update(bytes)
-    # NOTE: ugly but this is as far as JCE gets us :
-    if defined? JRUBY_VERSION
+    if jruby? # NOTE: ugly but this is as far as JCE gets us :
       assert_equal expected[0...16], actual
       # since on Java the padding is handled internally by the Cipher
       # we get :( "Z\x8D5\xF8\x10S|\xB7_R\xA2\x921\x93\x14]"

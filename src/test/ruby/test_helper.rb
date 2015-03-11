@@ -76,6 +76,9 @@ TestCase.class_eval do
     ENV_JAVA[ 'java.specification.version' ].split('.')
   end
 
+  def self.jruby?; !! defined?(JRUBY_VERSION) end
+  def jruby?; self.class.jruby? end
+
   private
 
   def issue_cert(dn, key, serial, not_before, not_after, extensions,
