@@ -520,15 +520,12 @@ public class Cipher extends RubyObject {
             paddingType = getPaddingType(padding, cryptoMode);
 
             if ( cryptoMode != null ) {
-                if ( ! KNOWN_BLOCK_MODES.contains(cryptoMode) ) {
-                    if ( ! "XTS".equals(cryptoMode) ) {
-                        // valid but likely not supported by JCE/provider
-                        //cryptoVersion = cryptoMode; cryptoMode = "CBC";
-                    }
-                }
-                else if ( "CFB1".equals(cryptoMode) ) {
-                    cryptoMode = "CFB"; // uglish SunJCE mode normalization
-                }
+                //if ( ! KNOWN_BLOCK_MODES.contains(cryptoMode) ) {
+                //    if ( ! "XTS".equals(cryptoMode) ) {
+                //        // valid but likely not supported by JCE/provider
+                //        //cryptoVersion = cryptoMode; cryptoMode = "CBC";
+                //    }
+                //}
 
                 if ( ! realNameSet ) {
                     realName = realName + '/' + cryptoMode + '/' + paddingType;
