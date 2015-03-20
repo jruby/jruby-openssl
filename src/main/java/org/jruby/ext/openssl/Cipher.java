@@ -1052,6 +1052,7 @@ public class Cipher extends RubyObject {
         }
         cipherInited = true;
         processedDataBytes = 0;
+        //outBuffer = new ByteList(keyLength);
     }
 
     private String getCipherAlgorithm() {
@@ -1060,6 +1061,7 @@ public class Cipher extends RubyObject {
     }
 
     private int processedDataBytes = 0;
+    //private volatile ByteList outBuffer;
     private byte[] lastIV;
 
     @JRubyMethod
@@ -1082,16 +1084,12 @@ public class Cipher extends RubyObject {
 
         final ByteList str;
         try {
-            final byte[] out = cipher.update(data);
-            if ( out != null ) {
-                str = new ByteList(out, false);
-                if ( realIV != null ) {
-                    setLastIVIfNeeded( encryptMode ? out : data );
-                }
-            }
-            else {
-                str = new ByteList(ByteList.NULL_ARRAY);
-            }
+            final int output = cipher.getOutputSize(data.length);
+            str = new ByteList( output );
+            str.ensure( str.length() + output );
+            int stored = cipher.update(data, 0, data.length, str.unsafeBytes(), str.getBegin());
+            str.setRealSize( str.getRealSize() + stored );
+
             processedDataBytes += data.length;
         }
         catch (Exception e) {
