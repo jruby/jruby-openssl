@@ -71,6 +71,25 @@ class TestCipher < TestCase
     end
   end
 
+  def test_encrypt_decrypt_des_ede3 # borrowed from OpenSSL suite
+    c1 = OpenSSL::Cipher::Cipher.new("DES-EDE3-CBC")
+    c2 = OpenSSL::Cipher::DES.new(:EDE3, "CBC")
+    key = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+    iv = "\0\0\0\0\0\0\0\0"
+    data = "DATA"
+
+    c1.encrypt.pkcs5_keyivgen(key, iv)
+    c2.encrypt.pkcs5_keyivgen(key, iv)
+    s1 = c1.update(data) + c1.final
+    s2 = c2.update(data) + c2.final
+    assert_equal(s1, s2, "encrypt")
+
+    c1.decrypt.pkcs5_keyivgen(key, iv)
+    c2.decrypt.pkcs5_keyivgen(key, iv)
+    assert_equal(data, c1.update(s1) + c1.final, "decrypt")
+    assert_equal(data, c2.update(s2) + c2.final, "decrypt")
+  end
+
   def test_random
     cipher = OpenSSL::Cipher.new 'AES-128-OFB'
 

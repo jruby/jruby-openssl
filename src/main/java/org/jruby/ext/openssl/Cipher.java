@@ -1084,11 +1084,14 @@ public class Cipher extends RubyObject {
 
         final ByteList str;
         try {
-            final int output = cipher.getOutputSize(data.length);
-            str = new ByteList( output );
-            str.ensure( str.length() + output );
-            int stored = cipher.update(data, 0, data.length, str.unsafeBytes(), str.getBegin());
-            str.setRealSize( str.getRealSize() + stored );
+            final byte[] out = cipher.update(data);
+            if ( out != null ) {
+                str = new ByteList(out, false);
+                if ( realIV != null ) setLastIVIfNeeded( encryptMode ? out : data );
+            }
+            else {
+                str = new ByteList(ByteList.NULL_ARRAY);
+            }
 
             processedDataBytes += data.length;
         }
