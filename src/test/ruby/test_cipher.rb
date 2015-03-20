@@ -75,7 +75,7 @@ class TestCipher < TestCase
     assert ! OpenSSL::Cipher.ciphers.find { |name| name =~ /CFB1/i }
   end if defined? JRUBY_VERSION
 
-  def test_encrypt_decrypt_des_ede3 # borrowed from OpenSSL suite
+  def test_encrypt_decrypt_des_ede3_cbc # borrowed from OpenSSL suite
     c1 = OpenSSL::Cipher::Cipher.new("DES-EDE3-CBC")
     c2 = OpenSSL::Cipher::DES.new(:EDE3, "CBC")
     key = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
@@ -93,6 +93,119 @@ class TestCipher < TestCase
     c2.decrypt.pkcs5_keyivgen(key, iv)
     assert_equal(data, c1.update(s1) + c1.final, "decrypt")
     assert_equal(data, c2.update(s2) + c2.final, "decrypt")
+  end
+
+  def test_des_key_len
+    cipher = OpenSSL::Cipher.new 'des'
+    assert_equal  8, cipher.key_len
+    cipher = OpenSSL::Cipher.new 'DES3'
+    assert_equal 24, cipher.key_len
+
+    cipher = OpenSSL::Cipher.new 'DES-CBC'
+    assert_equal  8, cipher.key_len
+    cipher = OpenSSL::Cipher.new 'des-ede3'
+    assert_equal 24, cipher.key_len
+
+    cipher = OpenSSL::Cipher.new 'des-ede'
+    assert_equal 16, cipher.key_len
+    cipher = OpenSSL::Cipher.new 'DES-EDE-CFB'
+    assert_equal 16, cipher.key_len
+  end
+
+  def test_des_iv_len
+    cipher = OpenSSL::Cipher.new 'des'
+    assert_equal 8, cipher.iv_len
+    cipher = OpenSSL::Cipher.new 'DES3'
+    assert_equal 8, cipher.iv_len
+
+    cipher = OpenSSL::Cipher.new 'DES-CBC'
+    assert_equal 8, cipher.iv_len
+    cipher = OpenSSL::Cipher.new 'des-ede3'
+    assert_equal 0, cipher.iv_len
+
+    cipher = OpenSSL::Cipher.new 'des-ede'
+    assert_equal 0, cipher.iv_len
+    cipher = OpenSSL::Cipher.new 'DES-EDE-CFB'
+    assert_equal 8, cipher.iv_len
+  end
+
+  @@test_encrypt_decrypt_des_variations = nil
+
+  def test_encrypt_decrypt_des_variations
+    key = "\0\0\0\0\0\0\0\0" * 3
+    iv =  "\0\0\0\0\0\0\0\0"
+    data = "JPMNT"
+
+    { # calculated on MRI
+      'des' => "b\x00<\xC0\x16\xAF\xDCd",
+      'des-cbc' => "b\x00<\xC0\x16\xAF\xDCd",
+      #'des-cfb' => "\xE0\x9ER\xCC\xD8",
+      #'des-ofb' => "\xE0\x9ER\xCC\xD8",
+      'des-ecb' => ".\x1E\xB3\x0E\xE0\xD2\x9DG",
+
+      'des-ede' => "@\x8B\x89}u\xB4\r\xA5",
+      'des-ede-cbc' => "\x99\x97\xBE(\xB9+f\xFA",
+      #'des-ede-cfb' => "l\x02?\x16\x1A",
+      #'des-ede-ofb' => "l\x02?\x16\x1A",
+      ##'des-ede-ecb' => RuntimeError: unsupported cipher algorithm (des-ede-ecb)
+
+      'des-ede3' => "\xDC\xD4\xF4\xBDmF\xC26", # actually ECB
+      'des-ede3-cbc' => "\x8D\xE6\x17\xD0\x97\rR\x8C",
+      #'des-ede3-cfb' => ",\x93^\xAD\x9C",
+      #'des-ede3-ofb' => ",\x93^\xAD\x9C",
+      ##'des-ede3-ecb' => unsupported cipher algorithm (des-ede3-ecb)
+      'des3' => "\x8D\xE6\x17\xD0\x97\rR\x8C"
+    }.each do |name, expected|
+        c = OpenSSL::Cipher.new name
+        c.encrypt
+        c.key = key
+        c.iv = iv
+        c.pkcs5_keyivgen(key, iv)
+
+        assert_equal expected, c.update(data) + c.final, "failed: #{name}"
+    end
+
+    cipher = OpenSSL::Cipher::Cipher.new("DES-EDE3")
+
+    cipher.encrypt.pkcs5_keyivgen(key, iv)
+    secret = cipher.update(data) + cipher.final
+    assert_equal "\xDC\xD4\xF4\xBDmF\xC26", secret
+
+    cipher.decrypt.pkcs5_keyivgen(key, iv)
+    assert_equal(data, cipher.update(secret) + cipher.final, "decrypt")
+
+    data = "sa jej lubim alebo moj bicykel"
+
+    cipher.encrypt.pkcs5_keyivgen(key, iv)
+    secret = cipher.update(data) + cipher.final
+    assert_equal "\xE9;\xDF\xEE/\x1D\xCB\xF9\xD1\xAF\xBC\xF0\x00\xA3\xDBsLxF2\xA4|\x11T\xD7&:\xD8\xF7\xA2\xD1b", secret
+
+    cipher.decrypt.pkcs5_keyivgen(key, iv)
+    assert_equal(data, cipher.update(secret) + cipher.final, "decrypt")
+
+    cipher.padding = 0
+    data = "hehehehemehehehe"
+
+    cipher.encrypt.pkcs5_keyivgen(key, iv)
+    secret = cipher.update(data) + cipher.final
+    assert_equal "v\r\xA4\xB3\x02\x18\xB5|A\x13\x87\xF1\xC0A\xC4U", secret
+
+    cipher.decrypt.pkcs5_keyivgen(key, iv)
+    assert_equal(data, cipher.update(secret) + cipher.final, "decrypt")
+
+    # assuming Cipher.ciphers not cached - re-run the tests with cache :
+    unless @@test_encrypt_decrypt_des_variations
+      @@test_encrypt_decrypt_des_variations = true
+      OpenSSL::Cipher.ciphers; test_encrypt_decrypt_des_variations
+    end
+  end
+
+  def test_another_encrypt_des_ede3
+    cipher = OpenSSL::Cipher.new('DES-EDE3')
+    cipher.encrypt # calculated on MRI :
+    cipher.key = "\x1F\xFF&\xA4k\x8F^\xC80\txq'S\x93\xD2\xE3A\xEDT\xDCs\xFD<=G\a\x8F=\x8FhE"
+    cipher.iv = "o\x15# \xD1\a\x90\xC7ZO\r[\xE2\x8F\v)# I6;\xE6\xB7h\xD3M\xDA\xA0\xD1\xDCy\xD2"
+    assert_equal "\xE1\x8DZ>MEq\xEF\x1A\xAC\xB1ab\x0Ea\x81", (cipher.update('sup3rs33kr3t') + cipher.final)
   end
 
   def test_random

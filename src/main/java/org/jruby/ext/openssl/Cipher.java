@@ -338,11 +338,11 @@ public class Cipher extends RubyObject {
 
                 modes = cipherModes("DESede");
                 if ( modes != null ) {
-                    supportedCiphers.put( "DES-EDE", new String[] { "DES", "CBC", "EDE", "DESede/CBC" } );
-                    supportedCiphers.put( "DES-EDE-CBC", supportedCiphers.get("DES-EDE") );
+                    supportedCiphers.put( "DES-EDE", new String[] { "DES", "ECB", "EDE", "DESede/ECB" } );
+                    supportedCiphers.put( "DES-EDE-CBC", new String[] { "DES", "CBC", "EDE", "DESede/CBC" } );
                     supportedCiphers.put( "DES-EDE-CFB", new String[] { "DES", "CBC", "EDE", "DESede/CFB" } );
                     supportedCiphers.put( "DES-EDE-OFB", new String[] { "DES", "CBC", "EDE", "DESede/OFB" } );
-                    supportedCiphers.put( "DES-EDE3", new String[] { "DES", "CBC", "EDE3", "DESede/CBC" });
+                    supportedCiphers.put( "DES-EDE3", new String[] { "DES", "ECB", "EDE3", "DESede/ECB" });
                     for ( final String mode : modes ) {
                         supportedCiphers.put( "DES-EDE3-" + mode, new String[] { "DES", mode, "EDE3", "DESede/" + mode });
                     }
@@ -427,18 +427,21 @@ public class Cipher extends RubyObject {
                 alg.realName = algVals[3];
                 alg.realNameNeedsPadding = true;
                 alg.padding = getPaddingType(padding, cryptoMode);
+
+                System.out.println(osslName + " alg = " + alg);
+
                 return alg;
             }
 
-            String cryptoBase, cryptoVersion = null, cryptoMode = "CBC", realName;
-            String paddingType;
+            String cryptoBase, cryptoVersion = null, cryptoMode, realName;
+            String paddingType = null;
 
             // EXPERIMENTAL: if there's '/' assume it's a "real" JCE name :
             if ( osslName.indexOf('/') != -1 ) {
                 // e.g. "DESedeWrap/CBC/NOPADDING"
                 final List names = StringHelper.split((CharSequence) osslName, '/');
                 cryptoBase = (String) names.get(0);
-                if ( names.size() > 1 ) cryptoMode = (String) names.get(1);
+                cryptoMode = names.size() > 1 ? (String) names.get(1) : "CBC";
                 paddingType = getPaddingType(padding, cryptoMode);
                 if ( names.size() > 2 ) paddingType = (String) names.get(2);
                 Algorithm alg = new Algorithm(cryptoBase, null, cryptoMode);
@@ -449,7 +452,7 @@ public class Cipher extends RubyObject {
 
             int s = osslName.indexOf('-'); int i = 0;
             if (s == -1) {
-                cryptoBase = osslName;
+                cryptoBase = osslName; cryptoMode = null;
             }
             else {
                 cryptoBase = osslName.substring(i, s);
@@ -471,19 +474,19 @@ public class Cipher extends RubyObject {
             cryptoBase = cryptoBase.toUpperCase(); // allways upper e.g. "AES"
             if ( cryptoMode != null ) cryptoMode = cryptoMode.toUpperCase();
 
-            boolean realNameSet = false;
+            boolean realNameSet = false; boolean setDefaultCryptoMode = true;
 
             if ( "BF".equals(cryptoBase) ) realName = "Blowfish";
             else if ( "CAST".equals(cryptoBase) ) realName = "CAST5";
             else if ( cryptoBase.startsWith("DES") ) {
                 if ( "DES3".equals(cryptoBase) ) {
-                    cryptoBase = "DES"; realName = "DESede"; // cryptoVersion = cryptoMode; cryptoMode = "CBC";
+                    cryptoBase = "DES"; realName = "DESede"; cryptoVersion = "EDE3"; // cryptoMode = "CBC";
                 }
                 else if ( "EDE3".equalsIgnoreCase(cryptoVersion) || "EDE".equalsIgnoreCase(cryptoVersion) ) {
-                    realName = "DESede";
+                    realName = "DESede"; if ( cryptoMode == null ) cryptoMode = "ECB";
                 }
                 else if ( "EDE3".equalsIgnoreCase(cryptoMode) || "EDE".equalsIgnoreCase(cryptoMode) ) {
-                    realName = "DESede"; cryptoVersion = cryptoMode; cryptoMode = "CBC";
+                    realName = "DESede"; cryptoVersion = cryptoMode; cryptoMode = "ECB";
                 }
                 else realName = "DES";
             }
@@ -513,12 +516,14 @@ public class Cipher extends RubyObject {
                         cryptoVersion = cryptoMode;
                     }
                     cryptoMode = null; // padding = null;
+                    setDefaultCryptoMode = false;
                     // cryptoMode = "NONE"; paddingType = "NoPadding";
                     realNameSet = true;
                 }
             }
 
-            paddingType = getPaddingType(padding, cryptoMode);
+            if ( cryptoMode == null && setDefaultCryptoMode ) cryptoMode = "CBC";
+            if ( paddingType == null ) paddingType = getPaddingType(padding, cryptoMode);
 
             if ( cryptoMode != null ) {
                 //if ( ! KNOWN_BLOCK_MODES.contains(cryptoMode) ) {
@@ -551,9 +556,8 @@ public class Cipher extends RubyObject {
         }
 
         private static String getPaddingType(final String padding, final String cryptoMode) {
-
+            //if ( "ECB".equals(cryptoMode) ) return "NoPadding";
             // TODO check cryptoMode CFB/OFB
-
             final String defaultPadding = "PKCS5Padding";
 
             if ( padding == null ) return defaultPadding;
@@ -615,8 +619,11 @@ public class Cipher extends RubyObject {
                 //else if ( "DES".equals(base) ) {
                 //    ivLength = 8;
                 //}
-                else if ( "RC4".equals(base) ) {
-                    ivLength = 8;
+                //else if ( "RC4".equals(base) ) {
+                //    ivLength = 8;
+                //}
+                else if ( "ECB".equals(mode) ) {
+                    ivLength = 0;
                 }
                 else {
                     ivLength = 8;
@@ -639,11 +646,9 @@ public class Cipher extends RubyObject {
             }
             if ( keyLen == -1 ) {
                 if ( "DES".equals(base) ) {
-                    if ( "EDE3".equalsIgnoreCase(version) ) {
-                        keyLen = 24;
-                    } else {
-                        keyLen = 8;
-                    }
+                    if ( "EDE".equalsIgnoreCase(version) ) keyLen = 16;
+                    else if ( "EDE3".equalsIgnoreCase(version) ) keyLen = 24;
+                    else keyLen = 8;
                 }
                 else if ( "RC4".equals(base) ) {
                     keyLen = 16;
@@ -715,22 +720,23 @@ public class Cipher extends RubyObject {
     private String padding;
 
     private void dumpVars(final PrintStream out, final String header) {
-        out.println(this.toString() + ' ' + header);
-        out.println(" name = " + name);
-        out.println(" cryptoBase = " + cryptoBase);
-        out.println(" cryptoVersion = " + cryptoVersion);
-        out.println(" cryptoMode = " + cryptoMode);
-        out.println(" padding_type = " + paddingType);
-        out.println(" realName = " + realName);
-        out.println(" keyLength = " + keyLength);
-        out.println(" ivLength = " + ivLength);
-        out.println(" cipher.alg = " + cipher == null ? null : cipher.getAlgorithm());
-        out.println(" cipher.blockSize = " + cipher == null ? null : cipher.getBlockSize());
-        out.println(" encryptMode = " + encryptMode);
-        out.println(" cipherInited = " + cipherInited);
-        out.println(" key.length = " + (key == null ? 0 : key.length));
-        out.println(" iv.length = " + (realIV == null ? 0 : realIV.length));
-        out.println(" padding = " + padding);
+        out.println(this.toString() + ' ' + header +
+                    "\n" +
+                    " name = " + name +
+                    " cryptoBase = " + cryptoBase +
+                    " cryptoVersion = " + cryptoVersion +
+                    " cryptoMode = " + cryptoMode +
+                    " padding_type = " + paddingType +
+                    " realName = " + realName +
+                    " keyLength = " + keyLength +
+                    " ivLength = " + ivLength +
+                    "\n" +
+                    " cipher.alg = " + (cipher == null ? null : cipher.getAlgorithm()) +
+                    " cipher.blockSize = " + (cipher == null ? null : cipher.getBlockSize()) +
+                    " encryptMode = " + encryptMode + " cipherInited = " + cipherInited +
+                    " key.length = " + (key == null ? 0 : key.length) +
+                    " iv.length = " + (realIV == null ? 0 : realIV.length) +
+                    " padding = " + padding);
     }
 
     @JRubyMethod(required = 1, visibility = Visibility.PRIVATE)

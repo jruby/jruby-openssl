@@ -63,11 +63,41 @@ public class CipherTest {
         assertEquals("CBC", alg.mode);
         assertEquals("DESede/CBC/PKCS5Padding", alg.getRealName());
 
+        alg = Cipher.Algorithm.osslToJava("DES3");
+        assertEquals("DES", alg.base);
+        assertEquals("EDE3", alg.version);
+        assertEquals("CBC", alg.mode);
+        assertEquals("DESede/CBC/PKCS5Padding", alg.getRealName());
+
         alg = Cipher.Algorithm.osslToJava("DES-EDE");
+        assertEquals("DES", alg.base);
+        assertEquals("EDE", alg.version);
+        assertEquals("ECB", alg.mode);
+        assertEquals("DESede/ECB/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("DES-EDE3");
+        assertEquals("DES", alg.base);
+        assertEquals("EDE3", alg.version);
+        assertEquals("ECB", alg.mode);
+        assertEquals("DESede/ECB/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("DES-EDE-CBC");
         assertEquals("DES", alg.base);
         assertEquals("EDE", alg.version);
         assertEquals("CBC", alg.mode);
         assertEquals("DESede/CBC/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("DES-EDE3-CBC");
+        assertEquals("DES", alg.base);
+        assertEquals("EDE3", alg.version);
+        assertEquals("CBC", alg.mode);
+        assertEquals("DESede/CBC/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("DES-EDE3-CFB");
+        assertEquals("DES", alg.base);
+        assertEquals("EDE3", alg.version);
+        assertEquals("CFB", alg.mode);
+        assertEquals("DESede/CFB/PKCS5Padding", alg.getRealName());
 
         alg = Cipher.Algorithm.osslToJava("DES-CFB");
         assertEquals("DES", alg.base);
@@ -121,7 +151,7 @@ public class CipherTest {
         assertEquals("RC4", alg.getRealName());
 
         // keeps "invalid" modes :
-        
+
         alg = Cipher.Algorithm.osslToJava("DES-3X3");
         assertEquals("DES", alg.base);
         assertEquals(null, alg.version);
