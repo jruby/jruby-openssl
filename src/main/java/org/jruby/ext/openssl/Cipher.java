@@ -1088,12 +1088,12 @@ public class Cipher extends RubyObject {
             if ( out != null ) {
                 str = new ByteList(out, false);
                 if ( realIV != null ) setLastIVIfNeeded( encryptMode ? out : data );
+
+                processedDataBytes += data.length;
             }
             else {
                 str = new ByteList(ByteList.NULL_ARRAY);
             }
-
-            processedDataBytes += data.length;
         }
         catch (Exception e) {
             debugStackTrace( runtime, e );
@@ -1132,12 +1132,12 @@ public class Cipher extends RubyObject {
                 str = new ByteList(ByteList.NULL_ARRAY);
             }
 
-            if ( ! isStreamCipher() ) {
-                if ( str.length() > processedDataBytes ) {
+            //if ( ! isStreamCipher() ) {
+                //if ( str.length() > processedDataBytes && processedDataBytes > 0 ) {
                     // MRI compatibility only trailing bytes :
-                    str.setRealSize(processedDataBytes);
-                }
-            }
+                    //str.setRealSize(processedDataBytes);
+                //}
+            //}
 
             if (realIV != null) {
                 realIV = lastIV;
