@@ -427,9 +427,6 @@ public class Cipher extends RubyObject {
                 alg.realName = algVals[3];
                 alg.realNameNeedsPadding = true;
                 alg.padding = getPaddingType(padding, cryptoMode);
-
-                System.out.println(osslName + " alg = " + alg);
-
                 return alg;
             }
 
