@@ -71,6 +71,10 @@ class TestCipher < TestCase
     end
   end
 
+  def test_excludes_cfb1_ciphers # due no support in BC for CFB-1
+    assert ! OpenSSL::Cipher.ciphers.find { |name| name =~ /CFB1/i }
+  end if defined? JRUBY_VERSION
+
   def test_encrypt_decrypt_des_ede3 # borrowed from OpenSSL suite
     c1 = OpenSSL::Cipher::Cipher.new("DES-EDE3-CBC")
     c2 = OpenSSL::Cipher::DES.new(:EDE3, "CBC")

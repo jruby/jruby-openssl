@@ -205,11 +205,11 @@ public class Cipher extends RubyObject {
             final Provider provider = providers[i];
             final String name = provider.getName() == null ? "" : provider.getName();
             // skip those that are known to provide no Cipher engines :
-            if ( name.indexOf("JGSS") >= 0 ) continue; // SunJGSS
-            if ( name.indexOf("SASL") >= 0 ) continue; // SunSASL
-            if ( name.indexOf("XMLD") >= 0 ) continue; // XMLDSig
-            if ( name.indexOf("PCSC") >= 0 ) continue; // SunPCSC
-            if ( name.indexOf("JSSE") >= 0 ) continue; // SunJSSE
+            if ( name.contains("JGSS") ) continue; // SunJGSS
+            if ( name.contains("SASL") ) continue; // SunSASL
+            if ( name.contains("XMLD") ) continue; // XMLDSig
+            if ( name.contains("PCSC") ) continue; // SunPCSC
+            if ( name.contains("JSSE") ) continue; // SunJSSE
 
             final Provider.Service service = provider.getService("Cipher", alg);
             if ( service != null ) {
@@ -243,8 +243,9 @@ public class Cipher extends RubyObject {
         }
 
         private static final Set<String> KNOWN_BLOCK_MODES;
+        // NOTE: CFB1 does not work as (OpenSSL) expects with BC (@see GH-35)
         private static final String[] OPENSSL_BLOCK_MODES = {
-            "CBC", "CFB", "CFB1", "CFB8", "ECB", "OFB" // that Java supports
+            "CBC", "CFB", /* "CFB1", */ "CFB8", "ECB", "OFB" // that Java supports
         };
 
         static {
@@ -1145,6 +1146,7 @@ public class Cipher extends RubyObject {
             }
         }
         catch (GeneralSecurityException e) { // cipher.doFinal
+            debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
         catch (RuntimeException e) {
