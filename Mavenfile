@@ -5,10 +5,9 @@ gemspec :jar => 'jopenssl', :include_jars => true
 sonatype_url = 'https://oss.sonatype.org/content/repositories/snapshots/'
 snapshot_repository :id => 'sonatype', :url => sonatype_url
 
-if model.version.to_s.match /[a-zA-Z]/
-
+if ( version = model.version.to_s ).index('dev')
   # deploy snapshot versions on sonatype !!!
-  model.version = model.version + '-SNAPSHOT'
+  model.version = version.sub('.dev','-SNAPSHOT') unless version.index('-SNAPSHOT')
   plugin :deploy, '2.8.1' do
     execute_goals( :deploy,
                    :skip => false,
@@ -148,7 +147,7 @@ profile :id => 'test-1.7.4' do
              'bc.versions' => supported_bc_versions.join(',')
 end
 
-%w{ 1.7.13 1.7.15 1.7.16 1.7.17 1.7.18 1.7.19 }.each do |version|
+%w{ 1.7.13 1.7.15 1.7.16 1.7.17 1.7.18 1.7.19 }.each { |version|
 
 profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
@@ -158,7 +157,7 @@ profile :id => "test-#{version}" do
              'bc.versions' => supported_bc_versions.join(',')
 end
 
-end
+}
 
 profile :id => 'test-9000' do
   plugin :invoker, '1.8' do
