@@ -477,6 +477,32 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     end
   end
 
+  def test_decode_application_specific
+    raw = "0\x18\x02\x01\x01`\x13\x02\x01\x03\x04\to=Telstra\x80\x03ess"
+    asn1 = OpenSSL::ASN1.decode(raw)
+    pp asn1 if false
+
+    assert_equal OpenSSL::ASN1::Sequence, asn1.class
+    assert_equal 2, asn1.value.size
+    assert_equal OpenSSL::ASN1::Integer, asn1.value[0].class
+    assert_equal 1,  asn1.value[0].value
+    assert_equal OpenSSL::ASN1::ASN1Data, asn1.value[1].class
+    assert_equal :APPLICATION,  asn1.value[1].tag_class
+
+    asn1_data = asn1.value[1]
+    assert_equal 3, asn1_data.value.size
+    assert_equal OpenSSL::ASN1::Integer, asn1_data.value[0].class
+    assert_equal 3, asn1_data.value[0].value
+    assert_equal OpenSSL::BN, asn1_data.value[0].value.class
+    assert_equal OpenSSL::ASN1::OctetString, asn1_data.value[1].class
+    assert_equal 'o=Telstra', asn1_data.value[1].value
+#    assert_equal OpenSSL::ASN1::ASN1Data, asn1_data.value[2].class
+#    assert_equal :CONTEXT_SPECIFIC,  asn1_data.value[2].tag_class
+#    assert_equal 'ess', asn1_data.value[2].value
+
+#    assert_equal raw, asn1.to_der
+  end
+
   private
 
   def assert_universal(tag, asn1, inf_len=false)

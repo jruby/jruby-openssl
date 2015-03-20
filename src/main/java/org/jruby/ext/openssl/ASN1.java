@@ -66,6 +66,7 @@ import org.bouncycastle.asn1.BEROctetString;
 import org.bouncycastle.asn1.BERSequenceGenerator;
 import org.bouncycastle.asn1.BERSet;
 import org.bouncycastle.asn1.BERTags;
+import org.bouncycastle.asn1.DERApplicationSpecific;
 import org.bouncycastle.asn1.DERBMPString;
 import org.bouncycastle.asn1.DERBoolean;
 import org.bouncycastle.asn1.DEREnumerated;
@@ -1088,6 +1089,18 @@ public class ASN1 {
             IRubyObject tag = runtime.newFixnum( taggedObj.getTagNo() );
             IRubyObject tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
             final RubyArray valArr = runtime.newArray(val);
+            return ASN1.getClass("ASN1Data").callMethod(context, "new",
+                new IRubyObject[] { valArr, tag, tag_class }
+            );
+        }
+
+        if ( obj instanceof DERApplicationSpecific ) {
+            final DERApplicationSpecific appSpecific = (DERApplicationSpecific) obj;
+            IRubyObject tag = runtime.newFixnum( appSpecific.getApplicationTag() );
+            IRubyObject tag_class = runtime.newSymbol("APPLICATION");
+            final ASN1Sequence sequence = (ASN1Sequence) appSpecific.getObject(SEQUENCE);
+            @SuppressWarnings("unchecked")
+            final RubyArray valArr = decodeObjects(context, ASN1, sequence.getObjects());
             return ASN1.getClass("ASN1Data").callMethod(context, "new",
                 new IRubyObject[] { valArr, tag, tag_class }
             );
