@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
   s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
 
-  s.add_development_dependency 'jar-dependencies', '0.0.9'
+  s.add_development_dependency 'jar-dependencies', '~> 0.1.0'
 
   s.add_development_dependency 'mocha', '~> 1.1.0'
   s.add_development_dependency 'ruby-maven'

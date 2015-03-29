@@ -5,14 +5,9 @@ gemspec :jar => 'jopenssl', :include_jars => true
 sonatype_url = 'https://oss.sonatype.org/content/repositories/snapshots/'
 snapshot_repository :id => 'sonatype', :url => sonatype_url
 
-if ( version = model.version.to_s ).index('dev')
-  # deploy snapshot versions on sonatype !!!
-  model.version = version.sub('.dev','-SNAPSHOT') unless version.index('-SNAPSHOT')
-  plugin :deploy, '2.8.1' do
-    execute_goals( :deploy,
-                   :skip => false,
-                   :altDeploymentRepository => "sonatype-nexus-snapshots::default::#{sonatype_url}" )
-  end
+distribution_management do
+  snapshot_repository :id => :ossrh, :url => 'https://oss.sonatype.org/content/repositories/snapshots'
+  repository :id => :ossrh, :url => 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
 end
 
 java_target = '1.6'
@@ -75,7 +70,7 @@ plugin( :compiler, '3.1',
       # NOTE: maybe '-J-Xbootclasspath/p:${unsafe.jar}' ... as well ?!
 end
 
-plugin :clean, :filesets => [
+plugin! :clean, :filesets => [
                     { :directory => 'lib', :includes => [ 'jopenssl.jar' ] },
                     { :directory => 'lib/org' },
                     { :directory => 'target', :includes => [ '*' ] },
@@ -91,6 +86,12 @@ jruby_plugin! :gem do
   # not the one from this lib directory
   execute_goal :id => 'default-initialize', :libDirectory => 'something-which-does-not-exists'
   execute_goals :id => 'default-push', :skip => true
+end
+
+# we want to have the snapshots on oss.sonatype.org and the released gems
+# on maven central
+plugin :deploy, '2.8.1' do
+  execute_goals( :deploy, :skip => false )
 end
 
 supported_bc_versions = %w{ 1.47 1.48 1.49 1.50 1.51 }
@@ -111,7 +112,7 @@ properties( 'jruby.plugins.version' => '1.0.8',
             'tesla.dump.readonly' => true )
 
 # make sure we have the embedded jars in place before we run runit plugin
-plugin :dependency do
+plugin! :dependency do
   execute_goal 'copy-dependencies', :phase => 'generate-test-resources', :outputDirectory => '${basedir}/lib', :useRepositoryLayout => true, :includeGroupIds => 'org.bouncycastle'
 end
 
