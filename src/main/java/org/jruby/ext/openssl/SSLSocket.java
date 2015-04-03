@@ -108,6 +108,19 @@ public class SSLSocket extends RubyObject {
         return SSL.newSSLError(runtime, message);
     }
 
+    private static RaiseException newSSLErrorFromHandshake(Ruby runtime, SSLHandshakeException exception) {
+        // SSLHandshakeException is always a wrap around another exception that
+        // is the actual cause. In some cases the diagnostic message from the original
+        // exception is also lost and the handshake exception reads "General SSLEngine problem"
+        // Follow the cause chain until we get the real message and use that to ensure
+        // we raise an exception that contains the real reason for failure
+        Exception cause = exception;
+        while (cause.getCause() != null && (cause instanceof SSLHandshakeException)) {
+            cause = (Exception) cause.getCause();
+        }
+        return SSL.newSSLError(runtime, cause);
+    }
+
     private SSLContext sslContext;
     private SSLEngine engine;
     private RubyIO io;
@@ -203,11 +216,7 @@ public class SSLSocket extends RubyObject {
             // unlike server side, client should close outbound channel even if
             // we have remaining data to be sent.
             forceClose();
-            Exception cause = e;
-            while (cause.getCause() != null && (cause instanceof SSLHandshakeException)) {
-                cause = (Exception) cause.getCause();
-            }
-            throw newSSLError(runtime, cause);
+            throw newSSLErrorFromHandshake(runtime, e);
         }
         catch (NoSuchAlgorithmException e) {
             forceClose();
@@ -267,7 +276,7 @@ public class SSLSocket extends RubyObject {
             doHandshake(blocking);
         }
         catch (SSLHandshakeException e) {
-            throw newSSLError(runtime, e);
+            throw newSSLErrorFromHandshake(runtime, e);
         }
         catch (NoSuchAlgorithmException e) {
             throw newSSLError(runtime, e);
