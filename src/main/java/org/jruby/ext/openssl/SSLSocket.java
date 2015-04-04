@@ -854,6 +854,12 @@ public class SSLSocket extends RubyObject {
         return getRuntime().getNil(); // throw new UnsupportedOperationException();
     }
 
+    @JRubyMethod
+    public IRubyObject ssl_version() {
+        if ( engine == null ) return getRuntime().getNil();
+        return getRuntime().newString( engine.getSession().getProtocol() );
+    }
+
     private SocketChannel getSocketChannel() {
         return (SocketChannel) io.getChannel();
     }
