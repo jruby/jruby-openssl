@@ -210,6 +210,10 @@ public class X509Cert extends RubyObject {
         this.subject = X509Name.newName(runtime, cert.getSubjectX500Principal());
         this.issuer = X509Name.newName(runtime, cert.getIssuerX500Principal());
         this.version = RubyFixnum.newFixnum(runtime, cert.getVersion() - 1);
+        String sigAlgorithm = cert.getSigAlgOID();
+        if ( sigAlgorithm == null ) sigAlgorithm = cert.getSigAlgName(); // e.g. SHA256withRSA
+        else sigAlgorithm = ASN1.oid2name(runtime, sigAlgorithm); // "hot" path e.g. sha256WithRSAEncryption
+        this.sig_alg = RubyString.newString(runtime, sigAlgorithm);
 
         final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
         if ( criticalExtOIDs != null ) {

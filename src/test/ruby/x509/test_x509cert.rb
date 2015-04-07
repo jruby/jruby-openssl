@@ -227,6 +227,7 @@ TEXT
 
     cert.to_text
     assert_equal 2, cert.version
+    assert_equal 'sha1WithRSAEncryption', cert.signature_algorithm
 
     unless defined? JRUBY_VERSION # TODO "/DC=org,/DC=ruby-lang,/CN=TestCA"
       assert_equal text_without_signature, cert.to_text[0, text_without_signature.size]
@@ -269,6 +270,9 @@ XBzK5QOuZdfCC6WJHA2Mesi3yZBbbO5Tw7vPCPdQ97pj0J3Tw1YVRPHMeJKJyF98
 -----END CERTIFICATE-----
 EOF
     assert_equal 0, cert.version
+    assert_equal 'sha256WithRSAEncryption', cert.signature_algorithm
+    assert cert.to_text.index('Version: 1 (0x0)')
+    assert cert.to_text.index('Signature Algorithm: sha256WithRSAEncryption')
   end
 
   TEST_KEY_RSA1024 = <<-_end_of_pem_

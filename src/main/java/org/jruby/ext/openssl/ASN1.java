@@ -514,6 +514,11 @@ public class ASN1 {
         return nid2ln(runtime, nid, true); */
     }
 
+
+    static String oid2name(final Ruby runtime, final String oid) {
+        return oid2name(runtime, new ASN1ObjectIdentifier(oid), false);
+    }
+
     static String nid2sn(final Ruby runtime, final Integer nid) {
         return nid2sn(runtime, nid, true);
     }
