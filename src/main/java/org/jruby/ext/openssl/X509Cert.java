@@ -65,6 +65,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
@@ -206,8 +207,9 @@ public class X509Cert extends RubyObject {
         set_serial( RubyNumeric.str2inum(runtime, runtime.newString(cert.getSerialNumber().toString()), 10) );
         set_not_before( context, RubyTime.newTime( runtime, cert.getNotBefore().getTime() ) );
         set_not_after( context, RubyTime.newTime( runtime, cert.getNotAfter().getTime() ) );
-        set_subject( X509Name.newName(runtime, cert.getSubjectX500Principal()) );
-        set_issuer( X509Name.newName(runtime, cert.getIssuerX500Principal()) );
+        this.subject = X509Name.newName(runtime, cert.getSubjectX500Principal());
+        this.issuer = X509Name.newName(runtime, cert.getIssuerX500Principal());
+        this.version = RubyFixnum.newFixnum(runtime, cert.getVersion() - 1);
 
         final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
         if ( criticalExtOIDs != null ) {
