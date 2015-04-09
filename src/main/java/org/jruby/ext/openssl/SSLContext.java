@@ -98,7 +98,7 @@ public class SSLContext extends RubyObject {
     private static final Map<String, String[]> ENABLED_PROTOCOLS;
 
     static {
-        SSL_VERSION_OSSL2JSSE = new LinkedHashMap<String, String>(16);
+        SSL_VERSION_OSSL2JSSE = new LinkedHashMap<String, String>(20, 1);
         ENABLED_PROTOCOLS = new HashMap<String, String[]>(8, 1);
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1", "TLSv1");
@@ -121,13 +121,20 @@ public class SSLContext extends RubyObject {
         SSL_VERSION_OSSL2JSSE.put("SSLv23_client", "SSL");
         ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv2", "SSLv3", "TLSv1" });
 
-        // Followings(TLS, TLSv1.1) are JSSE only methods at present. Let's allow user to use it.
+        // Historically we were ahead of MRI to support TLS
+        // ... thus the non-standard names version names :
 
         SSL_VERSION_OSSL2JSSE.put("TLS", "TLS");
         ENABLED_PROTOCOLS.put("TLS", new String[] { "TLSv1", "TLSv1.1" });
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1.1", "TLSv1.1");
         ENABLED_PROTOCOLS.put("TLSv1.1", new String[] { "TLSv1.1" });
+
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_1", "TLSv1.1"); // supported on MRI 2.x
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_2", "TLSv1.2"); // supported on MRI 2.x
+        ENABLED_PROTOCOLS.put("TLSv1.2", new String[] { "TLSv1.2" });
+
+        SSL_VERSION_OSSL2JSSE.put("TLSv1.2", "TLSv1.2"); // just for completeness
     }
 
     private static ObjectAllocator SSLCONTEXT_ALLOCATOR = new ObjectAllocator() {
@@ -269,7 +276,7 @@ public class SSLContext extends RubyObject {
         internalContext = new InternalContext();
 
         // TODO: handle tmp_dh_callback :
-        
+
         // #if !defined(OPENSSL_NO_DH)
         //   if (RTEST(ossl_sslctx_get_tmp_dh_cb(self))){
         //     SSL_CTX_set_tmp_dh_callback(ctx, ossl_tmp_dh_callback);
