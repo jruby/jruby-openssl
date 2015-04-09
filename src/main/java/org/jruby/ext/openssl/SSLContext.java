@@ -56,7 +56,7 @@ import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
-import org.jruby.RubyString;
+import org.jruby.RubySymbol;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.common.IRubyWarnings.ID;
 import org.jruby.runtime.Arity;
@@ -474,16 +474,16 @@ public class SSLContext extends RubyObject {
     @JRubyMethod(name = "ssl_version=")
     public IRubyObject set_ssl_version(IRubyObject version) {
         final String versionStr;
-        if ( version instanceof RubyString ) {
-            versionStr = version.asString().toString();
-        } else {
+        if ( version instanceof RubySymbol ) {
             versionStr = version.toString();
+        } else {
+            versionStr = version.convertToString().toString();
         }
-        final String mapped = SSL_VERSION_OSSL2JSSE.get(versionStr);
-        if ( mapped == null ) {
-            throw newSSLError(getRuntime(), String.format("unknown SSL method `%s'.", versionStr));
+        final String protocol = SSL_VERSION_OSSL2JSSE.get(versionStr);
+        if ( protocol == null ) {
+            throw getRuntime().newArgumentError("unknown SSL method `"+ versionStr +"'");
         }
-        protocol = mapped;
+        this.protocol = protocol;
         protocolForServer = ! versionStr.endsWith("_client");
         protocolForClient = ! versionStr.endsWith("_server");
         return version;
