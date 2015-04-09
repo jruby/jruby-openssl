@@ -384,22 +384,22 @@ public class CipherStrings {
     public final static String TLS1_TXT_ECDH_anon_WITH_AES_128_CBC_SHA = "AECDH-AES128-SHA";
     public final static String TLS1_TXT_ECDH_anon_WITH_AES_256_CBC_SHA = "AECDH-AES256-SHA";
 
-    final static class Def implements Comparable<Def>, Cloneable {
+    static final class Def implements Comparable<Def>, Cloneable {
 
-        public final int valid;
-        public final String name;
-        public final long id;
-        public final long algorithms;
-        public final long algo_strength;
-        public final long algorithm2;
-        public final int strength_bits;
-        public final int alg_bits;
-        public final long mask;
-        public final long mask_strength;
+        final int valid;
+        final String name;
+        final long id;
+        final long algorithms;
+        final long algo_strength;
+        final long algorithm2;
+        final int strength_bits;
+        final int alg_bits;
+        final long mask;
+        final long mask_strength;
 
         private volatile String cipherSuite;
 
-        public Def(int valid, String name, long id, long algorithms, long algo_strength, long algorithm2, int strength_bits, int alg_bits, long mask, long mask_strength) {
+        Def(int valid, String name, long id, long algorithms, long algo_strength, long algorithm2, int strength_bits, int alg_bits, long mask, long mask_strength) {
             this.valid = valid;
             this.name = name;
             this.id = id;
@@ -580,7 +580,7 @@ public class CipherStrings {
     private final static Map<String, String> SuiteToOSSL;
 
     static {
-        Definitions = new HashMap<String, Def>(48);
+        Definitions = new HashMap<String, Def>( 48, 1 );
         Definitions.put(SSL_TXT_ALL,new Def(0,SSL_TXT_ALL, 0,SSL_ALL & ~SSL_eNULL & ~SSL_kECDH & ~SSL_kECDHE, SSL_ALL ,0,0,0,SSL_ALL,SSL_ALL));
         Definitions.put(SSL_TXT_CMPALL,new Def(0,SSL_TXT_CMPALL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_CMPDEF,new Def(0,SSL_TXT_CMPDEF,0,SSL_ADH, 0,0,0,0,SSL_AUTH_MASK,0));
@@ -627,7 +627,7 @@ public class CipherStrings {
         Definitions.put(SSL_TXT_MEDIUM,new Def(0,SSL_TXT_MEDIUM,0, 0,SSL_MEDIUM, 0,0,0,0,SSL_STRONG_MASK));
         Definitions.put(SSL_TXT_HIGH,new Def(0,SSL_TXT_HIGH,  0, 0,  SSL_HIGH, 0,0,0,0,SSL_STRONG_MASK));
 
-        Ciphers = new ArrayList<Def>( 100 );
+        Ciphers = new ArrayList<Def>( 96 );
         /* Cipher 01 */
         Ciphers.add(new Def(
                             1,
@@ -1808,10 +1808,10 @@ public class CipherStrings {
                             SSL_ALL_STRENGTHS
                             ));
 
-        CipherNames = new HashMap<String, Def>(Ciphers.size());
+        CipherNames = new HashMap<String, Def>(Ciphers.size() + 1, 1);
         for ( Def def : Ciphers ) CipherNames.put(def.name, def);
 
-        SuiteToOSSL = new HashMap<String, String>(80);
+        SuiteToOSSL = new HashMap<String, String>( 72, 1 );
         SuiteToOSSL.put("SSL_RSA_WITH_NULL_MD5","NULL-MD5");
         SuiteToOSSL.put("SSL_RSA_WITH_NULL_SHA","NULL-SHA");
         SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_RC4_40_MD5","EXP-RC4-MD5");
