@@ -265,6 +265,7 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(IRubyObject[] args) {
+        if ( args.length > 0 ) set_ssl_version(args[0]);
         return this;
     }
 

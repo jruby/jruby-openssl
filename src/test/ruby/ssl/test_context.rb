@@ -11,6 +11,15 @@ class TestSSLContext < TestCase
     assert ! methods.include?(:'TLSv1.1')
   end
 
+  def test_context_new
+    OpenSSL::SSL::SSLContext.new
+
+    OpenSSL::SSL::SSLContext.new :SSLv3
+    assert_raises ArgumentError do
+      OpenSSL::SSL::SSLContext.new "TLSv42"
+    end
+  end
+
   def test_context_set_ssl_version
     context = OpenSSL::SSL::SSLContext.new
     context.ssl_version = "TLSv1"
