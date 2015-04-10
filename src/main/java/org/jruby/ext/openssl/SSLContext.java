@@ -434,7 +434,7 @@ public class SSLContext extends RubyObject {
             final Collection<CipherStrings.Def> cipherDefs =
                     CipherStrings.matchingCiphers(this.ciphers, supported, false);
 
-            final RubyArray cipherList = runtime.newArray(cipherDefs.size());
+            final RubyArray cipherList = runtime.newArray( cipherDefs.size() );
 
             for ( CipherStrings.Def def : cipherDefs ) {
                 final RubyArray cipher = runtime.newArray(4);
@@ -458,13 +458,14 @@ public class SSLContext extends RubyObject {
             this.ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
         }
         else if ( ciphers instanceof RubyArray ) {
-            StringBuilder builder = new StringBuilder();
+            final RubyArray ciphs = (RubyArray) ciphers;
+            StringBuilder cipherStr = new StringBuilder();
             String sep = "";
-            for (IRubyObject obj : ((RubyArray) ciphers).toJavaArray()) {
-                builder.append(sep).append(obj.toString());
+            for ( int i = 0; i < ciphs.size(); i++ ) {
+                cipherStr.append(sep).append( ciphs.eltInternal(i).toString() );
                 sep = ":";
             }
-            this.ciphers = builder.toString();
+            this.ciphers = cipherStr.toString();
         }
         else {
             this.ciphers = ciphers.asString().toString();
