@@ -577,7 +577,7 @@ public class CipherStrings {
     }
 
     private final static Map<String, Def> Definitions;
-    private final static ArrayList<Def> Ciphers;
+    //private final static ArrayList<Def> Ciphers;
     private final static Map<String, Def> CipherNames;
     private final static Map<String, String> SuiteToOSSL;
 
@@ -629,7 +629,7 @@ public class CipherStrings {
         Definitions.put(SSL_TXT_MEDIUM,new Def(0,SSL_TXT_MEDIUM,0, 0,SSL_MEDIUM, 0,0,0,0,SSL_STRONG_MASK));
         Definitions.put(SSL_TXT_HIGH,new Def(0,SSL_TXT_HIGH,  0, 0,  SSL_HIGH, 0,0,0,0,SSL_STRONG_MASK));
 
-        Ciphers = new ArrayList<Def>( 96 );
+        final ArrayList<Def> Ciphers = new ArrayList<Def>( 96 );
         /* Cipher 01 */
         Ciphers.add(new Def(
                             1,
