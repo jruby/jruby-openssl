@@ -6,9 +6,12 @@ class TestSSLContext < TestCase
 
   def test_methods
     methods = OpenSSL::SSL::SSLContext::METHODS
-    assert methods.include?(:'SSLv3')
+    assert methods.include?(:SSLv3)
     assert methods.include?(:'TLSv1_1')
     assert ! methods.include?(:'TLSv1.1')
+
+    assert ! methods.include?(:SSLv2)
+    assert ! methods.include?(:SSLv2_client)
   end
 
   def test_context_new
