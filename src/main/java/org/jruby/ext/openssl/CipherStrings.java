@@ -386,30 +386,30 @@ public class CipherStrings {
 
     static final class Def implements Comparable<Def>, Cloneable {
 
-        final int valid;
+        //private final byte valid;
         final String name;
-        final long id;
+        //private final long id;
         final long algorithms;
-        final long algo_strength;
-        final long algorithm2;
-        final int strength_bits;
-        final int alg_bits;
-        final long mask;
-        final long mask_strength;
+        private final long algStrength;
+        //final long algorithm2;
+        final int algStrengthBits;
+        final int algBits;
+        private final long mask;
+        private final long algStrengthMask;
 
         private volatile String cipherSuite;
 
-        Def(int valid, String name, long id, long algorithms, long algo_strength, long algorithm2, int strength_bits, int alg_bits, long mask, long mask_strength) {
-            this.valid = valid;
+        Def(int valid, String name, long id, long algorithms, long algo_strength, long algorithm2, int strength_bits, int alg_bits, long mask, long maskStrength) {
+            //this.valid = (byte) valid;
             this.name = name;
-            this.id = id;
+            //this.id = id;
             this.algorithms = algorithms;
-            this.algo_strength = algo_strength;
-            this.algorithm2 = algorithm2;
-            this.strength_bits = strength_bits;
-            this.alg_bits = alg_bits;
+            this.algStrength = algo_strength;
+            //this.algorithm2 = algorithm2;
+            this.algStrengthBits = strength_bits;
+            this.algBits = alg_bits;
             this.mask = mask;
-            this.mask_strength = mask_strength;
+            this.algStrengthMask = maskStrength;
         }
 
         public String getCipherSuite() {
@@ -451,12 +451,14 @@ public class CipherStrings {
 
         @Override
         public int compareTo(final Def that) {
-            return this.strength_bits - that.strength_bits;
+            return this.algStrengthBits - that.algStrengthBits;
         }
 
         @Override
         public String toString() {
-            return "Cipher<" + name + ">";
+            return getClass().getSimpleName() + '@' +
+                   Integer.toHexString(System.identityHashCode(this)) +
+                   '<' + name + '>';
         }
 
         // from ssl_cipher_apply_rule
@@ -472,11 +474,11 @@ public class CipherStrings {
 //                ((ma_s & algo_strength) != ma_s))
 //                continue; // does not apply
 //            }
-            long ma = mask & current.algorithms;
-            long ma_s = mask_strength & current.algo_strength;
-            if (((ma == 0) && (ma_s == 0)) ||
-                    ((ma & algorithms) != ma) ||
-                    ((ma_s & algo_strength) != ma_s)) {
+            final long ma = this.mask & current.algorithms;
+            final long ma_s = this.algStrengthMask & current.algStrength;
+            if ( ( ma == 0 && ma_s == 0 ) ||
+                 ( (ma & this.algorithms) != ma ) ||
+                 ( (ma_s & this.algStrength) != ma_s) ) {
                 return false;
             }
             return true;

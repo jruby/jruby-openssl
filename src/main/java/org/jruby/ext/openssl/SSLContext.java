@@ -433,8 +433,8 @@ public class SSLContext extends RubyObject {
                 final RubyArray cipher = runtime.newArray(4);
                 cipher.store(0, newUTF8String(runtime, def.name));
                 cipher.store(1, newUTF8String(runtime, sslVersionString(def.algorithms)));
-                cipher.store(2, runtime.newFixnum(def.strength_bits));
-                cipher.store(3, runtime.newFixnum(def.alg_bits));
+                cipher.store(2, runtime.newFixnum(def.algStrengthBits));
+                cipher.store(3, runtime.newFixnum(def.algBits));
 
                 cipherList.append(cipher);
             }
