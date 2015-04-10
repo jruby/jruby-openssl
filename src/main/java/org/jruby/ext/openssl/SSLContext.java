@@ -171,8 +171,11 @@ public class SSLContext extends RubyObject {
 
         final Set<String> methodKeys = SSL_VERSION_OSSL2JSSE.keySet();
         final RubyArray methods = runtime.newArray( methodKeys.size() );
-        for ( String method : methodKeys ) {
-            methods.append( runtime.newSymbol(method) );
+        for ( final String method : methodKeys ) {
+            if ( method.indexOf('.') == -1 ) {
+                // do not "officially" report TLSv1.1 and TLSv1.2
+                methods.append( runtime.newSymbol(method) );
+            }
         }
         SSLContext.defineConstant("METHODS", methods);
         // in 1.8.7 as well as 1.9.3 :
@@ -416,7 +419,7 @@ public class SSLContext extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject ciphers(final ThreadContext context) {
+    public RubyArray ciphers(final ThreadContext context) {
         return matchedCiphers(context);
     }
 

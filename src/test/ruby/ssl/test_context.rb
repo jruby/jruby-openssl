@@ -4,6 +4,13 @@ require File.expand_path('test_helper', File.dirname(__FILE__))
 class TestSSLContext < TestCase
   #include SSLTestHelper
 
+  def test_methods
+    methods = OpenSSL::SSL::SSLContext::METHODS
+    assert methods.include?(:'SSLv3')
+    assert methods.include?(:'TLSv1_1')
+    assert ! methods.include?(:'TLSv1.1')
+  end
+
   def test_context_set_ssl_version
     context = OpenSSL::SSL::SSLContext.new
     context.ssl_version = "TLSv1"
