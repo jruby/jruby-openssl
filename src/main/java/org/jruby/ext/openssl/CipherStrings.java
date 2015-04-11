@@ -501,7 +501,15 @@ public class CipherStrings {
                 case '!': case '+': case '-': index++; break;
             }
 
-            Collection<Def> matching = matching(part.substring(index), all, setSuite);
+            final Collection<Def> matching;
+            final String[] defs = part.substring(index).split("[+]");
+            if ( defs.length == 1 ) {
+                matching = matchingExact(defs[0], all, setSuite);
+            }
+            else {
+                matching = matching(defs, all, setSuite);
+            }
+
             if ( matching != null ) {
                 if ( index > 0 ) {
                     switch ( part.charAt(0) ) {
@@ -535,10 +543,19 @@ public class CipherStrings {
         return matchedList;
     }
 
-    private static Collection<Def> matching(final String definition, final String[] all,
+    private static Collection<Def> matchingExact(final String name, final String[] all,
+        final boolean setSuite) {
+        final Def pattern = Definitions.get(name);
+        if ( pattern != null ) {
+            return matchingPattern(pattern, all, true, setSuite);
+        }
+        return null; // Collections.emptyList();
+    }
+
+    private static Collection<Def> matching(final String[] defs, final String[] all,
         final boolean setSuite) {
         Collection<Def> matching = null;
-        for ( final String name : definition.split("[+]") ) {
+        for ( final String name : defs ) {
             final Def pattern = Definitions.get(name);
             if ( pattern != null ) {
                 if ( matching == null ) {
@@ -1813,30 +1830,31 @@ public class CipherStrings {
         CipherNames = new HashMap<String, Def>(Ciphers.size() + 1, 1);
         for ( Def def : Ciphers ) CipherNames.put(def.name, def);
 
-        SuiteToOSSL = new HashMap<String, String>( 72, 1 );
-        SuiteToOSSL.put("SSL_RSA_WITH_NULL_MD5","NULL-MD5");
-        SuiteToOSSL.put("SSL_RSA_WITH_NULL_SHA","NULL-SHA");
-        SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_RC4_40_MD5","EXP-RC4-MD5");
-        SuiteToOSSL.put("SSL_RSA_WITH_RC4_128_MD5","RC4-MD5");
-        SuiteToOSSL.put("SSL_RSA_WITH_RC4_128_SHA","RC4-SHA");
+        SuiteToOSSL = new HashMap<String, String>( 112, 1 );
+        SuiteToOSSL.put("SSL_RSA_WITH_NULL_MD5", "NULL-MD5");
+        SuiteToOSSL.put("SSL_RSA_WITH_NULL_SHA", "NULL-SHA");
+        SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_RC4_40_MD5", "EXP-RC4-MD5");
+        SuiteToOSSL.put("SSL_RSA_WITH_RC4_128_MD5", "RC4-MD5");
+        SuiteToOSSL.put("SSL_RSA_WITH_RC4_128_SHA", "RC4-SHA");
         SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5","EXP-RC2-CBC-MD5");
         SuiteToOSSL.put("SSL_RSA_WITH_IDEA_CBC_SHA","IDEA-CBC-SHA");
-        SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-DES-CBC-SHA");
-        SuiteToOSSL.put("SSL_RSA_WITH_DES_CBC_SHA","DES-CBC-SHA");
-        SuiteToOSSL.put("SSL_RSA_WITH_3DES_EDE_CBC_SHA","DES-CBC3-SHA");
-        SuiteToOSSL.put("SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-DSS-DES-CBC-SHA");
-        SuiteToOSSL.put("SSL_DHE_DSS_WITH_DES_CBC_SHA","EDH-DSS-CBC-SHA");
-        SuiteToOSSL.put("SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA","EDH-DSS-DES-CBC3-SHA");
-        SuiteToOSSL.put("SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA","EXP-EDH-RSA-DES-CBC-SHA");
-        SuiteToOSSL.put("SSL_DHE_RSA_WITH_DES_CBC_SHA","EDH-RSA-DES-CBC-SHA");
-        SuiteToOSSL.put("SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA","EDH-RSA-DES-CBC3-SHA");
-        SuiteToOSSL.put("SSL_DH_anon_EXPORT_WITH_RC4_40_MD5","EXP-ADH-RC4-MD5");
-        SuiteToOSSL.put("SSL_DH_anon_WITH_RC4_128_MD5","ADH-RC4-MD5");
-        SuiteToOSSL.put("SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA","EXP-ADH-DES-CBC-SHA");
-        SuiteToOSSL.put("SSL_DH_anon_WITH_DES_CBC_SHA","ADH-DES-CBC-SHA");
-        SuiteToOSSL.put("SSL_DH_anon_WITH_3DES_EDE_CBC_SHA","ADH-DES-CBC3-SHA");
+        SuiteToOSSL.put("SSL_RSA_EXPORT_WITH_DES40_CBC_SHA", "EXP-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_RSA_WITH_DES_CBC_SHA", "DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_RSA_WITH_3DES_EDE_CBC_SHA", "DES-CBC3-SHA");
+        SuiteToOSSL.put("SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA", "EXP-EDH-DSS-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_DES_CBC_SHA", "EDH-DSS-CBC-SHA");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA", "EDH-DSS-DES-CBC3-SHA");
+        SuiteToOSSL.put("SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA", "EXP-EDH-RSA-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_DES_CBC_SHA", "EDH-RSA-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA", "EDH-RSA-DES-CBC3-SHA");
+        SuiteToOSSL.put("SSL_DH_anon_EXPORT_WITH_RC4_40_MD5", "EXP-ADH-RC4-MD5");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_RC4_128_MD5", "ADH-RC4-MD5");
+        SuiteToOSSL.put("SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA", "EXP-ADH-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_DES_CBC_SHA", "ADH-DES-CBC-SHA");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_3DES_EDE_CBC_SHA", "ADH-DES-CBC3-SHA");
         SuiteToOSSL.put("TLS_RSA_WITH_NULL_MD5","NULL-MD5");
         SuiteToOSSL.put("TLS_RSA_WITH_NULL_SHA","NULL-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_NULL_SHA256", "NULL-SHA256");
         SuiteToOSSL.put("TLS_RSA_EXPORT_WITH_RC4_40_MD5","EXP-RC4-MD5");
         SuiteToOSSL.put("TLS_RSA_WITH_RC4_128_MD5","RC4-MD5");
         SuiteToOSSL.put("TLS_RSA_WITH_RC4_128_SHA","RC4-SHA");
@@ -1856,18 +1874,26 @@ public class CipherStrings {
         SuiteToOSSL.put("TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA","EXP-ADH-DES-CBC-SHA");
         SuiteToOSSL.put("TLS_DH_anon_WITH_DES_CBC_SHA","ADH-DES-CBC-SHA");
         SuiteToOSSL.put("TLS_DH_anon_WITH_3DES_EDE_CBC_SHA","ADH-DES-CBC3-SHA");
-        SuiteToOSSL.put("TLS_RSA_WITH_AES_128_CBC_SHA","AES128-SHA");
-        SuiteToOSSL.put("TLS_RSA_WITH_AES_256_CBC_SHA","AES256-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_128_CBC_SHA", "AES128-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_256_CBC_SHA", "AES256-SHA");
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_128_CBC_SHA256", "AES128-SHA256");
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_256_CBC_SHA256", "AES256-SHA256");
         SuiteToOSSL.put("TLS_DH_DSS_WITH_AES_128_CBC_SHA","DH-DSS-AES128-SHA");
         SuiteToOSSL.put("TLS_DH_DSS_WITH_AES_256_CBC_SHA","DH-DSS-AES256-SHA");
         SuiteToOSSL.put("TLS_DH_RSA_WITH_AES_128_CBC_SHA","DH-RSA-AES128-SHA");
         SuiteToOSSL.put("TLS_DH_RSA_WITH_AES_256_CBC_SHA","DH-RSA-AES256-SHA");
-        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_128_CBC_SHA","DHE-DSS-AES128-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_128_CBC_SHA", "DHE-DSS-AES128-SHA");
         SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_256_CBC_SHA","DHE-DSS-AES256-SHA");
-        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_128_CBC_SHA","DHE-RSA-AES128-SHA");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_128_CBC_SHA256", "DHE-DSS-AES128-SHA256");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_256_CBC_SHA256", "DHE-DSS-AES256-SHA256");
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "DHE-RSA-AES128-SHA");
         SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_256_CBC_SHA","DHE-RSA-AES256-SHA");
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256", "DHE-RSA-AES128-SHA256");
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", "DHE-RSA-AES256-SHA256");
         SuiteToOSSL.put("TLS_DH_anon_WITH_AES_128_CBC_SHA","ADH-AES128-SHA");
         SuiteToOSSL.put("TLS_DH_anon_WITH_AES_256_CBC_SHA","ADH-AES256-SHA");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_128_CBC_SHA256", "ADH-AES128-SHA256");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_256_CBC_SHA256", "ADH-AES256-SHA256");
         SuiteToOSSL.put("TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA","EXP1024-DES-CBC-SHA");
         SuiteToOSSL.put("TLS_RSA_EXPORT1024_WITH_RC4_56_SHA","EXP1024-RC4-SHA");
         SuiteToOSSL.put("TLS_DHE_DSS_EXPORT1024_WITH_DES_CBC_SHA","EXP1024-DHE-DSS-DES-CBC-SHA");
@@ -1881,6 +1907,49 @@ public class CipherStrings {
         SuiteToOSSL.put("SSL_CK_DES_64_CBC_WITH_MD5","DES-CBC-MD5");
         SuiteToOSSL.put("SSL_CK_DES_192_EDE3_CBC_WITH_MD5","DES-CBC3-MD5");
 
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA", "ECDHE-ECDSA-AES128-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA", "ECDHE-ECDSA-AES256-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256", "ECDHE-ECDSA-AES128-SHA256");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "ECDHE-RSA-AES128-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA", "ECDHE-RSA-AES256-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256", "ECDHE-RSA-AES128-SHA256");
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA", "ECDH-ECDSA-AES128-SHA");
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA", "ECDH-ECDSA-AES256-SHA");
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256", "ECDH-ECDSA-AES128-SHA256");
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_128_CBC_SHA", "ECDH-RSA-AES128-SHA");
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_256_CBC_SHA", "ECDH-RSA-AES256-SHA");
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256", "ECDH-RSA-AES128-SHA256");
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA", "ECDHE-ECDSA-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA", "ECDH-ECDSA-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA", "ECDHE-RSA-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA", "ECDH-RSA-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_RC4_128_SHA", "ECDHE-ECDSA-RC4-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_RC4_128_SHA", "ECDHE-RSA-RC4-SHA");
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_RC4_128_SHA", "ECDH-ECDSA-RC4-SHA");
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_RC4_128_SHA", "ECDH-RSA-RC4-SHA");
+        SuiteToOSSL.put("TLS_ECDH_anon_WITH_AES_128_CBC_SHA", "AECDH-AES128-SHA");
+        SuiteToOSSL.put("TLS_ECDH_anon_WITH_AES_256_CBC_SHA", "AECDH-AES256-SHA");
+        SuiteToOSSL.put("TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA", "AECDH-DES-CBC3-SHA");
+        SuiteToOSSL.put("TLS_ECDH_anon_WITH_RC4_128_SHA", "AECDH-RC4-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_NULL_SHA", "ECDHE-ECDSA-NULL-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_NULL_SHA", "ECDHE-RSA-NULL-SHA");
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_NULL_SHA", "ECDH-ECDSA-NULL-SHA");
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_NULL_SHA", "ECDH-RSA-NULL-SHA");
+        SuiteToOSSL.put("TLS_ECDH_anon_WITH_NULL_SHA", "AECDH-NULL-SHA");
+
+        // left overs supported by Java 7's SSLv3 / TLS v1.2 :
+
+        //    TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
+        //    TLS_KRB5_WITH_3DES_EDE_CBC_SHA,
+        //    TLS_KRB5_WITH_3DES_EDE_CBC_MD5,
+        //    TLS_KRB5_WITH_RC4_128_SHA,
+        //    TLS_KRB5_WITH_RC4_128_MD5,
+        //    TLS_KRB5_WITH_DES_CBC_SHA,
+        //    TLS_KRB5_WITH_DES_CBC_MD5,
+        //    TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA,
+        //    TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5,
+        //    TLS_KRB5_EXPORT_WITH_RC4_40_SHA,
+        //    TLS_KRB5_EXPORT_WITH_RC4_40_MD5
 	}
 
 }// CipherStrings
