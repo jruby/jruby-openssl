@@ -169,4 +169,9 @@ profile :id => 'test-9000' do
              'bc.versions' => supported_bc_versions.join(',')
 end
 
+profile :id => 'release' do
+  plugin :gpg, '1.5' do
+    execute_goal :sign, :phase => :verify
+  end
+end
 # vim: syntax=Ruby
