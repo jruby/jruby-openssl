@@ -1,7 +1,28 @@
-== 0.9.7 (pending)
+## 0.9.7
 
+* put in some more ossl to jsse mappings for SSL/TLS
+  (SSL_DHE_xxx, TLS_ECDH_xxx, TLS_ECDHE_xxx)
+* exclude SSLv2 in reported METHODS (all fine to close jruby/jruby#1874)
+* support passing ssl_version as an argument to initialize SSLContext.new ...
+* now that we've matched w MRI's SSLContext::METHODS don't report custom ones
+* more ssl_version= compatibility fixes that match MRI (jruby/jruby#1736)
+* support setting ssl_version = "TLSv1_1" (or "TLSv1_2") just like MRI
+* [regression] make sure version is set when reading encoded certificate
+  + signature algorithm should be read as well when decoding certificate (#39)
+* better accept handshake errors instead of "General SSLEngine problem (#37)
+* trying to decode DER application specific objects (based on patch from #36)
+* we've not been compatible with MRI's DES (EDE) - partly due DES(3) ECB
+  fixing jruby/jruby#2617 as well as jruby/jruby#931
+* exclude reporting algorithms with CFB-1 cipher mode as supported (due #35)
+* do not change CFB1 to CFB ... it's something different (although broken on BC)
+* attempt to deal with update/final buffering incompatibility with MRI
+* fix HMAC digest incorrect when data contains invalid characters (#33)
+* add Gemfile and specify ruby-maven as dependency
+* use SafePropertyAccessor to access properties instead of directly (#28)
+* make sure SSLSocket's cipher and hostname are nil by default (avoids NPE)
+* update to (packed) BC version 1.50 + start declaring 1.51 as semi-supported
 
-== 0.9.6
+## 0.9.6
 
 * ClassCastException still happen deep within BC - turn them into SignatureExeption
 * make sure empty object can be serialize via to_pem
@@ -53,7 +74,7 @@
 * avoid using JRuby IO APIs (will likely not work in 9k)
 * make 'jopenssl/load' also work on jruby-1.6.8 mode 1.9
 
-== 0.9.5
+## 0.9.5
 
 MASSIVE internal "rewrite" to avoid depending on a registered (BC) security
 provider. This releases restores compatibility with BC version 1.47 while being
@@ -70,11 +91,11 @@ compatible with newer bouncy-castle jars as well (1.48, 1.49 and 1.50).
 * fix bug https://github.com/jruby/jruby/issues/1156
 * openssl: add handling for base 0 to new and to_s
 
-== 0.9.4
+## 0.9.4
 
 * Fix compatibility wiht Bouncy Castle 1.49.
 
-== 0.9.3
+## 0.9.3
 
 * Allow options passed to nonblock methods (not impl'ed yet)
 * Make ClassIndex into an enum, to prevent issues like jruby/jruby#1004
@@ -83,7 +104,7 @@ compatible with newer bouncy-castle jars as well (1.48, 1.49 and 1.50).
 == ...
 
 
-== 0.7.7
+## 0.7.7
 
 This release includes bug fixes.
 
@@ -93,14 +114,14 @@ This release includes bug fixes.
 * JRUBY-6515: sending UTF-8 data over SSL can hang with openssl
 * Update tests to sync with CRuby ruby_1_9_3
 
-== 0.7.6
+## 0.7.6
 
 This release includes initial implementation of PKCS12 by Owen Ou.
 
 * JRUBY-5066: Implement OpenSSL::PKCS12 (only for simple case)
 * JRUBY-6385: Assertion failure with -J-ea
 
-== 0.7.5
+## 0.7.5
 
 This release improved 1.9 mode support with help of
 Duncan Mak <duncan@earthaid.net>.  Now jruby-ossl gem includes both 1.8 and 1.9
@@ -114,14 +135,14 @@ libraries and part of features should work fine on 1.9 mode, too.
 * JRUBY-5362: Improved 1.9 support
 * JRUBY-4992: Warn if loaded by non JRuby interpreter
 
-== 0.7.4
+## 0.7.4
 
 * JRUBY-5519: Avoid String encoding dependency in DER loading. PEM loading
   failed on JRuby 1.6.x. Fixed.
 * JRUBY-5510: Add debug information to released jar
 * JRUBY-5478: Update bouncycastle jars to the latest version. (1.46)
 
-== 0.7.3
+## 0.7.3
 
 * JRUBY-5200: Net::IMAP + SSL(imaps) login could hang. Fixed.
 * JRUBY-5253: Allow to load the certificate file which includes private
@@ -131,7 +152,7 @@ libraries and part of features should work fine on 1.9 mode, too.
 * JRUBY-5316: Improvements for J9's IBMJCE support. Now all testcases
   pass on J9 JDK 6.
 
-== 0.7.2
+## 0.7.2
 
 * JRUBY-5126: Ignore Cipher#reset and Cipher#iv= when it's a stream
   cipher (Net::SSH compatibility)
@@ -147,7 +168,7 @@ libraries and part of features should work fine on 1.9 mode, too.
 * JRUBY-5018: SSLSocket holds selectors, keys, preventing quick
   cleanup of resources when dereferenced
 
-== 0.7.1
+## 0.7.1
 
 NOTE: Now BouncyCastle jars has moved out to its own gem "bouncy-castle-java"
 http://rubygems.org/gems/bouncy-castle-java. You don't need to care about it
@@ -161,7 +182,7 @@ because "jruby-openssl" gem depends on it from now on.
   (JRuby-OpenSSL fake)" -> "jruby-ossl 0.7.1"
 * JRUBY-4975: Moving BouncyCastle jars out to its own gem.
 
-== 0.7
+## 0.7
 
 * Follow MRI 1.8.7 openssl API changes
 * Fixes so that jruby-openssl can run on appengine
@@ -217,7 +238,7 @@ because "jruby-openssl" gem depends on it from now on.
  - JRUBY-4574: jruby-openssl deprecation warning cleanup
  - JRUBY-4591: jruby-1.4 support
 
-== 0.6
+## 0.6
 
 * This is a recommended upgrade to jruby-openssl. A security problem
   involving peer certificate verification was found where failed
@@ -244,7 +265,7 @@ because "jruby-openssl" gem depends on it from now on.
 * Public keys are lazily instantiated when the
   X509::Certificate#public_key method is called (Dave Garcia)
 
-== 0.5.2
+## 0.5.2
 
 Multiple bugs fixed:
 
@@ -254,13 +275,13 @@ Multiple bugs fixed:
 * JRUBY-3767	OpenSSL ssl implementation doesn't support client auth
 * JRUBY-3673	jRuby-OpenSSL does not properly load certificate authority file
 
-== 0.5.1
+## 0.5.1
 
 * Multiple fixes by Brice Figureau to get net/ssh working. Requires JRuby 1.3.1
   to be 100%
 * Fix by Frederic Jean for a character-decoding issue for some certificates
 
-== 0.5
+## 0.5
 
 * Fixed JRUBY-3614: Unsupported HMAC algorithm (HMACSHA-256)
 * Fixed JRUBY-3570: ActiveMerchant's AuthorizeNet Gateway throws OpenSSL Cert
@@ -271,7 +292,7 @@ Multiple bugs fixed:
   digest
 * Misc code cleanup
 
-== 0.2
+## 0.2
 
 * Enable remaining tests; fix a nil string issue in SSLSocket.sysread
   (JRUBY-1888)
@@ -281,11 +302,11 @@ Multiple bugs fixed:
 * Fix cipher initialization (JRUBY-1100)
 * Now, only compatible with JRuby 1.1
 
-== 0.1.1
+## 0.1.1
 
 * Fixed blocker issue preventing HTTPS/SSL from working (JRUBY-1222)
 
-== 0.1
+## 0.1
 
 * PLEASE NOTE: This release is not compatible with JRuby releases earlier than
   1.0.3 or 1.1b2. If you must use JRuby 1.0.2 or earlier, please install the
@@ -294,6 +315,6 @@ Multiple bugs fixed:
 * Simultaneous support for JRuby trunk and 1.0 branch
 * Start of support for OpenSSL::BN
 
-== 0.0.5 and prior
+## 0.0.5 and prior
 
 * Initial versions with maintenance updates
