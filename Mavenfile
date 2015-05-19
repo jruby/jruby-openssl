@@ -148,7 +148,7 @@ profile :id => 'test-1.7.4' do
              'bc.versions' => supported_bc_versions.join(',')
 end
 
-%w{ 1.7.13 1.7.15 1.7.16 1.7.17 1.7.18 1.7.19 }.each { |version|
+%w{ 1.7.13 1.7.15 1.7.16 1.7.17 1.7.18 1.7.19 1.7.20 }.each { |version|
 
 profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
