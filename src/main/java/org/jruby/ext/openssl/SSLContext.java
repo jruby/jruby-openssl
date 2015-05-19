@@ -285,7 +285,10 @@ public class SSLContext extends RubyObject {
 
         if ( isFrozen() ) return runtime.getNil();
 
-        this.freeze(context);
+        synchronized(this) {
+            if ( isFrozen() ) return runtime.getNil();
+            this.freeze(context);
+        }
 
         final X509Store certStore = getCertStore();
 
@@ -371,8 +374,8 @@ public class SSLContext extends RubyObject {
 
         final Store store = certStore != null ? certStore.getStore() : new Store();
 
-        String caFile = getCaFile();
-        String caPath = getCaPath();
+        final String caFile = getCaFile();
+        final String caPath = getCaPath();
         if (caFile != null || caPath != null) {
             try {
                 if (store.loadLocations(runtime, caFile, caPath) == 0) {
@@ -428,16 +431,15 @@ public class SSLContext extends RubyObject {
         }
         */
 
-        internalContext = new InternalContext(
-            cert, key, store, clientCert, extraChainCert, verifyMode, timeout
-        );
-
         try {
-            internalContext.init();
+            internalContext = new InternalContext(
+                cert, key, store, clientCert, extraChainCert, verifyMode, timeout
+            );
         }
         catch (GeneralSecurityException e) {
             throw newSSLError(runtime, e);
         }
+
         return runtime.getTrue();
     }
 
@@ -815,7 +817,7 @@ public class SSLContext extends RubyObject {
             final List<X509AuxCertificate> clientCert,
             final List<X509AuxCertificate> extraChainCert,
             final int verifyMode,
-            final int timeout) {
+            final int timeout) throws NoSuchAlgorithmException, KeyManagementException {
 
             if ( pKey != null && xCert != null ) {
                 this.privateKey = pKey.getPrivateKey();
@@ -832,7 +834,23 @@ public class SSLContext extends RubyObject {
             this.clientCert = clientCert;
             this.extraChainCert = extraChainCert;
             this.verifyMode = verifyMode;
-            this.timeout = timeout;
+            //this.timeout = timeout;
+
+            // initialize SSL context :
+
+            final javax.net.ssl.SSLContext sslContext;
+            sslContext = SecurityHelper.getSSLContext(protocol);
+            if (protocolForClient) {
+                sslContext.getClientSessionContext().setSessionTimeout(timeout);
+            }
+            if (protocolForServer) {
+                sslContext.getServerSessionContext().setSessionTimeout(timeout);
+            }
+
+            final KeyManager[] keyManager = new KeyManager[] { new KeyManagerImpl(this) };
+            final TrustManager[] trustManager = new TrustManager[] { new TrustManagerImpl(this) };
+            sslContext.init(keyManager, trustManager, null);
+            this.sslContext = sslContext;
         }
 
         final Store store;
@@ -845,24 +863,9 @@ public class SSLContext extends RubyObject {
         final List<X509AuxCertificate> clientCert; // assumed always != null
         final List<X509AuxCertificate> extraChainCert; // empty assumed == null
 
-        final int timeout;
+        //final int timeout;
 
-        private javax.net.ssl.SSLContext sslContext;
-
-        void init() throws GeneralSecurityException {
-            this.sslContext = SecurityHelper.getSSLContext(protocol);
-            if (protocolForClient) {
-                sslContext.getClientSessionContext().setSessionTimeout(timeout);
-            }
-            if (protocolForServer) {
-                sslContext.getServerSessionContext().setSessionTimeout(timeout);
-            }
-            sslContext.init(
-                new KeyManager[] { new KeyManagerImpl(this) },
-                new TrustManager[] { new TrustManagerImpl(this) },
-                null
-            );
-        }
+        private final javax.net.ssl.SSLContext sslContext;
 
         // part of ssl_verify_cert_chain
         StoreContext createStoreContext(final String purpose) {
@@ -881,9 +884,7 @@ public class SSLContext extends RubyObject {
             return storeContext;
         }
 
-        javax.net.ssl.SSLContext getSSLContext() {
-            return sslContext;
-        }
+        final javax.net.ssl.SSLContext getSSLContext() { return sslContext; }
 
         void setLastVerifyResult(int lastVerifyResult) {
             SSLContext.this.setLastVerifyResult(lastVerifyResult);
