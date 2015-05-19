@@ -234,7 +234,7 @@ public class SSLSocket extends RubyObject {
             throw newSSLError(runtime, e);
         }
         catch (IOException e) {
-            debugStackTrace(runtime, e);
+            //debugStackTrace(runtime, e);
             forceClose();
             throw newSSLError(runtime, e);
         }
@@ -267,18 +267,17 @@ public class SSLSocket extends RubyObject {
             if ( ! initialHandshake ) {
                 SSLEngine engine = ossl_ssl_setup(context);
                 engine.setUseClientMode(false);
-                final IRubyObject verify_mode;
-                if( ! sslContext.isNil() &&
-                    ! ( verify_mode = sslContext.callMethod(context, "verify_mode") ).isNil() ) {
-                    final int vfy = RubyNumeric.fix2int(verify_mode);
-                    if ( vfy == 0 ) { // VERIFY_NONE
+                final IRubyObject verify_mode = sslContext.callMethod(context, "verify_mode");
+                if ( ! verify_mode.isNil() ) {
+                    final int verify = RubyNumeric.fix2int(verify_mode);
+                    if ( verify == 0 ) { // VERIFY_NONE
                         engine.setNeedClientAuth(false);
                         engine.setWantClientAuth(false);
                     }
-                    if ( ( vfy & 1 ) != 0 ) { // VERIFY_PEER
+                    if ( ( verify & 1 ) != 0 ) { // VERIFY_PEER
                         engine.setWantClientAuth(true);
                     }
-                    if ( ( vfy & 2 ) != 0 ) { // VERIFY_FAIL_IF_NO_PEER_CERT
+                    if ( ( verify & 2 ) != 0 ) { // VERIFY_FAIL_IF_NO_PEER_CERT
                         engine.setNeedClientAuth(true);
                     }
                 }
@@ -289,7 +288,16 @@ public class SSLSocket extends RubyObject {
             doHandshake(blocking);
         }
         catch (SSLHandshakeException e) {
-            debugStackTrace(runtime, e);
+            final String msg = e.getMessage();
+            // updated JDK (>= 1.7.0_75) with deprecated SSL protocols :
+            // javax.net.ssl.SSLHandshakeException: No appropriate protocol (protocol is disabled or cipher suites are inappropriate)
+            if ( e.getCause() == null && msg != null &&
+                 msg.contains("(protocol is disabled or cipher suites are inappropriate)") )  {
+                debug(runtime, sslContext.getProtocol() + " protocol has been deactivated and is not available by default\n see the java.security.Security property jdk.tls.disabledAlgorithms in <JRE_HOME>/lib/security/java.security file");
+            }
+            else {
+                debugStackTrace(runtime, e);
+            }
             throw newSSLErrorFromHandshake(runtime, e);
         }
         catch (NoSuchAlgorithmException e) {

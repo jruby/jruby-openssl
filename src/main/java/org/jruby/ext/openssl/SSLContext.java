@@ -516,6 +516,8 @@ public class SSLContext extends RubyObject {
         return version;
     }
 
+    final String getProtocol() { return this.protocol; }
+
     // ##
     // # Sets the parameters for this SSL context to the values in +params+.
     // # The keys in +params+ must be assignment methods on SSLContext.
