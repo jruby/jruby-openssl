@@ -251,6 +251,10 @@ public class SSLContext extends RubyObject {
         super(runtime,type);
     }
 
+    SSLContext(Ruby runtime) {
+        super(runtime, _SSLContext(runtime));
+    }
+
     private String ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
     private String protocol = "SSL"; // SSLv23 in OpenSSL by default
     private boolean protocolForServer = true;
@@ -269,8 +273,10 @@ public class SSLContext extends RubyObject {
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(IRubyObject[] args) {
         if ( args.length > 0 ) set_ssl_version(args[0]);
-        return this;
+        return initializeImpl();
     }
+
+    final SSLContext initializeImpl() { return this; }
 
     @JRubyMethod
     public IRubyObject setup(final ThreadContext context) {

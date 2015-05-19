@@ -148,8 +148,7 @@ public class SSLSocket extends RubyObject {
         final Ruby runtime = context.runtime;
 
         if ( Arity.checkArgumentCount(runtime, args, 1, 2) == 1 ) {
-            RubyModule _SSLContext = _SSL(runtime).getClass("SSLContext");
-            sslContext = (SSLContext) _SSLContext.callMethod(context, "new");
+            sslContext = new SSLContext(runtime).initializeImpl();
         } else {
             sslContext = (SSLContext) args[1];
         }
