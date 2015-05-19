@@ -97,7 +97,7 @@ public class NetscapeSPKI extends RubyObject {
     private Object cert;
 
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
-    public IRubyObject _initialize(final ThreadContext context, final IRubyObject[] args) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
         if ( args.length > 0 ) {
             byte[] request = args[0].convertToString().getBytes();

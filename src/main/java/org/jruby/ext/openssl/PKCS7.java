@@ -290,8 +290,8 @@ public class PKCS7 extends RubyObject {
 
     private org.jruby.ext.openssl.impl.PKCS7 p7;
 
-    @JRubyMethod(name="initialize", rest=true, visibility = Visibility.PRIVATE)
-    public IRubyObject _initialize(final ThreadContext context, IRubyObject[] args) {
+    @JRubyMethod(name="initialize", rest = true, visibility = Visibility.PRIVATE)
+    public IRubyObject initialize(final ThreadContext context, IRubyObject[] args) {
         if ( Arity.checkArgumentCount(getRuntime(), args, 0, 1) == 0 ) {
             p7 = new org.jruby.ext.openssl.impl.PKCS7();
             try {

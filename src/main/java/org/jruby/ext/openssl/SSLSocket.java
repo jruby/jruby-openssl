@@ -137,9 +137,14 @@ public class SSLSocket extends RubyObject {
 
     int verifyResult = X509Utils.V_OK;
 
-    @JRubyMethod(name = "initialize", rest = true, frame = true, visibility = Visibility.PRIVATE)
+    @Deprecated
     public IRubyObject _initialize(final ThreadContext context,
         final IRubyObject[] args, final Block unused) {
+        return initialize(context, args);
+    }
+
+    @JRubyMethod(name = "initialize", rest = true, frame = true, visibility = Visibility.PRIVATE)
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
 
         if ( Arity.checkArgumentCount(runtime, args, 1, 2) == 1 ) {
@@ -160,7 +165,7 @@ public class SSLSocket extends RubyObject {
         this.io.callMethod(context, "sync=", runtime.getTrue());
         this.callMethod(context, "sync_close=", runtime.getFalse());
         sslContext.setup(context);
-        return Utils.invokeSuper(context, this, args, unused); // super()
+        return Utils.invokeSuper(context, this, args, Block.NULL_BLOCK); // super()
     }
 
     private SSLEngine ossl_ssl_setup(final ThreadContext context)
