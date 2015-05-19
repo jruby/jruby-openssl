@@ -1145,7 +1145,7 @@ public class PEMInputOutput {
         }
 
         try {
-            CertificateFactory certFact = CertificateFactory.getInstance("X.509");
+            CertificateFactory certFact = SecurityHelper.getCertificateFactory("X.509");
             ByteArrayInputStream bIn = new ByteArrayInputStream(Base64.decode(buf.toString()));
             return (X509Certificate) certFact.generateCertificate(bIn);
         }
@@ -1173,7 +1173,7 @@ public class PEMInputOutput {
         ByteArrayInputStream bIn = new ByteArrayInputStream((try1.readObject()).getEncoded());
 
         try {
-            CertificateFactory certFact = CertificateFactory.getInstance("X.509");
+            CertificateFactory certFact = SecurityHelper.getCertificateFactory("X.509");
             X509Certificate bCert = (X509Certificate)certFact.generateCertificate(bIn);
             ASN1Sequence aux = (ASN1Sequence)try1.readObject();
             X509Aux ax = null;
@@ -1233,7 +1233,7 @@ public class PEMInputOutput {
         }
 
         try {
-            CertificateFactory certFact = CertificateFactory.getInstance("X.509");
+            CertificateFactory certFact = SecurityHelper.getCertificateFactory("X.509");
             ByteArrayInputStream bIn = new ByteArrayInputStream(Base64.decode(buf.toString()));
             return (X509CRL) certFact.generateCRL(bIn);
         } catch (Exception e) {
