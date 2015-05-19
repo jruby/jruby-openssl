@@ -41,6 +41,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLEngine;
@@ -286,7 +287,7 @@ public class SSLContext extends RubyObject {
 
         this.freeze(context);
 
-        internalContext = new InternalContext();
+        final X509Store certStore = getCertStore();
 
         // TODO: handle tmp_dh_callback :
 
@@ -299,16 +300,7 @@ public class SSLContext extends RubyObject {
         //   }
         // #endif
 
-        final X509Store certStore = getCertStore();
-        internalContext.store = certStore != null ? certStore.getStore() : new Store();
-
-        IRubyObject value = getInstanceVariable("@extra_chain_cert");
-        if ( value != null && ! value.isNil() ) {
-            final List<X509Cert> extraCerts = convertToX509Certs(context, value);
-            final ArrayList<X509AuxCertificate> extraChainCert = new ArrayList<X509AuxCertificate>(extraCerts.size());
-            for ( X509Cert x : extraCerts ) extraChainCert.add( x.getAuxCert() );
-            internalContext.extraChainCert = extraChainCert;
-        }
+        IRubyObject value;
 
         value = getInstanceVariable("@key");
         final PKey key;
@@ -332,31 +324,58 @@ public class SSLContext extends RubyObject {
             cert = getCallbackCert(context);
         }
 
-        if ( key != null && cert != null ) {
-            internalContext.keyAlgorithm = key.getAlgorithm();
-            internalContext.privateKey = key.getPrivateKey();
-            internalContext.cert = cert.getAuxCert();
-        }
-
         value = getInstanceVariable("@client_ca");
+        final List<X509AuxCertificate> clientCert;
         if ( value != null && ! value.isNil() ) {
             if ( value.respondsTo("each") ) {
-                for ( X509Cert x : convertToX509Certs(context, value) ) {
-                    internalContext.clientCert.add( x.getAuxCert() );
-                }
+                final List<X509Cert> cCerts = convertToX509Certs(context, value);
+                clientCert = new ArrayList<X509AuxCertificate>(cCerts.size());
+                for ( X509Cert x : cCerts ) clientCert.add( x.getAuxCert() );
             } else {
                 if ( ! ( value instanceof X509Cert ) ) {
                     throw runtime.newTypeError("OpenSSL::X509::Certificate expected but got @client_ca = " + value.inspect());
                 }
-                internalContext.clientCert.add( ((X509Cert) value).getAuxCert() );
+                clientCert = Collections.singletonList( ((X509Cert) value).getAuxCert() );
             }
         }
+        else clientCert = Collections.emptyList();
+
+        value = getInstanceVariable("@extra_chain_cert");
+        final List<X509AuxCertificate> extraChainCert;
+        if ( value != null && ! value.isNil() ) {
+            final List<X509Cert> eCerts = convertToX509Certs(context, value);
+            extraChainCert = new ArrayList<X509AuxCertificate>(eCerts.size());
+            for ( X509Cert x : eCerts ) extraChainCert.add( x.getAuxCert() );
+        }
+        else {
+            extraChainCert = null;
+        }
+
+        value = getInstanceVariable("@verify_mode");
+        final int verifyMode;
+        if ( value != null && ! value.isNil() ) {
+            verifyMode = RubyNumeric.fix2int(value);
+        }
+        else {
+            verifyMode = SSL.VERIFY_NONE; // 0x00
+        }
+
+        value = getInstanceVariable("@timeout");
+        final int timeout;
+        if ( value != null && ! value.isNil() ) {
+            timeout = RubyNumeric.fix2int(value);
+        }
+        else {
+            timeout = 0;
+        }
+
+        final Store store = certStore != null ? certStore.getStore() : new Store();
 
         String caFile = getCaFile();
         String caPath = getCaPath();
         if (caFile != null || caPath != null) {
             try {
-                if (internalContext.store.loadLocations(runtime, caFile, caPath) == 0) {
+                if (store.loadLocations(runtime, caFile, caPath) == 0) {
                     runtime.getWarnings().warn(ID.MISCELLANEOUS, "can't set verify locations");
                 }
             }
@@ -366,28 +385,18 @@ public class SSLContext extends RubyObject {
             }
         }
 
-        value = getInstanceVariable("@timeout");
-        if ( value != null && ! value.isNil() ) {
-            internalContext.timeout = RubyNumeric.fix2int(value);
-        }
-
-        value = getInstanceVariable("@verify_mode");
-        if ( value != null && ! value.isNil() ) {
-            internalContext.verifyMode = RubyNumeric.fix2int(value);
-        }
-
         value = getInstanceVariable("@verify_callback");
         if ( value != null && ! value.isNil() ) {
-            internalContext.store.setExtraData(1, value);
+            store.setExtraData(1, value);
         } else {
-            internalContext.store.setExtraData(1, null);
+            store.setExtraData(1, null);
         }
 
         value = getInstanceVariable("@verify_depth");
         if ( value != null && ! value.isNil() ) {
-            internalContext.store.setDepth(RubyNumeric.fix2int(value));
+            store.setDepth(RubyNumeric.fix2int(value));
         } else {
-            internalContext.store.setDepth(-1);
+            store.setDepth(-1);
         }
 
         value = getInstanceVariable("@servername_cb");
@@ -418,6 +427,10 @@ public class SSLContext extends RubyObject {
             OSSL_Debug("SSL SESSION remove callback added");
         }
         */
+
+        internalContext = new InternalContext(
+            cert, key, store, clientCert, extraChainCert, verifyMode, timeout
+        );
 
         try {
             internalContext.init();
@@ -793,14 +806,44 @@ public class SSLContext extends RubyObject {
      */
     private class InternalContext {
 
-        Store store;
-        int verifyMode = SSL.VERIFY_NONE; // 0x00
-        X509AuxCertificate cert; String keyAlgorithm; PrivateKey privateKey;
+        InternalContext(
+            final X509Cert xCert,
+            final PKey pKey,
+            final Store store,
+            final List<X509AuxCertificate> clientCert,
+            final List<X509AuxCertificate> extraChainCert,
+            final int verifyMode,
+            final int timeout) {
 
-        final List<X509AuxCertificate> clientCert = new ArrayList<X509AuxCertificate>();
-        List<X509AuxCertificate> extraChainCert;
+            if ( pKey != null && xCert != null ) {
+                this.privateKey = pKey.getPrivateKey();
+                this.keyAlgorithm = pKey.getAlgorithm();
+                this.cert = xCert.getAuxCert();
+            }
+            else {
+                this.privateKey = null;
+                this.keyAlgorithm = null;
+                this.cert = null;
+            }
 
-        int timeout = 0;
+            this.store = store;
+            this.clientCert = clientCert;
+            this.extraChainCert = extraChainCert;
+            this.verifyMode = verifyMode;
+            this.timeout = timeout;
+        }
+
+        final Store store;
+        final X509AuxCertificate cert;
+        final String keyAlgorithm;
+        final PrivateKey privateKey;
+
+        final int verifyMode;
+
+        final List<X509AuxCertificate> clientCert; // assumed always != null
+        final List<X509AuxCertificate> extraChainCert; // empty assumed == null
+
+        final int timeout;
 
         private javax.net.ssl.SSLContext sslContext;
 
