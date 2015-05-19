@@ -82,4 +82,34 @@ class TestSSL < TestCase
     end
   end
 
+  def test_ssl_version_sslv3
+    skip('Disable SSLv3 test in CI as it currently fails on some JVM versions') unless ENV['CI'].nil?
+    # This test appears to fail on Oracle JDK 1.7.0_76 but not Oracle JDK 1.6.0_65
+    # The test (client) reports Connection reset by peer
+    # The server reports "No appropriate protocol (protocol is disabled or cipher suites are inappropriate)"
+    ctx_proc = Proc.new do |ctx|
+      ctx.ssl_version = "SSLv3"
+    end
+    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.connect
+      assert_equal("SSLv3", ssl.ssl_version)
+      ssl.close
+    end
+  end
+
+  def test_ssl_version_tlsv1
+    ctx_proc = Proc.new do |ctx|
+      ctx.ssl_version = "TLSv1"
+    end
+    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.connect
+      assert_equal("TLSv1", ssl.ssl_version)
+      ssl.close
+    end
+  end
+
 end
