@@ -101,11 +101,6 @@ module OpenSSL
         return true
       end
 
-      def session
-        SSL::Session.new(self)
-      rescue SSL::Session::SessionError
-        nil
-      end
     end
 
     class SSLServer

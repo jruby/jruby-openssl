@@ -98,6 +98,7 @@ public class SSL {
 
         SSLContext.createSSLContext(runtime, SSL);
         SSLSocket.createSSLSocket(runtime, SSL);
+        SSLSession.createSession(runtime, SSL);
     }
 
     public static RaiseException newSSLError(Ruby runtime, Exception exception) {

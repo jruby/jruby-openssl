@@ -45,7 +45,6 @@ import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -178,7 +177,7 @@ public class SSLSocket extends RubyObject {
         final int peerPort = socket.getPort();
         engine = sslContext.createSSLEngine(peerHost, peerPort);
 
-        final SSLSession session = engine.getSession();
+        final javax.net.ssl.SSLSession session = engine.getSession();
         peerNetData = ByteBuffer.allocate(session.getPacketBufferSize());
         peerAppData = ByteBuffer.allocate(session.getApplicationBufferSize());
         netData = ByteBuffer.allocate(session.getPacketBufferSize());
@@ -878,6 +877,21 @@ public class SSLSocket extends RubyObject {
     public IRubyObject session_reused_p() {
         warn(getRuntime().getCurrentContext(), "WARNING: SSLSocket#session_reused? is not supported");
         return getRuntime().getNil(); // throw new UnsupportedOperationException();
+    }
+
+    javax.net.ssl.SSLSession getSession() {
+        return engine == null ? null : engine.getSession();
+    }
+
+    private transient SSLSession session;
+
+    @JRubyMethod(name = "session")
+    public IRubyObject session(final ThreadContext context) {
+        if ( getSession() == null ) return context.nil;
+        if ( session == null ) {
+            return session = new SSLSession(context.runtime).initializeImpl(context, this);
+        }
+        return session;
     }
 
     @JRubyMethod(name = "session=")
