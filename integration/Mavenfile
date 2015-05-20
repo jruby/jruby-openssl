@@ -9,9 +9,7 @@ snapshot_repository :id => 'jruby', :url => 'http://ci.jruby.org/snapshots/maven
 plugin_repository :id => 'rubygems-releases', :url => 'http://rubygems-proxy.torquebox.org/releases'
 
 base_path = File.expand_path('..', File.dirname(__FILE__))
-require "#{base_path}/lib/jopenssl/version.rb" unless defined? Jopenssl::Version
-bc_version = Jopenssl::Version::BOUNCY_CASTLE_VERSION
-jruby_openssl_version = Jopenssl::Version::VERSION
+bc_version = File.read("#{base_path}/lib/jopenssl/version.rb")[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
 properties( 'bc.version' => bc_version, # to satisfy maven
             'jruby.openssl.version' => '0.9.7', # to satisfy maven
