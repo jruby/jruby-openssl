@@ -45,6 +45,7 @@ import java.util.Collections;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509TrustManager;
@@ -568,8 +569,6 @@ public class SSLContext extends RubyObject {
         return params;
     }
 
-    // NOTE: mostly stubs since SSL session (cache) not yet implemented :
-
     @JRubyMethod(name = "session_cache_mode")
     public IRubyObject session_cache_mode() {
         return getRuntime().newFixnum(sessionCacheMode);
@@ -840,11 +839,20 @@ public class SSLContext extends RubyObject {
 
             final javax.net.ssl.SSLContext sslContext;
             sslContext = SecurityHelper.getSSLContext(protocol);
-            if (protocolForClient) {
-                sslContext.getClientSessionContext().setSessionTimeout(timeout);
+            
+            if ( protocolForClient ) {
+                final SSLSessionContext clientContext = sslContext.getClientSessionContext();
+                clientContext.setSessionTimeout(timeout);
+                if ( sessionCacheSize >= 0 ) {
+                    clientContext.setSessionCacheSize(sessionCacheSize);
+                }
             }
-            if (protocolForServer) {
-                sslContext.getServerSessionContext().setSessionTimeout(timeout);
+            if ( protocolForServer ) {
+                final SSLSessionContext serverContext = sslContext.getClientSessionContext();
+                serverContext.setSessionTimeout(timeout);
+                if ( sessionCacheSize >= 0 ) {
+                    serverContext.setSessionCacheSize(sessionCacheSize);
+                }
             }
 
             final KeyManager[] keyManager = new KeyManager[] { new KeyManagerImpl(this) };
