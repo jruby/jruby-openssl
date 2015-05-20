@@ -14,13 +14,13 @@ bc_version = Jopenssl::Version::BOUNCY_CASTLE_VERSION
 jruby_openssl_version = Jopenssl::Version::VERSION
 
 properties( 'bc.version' => bc_version, # to satisfy maven
-            'jruby.openssl.version' => '0.9.6', # to satisfy maven
+            'jruby.openssl.version' => '0.9.7', # to satisfy maven
             # use the gem-maven-plugin repo for the tests
             'gem.home' => '${basedir}/../pkg/rubygems',
             'gem.path' => '${basedir}/../pkg/rubygems',
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true,
-            'jruby.plugins.version' => '1.0.8' )
+            'jruby.plugins.version' => '1.0.10' )
 
 jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
   execute_goal :initialize
