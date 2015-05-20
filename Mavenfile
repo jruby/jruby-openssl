@@ -164,8 +164,8 @@ profile :id => 'test-9000' do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
   end
-  properties 'jruby.version' => '9.0.0.0.pre1',
-             'jruby.versions' => '9.0.0.0.pre1',
+  properties 'jruby.version' => '9.0.0.0.pre2',
+             'jruby.versions' => '9.0.0.0.pre2',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
