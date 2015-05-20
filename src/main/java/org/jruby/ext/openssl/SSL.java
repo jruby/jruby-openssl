@@ -30,7 +30,10 @@ package org.jruby.ext.openssl;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
+import org.jruby.anno.JRubyMethod;
+import org.jruby.anno.JRubyModule;
 import org.jruby.exceptions.RaiseException;
+import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
 /**
@@ -99,6 +102,9 @@ public class SSL {
         SSLContext.createSSLContext(runtime, SSL);
         SSLSocket.createSSLSocket(runtime, SSL);
         SSLSession.createSession(runtime, SSL);
+
+        final RubyModule SocketForwarder = createSocketForwarder(SSL);
+
     }
 
     public static RaiseException newSSLError(Ruby runtime, Exception exception) {
@@ -128,6 +134,62 @@ public class SSL {
 
     static RubyModule _SSL(final Ruby runtime) {
         return (RubyModule) runtime.getModule("OpenSSL").getConstant("SSL");
+    }
+
+    private static RubyModule createSocketForwarder(final RubyModule SSL) { // OpenSSL::SSL
+        final RubyModule SocketForwarder = SSL.defineModuleUnder("SocketForwarder");
+        SocketForwarder.defineAnnotatedMethods(SocketForwarder.class);
+        return SocketForwarder;
+    }
+
+    @JRubyModule(name = "OpenSSL::SSL::SocketForwarder")
+    public static class SocketForwarder {
+
+        @JRubyMethod
+        public static IRubyObject addr(ThreadContext context, IRubyObject self) {
+            return to_io(context, self).callMethod(context, "addr");
+        }
+
+        @JRubyMethod
+        public static IRubyObject peeraddr(ThreadContext context, IRubyObject self) {
+            return to_io(context, self).callMethod(context, "peeraddr");
+        }
+
+        @JRubyMethod(name = "closed?")
+        public static IRubyObject closed_p(ThreadContext context, IRubyObject self) {
+            return to_io(context, self).callMethod(context, "closed?");
+        }
+
+        @JRubyMethod
+        //@JRubyMethod(required = 2) // def getsockopt(level, optname)
+        //public static IRubyObject getsockopt(ThreadContext context, IRubyObject self, IRubyObject[] args) {
+        public static IRubyObject getsockopt(ThreadContext context, IRubyObject self, IRubyObject level, IRubyObject optname) {
+            //return to_io(context, self).callMethod(context, "getsockopt", args);
+            return to_io(context, self).callMethod(context, "getsockopt", new IRubyObject[] { level, optname });
+        }
+
+        @JRubyMethod
+        //@JRubyMethod(required = 3) // def setsockopt(level, optname, optval)
+        //public static IRubyObject setsockopt(ThreadContext context, IRubyObject self, IRubyObject[] args) {
+        public static IRubyObject setsockopt(ThreadContext context, IRubyObject self, IRubyObject level, IRubyObject optname, IRubyObject optval) {
+            //return to_io(context, self).callMethod(context, "setsockopt", args);
+            return to_io(context, self).callMethod(context, "setsockopt", new IRubyObject[] { level, optname, optval });
+        }
+
+        @JRubyMethod(name = "do_not_reverse_lookup=") // def do_not_reverse_lookup=(flag)
+        public static IRubyObject do_not_reverse_lookup_eq(ThreadContext context, IRubyObject self, IRubyObject flag) {
+            return to_io(context, self).callMethod(context, "do_not_reverse_lookup=", flag);
+        }
+
+        @JRubyMethod(rest = true) // def fcntl(*args)
+        public static IRubyObject fcntl(ThreadContext context, IRubyObject self, IRubyObject[] args) {
+            return to_io(context, self).callMethod(context, "fcntl", args);
+        }
+
+        private static IRubyObject to_io(ThreadContext context, IRubyObject self) {
+            return self.callMethod(context, "to_io");
+        }
+
     }
 
 }// SSL

@@ -19,35 +19,6 @@ require "fcntl"
 
 module OpenSSL
   module SSL
-    module SocketForwarder
-      def addr
-        to_io.addr
-      end
-
-      def peeraddr
-        to_io.peeraddr
-      end
-
-      def setsockopt(level, optname, optval)
-        to_io.setsockopt(level, optname, optval)
-      end
-
-      def getsockopt(level, optname)
-        to_io.getsockopt(level, optname)
-      end
-
-      def fcntl(*args)
-        to_io.fcntl(*args)
-      end
-
-      def closed?
-        to_io.closed?
-      end
-
-      def do_not_reverse_lookup=(flag)
-        to_io.do_not_reverse_lookup = flag
-      end
-    end
 
     module Nonblock
       def initialize(*args)
