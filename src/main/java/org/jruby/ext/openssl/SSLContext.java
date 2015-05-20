@@ -85,6 +85,7 @@ import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
 import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
+import static org.jruby.ext.openssl.OpenSSL.warn;
 import static org.jruby.ext.openssl.Utils.hasNonNilInstanceVariable;
 
 /**
@@ -267,7 +268,7 @@ public class SSLContext extends RubyObject {
     /* TODO: should move to SSLSession after implemented */
     private int verifyResult = 1; /* avoid 0 (= X509_V_OK) just in case */
 
-    private int sessionCacheMode; // 2
+    //private int sessionCacheMode; // 2 default on MRI
     private int sessionCacheSize; // 20480
 
     private InternalContext internalContext;
@@ -571,13 +572,16 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod(name = "session_cache_mode")
     public IRubyObject session_cache_mode() {
-        return getRuntime().newFixnum(sessionCacheMode);
+        return getRuntime().getNil();
+        //return getRuntime().newFixnum(sessionCacheMode);
     }
 
     @JRubyMethod(name = "session_cache_mode=")
     public IRubyObject set_session_cache_mode(IRubyObject mode) {
-        this.sessionCacheMode = RubyInteger.fix2int(mode);
-        return mode;
+        //this.sessionCacheMode = RubyInteger.fix2int(mode);
+        //return mode;
+        warn(getRuntime().getCurrentContext(), "SSLContext#session_cache_mode= has no effect under JRuby");
+        return session_cache_mode();
     }
 
     @JRubyMethod(name = "session_cache_size")
@@ -593,7 +597,7 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod(name = "session_cache_stats")
     public RubyHash session_cache_stats(final ThreadContext context) {
-        // TODO: session cache NOT IMPLEMENTED
+        // NOTE: session cache NOT IMPLEMENTED
 
         // { :connect_renegotiate=>0, :cache_full=>0, :accept_good=>0,
         //   :connect=>0, :timeouts=>0, :accept_renegotiate=>0, :accept=>0,
@@ -839,7 +843,7 @@ public class SSLContext extends RubyObject {
 
             final javax.net.ssl.SSLContext sslContext;
             sslContext = SecurityHelper.getSSLContext(protocol);
-            
+
             if ( protocolForClient ) {
                 final SSLSessionContext clientContext = sslContext.getClientSessionContext();
                 clientContext.setSessionTimeout(timeout);
