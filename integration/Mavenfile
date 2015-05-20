@@ -18,12 +18,13 @@ properties( 'bc.version' => bc_version, # to satisfy maven
             'gem.path' => '${basedir}/../pkg/rubygems',
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true,
-            'jruby.plugins.version' => '1.0.10' )
+            'jruby.version' => '1.7.19', # for jruby-maven-plugins
+            'jruby.plugins.version' => '1.0.9' )
 
 jruby_plugin :gem, :gemHomes => { 'gem-maven-plugin' => '${gem.home}' } do
   execute_goal :initialize
 
-  #gem 'jar-dependencies', '0.0.9'
+  gem 'jar-dependencies', '0.1.8' # TODO change after 0.1.15 is out
   spec = Gem::Specification.load "#{base_path}/jruby-openssl.gemspec"
   spec.development_dependencies.each do |dev_spec|
     gem dev_spec.name, *dev_spec.requirements_list
