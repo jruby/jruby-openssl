@@ -160,15 +160,14 @@ public class Lookup {
     public int loadCertificateFile(final String file, final int type) throws IOException, CertificateException {
         if ( file == null ) return 1;
 
-        int count = 0;
         int ret = 0;
         Reader reader = null;
         try {
             InputStream in = wrapJRubyNormalizedInputStream(file);
             X509AuxCertificate auxCert;
-            if (type == X509_FILETYPE_PEM) {
+            if ( type == X509_FILETYPE_PEM ) {
                 reader = new BufferedReader(new InputStreamReader(in));
-                for (;;) {
+                int count = 0; for (;;) {
                     auxCert = PEMInputOutput.readX509Aux(reader, null);
                     if ( auxCert == null ) break;
                     final int i = store.addCertificate(auxCert);
@@ -177,7 +176,7 @@ public class Lookup {
                 }
                 ret = count;
             }
-            else if (type == X509_FILETYPE_ASN1) {
+            else if ( type == X509_FILETYPE_ASN1 ) {
                 X509Certificate cert = (X509Certificate)
                     SecurityHelper.getCertificateFactory("X.509").generateCertificate(in);
                 auxCert = StoreContext.ensureAux(cert);
@@ -188,7 +187,8 @@ public class Lookup {
                 final int i = store.addCertificate(auxCert);
                 if ( i == 0 ) return ret;
                 ret = i;
-            } else {
+            }
+            else {
                 X509Error.addError(X509_R_BAD_X509_FILETYPE);
             }
         }
@@ -203,18 +203,17 @@ public class Lookup {
     /**
      * c: X509_LOOKUP_load_crl_file
      */
-    public int loadCRLFile(String file, int type) throws Exception {
+    public int loadCRLFile(final String file, final int type) throws Exception {
         if ( file == null ) return 1;
 
-        int count = 0;
         int ret = 0;
         Reader reader = null;
         try {
             InputStream in = wrapJRubyNormalizedInputStream(file);
             CRL crl;
-            if (type == X509_FILETYPE_PEM) {
+            if ( type == X509_FILETYPE_PEM ) {
                 reader = new BufferedReader(new InputStreamReader(in));
-                for (;;) {
+                int count = 0; for (;;) {
                     crl = PEMInputOutput.readX509CRL(reader, null);
                     if ( crl == null ) break;
                     final int i = store.addCRL(crl);
@@ -223,9 +222,9 @@ public class Lookup {
                 }
                 ret = count;
             }
-            else if (type == X509_FILETYPE_ASN1) {
+            else if ( type == X509_FILETYPE_ASN1 ) {
                 crl = SecurityHelper.getCertificateFactory("X.509").generateCRL(in);
-                if (crl == null) {
+                if ( crl == null ) {
                     X509Error.addError(13);
                     return ret;
                 }
@@ -307,20 +306,23 @@ public class Lookup {
             try {
                 ChannelDescriptor descriptor = ChannelDescriptor.open(runtime.getCurrentDirectory(), file, new ModeFlags(ModeFlags.RDONLY));
                 return ChannelStream.open(runtime, descriptor).newInputStream();
-            } catch (NoSuchMethodError nsme) {
+            }
+            catch (NoSuchMethodError ex) {
                 File f = new File(file);
                 if ( ! f.isAbsolute() ) {
                     f = new File(runtime.getCurrentDirectory(), file);
                 }
                 return new BufferedInputStream(new FileInputStream(f));
-            } catch (FileExistsException fee) {
+            }
+            catch (FileExistsException ex) {
                 // should not happen because ModeFlag does not contain CREAT.
-                fee.printStackTrace(System.err);
-                throw new IllegalStateException(fee.getMessage(), fee);
-            } catch (InvalidValueException ive) {
+                ex.printStackTrace(System.err);
+                throw new IllegalStateException(ex.getMessage(), ex);
+            }
+            catch (InvalidValueException ex) {
                 // should not happen because ModeFlasg does not contain APPEND.
-                ive.printStackTrace(System.err);
-                throw new IllegalStateException(ive.getMessage(), ive);
+                ex.printStackTrace(System.err);
+                throw new IllegalStateException(ex.getMessage(), ex);
             }
         }
     }
