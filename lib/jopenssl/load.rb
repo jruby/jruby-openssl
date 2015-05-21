@@ -21,12 +21,14 @@ require 'jruby'
 require 'jopenssl.jar'
 org.jruby.ext.openssl.OpenSSL.load(JRuby.runtime)
 
-if RUBY_VERSION >= '2.1.0'
-  load('jopenssl21/openssl.rb')
-elsif RUBY_VERSION >= '1.9.0'
-  load('jopenssl19/openssl.rb')
+if RUBY_VERSION > '2.2'
+  load 'jopenssl22/openssl.rb'
+elsif RUBY_VERSION > '2.1'
+  load 'jopenssl21/openssl.rb'
+elsif RUBY_VERSION > '1.9'
+  load 'jopenssl19/openssl.rb'
 else
-  load('jopenssl18/openssl.rb')
+  load 'jopenssl18/openssl.rb'
 end
 
 require 'openssl/pkcs12'

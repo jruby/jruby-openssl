@@ -2,7 +2,7 @@
 #
 # $RCSfile$
 #
-# = Ruby-space definitions that completes C-space funcs for BN
+# = Ruby-space predefined Cipher subclasses
 #
 # = Info
 # 'OpenSSL for Ruby 2' project
@@ -18,11 +18,11 @@
 #
 #++
 
-##
-# Add double dispatch to Integer
-#
-class Integer
-  def to_bn
-    OpenSSL::BN::new(self)
-  end
-end # Integer
+module OpenSSL
+  class Cipher
+    # This class is only provided for backwards compatibility.  Use OpenSSL::Cipher in the future.
+    class Cipher < Cipher
+      # add warning
+    end
+  end # Cipher
+end # OpenSSL
