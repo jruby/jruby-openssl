@@ -18,6 +18,17 @@
 #
 #++
 
+module OpenSSL
+  class BN
+    def pretty_print(q)
+      q.object_group(self) {
+        q.text ' '
+        q.text to_i.to_s
+      }
+    end if RUBY_VERSION > '2.2'
+  end # BN
+end # OpenSSL
+
 ##
 # Add double dispatch to Integer
 #
