@@ -1,1 +1,1 @@
-load 'jopenssl22/config.rb'
+load 'jopenssl22/openssl/config.rb'
