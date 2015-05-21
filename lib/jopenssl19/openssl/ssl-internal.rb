@@ -15,19 +15,10 @@
 =end
 
 require "openssl/buffering"
-require "fcntl"
+require 'fcntl' # used by OpenSSL::SSL::Nonblock (if loaded)
 
 module OpenSSL
   module SSL
-
-    module Nonblock
-      def initialize(*args)
-        flag = File::NONBLOCK
-        flag |= @io.fcntl(Fcntl::F_GETFL) if defined?(Fcntl::F_GETFL)
-        @io.fcntl(Fcntl::F_SETFL, flag)
-        super
-      end
-    end
 
     def verify_certificate_identity(cert, hostname)
       should_verify_common_name = true

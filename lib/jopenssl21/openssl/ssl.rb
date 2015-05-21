@@ -15,19 +15,10 @@
 =end
 
 require "openssl/buffering"
-require "fcntl"
+require 'fcntl' # used by OpenSSL::SSL::Nonblock (if loaded)
 
 module OpenSSL
   module SSL
-
-    module Nonblock
-      def initialize(*args)
-        flag = File::NONBLOCK
-        flag |= @io.fcntl(Fcntl::F_GETFL) if defined?(Fcntl::F_GETFL)
-        @io.fcntl(Fcntl::F_SETFL, flag)
-        super
-      end
-    end
 
     # FIXME: Using the old non-ASN1 logic here because our ASN1 appears to
     # return the wrong types for some decoded objects. See #1102

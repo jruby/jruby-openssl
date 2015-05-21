@@ -33,6 +33,7 @@ import org.jruby.RubyModule;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
 import org.jruby.exceptions.RaiseException;
+import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
@@ -103,8 +104,8 @@ public class SSL {
         SSLSocket.createSSLSocket(runtime, SSL);
         SSLSession.createSession(runtime, SSL);
 
-        final RubyModule SocketForwarder = createSocketForwarder(SSL);
-
+        createSocketForwarder(SSL);
+        createNonblock(SSL);
     }
 
     public static RaiseException newSSLError(Ruby runtime, Exception exception) {
@@ -190,6 +191,39 @@ public class SSL {
             return self.callMethod(context, "to_io");
         }
 
+    } // SocketForwarder
+
+    private static RubyModule createNonblock(final RubyModule SSL) { // OpenSSL::SSL
+        final RubyModule Nonblock = SSL.defineModuleUnder("Nonblock");
+        Nonblock.defineAnnotatedMethods(Nonblock.class);
+        return Nonblock;
     }
+
+    @JRubyModule(name = "OpenSSL::SSL::Nonblock")
+    public static class Nonblock {
+
+        @JRubyMethod(rest = true, frame = true) // framed due super
+        public static IRubyObject initialize(ThreadContext context, IRubyObject self, IRubyObject[] args) {
+            final Ruby runtime = context.runtime;
+
+            IRubyObject flag = runtime.getFile().getConstant("NONBLOCK"); // File::NONBLOCK
+
+            IRubyObject Fcntl = runtime.getObject().getConstantAt("Fcntl");
+            if ( /* Fcntl != null && */ Fcntl instanceof RubyModule ) {
+                final IRubyObject io = self.getInstanceVariables().getInstanceVariable("@io");
+
+                IRubyObject F_GETFL = ((RubyModule) Fcntl).getConstantAt("F_GETFL");
+                if ( F_GETFL != null ) { // if defined?(Fcntl::F_GETFL)
+                    // flag |= @io.fcntl(Fcntl::F_GETFL) :
+                    flag = flag.callMethod(context, "|", io.callMethod(context, "fcntl", F_GETFL));
+                }
+
+                IRubyObject F_SETFL = ((RubyModule) Fcntl).getConstant("F_SETFL");
+                io.callMethod(context, "fcntl", new IRubyObject[] { F_SETFL, flag }); // @io.fcntl(Fcntl::F_SETFL, flag)
+            }
+            return Utils.invokeSuper(context, self, args, Block.NULL_BLOCK); // super
+        }
+
+    } // Nonblock
 
 }// SSL
