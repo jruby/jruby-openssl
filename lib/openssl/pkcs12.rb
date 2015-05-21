@@ -76,7 +76,7 @@ module OpenSSL
         break
       end
     rescue java.lang.Exception => e
-      raise PKCS12Error, "Exception: #{e}"
+      raise PKCS12Error, e.inspect
     end
 
     def generate(pass, alias_name, key, cert, ca = nil)
@@ -93,7 +93,7 @@ module OpenSSL
       rescue java.security.KeyStoreException, java.security.cert.CertificateException => e
         raise PKCS12Error, e.message
       rescue java.security.GeneralSecurityException, java.io.IOException => e
-        raise PKCS12Error, "Exception: #{e}"
+        raise PKCS12Error, e.inspect
       end
 
       @der = String.from_java_bytes(der_bytes)
