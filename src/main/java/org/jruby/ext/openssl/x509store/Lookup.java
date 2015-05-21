@@ -56,6 +56,7 @@ import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.CRL;
+import java.security.cert.CertificateException;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
@@ -156,7 +157,7 @@ public class Lookup {
     /**
      * c: X509_LOOKUP_load_cert_file
      */
-    public int loadCertificateFile(String file, int type) throws Exception {
+    public int loadCertificateFile(final String file, final int type) throws IOException, CertificateException {
         if ( file == null ) return 1;
 
         int count = 0;
@@ -247,7 +248,7 @@ public class Lookup {
     /**
      * c: X509_LOOKUP_load_cert_crl_file
      */
-    public int loadCertificateOrCRLFile(String file, int type) throws Exception {
+    public int loadCertificateOrCRLFile(final String file, final int type) throws IOException, CertificateException {
         if ( type != X509_FILETYPE_PEM ) return loadCertificateFile(file, type);
 
         int count = 0;

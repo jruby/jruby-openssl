@@ -114,8 +114,8 @@ public class Store implements X509TrustManager {
 
     @Deprecated int cache = 1; // not-used
 
-    private X509Object[] objects = new X509Object[0];
-    private Lookup[] certificateMethods = new Lookup[0];
+    private volatile X509Object[] objects = new X509Object[0];
+    private volatile Lookup[] certLookups = new Lookup[0];
 
     public final VerifyParameter verifyParameter;
 
@@ -149,7 +149,7 @@ public class Store implements X509TrustManager {
     }
 
     public List<Lookup> getCertificateMethods() {
-        return Arrays.asList(certificateMethods);
+        return Arrays.asList(certLookups);
     }
 
     public VerifyParameter getVerifyParameter() {
@@ -182,7 +182,7 @@ public class Store implements X509TrustManager {
      * c: X509_STORE_free
      */
     public void free() throws Exception {
-       for (Lookup lu : certificateMethods) {
+       for (Lookup lu : certLookups) {
            lu.shutdown();
            lu.free();
         }
@@ -195,8 +195,8 @@ public class Store implements X509TrustManager {
      * c: X509_set_ex_data
      */
     public int setExtraData(int idx, Object data) {
-        synchronized(extraData) {
-            extraData.set(idx,data);
+        synchronized (extraData) {
+            extraData.set(idx, data);
             return 1;
         }
     }
@@ -205,7 +205,7 @@ public class Store implements X509TrustManager {
      * c: X509_get_ex_data
      */
     public Object getExtraData(int idx) {
-        synchronized(extraData) {
+        synchronized (extraData) {
             return extraData.get(idx);
         }
     }
@@ -249,69 +249,92 @@ public class Store implements X509TrustManager {
     /**
      * c: X509_STORE_add_lookup
      */
-    public Lookup addLookup(Ruby runtime, final LookupMethod method) throws Exception {
-        for ( Lookup lookup : certificateMethods ) {
-            if ( lookup.equals(method) ) return lookup;
+    public Lookup addLookup(final Ruby runtime, final LookupMethod method) {
+        final Lookup[] certLookups = this.certLookups;
+        Lookup foundLookup = findLookupMethod(certLookups, method);
+        if ( foundLookup != null ) return foundLookup;
+
+        final Lookup newLookup = new Lookup(runtime, method); newLookup.store = this;
+        synchronized (this) {
+            final int length = this.certLookups.length;
+            if ( certLookups.length != length ) {
+                foundLookup = findLookupMethod(this.certLookups, method);
+                if ( foundLookup != null ) return foundLookup;
+            }
+            Lookup[] newCertLookups = Arrays.copyOf(this.certLookups, length + 1);
+            newCertLookups[length] = newLookup;
+            this.certLookups = newCertLookups;
         }
-        return doAddLookup(runtime, method);
+        return newLookup;
     }
 
-    private synchronized Lookup doAddLookup(Ruby runtime, final LookupMethod method) throws Exception {
-        Lookup lookup = new Lookup(runtime, method);
-        lookup.store = this;
-        Lookup[] newCertificateMethods = Arrays.copyOf(certificateMethods, certificateMethods.length + 1);
-        newCertificateMethods[certificateMethods.length] = lookup;
-        certificateMethods = newCertificateMethods;
-        return lookup;
+    private static Lookup findLookupMethod(final Lookup[] lookups, final LookupMethod method) {
+        for ( final Lookup lookup : lookups ) {
+            if ( lookup.method.equals(method) ) return lookup;
+        }
+        return null;
     }
 
     /**
      * c: X509_STORE_add_cert
      */
-    public synchronized int addCertificate(final X509Certificate cert) {
+    public int addCertificate(final X509Certificate cert) {
         if ( cert == null ) return 0;
 
         final Certificate certObj = new Certificate();
         certObj.x509 = StoreContext.ensureAux(cert);
 
-        int ret = 1;
-        if ( X509Object.retrieveMatch(getObjects(), certObj) != null ) {
+        final X509Object[] objects = this.objects;
+        if ( matchedObject(objects, certObj) ) {
             X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-            ret = 0;
+            return 0;
         }
-        else {
-            X509Object[] newObjects = Arrays.copyOf(objects, objects.length + 1);
-            newObjects[objects.length] = certObj;
-            objects = newObjects;
-        }
-        return ret;
+
+        return addObject(certObj, objects.length);
     }
 
     /**
      * c: X509_STORE_add_crl
      */
-    public synchronized int addCRL(final java.security.cert.CRL crl) {
+    public int addCRL(final java.security.cert.CRL crl) {
         if ( crl == null ) return 0;
 
         final CRL crlObj = new CRL(); crlObj.crl = crl;
 
-        int ret = 1;
-        if ( X509Object.retrieveMatch(getObjects(), crlObj) != null ) {
+        final X509Object[] objects = this.objects;
+        if ( matchedObject(objects, crlObj) ) {
             X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-            ret = 0;
+            return 0;
         }
-        else {
-            X509Object[] newObjects = Arrays.copyOf(objects, objects.length + 1);
-            newObjects[objects.length] = crlObj;
-            objects = newObjects;
+
+        return addObject(crlObj, objects.length);
+    }
+
+    private static boolean matchedObject(final X509Object[] objects, final X509Object xObject) {
+        for ( int i = 0; i< objects.length; i++ ) {
+            if ( objects[i].matches(xObject) ) return true;
         }
-        return ret;
+        return false;
+    }
+
+    private synchronized int addObject(final X509Object xObject, final int prevLength) {
+        final int length = objects.length;
+        if ( length != prevLength ) { // something added concurrently
+            if ( matchedObject(objects, xObject) ) {
+                X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
+                return 0;
+            }
+        }
+        X509Object[] newObjects = Arrays.copyOf(objects, length + 1);
+        newObjects[ length ] = xObject;
+        objects = newObjects;
+        return 1;
     }
 
     /**
      * c: X509_STORE_load_locations
      */
-    public int loadLocations(Ruby runtime, String file, String path) throws Exception {
+    public int loadLocations(Ruby runtime, final String file, final String path) throws Exception {
         if ( file != null ) {
             final Lookup lookup = addLookup( runtime, Lookup.fileLookup() );
             if ( lookup == null ) {
@@ -357,7 +380,7 @@ public class Store implements X509TrustManager {
         try {
             lookup.addDir(new CertificateHashDir.Dir(null, X509_FILETYPE_DEFAULT));
         }
-        catch(FileNotFoundException e) {
+        catch (FileNotFoundException e) {
             // set_default_paths ignores FileNotFound
         }
 
@@ -375,9 +398,11 @@ public class Store implements X509TrustManager {
     }
 
     @Override
-    public synchronized X509Certificate[] getAcceptedIssuers() {
-        ArrayList<X509Certificate> issuers = new ArrayList<X509Certificate>(objects.length);
-        for ( X509Object object : objects ) {
+    public X509Certificate[] getAcceptedIssuers() {
+        final X509Object[] objects = this.objects;
+        final ArrayList<X509Certificate> issuers = new ArrayList<X509Certificate>(objects.length);
+        for ( int i = 0; i< objects.length; i++ ) {
+            final X509Object object = objects[i];
             if ( object instanceof Certificate ) {
                 issuers.add( ( (Certificate) object ).x509 );
             }
