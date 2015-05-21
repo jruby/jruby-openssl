@@ -28,11 +28,14 @@
 package org.jruby.ext.openssl;
 
 import org.jruby.Ruby;
+import org.jruby.RubyBasicObject;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
 import org.jruby.exceptions.RaiseException;
+import org.jruby.internal.runtime.methods.DynamicMethod;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -212,16 +215,28 @@ public class SSL {
             if ( /* Fcntl != null && */ Fcntl instanceof RubyModule ) {
                 final IRubyObject io = self.getInstanceVariables().getInstanceVariable("@io");
 
+                final RubyClass ioClass = self.getMetaClass();
+                final DynamicMethod fcntl = ioClass.searchMethod("fcntl");
+
                 IRubyObject F_GETFL = ((RubyModule) Fcntl).getConstantAt("F_GETFL");
                 if ( F_GETFL != null ) { // if defined?(Fcntl::F_GETFL)
                     // flag |= @io.fcntl(Fcntl::F_GETFL) :
-                    flag = flag.callMethod(context, "|", io.callMethod(context, "fcntl", F_GETFL));
+                    flag = or(context, flag, fcntl.call(context, io, ioClass, "fcntl", F_GETFL));
                 }
 
                 IRubyObject F_SETFL = ((RubyModule) Fcntl).getConstant("F_SETFL");
-                io.callMethod(context, "fcntl", new IRubyObject[] { F_SETFL, flag }); // @io.fcntl(Fcntl::F_SETFL, flag)
+                fcntl.call(context, io, ioClass, "fcntl", new IRubyObject[] { F_SETFL, flag }); // @io.fcntl(Fcntl::F_SETFL, flag)
             }
             return Utils.invokeSuper(context, self, args, Block.NULL_BLOCK); // super
+        }
+
+        private static IRubyObject or(final ThreadContext context, final IRubyObject flag, final IRubyObject flags) {
+            if ( flag instanceof RubyFixnum && flags instanceof RubyFixnum ) {
+                final long f = ((RubyFixnum) flag).getLongValue();
+                final long fs = ((RubyFixnum) flags).getLongValue();
+                return RubyFixnum.newFixnum(context.runtime, f | fs);
+            }
+            return flag.callMethod(context, "|", flags);
         }
 
     } // Nonblock
