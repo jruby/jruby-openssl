@@ -20,13 +20,19 @@
 
 module OpenSSL
   class Digest
-    # This class is only provided for backwards compatibility.  Use OpenSSL::Digest in the future.
-    class Digest < Digest
+    # Deprecated.
+    #
+    # This class is only provided for backwards compatibility.
+    class Digest < Digest # :nodoc:
+      # Deprecated.
+      #
+      # See OpenSSL::Digest.new
       def initialize(*args)
-        # add warning
+        warn('Digest::Digest is deprecated; use Digest')
         super(*args)
       end
     end
+
   end # Digest
 
   # Returns a Digest subclass by +name+.
@@ -42,7 +48,7 @@ module OpenSSL
   def Digest(name)
     OpenSSL::Digest.const_get(name)
   end
-  
+
   module_function :Digest
 
 end # OpenSSL
