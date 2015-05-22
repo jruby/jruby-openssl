@@ -28,7 +28,7 @@
 package org.jruby.ext.openssl.x509store;
 
 import java.util.List;
-import java.util.ArrayList;
+
 import org.bouncycastle.asn1.ASN1Primitive;
 
 /**
@@ -36,11 +36,22 @@ import org.bouncycastle.asn1.ASN1Primitive;
  */
 final class X509Aux {
 
-    public String alias; /* "friendly name" */
-    public byte[] keyid; /* key id of private key */
+    final String alias; /* "friendly name" */
+    final byte[] keyid; /* key id of private key */
 
-    final List<String> trust = new ArrayList<String>(); // String of OID's /* trusted uses */
-    final List<String> reject = new ArrayList<String>(); // String of OID's /* rejected uses */
-    List<ASN1Primitive> other = new ArrayList<ASN1Primitive>(); /* String of OID's of sigAlgs, other unspecified info */
-    
+    final List<String> trust; // String of OID's /* trusted uses */
+    final List<String> reject; // String of OID's /* rejected uses */
+    final List<ASN1Primitive> other; /* String of OID's of sigAlgs, other unspecified info */
+
+    X509Aux(final String alias, final byte[] keyid,
+        final List<String> trust,
+        final List<String> reject,
+        final List<ASN1Primitive> other) {
+        this.alias = alias;
+        this.keyid = keyid;
+        this.trust = trust;
+        this.reject = reject;
+        this.other = other;
+    }
+
 }// X509_AUX

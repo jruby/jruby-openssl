@@ -46,7 +46,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.CRLException;
 import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.X509CRL;
@@ -59,6 +61,9 @@ import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import java.util.StringTokenizer;
 import java.util.regex.Matcher;
@@ -101,6 +106,7 @@ import org.bouncycastle.asn1.pkcs.RC2CBCParameter;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.DSAParameter;
 import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
+import org.bouncycastle.cms.CMSException;
 import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -253,35 +259,35 @@ public class PEMInputOutput {
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_X509_OLD) != -1 ) {
                 try {
-                    return readBytes(reader, BEF_E + PEM_STRING_X509_OLD);
+                    return readBase64Bytes(reader, BEF_E + PEM_STRING_X509_OLD);
                 } catch (Exception e) {
                     throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString(), e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_X509) != -1 ) {
                 try {
-                    return readBytes(reader, BEF_E + PEM_STRING_X509);
+                    return readBase64Bytes(reader, BEF_E + PEM_STRING_X509);
                 } catch (Exception e) {
                     throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString(), e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_X509_TRUSTED) != -1 ) {
                 try {
-                    return readBytes(reader, BEF_E + PEM_STRING_X509_TRUSTED);
+                    return readBase64Bytes(reader, BEF_E + PEM_STRING_X509_TRUSTED);
                 } catch (Exception e) {
                     throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString(), e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_X509_CRL) != -1 ) {
                 try {
-                    return readBytes(reader, BEF_E + PEM_STRING_X509_CRL);
+                    return readBase64Bytes(reader, BEF_E + PEM_STRING_X509_CRL);
                 } catch (Exception e) {
                     throw new IOException("problem reading PEM X509 CRL: " + e.toString(), e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_X509_REQ) != -1 ) {
                 try {
-                    return readBytes(reader, BEF_E + PEM_STRING_X509_REQ);
+                    return readBase64Bytes(reader, BEF_E + PEM_STRING_X509_REQ);
                 } catch (Exception e) {
                     throw new IOException("problem reading PEM X509 REQ: " + e.toString(), e);
                 }
@@ -320,7 +326,7 @@ public class PEMInputOutput {
             }
             else if ( line.indexOf(BEG_STRING_PKCS8INF) != -1) {
                 try {
-                    byte[] bytes = readBytes(reader, BEF_E + PEM_STRING_PKCS8INF);
+                    byte[] bytes = readBase64Bytes(reader, BEF_E + PEM_STRING_PKCS8INF);
                     PrivateKeyInfo info = PrivateKeyInfo.getInstance(bytes);
                     String type = getPrivateKeyTypeFromObjectId(info.getPrivateKeyAlgorithm().getAlgorithm());
                     return org.jruby.ext.openssl.impl.PKey.readPrivateKey(((ASN1Object) info.parsePrivateKey()).getEncoded(ASN1Encoding.DER), type);
@@ -331,7 +337,7 @@ public class PEMInputOutput {
             }
             else if ( line.indexOf(BEG_STRING_PKCS8) != -1 ) {
                 try {
-                    byte[] bytes = readBytes(reader, BEF_E + PEM_STRING_PKCS8);
+                    byte[] bytes = readBase64Bytes(reader, BEF_E + PEM_STRING_PKCS8);
                     EncryptedPrivateKeyInfo eIn = EncryptedPrivateKeyInfo.getInstance(bytes);
                     AlgorithmIdentifier algId = eIn.getEncryptionAlgorithm();
                     PrivateKey privKey;
@@ -1008,21 +1014,8 @@ public class PEMInputOutput {
         }
     }
 
-    private static byte[] readBytes(BufferedReader in, String endMarker) throws IOException {
-        String line; final StringBuilder buffer = new StringBuilder();
-
-        while ( ( line = in.readLine() ) != null ) {
-            if ( line.indexOf(endMarker) != -1 ) break;
-            buffer.append( line.trim() );
-        }
-
-        if ( line == null ) throw new IOException(endMarker + " not found");
-
-        return Base64.decode(buffer.toString());
-    }
-
     private static RSAPublicKey readRSAPublicKey(BufferedReader in, String endMarker) throws IOException {
-        Object asnObject = new ASN1InputStream(readBytes(in, endMarker)).readObject();
+        Object asnObject = new ASN1InputStream(readBase64Bytes(in, endMarker)).readObject();
         ASN1Sequence sequence = (ASN1Sequence) asnObject;
         org.bouncycastle.asn1.pkcs.RSAPublicKey rsaPubStructure = org.bouncycastle.asn1.pkcs.RSAPublicKey.getInstance(sequence);
         RSAPublicKeySpec keySpec = new RSAPublicKeySpec(
@@ -1048,11 +1041,11 @@ public class PEMInputOutput {
     }
 
     private static PublicKey readPublicKey(BufferedReader in, String alg, String endMarker) throws IOException {
-        return readPublicKey(readBytes(in, endMarker), alg, endMarker);
+        return readPublicKey(readBase64Bytes(in, endMarker), alg, endMarker);
     }
 
     private static PublicKey readPublicKey(BufferedReader in, String endMarker) throws IOException {
-        byte[] input = readBytes(in, endMarker);
+        byte[] input = readBase64Bytes(in, endMarker);
         String[] algs = { "RSA", "DSA" };
         for (int i = 0; i < algs.length; i++) {
             PublicKey key = readPublicKey(input, algs[i], endMarker);
@@ -1066,26 +1059,29 @@ public class PEMInputOutput {
     /**
      * Read a Key Pair
      */
-    private static KeyPair readKeyPair(BufferedReader _in, char[] passwd, String type, String endMarker) throws Exception {
+    private static KeyPair readKeyPair(BufferedReader in, char[] passwd, String type, String endMarker) throws Exception {
         boolean isEncrypted = false;
-        String line;
         String dekInfo = null;
-        StringBuilder buf = new StringBuilder();
 
-        while ((line = _in.readLine()) != null) {
-            if (line.startsWith("Proc-Type: 4,ENCRYPTED")) {
+        String line; StringBuilder buffer = new StringBuilder(512);
+        while ( ( line = in.readLine() ) != null ) {
+            if ( line.startsWith("Proc-Type: 4,ENCRYPTED") ) {
                 isEncrypted = true;
-            } else if (line.startsWith("DEK-Info:")) {
+            }
+            else if ( line.startsWith("DEK-Info:") ) {
                 dekInfo = line.substring(10);
-            } else if (line.indexOf(endMarker) != -1) {
+            }
+            else if ( line.contains(endMarker) ) {
                 break;
-            } else {
-                buf.append(line.trim());
+            }
+            else {
+                buffer.append( line.trim() );
             }
         }
-        byte[] keyBytes;
-        byte[] decoded = Base64.decode(buf.toString());
-        if (isEncrypted) {
+        byte[] decoded = Base64.decode( buffer.toString() );
+
+        final byte[] keyBytes;
+        if ( isEncrypted ) {
             keyBytes = decrypt(decoded, dekInfo, passwd);
         } else {
             keyBytes = decoded;
@@ -1129,85 +1125,98 @@ public class PEMInputOutput {
      * @return the X509Certificate
      * @throws IOException if an I/O error occured
      */
-    private static X509Certificate readCertificate(BufferedReader in, String endMarker) throws IOException {
-        String line;
-        StringBuilder buf = new StringBuilder();
-
-        while ((line = in.readLine()) != null) {
-            if (line.indexOf(endMarker) != -1) {
-                break;
-            }
-            buf.append(line.trim());
-        }
-
-        if (line == null) {
-            throw new IOException(endMarker + " not found");
-        }
-
+    private static X509Certificate readCertificate(final BufferedReader in, final String endMarker)
+        throws IOException {
+        final byte[] bytes = readBase64Bytes(in, endMarker);
         try {
-            CertificateFactory certFact = SecurityHelper.getCertificateFactory("X.509");
-            ByteArrayInputStream bIn = new ByteArrayInputStream(Base64.decode(buf.toString()));
-            return (X509Certificate) certFact.generateCertificate(bIn);
+            return (X509Certificate) getX509CertificateFactory().generateCertificate( new ByteArrayInputStream( bytes ) );
         }
-        catch (Exception e) {
-            throw new IOException("problem parsing cert: " + e.toString(), e);
+        catch (CertificateException e) {
+            throw new IOException("failed to read certificate: " + e, e);
         }
+        //catch (RuntimeException e) {
+        //    throw new IOException("problem generating cert: " + e.toString(), e);
+        //}
     }
 
-    private static X509AuxCertificate readAuxCertificate(BufferedReader in,String  endMarker) throws IOException {
-        String          line;
-        StringBuilder    buf = new StringBuilder();
+    private static X509AuxCertificate readAuxCertificate(final BufferedReader in, final String endMarker)
+        throws IOException {
+        final byte[] bytes = readBase64Bytes(in, endMarker);
 
-        while ((line = in.readLine()) != null) {
-            if (line.indexOf(endMarker) != -1) {
-                break;
-            }
-            buf.append(line.trim());
-        }
-
-        if (line == null) {
-            throw new IOException(endMarker + " not found");
-        }
-
-        ASN1InputStream try1 = new ASN1InputStream(Base64.decode(buf.toString()));
-        ByteArrayInputStream bIn = new ByteArrayInputStream((try1.readObject()).getEncoded());
+        final ASN1InputStream asn1 = new ASN1InputStream(bytes);
+        ByteArrayInputStream certBytes = new ByteArrayInputStream( ( asn1.readObject() ).getEncoded() );
 
         try {
-            CertificateFactory certFact = SecurityHelper.getCertificateFactory("X.509");
-            X509Certificate bCert = (X509Certificate)certFact.generateCertificate(bIn);
-            ASN1Sequence aux = (ASN1Sequence)try1.readObject();
-            X509Aux ax = null;
-            if(aux != null) {
-                ax = new X509Aux();
-                int ix = 0;
-                if(aux.size() > ix && aux.getObjectAt(ix) instanceof ASN1Sequence) {
-                    ASN1Sequence trust = (ASN1Sequence)aux.getObjectAt(ix++);
-                    for(int i=0;i<trust.size();i++) {
-                        ax.trust.add(((ASN1ObjectIdentifier)trust.getObjectAt(i)).getId());
+            final X509Certificate cert = (X509Certificate) getX509CertificateFactory().generateCertificate(certBytes);
+            final ASN1Sequence auxSeq = (ASN1Sequence) asn1.readObject();
+            final X509Aux aux;
+            if ( auxSeq != null ) {
+                // X509Aux fields :
+                final List<String> trust;
+                final List<String> reject;
+                final String alias;
+                final byte[] keyid;
+                final List<ASN1Primitive> other;
+
+                int ix = 0; ASN1Encodable obj = null;
+                if ( auxSeq.size() > ix ) obj = auxSeq.getObjectAt(ix);
+
+                if ( obj instanceof ASN1Sequence ) {
+                    trust = new ArrayList<String>();
+                    final ASN1Sequence trustSeq = (ASN1Sequence) obj;
+                    for ( int i = 0; i < trustSeq.size(); i++ ) {
+                        trust.add( ((ASN1ObjectIdentifier) trustSeq.getObjectAt(i)).getId() );
                     }
+
+                    obj = ( auxSeq.size() > ++ix ) ? auxSeq.getObjectAt(ix) : null; // next obj
                 }
-                if(aux.size() > ix && aux.getObjectAt(ix) instanceof ASN1TaggedObject && ((ASN1TaggedObject)aux.getObjectAt(ix)).getTagNo() == 0) {
-                    ASN1Sequence reject = (ASN1Sequence)((ASN1TaggedObject)aux.getObjectAt(ix++)).getObject();
-                    for(int i=0;i<reject.size();i++) {
-                        ax.reject.add(((ASN1ObjectIdentifier)reject.getObjectAt(i)).getId());
+                else trust = Collections.emptyList();
+
+                if ( obj instanceof ASN1TaggedObject && ((ASN1TaggedObject) obj).getTagNo() == 0 ) {
+                    reject = new ArrayList<String>();
+                    final ASN1Sequence rejectSeq = (ASN1Sequence) ((ASN1TaggedObject) obj).getObject();
+                    for( int i = 0; i < rejectSeq.size(); i++ ) {
+                        reject.add( ((ASN1ObjectIdentifier) rejectSeq.getObjectAt(i)).getId() );
                     }
+
+                    obj = ( auxSeq.size() > ++ix ) ? auxSeq.getObjectAt(ix) : null; // next obj
                 }
-                if(aux.size()>ix && aux.getObjectAt(ix) instanceof DERUTF8String) {
-                    ax.alias = ((DERUTF8String)aux.getObjectAt(ix++)).getString();
+                else reject = Collections.emptyList();
+
+                if ( obj instanceof DERUTF8String ) {
+                    alias = ((DERUTF8String) obj).getString();
+
+                    obj = ( auxSeq.size() > ++ix ) ? auxSeq.getObjectAt(ix) : null; // next obj
                 }
-                if(aux.size()>ix && aux.getObjectAt(ix) instanceof DEROctetString) {
-                    ax.keyid = ((DEROctetString)aux.getObjectAt(ix++)).getOctets();
+                else alias = null;
+
+                if ( obj instanceof DEROctetString ) {
+                    keyid = ((DEROctetString) obj).getOctets();
+
+                    obj = ( auxSeq.size() > ++ix ) ? auxSeq.getObjectAt(ix) : null; // next obj
                 }
-                if(aux.size() > ix && aux.getObjectAt(ix) instanceof ASN1TaggedObject && ((ASN1TaggedObject)aux.getObjectAt(ix)).getTagNo() == 1) {
-                    ASN1Sequence other = (ASN1Sequence)((ASN1TaggedObject)aux.getObjectAt(ix++)).getObject();
-                    for(int i=0;i<other.size();i++) {
-                        ax.other.add((ASN1Primitive)(other.getObjectAt(i)));
+                else keyid = null;
+
+                if ( obj instanceof ASN1TaggedObject && ((ASN1TaggedObject) obj).getTagNo() == 1 ) {
+                    other = new ArrayList<ASN1Primitive>();
+                    final ASN1Sequence otherSeq = (ASN1Sequence) ((ASN1TaggedObject) obj).getObject();
+                    for( int i = 0; i < otherSeq.size(); i++ ) {
+                        other.add( (ASN1Primitive) otherSeq.getObjectAt(i) );
                     }
+
+                    //obj = ( auxSeq.size() > ++ix ) ? auxSeq.getObjectAt(ix) : null; // next obj
                 }
+                else other = Collections.emptyList();
+
+                aux = new X509Aux(alias, keyid, trust, reject, other);
             }
-            return new X509AuxCertificate(bCert,ax);
-        } catch (Exception e) {
-            throw new IOException("problem parsing cert: " + e.toString());
+            else {
+                aux = null;
+            }
+            return new X509AuxCertificate(cert, aux);
+        }
+        catch (CertificateException e) {
+            throw new IOException("failed to read aux cert: " + e, e);
         }
     }
 
@@ -1218,27 +1227,16 @@ public class PEMInputOutput {
      * @throws IOException if an I/O error occured
      */
     private static X509CRL readCRL(BufferedReader in, String endMarker) throws IOException {
-        String line;
-        StringBuilder buf = new StringBuilder();
-
-        while ((line = in.readLine()) != null) {
-            if (line.indexOf(endMarker) != -1) {
-                break;
-            }
-            buf.append(line.trim());
-        }
-
-        if (line == null) {
-            throw new IOException(endMarker + " not found");
-        }
-
+        final byte[] bytes = readBase64Bytes(in, endMarker);
         try {
-            CertificateFactory certFact = SecurityHelper.getCertificateFactory("X.509");
-            ByteArrayInputStream bIn = new ByteArrayInputStream(Base64.decode(buf.toString()));
-            return (X509CRL) certFact.generateCRL(bIn);
-        } catch (Exception e) {
-            throw new IOException("problem parsing cert: " + e.toString());
+            return (X509CRL) getX509CertificateFactory().generateCRL( new ByteArrayInputStream( bytes ) );
         }
+        catch (CRLException e) {
+            throw new IOException("failed to read crl: " + e, e);
+        }
+        //catch (RuntimeException e) {
+        //    throw new IOException("problem parsing cert: " + e.toString(), e);
+        //}
     }
 
     /**
@@ -1248,24 +1246,76 @@ public class PEMInputOutput {
      * @throws IOException if an I/O error occured
      */
     private static PKCS10Request readCertificateRequest(BufferedReader in, String endMarker) throws IOException {
-        String line;
-        StringBuilder buf = new StringBuilder();
+        final byte[] bytes = readBase64Bytes(in, endMarker);
+        try {
+            return new PKCS10Request( bytes );
+        }
+        catch (RuntimeException e) {
+            throw new IOException("problem parsing cert: " + e.toString(), e);
+        }
+    }
 
-        while ((line = in.readLine()) != null) {
-            if (line.indexOf(endMarker) != -1) {
-                break;
-            }
-            buf.append(line.trim());
+    /**
+     * Reads in a PKCS7 object. This returns a ContentInfo object suitable for use with the CMS
+     * API.
+     *
+     * @return the X509Certificate
+     * @throws IOException if an I/O error occured
+     */
+    private static CMSSignedData readPKCS7(BufferedReader in, char[] p, String endMarker) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+        String line; StringBuilder buffer = new StringBuilder();
+        while ( (line = in.readLine()) != null ) {
+            if ( line.contains(endMarker) ) break;
+
+            buffer.append( line.trim() );
+            final int len = buffer.length();
+            Base64.decode( buffer.substring(0, (len / 4) * 4), bytes );
+            buffer.delete(0, (len / 4) * 4);
         }
 
-        if (line == null) {
-            throw new IOException(endMarker + " not found");
+        if (buffer.length() != 0) {
+            throw new IOException("base64 data appears to be truncated");
         }
+        if (line == null) throw new IOException(endMarker + " not found");
 
         try {
-            return new PKCS10Request(Base64.decode(buf.toString()));
-        } catch (Exception e) {
-            throw new IOException("problem parsing cert: " + e.toString());
+            ASN1InputStream aIn = new ASN1InputStream(bytes.toByteArray());
+            return new CMSSignedData(ContentInfo.getInstance(aIn.readObject()));
+        }
+        catch (CMSException e) {
+            throw new IOException("problem parsing PKCS7 object: " + e, e);
+        }
+    }
+
+    public static KeyFactory getKeyFactory(final AlgorithmIdentifier algId)
+        throws NoSuchAlgorithmException {
+
+        final ASN1ObjectIdentifier algIdentifier = algId.getAlgorithm();
+
+        String algorithm = null;
+        if ( X9ObjectIdentifiers.id_ecPublicKey.equals(algIdentifier) ) {
+            algorithm = "ECDSA";
+        }
+        else if ( PKCSObjectIdentifiers.rsaEncryption.equals(algIdentifier) ) {
+            algorithm = "RSA";
+        }
+        else if ( X9ObjectIdentifiers.id_dsa.equals(algIdentifier) ) {
+            algorithm = "DSA";
+        }
+
+        if ( algorithm == null ) algorithm = algIdentifier.getId();
+
+        return SecurityHelper.getKeyFactory(algorithm);
+    }
+
+    private static CertificateFactory getX509CertificateFactory() {
+        try {
+            return SecurityHelper.getCertificateFactory("X.509");
+        }
+        catch (CertificateException e) {
+            throw new IllegalStateException(e); // X.509 not supported?!
         }
     }
 
@@ -1294,62 +1344,23 @@ public class PEMInputOutput {
         }
     }
 
-    /**
-     * Reads in a PKCS7 object. This returns a ContentInfo object suitable for use with the CMS
-     * API.
-     *
-     * @return the X509Certificate
-     * @throws IOException if an I/O error occured
-     */
-    private static CMSSignedData readPKCS7(BufferedReader in, char[] p, String endMarker) throws IOException {
-        String line;
-        StringBuilder buf = new StringBuilder();
-        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
-
-        while ((line = in.readLine()) != null) {
-            if (line.indexOf(endMarker) != -1) {
-                break;
-            }
-            line = line.trim();
-            buf.append(line.trim());
-            Base64.decode(buf.substring(0, (buf.length() / 4) * 4), bOut);
-            buf.delete(0, (buf.length() / 4) * 4);
-        }
-
-        if (buf.length() != 0) {
-            throw new IOException("base64 data appears to be truncated");
-        }
-        if (line == null) {
-            throw new IOException(endMarker + " not found");
-        }
-        try {
-            ASN1InputStream aIn = new ASN1InputStream(bOut.toByteArray());
-            return new CMSSignedData(ContentInfo.getInstance(aIn.readObject()));
-        }
-        catch (Exception e) {
-            throw new IOException("problem parsing PKCS7 object: " + e.toString());
-        }
+    private static byte[] readBase64Bytes(BufferedReader in, String endMarker) throws IOException {
+        return Base64.decode( readLines(in, endMarker).toString() );
     }
 
-    public static KeyFactory getKeyFactory(final AlgorithmIdentifier algId)
-        throws NoSuchAlgorithmException {
+    private static StringBuilder readLines(final BufferedReader reader, final String endMarker) throws IOException {
+        String line;
+        StringBuilder lines = new StringBuilder(64);
 
-        final ASN1ObjectIdentifier algIdentifier = algId.getAlgorithm();
-
-        String algorithm = null;
-        if ( X9ObjectIdentifiers.id_ecPublicKey.equals(algIdentifier) ) {
-            algorithm = "ECDSA";
-        }
-        else if ( PKCSObjectIdentifiers.rsaEncryption.equals(algIdentifier) ) {
-            algorithm = "RSA";
-        }
-        else if ( X9ObjectIdentifiers.id_dsa.equals(algIdentifier) ) {
-            algorithm = "DSA";
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.contains(endMarker) ) break;
+            lines.append( line.trim() );
         }
 
-        if ( algorithm == null ) algorithm = algIdentifier.getId();
-
-        return SecurityHelper.getKeyFactory(algorithm);
+        if ( line == null ) {
+            throw new IOException(endMarker + " not found");
+        }
+        return lines;
     }
 
 }// PEM
