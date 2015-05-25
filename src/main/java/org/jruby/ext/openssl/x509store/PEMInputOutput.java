@@ -1208,7 +1208,10 @@ public class PEMInputOutput {
                 }
                 else other = Collections.emptyList();
 
-                aux = new X509Aux(alias, keyid, trust, reject, other);
+                aux = new X509Aux(alias, keyid,
+                        Collections.unmodifiableList(trust),
+                        Collections.unmodifiableList(reject),
+                        Collections.unmodifiableList(other));
             }
             else {
                 aux = null;
