@@ -28,7 +28,6 @@
 package org.jruby.ext.openssl;
 
 import org.jruby.Ruby;
-import org.jruby.RubyBasicObject;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;

@@ -42,6 +42,7 @@ import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
+import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
@@ -64,6 +65,7 @@ import org.jruby.runtime.Visibility;
  *
  * @author <a href="mailto:bill.dortch@gmail.com">Bill Dortch</a>
  */
+@JRubyClass(name = "OpenSSL::BN", include = "Comparable")
 public class BN extends RubyObject {
     private static final long serialVersionUID = -5660938062191525498L;
 
