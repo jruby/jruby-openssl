@@ -68,6 +68,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyHash;
 import org.jruby.ext.openssl.SecurityHelper;
 import org.jruby.util.JRubyFile;
+import org.jruby.util.SafePropertyAccessor;
 import org.jruby.util.io.ChannelDescriptor;
 import org.jruby.util.io.ChannelStream;
 import org.jruby.util.io.FileExistsException;
@@ -154,42 +155,87 @@ public class Lookup {
         return 1;
     }
 
+    private static final Cache<String, Object[]> certCache;
+
+    static {
+        // jruby.openssl.x509.cert.cache = true / false / 8
+        final String cache = SafePropertyAccessor.getProperty("jruby.openssl.x509.lookup.cache");
+        Cache<String, Object[]> certCacheInstance = null;
+        if ( cache != null ) {
+            try {
+                certCacheInstance = Cache.newStrongSoftCache( Integer.parseInt(cache) );
+            }
+            catch (NumberFormatException ex) {
+                if ( Boolean.parseBoolean(cache) ) {
+                    certCacheInstance = Cache.newSoftCache();
+                }
+            }
+        }
+        if ( certCacheInstance == null ) certCacheInstance = Cache.getNullCache();
+        certCache = certCacheInstance;
+    }
+
     /**
      * c: X509_LOOKUP_load_cert_file
      */
     public int loadCertificateFile(final String file, final int type) throws IOException, CertificateException {
         if ( file == null ) return 1;
 
-        int ret = 0;
+        final Object[] cached = certCache.get(file);
+
         Reader reader = null;
         try {
-            InputStream in = wrapJRubyNormalizedInputStream(file);
             X509AuxCertificate auxCert;
             if ( type == X509_FILETYPE_PEM ) {
-                reader = new BufferedReader(new InputStreamReader(in));
-                int count = 0; for (;;) {
-                    auxCert = PEMInputOutput.readX509Aux(reader, null);
-                    if ( auxCert == null ) break;
-                    final int i = store.addCertificate(auxCert);
-                    if ( i == 0 ) return ret;
-                    count++;
+                int count = 0;
+                if ( cached != null ) {
+                    for ( int c = 0; c < cached.length; c++ ) {
+                        auxCert = buildAuxFromCached((X509Certificate) cached[c]);
+                        final int i = store.addCertificate(auxCert);
+                        if ( i != 0 ) count++;
+                    }
                 }
-                ret = count;
+                else {
+                    reader = new InputStreamReader(wrapJRubyNormalizedInputStream(file));
+                    final ArrayList<Object> cacheEntry = new ArrayList<Object>(8);
+
+                    for (;;) {
+                        auxCert = PEMInputOutput.readX509Aux(reader, null);
+                        if ( auxCert == null ) break;
+
+                        cacheEntry.add( auxCert.cloneForCache() ); // make sure we cache aux
+
+                        final int i = store.addCertificate(auxCert);
+                        if ( i != 0 ) count++;
+                    }
+
+                    certCache.put(file, cacheEntry.toArray( new Object[ cacheEntry.size() ] ));
+                }
+                return count;
             }
             else if ( type == X509_FILETYPE_ASN1 ) {
-                X509Certificate cert = (X509Certificate)
-                    SecurityHelper.getCertificateFactory("X.509").generateCertificate(in);
-                auxCert = StoreContext.ensureAux(cert);
-                if ( auxCert == null ) {
-                    X509Error.addError(13);
-                    return ret;
+                final X509Certificate cert;
+                if ( cached != null ) {
+                    cert = (X509Certificate) cached[0];
+                    auxCert = buildAuxFromCached(cert);
                 }
-                final int i = store.addCertificate(auxCert);
-                if ( i == 0 ) return ret;
-                ret = i;
+                else {
+                    InputStream in = wrapJRubyNormalizedInputStream(file);
+                    cert = (X509Certificate)
+                        SecurityHelper.getCertificateFactory("X.509").generateCertificate(in);
+
+                    auxCert = new X509AuxCertificate(cert);
+                    certCache.put(file, new Object[] { auxCert.cloneForCache() });
+                }
+
+                //if ( auxCert == null ) {
+                //    X509Error.addError(13); return 0;
+                //}
+                return store.addCertificate(auxCert);
             }
             else {
                 X509Error.addError(X509_R_BAD_X509_FILETYPE);
+                return 0; // NOTE: really?
             }
         }
         finally {
@@ -197,7 +243,12 @@ public class Lookup {
                 try { reader.close(); } catch (Exception ignored) {}
             }
         }
-        return ret;
+    }
+
+    private static X509AuxCertificate buildAuxFromCached(final X509Certificate cached) {
+        X509AuxCertificate auxCert = StoreContext.ensureAux(cached);
+        if ( cached == auxCert ) auxCert = auxCert.clone();
+        return auxCert;
     }
 
     /**
@@ -206,7 +257,6 @@ public class Lookup {
     public int loadCRLFile(final String file, final int type) throws Exception {
         if ( file == null ) return 1;
 
-        int ret = 0;
         Reader reader = null;
         try {
             InputStream in = wrapJRubyNormalizedInputStream(file);
@@ -217,23 +267,21 @@ public class Lookup {
                     crl = PEMInputOutput.readX509CRL(reader, null);
                     if ( crl == null ) break;
                     final int i = store.addCRL(crl);
-                    if ( i == 0 ) return ret;
-                    count++;
+                    if ( i == 0 ) return 0; count++;
                 }
-                ret = count;
+                return count;
             }
             else if ( type == X509_FILETYPE_ASN1 ) {
                 crl = SecurityHelper.getCertificateFactory("X.509").generateCRL(in);
                 if ( crl == null ) {
                     X509Error.addError(13);
-                    return ret;
+                    return 0;
                 }
-                final int i = store.addCRL(crl);
-                if ( i == 0 ) return ret;
-                ret = i;
+                return store.addCRL(crl);
             }
             else {
                 X509Error.addError(X509_R_BAD_X509_FILETYPE);
+                return 0; // NOTE: really?
             }
         }
         finally {
@@ -241,8 +289,9 @@ public class Lookup {
                 try { reader.close(); } catch (Exception ignored) {}
             }
         }
-        return ret;
     }
+
+
 
     /**
      * c: X509_LOOKUP_load_cert_crl_file
@@ -250,31 +299,56 @@ public class Lookup {
     public int loadCertificateOrCRLFile(final String file, final int type) throws IOException, CertificateException {
         if ( type != X509_FILETYPE_PEM ) return loadCertificateFile(file, type);
 
-        int count = 0;
+        final Object[] cached = certCache.get(file);
+
         Reader reader = null;
         try {
-            InputStream in = wrapJRubyNormalizedInputStream(file);
-            reader = new BufferedReader(new InputStreamReader(in));
-            for (;;) {
-                Object v = PEMInputOutput.readPEM(reader, null);
-                if ( v == null ) break;
 
-                if ( v instanceof X509Certificate ) {
-                    store.addCertificate(StoreContext.ensureAux((X509Certificate) v));
-                    count++;
-                }
-                else if ( v instanceof CRL ) {
-                    store.addCRL((CRL) v);
-                    count++;
+            int count = 0;
+            if ( cached != null ) {
+                for ( int c = 0; c < cached.length; c++ ) {
+                    Object cert = cached[c];
+                    if ( cert instanceof X509Certificate ) {
+                        store.addCertificate(buildAuxFromCached((X509Certificate) cert));
+                        count++;
+                    }
+                    else if ( cert instanceof CRL ) {
+                        store.addCRL((CRL) cert);
+                        count++;
+                    }
                 }
             }
+            else {
+                reader = new InputStreamReader(wrapJRubyNormalizedInputStream(file));
+                final ArrayList<Object> cacheEntry = new ArrayList<Object>(8);
+                for (;;) {
+                    Object cert = PEMInputOutput.readPEM(reader, null);
+                    if ( cert == null ) break;
+
+                    if ( cert instanceof X509Certificate ) {
+                        X509AuxCertificate auxCert = StoreContext.ensureAux((X509Certificate) cert);
+                        store.addCertificate(auxCert);
+                        count++;
+
+                        cert = auxCert.cloneForCache(); // make sure we cache aux
+                    }
+                    else if ( cert instanceof CRL ) {
+                        store.addCRL((CRL) cert);
+                        count++;
+                    }
+
+                    cacheEntry.add(cert);
+                }
+
+                certCache.put(file, cacheEntry.toArray( new Object[ cacheEntry.size() ] ));
+            }
+            return count;
         }
         finally {
             if ( reader != null ) {
                 try { reader.close(); } catch (Exception ignored) {}
             }
         }
-        return count;
     }
 
     public int loadDefaultJavaCACertsFile() throws IOException, GeneralSecurityException {

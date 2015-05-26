@@ -35,129 +35,175 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * a soft (reference) or limited (hard) cache implementation
+ * a cache of a kind
  *
  * @author kares
  */
-final class Cache<K, T> {
+public class Cache<K, T> {
 
-    private final Map<K, SoftRef<K, T>> map; // SoftHashMap
+    private static Cache NULL;
 
-    private final ReferenceQueue<T> refQueue = new ReferenceQueue<T>();
+    private Cache() { /* empty-cache */ }
 
-    private final int limit;
-
-    private final SortedMap<SoftRef<K, T>, T> hardRefs; // final Deque<T> hard;
-
-    private Cache() {
-        this.limit = 0;
-        this.map = new ConcurrentHashMap<K, SoftRef<K, T>>();
-        this.hardRefs = null;
+    @SuppressWarnings("unchecked")
+    public static <K, T> Cache<K, T> getNullCache() {
+        if ( NULL != null ) return NULL;
+        return NULL = new Cache<K, T>();
     }
 
-    private Cache(final int size) {
-        this.limit = size;
-        final int capacity = Math.min(size, 32);
-        this.map = new ConcurrentHashMap<K, SoftRef<K, T>>(capacity);
-        this.hardRefs = new TreeMap<SoftRef<K, T>, T>();
-    }
-
+    /**
+     * a soft-reference cache
+     * @param <K>
+     * @param <T>
+     * @return new cache instance
+     */
     public static <K, T> Cache<K, T> newSoftCache() {
-        return new Cache<K, T>();
+        return new SoftCache<K, T>();
     }
 
-    public static <K, T> Cache<K, T> newLRUCache(final int size) {
-        return new Cache<K, T>(size);
+    /**
+     * a soft-reference cache which holds strong references up to the specified
+     * size, these are arranged in LRU order
+     * @param <K>
+     * @param <T>
+     * @param size
+     * @return new cache instance
+     */
+    public static <K, T> Cache<K, T> newStrongSoftCache(final int size) {
+        return new SoftCache<K, T>(size);
     }
 
     public T get(K key) {
-        T result = null;
-        final SoftRef<K, T> ref = map.get(key);
-        if (ref != null) {
-            result = ref.get();
-            if ( result == null ) {
-                map.remove(key);
-            }
-            else {
-                if ( hardRefs != null ) {
-                    synchronized (hardRefs) {
-                        hardRefs.remove(ref);
-                        hardRefs.put(ref.recordAccess(), result);
-                        if ( limit > 0 && hardRefs.size() > limit ) {
-                            hardRefs.remove( hardRefs.firstKey() );
+        return null;
+    }
+
+    public T put(K key, T value) {
+        return null;
+    }
+
+    public T remove(K key) {
+        return null;
+    }
+
+    public void clear() {
+        return;
+    }
+
+    public int size() {
+        return 0;
+    }
+
+    static final class SoftCache<K, T> extends Cache<K, T> {
+
+        private final Map<K, Ref<K, T>> cache; // SoftHashMap
+
+        private final ReferenceQueue<T> refQueue = new ReferenceQueue<T>();
+
+        private final int strongLimit;
+        private final SortedMap<Ref<K, T>, T> strongRefs; // final Deque<T> strong;
+
+        private SoftCache() {
+            this.strongLimit = 0;
+            this.cache = new ConcurrentHashMap<K, Ref<K, T>>();
+            this.strongRefs = null;
+        }
+
+        private SoftCache(final int limit) {
+            this.strongLimit = limit;
+            final int capacity = Math.min(limit, 32);
+            this.cache = new ConcurrentHashMap<K, Ref<K, T>>(capacity);
+            this.strongRefs = new TreeMap<Ref<K, T>, T>();
+        }
+
+        public T get(K key) {
+            T result = null;
+            final Ref<K, T> ref = cache.get(key);
+            if ( ref != null ) {
+                result = ref.get();
+                if ( result == null ) cache.remove(key);
+                else {
+                    if ( strongRefs != null ) {
+                        synchronized (strongRefs) {
+                            strongRefs.remove(ref);
+                            strongRefs.put(ref.recordAccess(), result);
+                            if ( strongLimit > 0 && strongRefs.size() > strongLimit ) {
+                                strongRefs.remove( strongRefs.firstKey() );
+                            }
                         }
                     }
                 }
             }
-      }
-      return result;
-    }
-
-    private static class SoftRef<K, T> extends SoftReference<T> implements Comparable<SoftRef> {
-        private final K key;
-        volatile long access;
-
-        SoftRef(T value, K key, ReferenceQueue<T> queue) {
-            super(value, queue);
-            this.key = key;
-            recordAccess();
+            return result;
         }
 
-        final SoftRef<K, T> recordAccess() { access = System.currentTimeMillis(); return this; }
+        public T put(K key, T value) {
+            purgeRefQueue();
+            final SoftReference<T> prev = cache.put(key, new Ref<K, T>(value, key, refQueue));
+            return prev == null ? null : prev.get();
+        }
 
-        @Override
-        public boolean equals(Object obj) {
-            if ( obj instanceof SoftRef ) {
-                return this.key.equals( ((SoftRef) obj).key );
+        public T remove(K key) {
+            purgeRefQueue();
+            final SoftReference<T> removed = cache.remove(key);
+            return removed == null ? null : removed.get();
+        }
+
+        public void clear() {
+            if ( strongRefs != null ) {
+                synchronized (strongRefs) { strongRefs.clear(); }
             }
-            return false;
+            purgeRefQueue();
+            cache.clear();
+            purgeRefQueue();
         }
 
-        @Override
-        public int hashCode() {
-            return key.hashCode();
+        public int size() {
+            purgeRefQueue();
+            return cache.size();
         }
 
-        @Override // order by access time - more recent first (less than) others
-        public int compareTo(final SoftRef that) {
-            final long diff = this.access - that.access;
-            if ( diff == 0 ) return 0;
-            // diff > 0 ... this.access > that.access ... this > that
-            return diff > 0 ? +1 : -1; // this accessed after that
+        @SuppressWarnings("unchecked")
+        private void purgeRefQueue() {
+            Ref<K, T> ref;
+            while ( ( ref = (Ref) refQueue.poll() ) != null ) {
+                synchronized (refQueue) { cache.remove( ref.key ); }
+            }
         }
-    }
 
-    @SuppressWarnings("unchecked")
-    private void purgeRefQueue() {
-        SoftRef<K, T> ref;
-        while ( ( ref = (SoftRef) refQueue.poll() ) != null ) {
-            synchronized (refQueue) { map.remove( ref.key ); }
+        private static class Ref<K, T> extends SoftReference<T> implements Comparable<Ref> {
+            private final K key;
+            volatile long access;
+
+            private Ref(T value, K key, ReferenceQueue<T> queue) {
+                super(value, queue);
+                this.key = key;
+                recordAccess();
+            }
+
+            final Ref<K, T> recordAccess() { access = System.currentTimeMillis(); return this; }
+
+            @Override
+            public boolean equals(Object obj) {
+                if ( obj instanceof Ref ) {
+                    return this.key.equals( ((Ref) obj).key );
+                }
+                return false;
+            }
+
+            @Override
+            public int hashCode() {
+                return key.hashCode();
+            }
+
+            @Override // order by access time - more recent first (less than) others
+            public int compareTo(final Ref that) {
+                final long diff = this.access - that.access;
+                if ( diff == 0 ) return 0;
+                // diff > 0 ... this.access > that.access ... this > that
+                return diff > 0 ? +1 : -1; // this accessed after that
+            }
         }
-    }
 
-    public T put(K key, T value) {
-        purgeRefQueue();
-        final SoftReference<T> prev = map.put(key, new SoftRef<K, T>(value, key, refQueue));
-        return prev == null ? null : prev.get();
-    }
-
-    public T remove(K key) {
-        purgeRefQueue();
-        final SoftReference<T> removed = map.remove(key);
-        return removed == null ? null : removed.get();
-    }
-
-    public void clear() {
-        if ( hardRefs != null ) {
-            synchronized (hardRefs) { hardRefs.clear(); }
-        }
-        purgeRefQueue();
-        map.clear();
-    }
-
-    public int size() {
-        purgeRefQueue();
-        return map.size();
     }
 
 }
