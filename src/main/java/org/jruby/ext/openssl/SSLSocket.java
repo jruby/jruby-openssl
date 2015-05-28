@@ -30,6 +30,8 @@ package org.jruby.ext.openssl;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channel;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -170,11 +172,10 @@ public class SSLSocket extends RubyObject {
         SSLEngine engine = this.engine;
         if ( engine != null ) return engine;
 
-        final Socket socket = getSocketChannel().socket();
         // Server Name Indication (SNI) RFC 3546
         // SNI support will not be attempted unless hostname is explicitly set by the caller
         String peerHost = this.callMethod(context, "hostname").toString();
-        final int peerPort = socket.getPort();
+        final int peerPort = socketChannelImpl().getSocketPort();
         engine = sslContext.createSSLEngine(peerHost, peerPort);
 
         final javax.net.ssl.SSLSession session = engine.getSession();
@@ -264,7 +265,7 @@ public class SSLSocket extends RubyObject {
 
         try {
             if ( ! initialHandshake ) {
-                SSLEngine engine = ossl_ssl_setup(context);
+                final SSLEngine engine = ossl_ssl_setup(context);
                 engine.setUseClientMode(false);
                 final IRubyObject verify_mode = sslContext.callMethod(context, "verify_mode");
                 if ( ! verify_mode.isNil() ) {
@@ -330,16 +331,15 @@ public class SSLSocket extends RubyObject {
     // temporarily. SSLSocket requires wrapping IO to be selectable so it should
     // be OK to set configureBlocking(false) permanently.
     private boolean waitSelect(final int operations, final boolean blocking) throws IOException {
-        if ( ! ( io.getChannel() instanceof SelectableChannel ) ) {
-            return true;
-        }
+        final SocketChannelImpl channel = socketChannelImpl();
+        if ( ! channel.isSelectable() ) return true;
+
         final Ruby runtime = getRuntime();
         final RubyThread thread = runtime.getCurrentContext().getThread();
 
-        SelectableChannel selectable = (SelectableChannel)io.getChannel();
-        selectable.configureBlocking(false);
+        channel.configureBlocking(false);
         final Selector selector = runtime.getSelectorPool().get();
-        final SelectionKey key = selectable.register(selector, operations);
+        final SelectionKey key = channel.register(selector, operations);
 
         try {
             io.addBlockingThread(thread);
@@ -506,7 +506,7 @@ public class SSLSocket extends RubyObject {
     private int writeToChannel(ByteBuffer buffer, boolean blocking) throws IOException {
         int totalWritten = 0;
         while ( buffer.hasRemaining() ) {
-            totalWritten += getSocketChannel().write(buffer);
+            totalWritten += socketChannelImpl().write(buffer);
             if ( ! blocking ) break; // don't continue attempting to read
         }
         return totalWritten;
@@ -521,9 +521,9 @@ public class SSLSocket extends RubyObject {
             throw new IOException("Writing not possible during handshake");
         }
 
-        SelectableChannel selectable = getSocketChannel();
-        boolean blockingMode = selectable.isBlocking();
-        if ( ! blocking ) selectable.configureBlocking(false);
+        SocketChannelImpl channel = socketChannelImpl();
+        final boolean blockingMode = channel.isBlocking();
+        if ( ! blocking ) channel.configureBlocking(false);
 
         try {
             if ( netData.hasRemaining() ) {
@@ -539,11 +539,11 @@ public class SSLSocket extends RubyObject {
             return result.bytesConsumed();
         }
         finally {
-            if ( ! blocking ) selectable.configureBlocking(blockingMode);
+            if ( ! blocking ) channel.configureBlocking(blockingMode);
         }
     }
 
-    public int read(ByteBuffer dst, boolean blocking) throws IOException {
+    public int read(final ByteBuffer dst, final boolean blocking) throws IOException {
         if ( initialHandshake ) return 0;
         if ( engine.isInboundDone() ) return -1;
 
@@ -559,8 +559,8 @@ public class SSLSocket extends RubyObject {
         return limit;
     }
 
-    private int readAndUnwrap(boolean blocking) throws IOException {
-        final int bytesRead = getSocketChannel().read(peerNetData);
+    private int readAndUnwrap(final boolean blocking) throws IOException {
+        final int bytesRead = socketChannelImpl().read(peerNetData);
         if ( bytesRead == -1 ) {
             if ( ! peerNetData.hasRemaining() ||
                  ( status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) ) {
@@ -674,7 +674,7 @@ public class SSLSocket extends RubyObject {
             // ensure >0 bytes read; sysread is blocking read.
             while ( rr <= 0 ) {
                 if ( engine == null ) {
-                    rr = getSocketChannel().read(dst);
+                    rr = socketChannelImpl().read(dst);
                 } else {
                     rr = read(dst, blocking);
                 }
@@ -754,7 +754,7 @@ public class SSLSocket extends RubyObject {
     }
 
     private void checkClosed() {
-        if ( ! getSocketChannel().isOpen() ) {
+        if ( ! socketChannelImpl().isOpen() ) {
             throw getRuntime().newIOError("closed stream");
         }
     }
@@ -906,8 +906,93 @@ public class SSLSocket extends RubyObject {
         return getRuntime().newString( engine.getSession().getProtocol() );
     }
 
-    private SocketChannel getSocketChannel() {
-        return (SocketChannel) io.getChannel();
+    private transient SocketChannelImpl socketChannel;
+
+    private SocketChannelImpl socketChannelImpl() {
+        if ( socketChannel != null ) return socketChannel;
+
+        final Channel channel = io.getChannel();
+        if ( channel instanceof SocketChannel ) {
+            return socketChannel = new JavaSocketChannel((SocketChannel) channel);
+        }
+
+        // TODO JNR
+
+        throw new IllegalStateException("unknow channel impl: " + channel + " of type " + channel.getClass().getName());
+    }
+
+    private static interface SocketChannelImpl {
+
+        boolean isOpen() ;
+
+        int read(ByteBuffer dst) throws IOException ;
+
+        int write(ByteBuffer src) throws IOException ;
+
+        int getSocketPort() ;
+
+        boolean isSelectable() ;
+
+        // SelectableChannel
+
+        boolean isBlocking() ;
+
+        void configureBlocking(boolean block) throws IOException ;
+
+        SelectionKey register(Selector selector, int ops) throws IOException ;
+
+        //boolean selectionOpsReadable(final int readyOps);
+
+        //boolean selectionOpsWritable(final int readyOps) ;
+
+    }
+
+    private static final class JavaSocketChannel implements SocketChannelImpl {
+
+        JavaSocketChannel(final SocketChannel channel) {
+            this.channel = channel;
+        }
+
+        private final SocketChannel channel;
+
+        public boolean isOpen() { return channel.isOpen(); }
+
+        public int read(ByteBuffer dst) throws IOException {
+            return channel.read(dst);
+        }
+
+        public int write(ByteBuffer src) throws IOException {
+            return channel.write(src);
+        }
+
+        public int getSocketPort() { return channel.socket().getPort(); }
+
+        public boolean isSelectable() {
+            return true; // return channel instanceof SelectableChannel;
+        }
+
+        public boolean isBlocking() { return channel.isBlocking(); }
+
+        public void configureBlocking(boolean block) throws IOException {
+            channel.configureBlocking(block);
+        }
+
+        public SelectionKey register(Selector selector, int ops) throws ClosedChannelException {
+            return channel.register(selector, ops);
+        }
+
+        public boolean selectionOpsReadable(final int readyOps) {
+            return (readyOps & SelectionKey.OP_READ) != 0;
+        }
+
+        public boolean selectionOpsWritable(final int readyOps) {
+            return (readyOps & SelectionKey.OP_WRITE) != 0;
+        }
+
+    }
+
+    private static boolean jnrChannel(final Channel channel) {
+        return channel.getClass().getName().startsWith("jnr.");
     }
 
 }// SSLSocket
