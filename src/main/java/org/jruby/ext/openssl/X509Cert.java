@@ -211,8 +211,21 @@ public class X509Cert extends RubyObject {
         this.issuer = X509Name.newName(runtime, cert.getIssuerX500Principal());
         this.version = RubyFixnum.newFixnum(runtime, cert.getVersion() - 1);
         String sigAlgorithm = cert.getSigAlgOID();
+
         if ( sigAlgorithm == null ) sigAlgorithm = cert.getSigAlgName(); // e.g. SHA256withRSA
-        else sigAlgorithm = ASN1.oid2name(runtime, sigAlgorithm); // "hot" path e.g. sha256WithRSAEncryption
+        else {
+            sigAlgorithm = ASN1.oid2name(runtime, new ASN1ObjectIdentifier(sigAlgorithm), true);
+            if ( sigAlgorithm == null ) {
+                sigAlgorithm = "itu-t"; // MRI compability ... the "crazy" parts
+                // for some certificates that MRI parses,
+                // we get getSigAlgOID() == getSigAlgName() == "0.0"
+
+                if ( cert.getSigAlgName() != null && ! cert.getSigAlgOID().equals(cert.getSigAlgName()) ) {
+                    sigAlgorithm = cert.getSigAlgName(); // not sure if it makes any sense
+                }
+            }
+
+        } // "hot" path e.g. sha256WithRSAEncryption
         this.sig_alg = RubyString.newString(runtime, sigAlgorithm);
 
         final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
