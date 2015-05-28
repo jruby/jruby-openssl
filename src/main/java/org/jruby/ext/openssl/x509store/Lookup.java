@@ -27,6 +27,7 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import org.jruby.ext.openssl.util.Cache;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_CERT_DIR;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_ASN1;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_DEFAULT;

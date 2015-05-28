@@ -25,7 +25,7 @@
  * the provisions above, a recipient may use your version of this file under
  * the terms of any one of the EPL, the GPL or the LGPL.
  ***** END LICENSE BLOCK *****/
-package org.jruby.ext.openssl.x509store;
+package org.jruby.ext.openssl.util;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
