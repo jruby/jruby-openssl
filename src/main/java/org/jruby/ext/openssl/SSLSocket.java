@@ -88,11 +88,11 @@ public class SSLSocket extends RubyObject {
     public static void createSSLSocket(final Ruby runtime, final RubyModule SSL) { // OpenSSL::SSL
         final ThreadContext context = runtime.getCurrentContext();
         RubyClass SSLSocket = SSL.defineClassUnder("SSLSocket", runtime.getObject(), SSLSOCKET_ALLOCATOR);
-        SSLSocket.addReadWriteAttribute(context, "io");
-        SSLSocket.addReadWriteAttribute(context, "context");
+        // SSLSocket.addReadAttribute(context, "io");
+        // SSLSocket.defineAlias("to_io", "io");
+        // SSLSocket.addReadAttribute(context, "context");
         SSLSocket.addReadWriteAttribute(context, "sync_close");
         SSLSocket.addReadWriteAttribute(context, "hostname");
-        SSLSocket.defineAlias("to_io", "io");
         SSLSocket.defineAnnotatedMethods(SSLSocket.class);
     }
 
@@ -156,12 +156,12 @@ public class SSLSocket extends RubyObject {
         if ( ! ( args[0] instanceof RubyIO ) ) {
             throw runtime.newTypeError("IO expected but got " + args[0].getMetaClass().getName());
         }
-        this.callMethod(context, "io=", this.io = (RubyIO) args[0]);
-        this.callMethod(context, "context=", sslContext);
+        setInstanceVariable("@io", this.io = (RubyIO) args[0]); // compat (we do not read @io)
+        setInstanceVariable("@context", this.sslContext); // only compat (we do not use @context)
         // This is a bit of a hack: SSLSocket should share code with
         // RubyBasicSocket, which always sets sync to true.
         // Instead we set it here for now.
-        this.io.callMethod(context, "sync=", runtime.getTrue());
+        this.set_sync(context, runtime.getTrue()); // io.sync = true
         this.callMethod(context, "sync_close=", runtime.getFalse());
         sslContext.setup(context);
         return Utils.invokeSuper(context, this, args, Block.NULL_BLOCK); // super()
@@ -175,7 +175,7 @@ public class SSLSocket extends RubyObject {
         // Server Name Indication (SNI) RFC 3546
         // SNI support will not be attempted unless hostname is explicitly set by the caller
         String peerHost = this.callMethod(context, "hostname").toString();
-        final int peerPort = socketChannelImpl().getSocketPort();
+        final int peerPort = socketChannelImpl().getRemotePort();
         engine = sslContext.createSSLEngine(peerHost, peerPort);
 
         final javax.net.ssl.SSLSession session = engine.getSession();
@@ -189,8 +189,24 @@ public class SSLSocket extends RubyObject {
         return this.engine = engine;
     }
 
+    @JRubyMethod(name = "io", alias = "to_io")
+    public final RubyIO io() { return this.io; }
+
+    @JRubyMethod(name = "context")
+    public final SSLContext context() { return this.sslContext; }
+
+    @JRubyMethod(name = "sync")
+    public IRubyObject sync(final ThreadContext context) {
+        return this.io.callMethod(context, "sync");
+    }
+
+    @JRubyMethod(name = "sync=")
+    public IRubyObject set_sync(final ThreadContext context, final IRubyObject sync) {
+        return this.io.callMethod(context, "sync=", sync);
+    }
+
     @JRubyMethod
-    public IRubyObject connect(ThreadContext context) {
+    public IRubyObject connect(final ThreadContext context) {
         return connectImpl(context, true);
     }
 
@@ -728,7 +744,7 @@ public class SSLSocket extends RubyObject {
                 written = write(b1, blocking);
             }
 
-            this.callMethod(context, "io").callMethod(context, "flush");
+            this.io.callMethod(context, "flush");
 
             return runtime.newFixnum(written);
         }
@@ -787,7 +803,7 @@ public class SSLSocket extends RubyObject {
         close( sslContext.isProtocolForClient() );
 
         if ( this.callMethod(context, "sync_close").isTrue() ) {
-            this.callMethod(context, "io").callMethod(context, "close");
+            this.io.callMethod(context, "close");
         }
         return context.runtime.getNil();
     }
@@ -929,7 +945,7 @@ public class SSLSocket extends RubyObject {
 
         int write(ByteBuffer src) throws IOException ;
 
-        int getSocketPort() ;
+        int getRemotePort();
 
         boolean isSelectable() ;
 
@@ -965,7 +981,7 @@ public class SSLSocket extends RubyObject {
             return channel.write(src);
         }
 
-        public int getSocketPort() { return channel.socket().getPort(); }
+        public int getRemotePort() { return channel.socket().getPort(); }
 
         public boolean isSelectable() {
             return true; // return channel instanceof SelectableChannel;
