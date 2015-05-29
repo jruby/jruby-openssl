@@ -72,8 +72,8 @@ module OpenSSL
                 end
             end
           end
+          break
         end
-        break
       end
     rescue java.lang.Exception => e
       raise PKCS12Error, e.inspect
