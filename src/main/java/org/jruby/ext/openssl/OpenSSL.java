@@ -225,6 +225,20 @@ public final class OpenSSL {
         if ( warn ) context.runtime.getModule("OpenSSL").callMethod(context, "warn", msg);
     }
 
+    private static String javaVersion(final String def) {
+        return SafePropertyAccessor.getProperty("java.version", def);
+    }
+
+    static boolean javaVersion7(final boolean atLeast) {
+        final int gt = "1.7".compareTo( javaVersion("0.0").substring(0, 3) );
+        return atLeast ? gt <= 0 : gt == 0;
+    }
+
+    static boolean javaVersion8(final boolean atLeast) {
+        final int gt = "1.8".compareTo( javaVersion("0.0").substring(0, 3) );
+        return atLeast ? gt <= 0 : gt == 0;
+    }
+
     //
 
     static IRubyObject to_der_if_possible(final ThreadContext context, IRubyObject obj) {

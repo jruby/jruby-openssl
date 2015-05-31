@@ -68,18 +68,31 @@ public class SSL {
     static { configureJSSE(); }
 
     private static void configureJSSE() {
-        final String ephemeralDHKeySize = "jdk.tls.ephemeralDHKeySize";
-        try {
-            if ( System.getProperty(ephemeralDHKeySize) == null ) {
-                // The key size is the same as the authentication certificate,
-                // but must be between 1024 bits and 2048 bits, inclusively.
-                // However, the SunJCE provider only supports 2048-bit DH keys larger
-                // than 1024 bits. Consequently, you may use the values 1024 or 2048 only.
-                System.setProperty(ephemeralDHKeySize, "matched"); // only affects Java 8
+        if ( OpenSSL.javaVersion8(true) ) { // >= 1.8
+            final String ephemeralDHKeySize = "jdk.tls.ephemeralDHKeySize";
+            try {
+                if ( System.getProperty(ephemeralDHKeySize) == null ) {
+                    // The key size is the same as the authentication certificate,
+                    // but must be between 1024 bits and 2048 bits, inclusively.
+                    // However, the SunJCE provider only supports 2048-bit DH keys larger
+                    // than 1024 bits. Consequently, you may use the values 1024 or 2048 only.
+                    System.setProperty(ephemeralDHKeySize, "matched"); // only on Java 8
+                }
+            }
+            catch (SecurityException ex) {
+                OpenSSL.debug("setting " + ephemeralDHKeySize + " failed: " + ex);
             }
         }
-        catch (SecurityException ex) {
-            OpenSSL.debug("setting " + ephemeralDHKeySize + " failed: " + ex);
+        else { // on JDK 7 DHE is weak - disable completely (unless user-set)
+            final String disabledAlgorithms = "jdk.tls.disabledAlgorithms";
+            try {
+                if ( System.getProperty(disabledAlgorithms) == null ) {
+                    System.setProperty(disabledAlgorithms, "SSLv3, DHE");
+                }
+            }
+            catch (SecurityException se) {
+                OpenSSL.debug("setting " + disabledAlgorithms + " failed: " + se);
+            }
         }
     }
 
