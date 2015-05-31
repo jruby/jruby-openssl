@@ -239,6 +239,22 @@ public final class OpenSSL {
         return atLeast ? gt <= 0 : gt == 0;
     }
 
+    private static String javaName(final String def) {
+        // Sun Java 6 or Oracle Java 7/8
+        // "Java HotSpot(TM) Server VM" or "Java HotSpot(TM) 64-Bit Server VM"
+        // OpenJDK :
+        // "OpenJDK 64-Bit Server VM"
+        return SafePropertyAccessor.getProperty("java.vm.name", def);
+    }
+
+    static boolean javaHotSpot() {
+        return javaName("").contains("HotSpot(TM)");
+    }
+
+    static boolean javaOpenJDK() {
+        return javaName("").contains("OpenJDK");
+    }
+
     //
 
     static IRubyObject to_der_if_possible(final ThreadContext context, IRubyObject obj) {

@@ -65,35 +65,51 @@ public class SSL {
     public static final long OP_NETSCAPE_CA_DN_BUG =                        0x20000000L;
     public static final long OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG =           0x40000000L;
 
+    private static final String JSSE_TLS_ephemeralDHKeySize = "jdk.tls.ephemeralDHKeySize" ;
+    private static final String JSSE_TLS_ephemeralDHKeySize_default = "matched" ;
+    private static final String JSSE_TLS_disabledAlgorithms = "jdk.tls.disabledAlgorithms" ;
+    private static final String JSSE_TLS_disabledAlgorithms_default = "SSLv3, DHE" ;
+
     static { configureJSSE(); }
 
     private static void configureJSSE() {
         if ( OpenSSL.javaVersion8(true) ) { // >= 1.8
-            final String ephemeralDHKeySize = "jdk.tls.ephemeralDHKeySize";
             try {
-                if ( System.getProperty(ephemeralDHKeySize) == null ) {
+                if ( System.getProperty(JSSE_TLS_ephemeralDHKeySize) == null ) {
                     // The key size is the same as the authentication certificate,
                     // but must be between 1024 bits and 2048 bits, inclusively.
                     // However, the SunJCE provider only supports 2048-bit DH keys larger
                     // than 1024 bits. Consequently, you may use the values 1024 or 2048 only.
-                    System.setProperty(ephemeralDHKeySize, "matched"); // only on Java 8
+                    System.setProperty(JSSE_TLS_ephemeralDHKeySize, JSSE_TLS_ephemeralDHKeySize_default);
                 }
             }
             catch (SecurityException ex) {
-                OpenSSL.debug("setting " + ephemeralDHKeySize + " failed: " + ex);
+                OpenSSL.debug("setting " + JSSE_TLS_ephemeralDHKeySize + " failed: " + ex);
             }
         }
         else { // on JDK 7 DHE is weak - disable completely (unless user-set)
-            final String disabledAlgorithms = "jdk.tls.disabledAlgorithms";
             try {
-                if ( System.getProperty(disabledAlgorithms) == null ) {
-                    System.setProperty(disabledAlgorithms, "SSLv3, DHE");
+                if ( System.getProperty(JSSE_TLS_disabledAlgorithms) == null ) {
+                    System.setProperty(JSSE_TLS_disabledAlgorithms, JSSE_TLS_disabledAlgorithms_default);
                 }
             }
             catch (SecurityException se) {
-                OpenSSL.debug("setting " + disabledAlgorithms + " failed: " + se);
+                OpenSSL.debug("setting " + JSSE_TLS_disabledAlgorithms + " failed: " + se);
             }
         }
+    }
+
+    static RaiseException handleCouldNotGenerateDHKeyPairError(final Ruby runtime, final RuntimeException ex) {
+        String message = ex.getMessage();
+        if ( OpenSSL.javaHotSpot() || OpenSSL.javaOpenJDK() ) {
+            if ( OpenSSL.javaVersion8(false) ) { // == 1.8
+                message += " (try disabling DHE using -D"+ JSSE_TLS_disabledAlgorithms +" as only keys of size 1024/2048 are supported in Java 8)";
+            }
+            else if ( ! OpenSSL.javaVersion8(true) ) { // < 1.8
+                message += " (try disabling DHE using -D"+ JSSE_TLS_disabledAlgorithms +" as prior to Java 8 only keys of size < 1024 are supported)";
+            }
+        }
+        return newSSLError(runtime, message, ex);
     }
 
     public static void createSSL(final Ruby runtime, final RubyModule OpenSSL) {
@@ -141,12 +157,16 @@ public class SSL {
         createNonblock(SSL);
     }
 
-    public static RaiseException newSSLError(Ruby runtime, Exception exception) {
-        return Utils.newError(runtime, _SSL(runtime).getClass("SSLError"), exception);
+    public static RaiseException newSSLError(Ruby runtime, Exception ex) {
+        return Utils.newError(runtime, _SSL(runtime).getClass("SSLError"), ex);
     }
 
     public static RaiseException newSSLError(Ruby runtime, String message) {
         return Utils.newError(runtime, _SSL(runtime).getClass("SSLError"), message, false);
+    }
+
+    private static RaiseException newSSLError(Ruby runtime, String message, Exception ex) {
+        return Utils.newError(runtime, _SSL(runtime).getClass("SSLError"), message, ex);
     }
 
     public static RaiseException newSSLErrorWaitReadable(Ruby runtime, String message) {
