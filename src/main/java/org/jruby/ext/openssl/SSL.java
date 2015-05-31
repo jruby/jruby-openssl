@@ -65,6 +65,24 @@ public class SSL {
     public static final long OP_NETSCAPE_CA_DN_BUG =                        0x20000000L;
     public static final long OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG =           0x40000000L;
 
+    static { configureJSSE(); }
+
+    private static void configureJSSE() {
+        final String ephemeralDHKeySize = "jdk.tls.ephemeralDHKeySize";
+        try {
+            if ( System.getProperty(ephemeralDHKeySize) == null ) {
+                // The key size is the same as the authentication certificate,
+                // but must be between 1024 bits and 2048 bits, inclusively.
+                // However, the SunJCE provider only supports 2048-bit DH keys larger
+                // than 1024 bits. Consequently, you may use the values 1024 or 2048 only.
+                System.setProperty(ephemeralDHKeySize, "matched"); // only affects Java 8
+            }
+        }
+        catch (SecurityException ex) {
+            OpenSSL.debug("setting " + ephemeralDHKeySize + " failed: " + ex);
+        }
+    }
+
     public static void createSSL(final Ruby runtime, final RubyModule OpenSSL) {
         final RubyModule SSL = OpenSSL.defineModuleUnder("SSL");
         final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
