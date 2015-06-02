@@ -23,6 +23,31 @@ class TestSSLContext < TestCase
     end
   end
 
+  def test_verify_mode
+    context = OpenSSL::SSL::SSLContext.new
+    assert_nil context.verify_mode
+    context = OpenSSL::SSL::SSLContext.new :SSLv3
+    assert_nil context.verify_mode
+
+    server_cert = OpenSSL::X509::Certificate.new IO.read( File.join(File.dirname(__FILE__), 'server.crt') )
+    server_key = OpenSSL::PKey::RSA.new IO.read( File.join(File.dirname(__FILE__), 'server.key') )
+
+    context = OpenSSL::SSL::SSLContext.new.tap do |context|
+      context.cert = server_cert
+      context.key  = server_key
+    end
+    assert_nil context.verify_mode
+
+    client_cert = OpenSSL::X509::Certificate.new IO.read( File.join(File.dirname(__FILE__), 'client.crt') )
+    client_key = OpenSSL::PKey::RSA.new IO.read( File.join(File.dirname(__FILE__), 'client.key') )
+
+    context = OpenSSL::SSL::SSLContext.new.tap do |context|
+      context.cert = client_cert
+      context.key  = client_key
+    end
+    assert_nil context.verify_mode
+  end
+
   def test_context_set_ssl_version
     context = OpenSSL::SSL::SSLContext.new
     context.ssl_version = "TLSv1"
