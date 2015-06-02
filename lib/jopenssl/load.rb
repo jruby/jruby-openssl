@@ -3,18 +3,21 @@ warn 'Loading jruby-openssl in a non-JRuby interpreter' unless defined? JRUBY_VE
 require 'java'
 require 'jopenssl/version'
 
-version = Jopenssl::Version::BOUNCY_CASTLE_VERSION
-bc_jars = nil
-begin
-  # if we have jar-dependencies we let it track the jars
-  require_jar( 'org.bouncycastle', 'bcpkix-jdk15on', version )
-  require_jar( 'org.bouncycastle', 'bcprov-jdk15on', version )
-  bc_jars = true
-rescue LoadError
-end if defined?(Jars) && ( ! Jars.skip? ) rescue nil
-unless bc_jars
-  load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
-  load "org/bouncycastle/bcprov-jdk15on/#{version}/bcprov-jdk15on-#{version}.jar"
+# NOTE: assuming user does pull in BC .jars from somewhere else on the CP
+unless ENV_JAVA['jruby.openssl.load.jars'].eql?('false')
+  version = Jopenssl::Version::BOUNCY_CASTLE_VERSION
+  bc_jars = nil
+  begin
+    # if we have jar-dependencies we let it track the jars
+    require_jar( 'org.bouncycastle', 'bcpkix-jdk15on', version )
+    require_jar( 'org.bouncycastle', 'bcprov-jdk15on', version )
+    bc_jars = true
+  rescue LoadError
+  end if defined?(Jars) && ( ! Jars.skip? ) rescue nil
+  unless bc_jars
+    load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
+    load "org/bouncycastle/bcprov-jdk15on/#{version}/bcprov-jdk15on-#{version}.jar"
+  end
 end
 
 require 'jruby'
