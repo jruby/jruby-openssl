@@ -79,11 +79,10 @@ public class X509StoreContext extends RubyObject {
         return _X509(runtime).getClass("StoreContext");
     }
 
-    private final StoreContext storeContext;
+    private StoreContext storeContext;
 
     public X509StoreContext(Ruby runtime, RubyClass type) {
         super(runtime, type);
-        this.storeContext = new StoreContext();
     }
 
     // constructor for creating callback parameter object of verify_cb
@@ -115,19 +114,20 @@ public class X509StoreContext extends RubyObject {
             if ( args.length > 2) chain = args[2];
         }
 
-        final X509AuxCertificate x509Cert = cert.isNil() ? null : ((X509Cert) cert).getAuxCert();
-        final List<X509AuxCertificate> x509Certs;
+        final X509AuxCertificate _cert = cert.isNil() ? null : ((X509Cert) cert).getAuxCert();
+        final List<X509AuxCertificate> _chain;
         if ( ! chain.isNil() ) {
             @SuppressWarnings("unchecked")
             final List<X509Cert> certs = (List<X509Cert>) chain; // RubyArray
-            x509Certs = new ArrayList<X509AuxCertificate>( certs.size() );
-            for ( X509Cert x : certs ) x509Certs.add( x.getAuxCert() );
+            _chain = new ArrayList<X509AuxCertificate>( certs.size() );
+            for ( X509Cert x : certs ) _chain.add( x.getAuxCert() );
         }
         else {
-            x509Certs = new ArrayList<X509AuxCertificate>(4);
+            _chain = new ArrayList<X509AuxCertificate>(4);
         }
 
-        if ( storeContext.init(store.getStore(), x509Cert, x509Certs) != 1 ) {
+        this.storeContext = new StoreContext(store.getStore());
+        if ( storeContext.init(_cert, _chain) != 1 ) {
             throw newStoreError(context.runtime, null);
         }
 

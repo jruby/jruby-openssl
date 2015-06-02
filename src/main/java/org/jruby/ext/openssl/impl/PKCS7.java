@@ -218,19 +218,19 @@ public class PKCS7 {
     /* c: PKCS7_get0_signers
      *
      */
-    public List<X509AuxCertificate> getSigners(Collection<X509AuxCertificate> certs, List<SignerInfoWithPkey> sinfos, int flags) throws PKCS7Exception {
-        List<X509AuxCertificate> signers = new ArrayList<X509AuxCertificate>();
-
-        if(!isSigned()) {
-            throw new PKCS7Exception(F_PKCS7_GET0_SIGNERS,R_WRONG_CONTENT_TYPE);
+    public List<X509AuxCertificate> getSigners(Collection<X509AuxCertificate> certs, Collection<SignerInfoWithPkey> infos, int flags) throws PKCS7Exception {
+        if ( ! isSigned() ) {
+            throw new PKCS7Exception(F_PKCS7_GET0_SIGNERS, R_WRONG_CONTENT_TYPE);
         }
 
-        if(sinfos.size() == 0) {
-            throw new PKCS7Exception(F_PKCS7_GET0_SIGNERS,R_NO_SIGNERS);
+        if ( infos == null || infos.size() == 0) {
+            throw new PKCS7Exception(F_PKCS7_GET0_SIGNERS, R_NO_SIGNERS);
         }
 
-        for(SignerInfoWithPkey si : sinfos) {
-            IssuerAndSerialNumber ias = si.getIssuerAndSerialNumber();
+        final ArrayList<X509AuxCertificate> signers = new ArrayList<X509AuxCertificate>(infos.size());
+
+        for ( final SignerInfoWithPkey info : infos ) {
+            final IssuerAndSerialNumber ias = info.getIssuerAndSerialNumber();
             X509AuxCertificate signer = null;
 //             System.err.println("looking for: " + ias.getName() + " and " + ias.getCertificateSerialNumber());
 //             System.err.println(" in: " + certs);
@@ -329,53 +329,56 @@ public class PKCS7 {
      *
      */
     public void verify(Collection<X509AuxCertificate> certs, Store store, BIO indata, BIO out, int flags) throws PKCS7Exception {
-        if(!isSigned()) {
+        if ( ! isSigned() ) {
             throw new PKCS7Exception(F_PKCS7_VERIFY, R_WRONG_CONTENT_TYPE);
         }
 
-        if(getDetached() != 0 && indata == null) {
+        if ( getDetached() != 0 && indata == null ) {
             throw new PKCS7Exception(F_PKCS7_VERIFY, R_NO_CONTENT);
         }
 
-        List<SignerInfoWithPkey> sinfos = new ArrayList<SignerInfoWithPkey>(getSignerInfo());
-        if(sinfos.size() == 0) {
+        Collection<SignerInfoWithPkey> infos = getSignerInfo();
+        if ( infos == null || infos.size() == 0 ) {
             throw new PKCS7Exception(F_PKCS7_VERIFY, R_NO_SIGNATURES_ON_DATA);
         }
 
-        List<X509AuxCertificate> signers = getSigners(certs, sinfos, flags);
-        if(signers == null) {
+        List<X509AuxCertificate> signers = getSigners(certs, infos, flags);
+        if ( signers == null ) {
             throw new NotVerifiedPKCS7Exception();
         }
 
         /* Now verify the certificates */
-        if((flags & NOVERIFY) == 0) {
-            for(X509AuxCertificate signer : signers) {
-                StoreContext cert_ctx = new StoreContext();
-                if((flags & NOCHAIN) == 0) {
-                    if(cert_ctx.init(store, signer, new ArrayList<X509AuxCertificate>(getSign().getCert())) == 0) {
+        if ( (flags & NOVERIFY) == 0 ) {
+            for ( final X509AuxCertificate signer : signers ) {
+                final StoreContext certContext = new StoreContext(store);
+                if ( (flags & NOCHAIN) == 0 ) {
+                    if ( certContext.init(signer, new ArrayList<X509AuxCertificate>(getSign().getCert())) == 0 ) {
                         throw new PKCS7Exception(F_PKCS7_VERIFY, -1);
                     }
-                    cert_ctx.setPurpose(X509Utils.X509_PURPOSE_SMIME_SIGN);
-                } else if(cert_ctx.init(store, signer, null) == 0) {
+                    certContext.setPurpose(X509Utils.X509_PURPOSE_SMIME_SIGN);
+                }
+                else if ( certContext.init(signer, null) == 0 ) {
                     throw new PKCS7Exception(F_PKCS7_VERIFY, -1);
                 }
-                cert_ctx.setExtraData(1, store.getExtraData(1));
-                if((flags & NOCRL) == 0) {
-                    cert_ctx.setCRLs((List<X509CRL>)getSign().getCrl());
+                certContext.setExtraData(1, store.getExtraData(1));
+                if ( (flags & NOCRL) == 0 ) {
+                    certContext.setCRLs((List<X509CRL>) getSign().getCrl());
                 }
                 try {
-                    int i = cert_ctx.verifyCertificate();
+                    int i = certContext.verifyCertificate();
                     int j = 0;
-                    if(i <= 0) {
-                        j = cert_ctx.getError();
+                    if (i <= 0) {
+                        j = certContext.getError();
                     }
-                    cert_ctx.cleanup();
-                    if(i <= 0) {
+                    certContext.cleanup();
+                    if ( i <= 0 ) {
                         throw new PKCS7Exception(F_PKCS7_VERIFY, R_CERTIFICATE_VERIFY_ERROR, "Verify error:" + X509Utils.verifyCertificateErrorString(j));
                     }
-                } catch(PKCS7Exception e) {
+                }
+                catch (PKCS7Exception e) {
                     throw e;
-                } catch(Exception e) {
+                }
+                catch (Exception e) {
                     throw new PKCS7Exception(F_PKCS7_VERIFY, R_CERTIFICATE_VERIFY_ERROR, e);
                 }
             }
@@ -383,44 +386,33 @@ public class PKCS7 {
 
         BIO tmpin = indata;
         BIO p7bio = dataInit(tmpin);
-        BIO tmpout;
-        if((flags & TEXT) != 0) {
-            tmpout = BIO.mem();
-        } else {
-            tmpout = out;
-        }
+        final BIO tmpout = ( flags & TEXT ) != 0 ? BIO.mem() : out;
 
-        byte[] buf = new byte[4096];
+        final byte[] buf = new byte[4096];
         for(;;) {
             try {
-                int i = p7bio.read(buf, 0, buf.length);
-                if(i <= 0) {
-                    break;
-                }
-                if(tmpout != null) {
-                    tmpout.write(buf, 0, i);
-                }
-            } catch(IOException e) {
+                final int i = p7bio.read(buf, 0, buf.length);
+                if ( i <= 0 ) break;
+                if (tmpout != null) tmpout.write(buf, 0, i);
+            }
+            catch (IOException e) {
                 throw new PKCS7Exception(F_PKCS7_VERIFY, -1, e);
             }
         }
 
-        if((flags & TEXT) != 0) {
+        if ( (flags & TEXT) != 0 ) {
             new SMIME(Mime.DEFAULT).text(tmpout, out);
         }
 
-        if((flags & NOSIGS) == 0) {
-            for(int i=0; i<sinfos.size(); i++) {
-                SignerInfoWithPkey si = sinfos.get(i);
-                X509AuxCertificate signer = signers.get(i);
-                signatureVerify(p7bio, si, signer);
+        if ( (flags & NOSIGS) == 0 ) {
+            int i = 0; for ( SignerInfoWithPkey info : infos ) {
+                X509AuxCertificate signer = signers.get(i++);
+                signatureVerify(p7bio, info, signer);
             }
         }
 
-        if(tmpin == indata) {
-            if(indata != null) {
-                p7bio.pop();
-            }
+        if ( tmpin == indata ) {
+            if ( indata != null ) p7bio.pop();
         }
     }
 

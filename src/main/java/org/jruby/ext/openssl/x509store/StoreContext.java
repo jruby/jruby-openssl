@@ -43,7 +43,6 @@ import java.util.Set;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
-import org.jruby.Ruby;
 import org.jruby.ext.openssl.SecurityHelper;
 
 /**
@@ -53,17 +52,23 @@ import org.jruby.ext.openssl.SecurityHelper;
  */
 public class StoreContext {
 
-    private Store store;
+    private static final Integer ZERO = 0;
 
-    public int currentMethod;
+    private final Store store;
 
-    public X509AuxCertificate certificate;
-    public List<X509AuxCertificate> untrusted;
-    public List<X509CRL> crls;
+    private int currentMethod;
+
+    X509AuxCertificate certificate;
+    List<X509AuxCertificate> untrusted;
+    List<X509CRL> crls;
 
     public VerifyParameter verifyParameter;
 
     public List<X509AuxCertificate> otherContext;
+
+    public StoreContext(final Store store) {
+        this.store = store;
+    }
 
     public static interface CheckPolicyFunction extends Function1<StoreContext> {
         public static final CheckPolicyFunction EMPTY = new CheckPolicyFunction(){
@@ -200,11 +205,10 @@ public class StoreContext {
     /**
      * c: X509_STORE_CTX_init
      */
-    public int init(Store store, X509AuxCertificate x509, List<X509AuxCertificate> chain) {
+    public int init(X509AuxCertificate cert, List<X509AuxCertificate> chain) {
         int ret = 1;
-        this.store = store;
         this.currentMethod = 0;
-        this.certificate = x509;
+        this.certificate = cert;
         this.untrusted = chain;
         this.crls = null;
         this.lastUntrusted = 0;
@@ -420,16 +424,17 @@ public class StoreContext {
      * c: X509_STORE_CTX_set_purpose
      */
     public int setPurpose(int purpose) {
-        return purposeInherit(0,purpose,0);
+        return purposeInherit(0, purpose, 0);
     }
 
     /**
      * c: X509_STORE_CTX_set_trust
      */
     public int setTrust(int trust) {
-        return purposeInherit(0,0,trust);
+        return purposeInherit(0, 0, trust);
     }
 
+    /*
     private void resetSettingsToWithoutStore() {
         store = null;
         this.verifyParameter = new VerifyParameter();
@@ -444,11 +449,12 @@ public class StoreContext {
         this.getCRL = defaultGetCRL;
         this.checkCRL = defaultCheckCRL;
         this.certificateCRL = defaultCertificateCRL;
-    }
+    } */
 
     /**
      * c: SSL_CTX_load_verify_locations
      */
+    /*
     public int loadVerifyLocations(Ruby runtime, String CAfile, String CApath) {
         boolean reset = false;
         try {
@@ -494,7 +500,7 @@ public class StoreContext {
             if ( reset ) resetSettingsToWithoutStore();
             return 0;
         }
-    }
+    } */
 
     /**
      * c: X509_STORE_CTX_purpose_inherit
@@ -594,9 +600,7 @@ public class StoreContext {
      */
     public int setDefault(String name) {
         VerifyParameter p = VerifyParameter.lookup(name);
-        if(p == null) {
-            return 0;
-        }
+        if ( p == null ) return 0;
         return verifyParameter.inherit(p);
     }
 
@@ -703,7 +707,7 @@ public class StoreContext {
                     currentCertificate = x;
                     errorDepth = i-1;
                     bad_chain = 1;
-                    ok = verifyCallback.call(this, Integer.valueOf(0));
+                    ok = verifyCallback.call(this, ZERO);
                     if ( ok == 0 ) return ok;
                 } else {
                     // We have a match: replace certificate with store version
@@ -761,7 +765,7 @@ public class StoreContext {
             }
             errorDepth = num - 1;
             bad_chain = 1;
-            int ok = verifyCallback.call(this, Integer.valueOf(0));
+            int ok = verifyCallback.call(this, ZERO);
             if ( ok == 0 ) return ok;
         }
 
@@ -848,14 +852,14 @@ public class StoreContext {
                 error = X509Utils.V_ERR_UNHANDLED_CRITICAL_EXTENSION;
                 errorDepth = i;
                 currentCertificate = x;
-                ok = verifyCallback.call(this, Integer.valueOf(0));
+                ok = verifyCallback.call(this, ZERO);
                 if ( ok == 0 ) return ok;
             }
             if ( allow_proxy_certs == 0 && x.getExtensionValue("1.3.6.1.5.5.7.1.14") != null ) {
                 error = X509Utils.V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED;
                 errorDepth = i;
                 currentCertificate = x;
-                ok = verifyCallback.call(this, Integer.valueOf(0));
+                ok = verifyCallback.call(this, ZERO);
                 if ( ok == 0 ) return ok;
             }
 
@@ -889,7 +893,7 @@ public class StoreContext {
             if(ret == 0) {
                 errorDepth = i;
                 currentCertificate = x;
-                ok = verifyCallback.call(this, Integer.valueOf(0));
+                ok = verifyCallback.call(this, ZERO);
                 if ( ok == 0 ) return ok;
             }
             if(verifyParameter.purpose > 0) {
@@ -898,7 +902,7 @@ public class StoreContext {
                     error = X509Utils.V_ERR_INVALID_PURPOSE;
                     errorDepth = i;
                     currentCertificate = x;
-                    ok = verifyCallback.call(this, Integer.valueOf(0));
+                    ok = verifyCallback.call(this, ZERO);
                     if(ok == 0) {
                         return ok;
                     }
@@ -909,7 +913,7 @@ public class StoreContext {
                 error = X509Utils.V_ERR_PATH_LENGTH_EXCEEDED;
                 errorDepth = i;
                 currentCertificate = x;
-                ok = verifyCallback.call(this, Integer.valueOf(0));
+                ok = verifyCallback.call(this, ZERO);
                 if ( ok == 0 ) return ok;
             }
 
@@ -921,7 +925,7 @@ public class StoreContext {
                         error = X509Utils.V_ERR_PROXY_PATH_LENGTH_EXCEEDED;
                         errorDepth = i;
                         currentCertificate = x;
-                        ok = verifyCallback.call(this, Integer.valueOf(0));
+                        ok = verifyCallback.call(this, ZERO);
                         if ( ok == 0 ) return ok;
                     }
                 }
@@ -953,7 +957,7 @@ public class StoreContext {
         } else {
             error = X509Utils.V_ERR_CERT_UNTRUSTED;
         }
-        return verifyCallback.call(this, Integer.valueOf(0));
+        return verifyCallback.call(this, ZERO);
     }
 
     /**
@@ -970,14 +974,14 @@ public class StoreContext {
         if ( ! x.getNotBefore().before(pTime) ) {
             error = X509Utils.V_ERR_CERT_NOT_YET_VALID;
             currentCertificate = x;
-            if ( verifyCallback.call(this, Integer.valueOf(0)) == 0 ) {
+            if ( verifyCallback.call(this, ZERO) == 0 ) {
                 return 0;
             }
         }
         if ( ! x.getNotAfter().after(pTime) ) {
             error = X509Utils.V_ERR_CERT_HAS_EXPIRED;
             currentCertificate = x;
-            if ( verifyCallback.call(this, Integer.valueOf(0)) == 0 ) {
+            if ( verifyCallback.call(this, ZERO) == 0 ) {
                 return 0;
             }
         }
@@ -997,7 +1001,7 @@ public class StoreContext {
         ok = getCRL.call(this, crl, x);
         if ( ok == 0 ) {
             error = X509Utils.V_ERR_UNABLE_TO_GET_CRL;
-            ok = verifyCallback.call(this, Integer.valueOf(0));
+            ok = verifyCallback.call(this, ZERO);
             currentCRL = null;
             return ok;
         }
@@ -1026,13 +1030,13 @@ public class StoreContext {
 
         if ( ! crl.getThisUpdate().before(pTime) ) {
             error = X509Utils.V_ERR_CRL_NOT_YET_VALID;
-            if ( notify == 0 || verifyCallback.call(this, Integer.valueOf(0)) == 0 ) {
+            if ( notify == 0 || verifyCallback.call(this, ZERO) == 0 ) {
                 return 0;
             }
         }
         if ( crl.getNextUpdate() != null && !crl.getNextUpdate().after(pTime) ) {
             error = X509Utils.V_ERR_CRL_HAS_EXPIRED;
-            if ( notify == 0 || verifyCallback.call(this, Integer.valueOf(0)) == 0 ) {
+            if ( notify == 0 || verifyCallback.call(this, ZERO) == 0 ) {
                 return 0;
             }
         }
@@ -1099,7 +1103,7 @@ public class StoreContext {
             context.currentCertificate = cert;
             context.currentIssuer = issuer;
 
-            return context.verifyCallback.call(context, Integer.valueOf(0));
+            return context.verifyCallback.call(context, ZERO);
         }
     };
 
@@ -1133,7 +1137,7 @@ public class StoreContext {
                 if ( n <= 0 ) {
                     context.error = X509Utils.V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
                     context.currentCertificate = xi;
-                    ok = verifyCallback.call(context, Integer.valueOf(0));
+                    ok = verifyCallback.call(context, ZERO);
                     return ok;
                 }
                 else {
@@ -1159,7 +1163,7 @@ public class StoreContext {
                         */
                         context.error = X509Utils.V_ERR_CERT_SIGNATURE_FAILURE;
                         context.currentCertificate = xs;
-                        ok = verifyCallback.call(context, Integer.valueOf(0));
+                        ok = verifyCallback.call(context, ZERO);
                         if ( ok == 0 ) return ok;
                     }
                 }
@@ -1252,7 +1256,7 @@ public class StoreContext {
                 issuer = context.chain.get(lastInChain);
                 if ( context.checkIssued.call(context,issuer,issuer) == 0 ) {
                     context.error = X509Utils.V_ERR_UNABLE_TO_GET_CRL_ISSUER;
-                    ok = context.verifyCallback.call(context, Integer.valueOf(0));
+                    ok = context.verifyCallback.call(context, ZERO);
                     if ( ok == 0 ) return ok;
                 }
             }
@@ -1260,13 +1264,13 @@ public class StoreContext {
             if ( issuer != null ) {
                 if ( issuer.getKeyUsage() != null && ! issuer.getKeyUsage()[6] ) {
                     context.error = X509Utils.V_ERR_KEYUSAGE_NO_CRL_SIGN;
-                    ok = context.verifyCallback.call(context, Integer.valueOf(0));
+                    ok = context.verifyCallback.call(context, ZERO);
                     if ( ok == 0 ) return ok;
                 }
                 final PublicKey ikey = issuer.getPublicKey();
                 if ( ikey == null ) {
                     context.error = X509Utils.V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY;
-                    ok = context.verifyCallback.call(context, Integer.valueOf(0));
+                    ok = context.verifyCallback.call(context, ZERO);
                     if ( ok == 0 ) return ok;
                 }
                 else {
@@ -1275,7 +1279,7 @@ public class StoreContext {
                     }
                     catch (GeneralSecurityException ex) {
                         context.error = X509Utils.V_ERR_CRL_SIGNATURE_FAILURE;
-                        ok = context.verifyCallback.call(context, Integer.valueOf(0));
+                        ok = context.verifyCallback.call(context, ZERO);
                         if ( ok == 0 ) return ok;
                     }
                 }
@@ -1296,7 +1300,7 @@ public class StoreContext {
             int ok;
             if ( crl.getRevokedCertificate( x.getSerialNumber() ) != null ) {
                 context.error = X509Utils.V_ERR_CERT_REVOKED;
-                ok = context.verifyCallback.call(context, Integer.valueOf(0));
+                ok = context.verifyCallback.call(context, ZERO);
                 if ( ok == 0 ) return 0;
             }
             if ( (context.verifyParameter.flags & X509Utils.V_FLAG_IGNORE_CRITICAL) != 0 ) {
@@ -1304,7 +1308,7 @@ public class StoreContext {
             }
             if ( crl.getCriticalExtensionOIDs() != null && crl.getCriticalExtensionOIDs().size() > 0 ) {
                 context.error = X509Utils.V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION;
-                ok = context.verifyCallback.call(context, Integer.valueOf(0));
+                ok = context.verifyCallback.call(context, ZERO);
                 if ( ok == 0 ) return 0;
             }
             return 1;

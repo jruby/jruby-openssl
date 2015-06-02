@@ -265,7 +265,6 @@ public class SSLContext extends RubyObject {
     private PKey t_key;
     private X509Cert t_cert;
 
-    /* TODO: should move to SSLSession after implemented */
     private int verifyResult = 1; /* avoid 0 (= X509_V_OK) just in case */
 
     //private int sessionCacheMode; // 2 default on MRI
@@ -409,7 +408,8 @@ public class SSLContext extends RubyObject {
             // SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
         }
 
-        /* TODO: should be implemented for SSLSession
+        // NOTE: no API under javax.net to support session get/new/remove callbacks
+        /*
         val = ossl_sslctx_get_sess_id_ctx(self);
         if (!NIL_P(val)){
             StringValue(val);
@@ -883,15 +883,12 @@ public class SSLContext extends RubyObject {
         StoreContext createStoreContext(final String purpose) {
             if ( store == null ) return null;
 
-            final StoreContext storeContext = new StoreContext();
-            if ( storeContext.init(store, null, null) == 0 ) {
-                return null;
-            }
+            final StoreContext storeContext = new StoreContext(store);
+            if ( storeContext.init(null, null) == 0 ) return null;
+
             // for verify_cb
             storeContext.setExtraData(1, store.getExtraData(1));
-            if ( purpose != null ) {
-                storeContext.setDefault(purpose);
-            }
+            if ( purpose != null ) storeContext.setDefault(purpose);
             storeContext.verifyParameter.inherit(store.verifyParameter);
             return storeContext;
         }

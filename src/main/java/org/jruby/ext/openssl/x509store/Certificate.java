@@ -34,7 +34,11 @@ package org.jruby.ext.openssl.x509store;
  */
 public class Certificate extends X509Object {
 
-    public X509AuxCertificate x509;
+    public final X509AuxCertificate x509;
+
+    public Certificate(final X509AuxCertificate cert) {
+        this.x509 = cert;
+    }
 
     @Override
     public int type() {

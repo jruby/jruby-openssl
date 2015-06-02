@@ -281,8 +281,7 @@ public class Store implements X509TrustManager {
     public int addCertificate(final X509Certificate cert) {
         if ( cert == null ) return 0;
 
-        final Certificate certObj = new Certificate();
-        certObj.x509 = StoreContext.ensureAux(cert);
+        final Certificate certObj = new Certificate(StoreContext.ensureAux(cert));
 
         final X509Object[] objects = this.objects;
         if ( matchedObject(objects, certObj) ) {

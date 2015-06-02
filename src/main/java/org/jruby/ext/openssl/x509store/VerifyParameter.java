@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2006 Ola Bini <ola@ologix.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -48,12 +48,12 @@ public class VerifyParameter {
     public int purpose;
     public int trust;
     public int depth;
-    public List<ASN1Primitive> policies;
+    List<ASN1Primitive> policies;
 
     /**
      * c: X509_VERIFY_PARAM_new
      */
-    public VerifyParameter() { 
+    public VerifyParameter() {
         zero();
     }
 
@@ -84,11 +84,11 @@ public class VerifyParameter {
     public void free() {
         zero();
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_inherit
      */
-    public int inherit(VerifyParameter src) { 
+    public int inherit(VerifyParameter src) {
         long inh_flags;
         boolean to_d, to_o;
 
@@ -133,100 +133,100 @@ public class VerifyParameter {
         }
         return 1;
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_set1
      */
-    public int set(VerifyParameter from) { 
+    public int set(VerifyParameter from) {
         inheritFlags |= X509Utils.X509_VP_FLAG_DEFAULT;
         return inherit(from);
-    } 
-    
+    }
+
     /**
      * c: X509_VERIFY_PARAM_set1_name
      */
-    public int setName(String name) { 
+    public int setName(String name) {
         this.name = name;
         return 1;
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_set_flags
      */
-    public int setFlags(long flags) { 
+    public int setFlags(long flags) {
         this.flags |= flags;
         if((flags & X509Utils.V_FLAG_POLICY_MASK) == X509Utils.V_FLAG_POLICY_MASK) {
             this.flags |= X509Utils.V_FLAG_POLICY_CHECK;
         }
         return 1;
-    } 
-    
+    }
+
     /**
      * c: X509_VERIFY_PARAM_clear_flags
      */
-    public int clearFlags(long flags) { 
+    public int clearFlags(long flags) {
         this.flags &= ~flags;
         return 1;
-    } 
-    
+    }
+
     /**
      * c: X509_VERIFY_PARAM_get_flags
      */
-    public long getFlags() { 
+    public long getFlags() {
         return flags;
-    } 
-    
+    }
+
     /**
      * c: X509_VERIFY_PARAM_set_purpose
      */
-    public int setPurpose(int purpose) { 
+    public int setPurpose(int purpose) {
         int[] arg = new int[]{this.purpose};
         int v = Purpose.set(arg,purpose);
         this.purpose = arg[0];
         return v;
-    } 
-    
+    }
+
     /**
      * c: X509_VERIFY_PARAM_set_trust
      */
-    public int setTrust(int trust) { 
+    public int setTrust(int trust) {
         int[] arg = new int[]{this.trust};
         int v = Trust.set(arg,trust);
         this.trust = arg[0];
         return v;
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_set_depth
      */
     public void setDepth(int depth) {
         this.depth = depth;
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_set_time
      */
     public void setTime(Date t) {
         this.checkTime = t;
         this.flags |= X509Utils.V_FLAG_USE_CHECK_TIME;
-    } 
-    
+    }
+
     /**
      * c: X509_VERIFY_PARAM_add0_policy
      */
-    public int addPolicy(ASN1Primitive policy) { 
-        if(policies == null) {
+    public int addPolicy(ASN1Primitive policy) {
+        if (policies == null) {
             policies = new ArrayList<ASN1Primitive>();
         }
         policies.add(policy);
         return 1;
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_set1_policies
      */
-    public int setPolicies(List<ASN1Primitive> policies) { 
-        if(policies == null) {
+    public int setPolicies(List<ASN1Primitive> policies) {
+        if (policies == null) {
             this.policies = null;
             return 1;
         }
@@ -235,18 +235,18 @@ public class VerifyParameter {
         this.flags |= X509Utils.V_FLAG_POLICY_CHECK;
         return 1;
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_get_depth
      */
-    public int getDepth() { 
+    public int getDepth() {
         return depth;
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_add0_table
      */
-    public int addTable() { 
+    public int addTable() {
         for(Iterator<VerifyParameter> iter = parameterTable.iterator();iter.hasNext();) {
             VerifyParameter v = iter.next();
             if(this.name.equals(v.name)) {
@@ -255,9 +255,9 @@ public class VerifyParameter {
         }
         parameterTable.add(this);
         return 1;
-    } 
+    }
 
-    public static VerifyParameter lookup(String name) { 
+    public static VerifyParameter lookup(String name) {
         for(VerifyParameter v : parameterTable) {
             if(name.equals(v.name)) {
                 return v;
@@ -268,15 +268,15 @@ public class VerifyParameter {
                 return v;
             }
         }
-        return null; 
+        return null;
     }
-    
+
     /**
      * c: X509_VERIFY_PARAM_table_cleanup
      */
     public static void tableCleanup() {
         parameterTable.clear();
-    } 
+    }
 
     private final static VerifyParameter[] defaultTable = new VerifyParameter[] {
         new VerifyParameter(
