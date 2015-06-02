@@ -22,25 +22,32 @@ module OpenSSL
 
     def verify_certificate_identity(cert, hostname)
       should_verify_common_name = true
-      cert.extensions.each{|ext|
+      cert.extensions.each { |ext|
         next if ext.oid != "subjectAltName"
-        ext.value.split(/,\s+/).each{|general_name|
+        ext.value.split(/,\s+/).each { |general_name|
+          # MRI 1.9.3 (since we parse ASN.1 differently)
+          # when 2 # dNSName in GeneralName (RFC5280)
           if /\ADNS:(.*)/ =~ general_name
             should_verify_common_name = false
             reg = Regexp.escape($1).gsub(/\\\*/, "[^.]+")
             return true if /\A#{reg}\z/i =~ hostname
-          # NOTE: somehow we need the IP: canonical form
-          # seems there were failures elsewhere when not
-          # not sure how that's possible possible to-do!
+          # MRI 1.9.3 (since we parse ASN.1 differently)
+          # when 7 # iPAddress in GeneralName (RFC5280)
           elsif /\AIP(?: Address)?:(.*)/ =~ general_name
-          #elsif /\AIP Address:(.*)/ =~ general_name
             should_verify_common_name = false
             return true if $1 == hostname
+            # NOTE: bellow logic makes little sense as we read exts differently
+            #value = $1 # follows GENERAL_NAME_print() in x509v3/v3_alt.c
+            #if value.size == 4
+            #  return true if value.unpack('C*').join('.') == hostname
+            #elsif value.size == 16
+            #  return true if value.unpack('n*').map { |e| sprintf("%X", e) }.join(':') == hostname
+            #end
           end
         }
       }
       if should_verify_common_name
-        cert.subject.to_a.each{|oid, value|
+        cert.subject.to_a.each { |oid, value|
           if oid == "CN"
             reg = Regexp.escape(value).gsub(/\\\*/, "[^.]+")
             return true if /\A#{reg}\z/i =~ hostname
