@@ -3,8 +3,9 @@
 Gem::Specification.new do |s|
   s.name = 'jruby-openssl'
 
-  path = File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
-  s.version = File.read(path).match( /.*VERSION\s*=\s*['"](.*)['"]/m )[1]
+  version_rb = File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
+  version_rb = File.read(version_rb)
+  s.version = version_rb.match( /.*VERSION\s*=\s*['"](.*)['"]/m )[1]
 
   s.platform = 'java'
   s.authors = ['Ola Bini', 'JRuby contributors']
@@ -21,8 +22,11 @@ Gem::Specification.new do |s|
     select { |f| f =~ /^(lib)/ || f =~ /^History|LICENSE|README|Rakefile/i } +
     Dir.glob('lib/**/*.jar') # 'lib/jopenssl.jar' and potentially BC jars
 
-  s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
-  s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{Jopenssl::Version::BOUNCY_CASTLE_VERSION}"
+  bc_version = version_rb.match( /.*BOUNCY_CASTLE_VERSION\s*=\s*['"](.*)['"]/m )[1]
+  raise 'BOUNCY_CASTLE_VERSION not matched' if (bc_version || '').empty?
+
+  s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{bc_version}"
+  s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{bc_version}"
 
   s.add_development_dependency 'jar-dependencies', '~> 0.1.0'
 
