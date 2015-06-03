@@ -1,10 +1,11 @@
 #-*- mode: ruby -*-
 
-require "#{File.dirname(__FILE__)}/lib/jopenssl/version.rb"
-
 Gem::Specification.new do |s|
   s.name = 'jruby-openssl'
-  s.version = Jopenssl::Version::VERSION
+
+  path = File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
+  s.version = File.read(path).match( /.*VERSION\s*=\s*['"](.*)['"]/m )[1]
+
   s.platform = 'java'
   s.authors = ['Ola Bini', 'JRuby contributors']
   s.email = "ola.bini@gmail.com"
