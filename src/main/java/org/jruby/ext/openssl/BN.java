@@ -280,7 +280,7 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name = "to_bn")
-    public IRubyObject to_bn() {
+    public BN to_bn() {
         return this;
     }
 
@@ -850,6 +850,16 @@ public class BN extends RubyObject {
         if ( arg instanceof BN ) return ((BN) arg).value;
 
         throw arg.getRuntime().newTypeError("Cannot convert into OpenSSL::BN");
+    }
+
+    @Override
+    public Object toJava(Class target) {
+        if ( target.isAssignableFrom(BigInteger.class) || target == Number.class ) return value;
+        if ( target == Long.class || target == Long.TYPE ) return value.longValue();
+        if ( target == Integer.class || target == Integer.TYPE ) return value.intValue();
+        if ( target == Double.class || target == Double.TYPE ) return value.doubleValue();
+        if ( target == Float.class || target == Float.TYPE ) return value.floatValue();
+        return super.toJava(target);
     }
 
 }

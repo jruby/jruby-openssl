@@ -38,4 +38,9 @@ class TestBN < TestCase
     assert_equal bn, 1234567890123456789012345678901234567890.to_bn
   end
 
+  def test_to_java
+    assert_equal java.lang.Integer.new(42), OpenSSL::BN.new('42').to_java(:int)
+    assert_equal java.math.BigInteger.valueOf(24), OpenSSL::BN.new('24').to_java
+  end if defined? JRUBY_VERSION
+
 end
