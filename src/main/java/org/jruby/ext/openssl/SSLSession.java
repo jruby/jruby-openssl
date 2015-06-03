@@ -150,4 +150,12 @@ public class SSLSession extends RubyObject {
         return timeout;
     }
 
+    @Override
+    public Object toJava(Class target) {
+        if ( javax.net.ssl.SSLSession.class.isAssignableFrom(target) ) {
+            return sslSession();
+        }
+        return super.toJava(target);
+    }
+
 }
