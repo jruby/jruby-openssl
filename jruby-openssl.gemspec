@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
 
   version_rb = File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
   version_rb = File.read(version_rb)
-  s.version = version_rb.match( /.*VERSION\s*=\s*['"](.*)['"]/m )[1]
+  s.version = version_rb.match( /.*\sVERSION\s*=\s*['"](.*)['"]/ )[1]
 
   s.platform = 'java'
   s.authors = ['Ola Bini', 'JRuby contributors']
@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
     select { |f| f =~ /^(lib)/ || f =~ /^History|LICENSE|README|Rakefile/i } +
     Dir.glob('lib/**/*.jar') # 'lib/jopenssl.jar' and potentially BC jars
 
-  bc_version = version_rb.match( /.*BOUNCY_CASTLE_VERSION\s*=\s*['"](.*)['"]/m )[1]
+  bc_version = version_rb.match( /.*\sBOUNCY_CASTLE_VERSION\s*=\s*['"](.*)['"]/ )[1]
   raise 'BOUNCY_CASTLE_VERSION not matched' if (bc_version || '').empty?
 
   s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{bc_version}"
