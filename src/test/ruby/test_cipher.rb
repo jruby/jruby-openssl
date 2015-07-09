@@ -27,6 +27,7 @@ class TestCipher < TestCase
     OpenSSL::Cipher.new 'PBEWithSHA1AndRC2_40-CBC' # Sun JCE
     #OpenSSL::Cipher.new 'RSA/ECB' # Sun JCE
     OpenSSL::Cipher.new 'RSA/ECB/OAEPWITHSHA-512ANDMGF1PADDING' # Sun JCE
+    OpenSSL::Cipher.new 'RSA/ECB/OAEPWithSHA1AndMGF1Padding' # Sun JCE
     OpenSSL::Cipher.new 'DESedeWrap/CBC/NOPADDING' # Sun JCE
     OpenSSL::Cipher.new 'XTEA/CBC/PKCS7Padding' # BC
     OpenSSL::Cipher.new 'Noekeon/CBC/ZeroBytePadding' # BC
