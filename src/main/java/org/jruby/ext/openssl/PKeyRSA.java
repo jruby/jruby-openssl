@@ -434,7 +434,7 @@ public class PKeyRSA extends PKey {
         if ( padding == 3 ) {
             p = "/ECB/NoPadding";
         } else if ( padding == 4 ) {
-            p = "/ECB/OAEPWithMD5AndMGF1Padding";
+            p = "/ECB/OAEPWithSHA1AndMGF1Padding";
         } else if ( padding == 2 ) {
             p = "/ECB/ISO9796-1Padding";
         }
