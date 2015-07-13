@@ -1,3 +1,23 @@
+## 0.9.8.dev
+
+* fixing oaep encryption to use correct algorithm (#54)
+* [experimental] support NOT loading any (BC) jars on our own ... (#10)
+* disable DHE (by default) on Java <= 7 ... on Java 8 we (still) force 1024/2048
+  (see jruby/jruby#2872 and #45)
+* handle parsing of "incomplete" X.509 certificates like MRI does (#42)
+* implement a CRL/certificate caching (for now off by default) in Lookup
+  ... set *-J-Djruby.openssl.x509.lookup.cache=true* to enable
+* improve Store helper concurrency (with less synchronization)
+* reviewed OpenSSL's .rb parts to match those present in MRI 1.9.3 / 2.2.2
+* initial support for `OpenSSL::SSL::Session` (id, time, timeout work)
+* session_cache_mode as present in OpenSSL makes no sense with Java APIs
+* use the set SSLContext#session_cache_size on the underlying javax.net API
+* tidy up SSLSocket's internals + add stack-trace debugging on accept/connect
+* add SSLSocket ssl_version property like MRI has (#38)
+* avoid unnecessary `_initialize` naming - it's confusing to see in JVM tools
+* use SecurityHelper to get a X.509 certificate factory
+  we'll know prefer BC's X.509 factory over the built-in (Sun provider) one
+
 ## 0.9.7
 
 * put in some more ossl to jsse mappings for SSL/TLS
