@@ -11,7 +11,7 @@ env:
   - TEST_PROFILE=test-1.7.4
   - TEST_PROFILE=test-1.7.13
   - TEST_PROFILE=test-1.7.18
-  - TEST_PROFILE=test-1.7.19
+  - TEST_PROFILE=test-1.7.21
   - TEST_PROFILE=test-9000
 script: mvn verify -P $TEST_PROFILE
 matrix:
