@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2014 Karol Bucek.
+ * Copyright 2014-2015 Karol Bucek.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,11 +25,12 @@ package org.jruby.ext.openssl;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
+
+import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.PBEParametersGenerator;
+import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator;
+import org.bouncycastle.crypto.params.KeyParameter;
 
 import org.jruby.Ruby;
 import org.jruby.RubyModule;
@@ -54,12 +55,13 @@ public class PKCS5 {
     // def pbkdf2_hmac_sha1(pass, salt, iter, keylen)
     @JRubyMethod(meta = true, required = 4)
     public static IRubyObject pbkdf2_hmac_sha1(final IRubyObject self, final IRubyObject[] args) {
+        //final byte[] pass = args[0].asString().getBytes();
         final char[] pass = args[0].asString().toString().toCharArray();
         final byte[] salt = args[1].asString().getBytes();
         final int iter = (int) args[2].convertToInteger().getLongValue();
-        final int keylen = (int) args[3].convertToInteger().getLongValue(); // e.g. 64
+        final int keySize = (int) args[3].convertToInteger().getLongValue(); // e.g. 64
 
-        return generatePBEKey(self.getRuntime(), pass, salt, iter, keylen, "PBKDF2WithHmacSHA1");
+        return generatePBEKey(self.getRuntime(), pass, salt, iter, keySize);
     }
 
     // def pbkdf2_hmac_sha1(pass, salt, iter, keylen, digest)
@@ -85,7 +87,7 @@ public class PKCS5 {
         final Ruby runtime = self.getRuntime();
         try {
             final Mac mac = SecurityHelper.getMac( macAlg );
-            mac.init( new SecretKeySpec( pass, macAlg ) );
+            mac.init( new SimpleSecretKey(macAlg, pass) );
             final byte[] key = deriveKey(mac, salt, iter, keylen);
             return StringHelper.newString(runtime, key);
         }
@@ -106,20 +108,11 @@ public class PKCS5 {
     }
 
     private static RubyString generatePBEKey(final Ruby runtime,
-        final char[] pass, final byte[] salt, final int iter, final int keylen,
-        final String alg) {
-
-        final PBEKeySpec keySpec = new PBEKeySpec(pass, salt, iter, keylen * 8);
-        try {
-            SecretKey key = SecurityHelper.getSecretKeyFactory(alg).generateSecret(keySpec);
-            return StringHelper.newString(runtime, key.getEncoded());
-        }
-        catch (NoSuchAlgorithmException ex) {
-            throw Utils.newRuntimeError(runtime, ex); // should no happen
-        }
-        catch (InvalidKeySpecException ex) {
-            throw Utils.newRuntimeError(runtime, ex); // TODO
-        }
+        final char[] pass, final byte[] salt, final int iter, final int keySize) {
+        PBEParametersGenerator generator = new PKCS5S2ParametersGenerator();
+        generator.init(PBEParametersGenerator.PKCS5PasswordToBytes(pass), salt, iter);
+        CipherParameters params = generator.generateDerivedParameters(keySize * 8);
+        return StringHelper.newString(runtime, ((KeyParameter) params).getKey());
     }
 
     // http://stackoverflow.com/questions/9147463/java-pbkdf2-with-hmacsha256-as-the-prf

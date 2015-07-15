@@ -13,6 +13,13 @@ module Jopenssl
       assert_equal expected, OpenSSL::PKCS5.pbkdf2_hmac_sha1(pass, salt, iter, keylen)
     end
 
+    def test_pbkdf2_hmac_sha1_with_empty_salt
+      pass = ' '
+      expected = "\x81\e\xE9F\xD8op\xA6\x9D\xF4=\tX\x13\x82D\xF7\xF3\x7F\xC8aFR+"
+      expected.force_encoding('ASCII-8BIT') if ''.respond_to?(:force_encoding)
+      assert_equal expected, OpenSSL::PKCS5.pbkdf2_hmac_sha1(pass, '', 16, 24)
+    end
+
     def test_pbkdf2_hmac
       pass = 'SecreT2'
       salt = '0123456789001234567890'
