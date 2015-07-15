@@ -35,4 +35,10 @@ class TestHMAC < TestCase
     @h2.update("\xFF") # invalid utf-8 char
     assert_equal('0770623462e782b51bb0689a8ba4f3f1', @h2.hexdigest) # calcualted on MRI
   end
+
+  def test_hexdigest_with_empty_key
+    result = OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('md5'), "", "foo")
+    assert_equal "4acb10ca3965a14a080297db0921950c", result
+  end
+
 end

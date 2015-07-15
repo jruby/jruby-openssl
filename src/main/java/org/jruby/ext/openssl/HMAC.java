@@ -87,7 +87,7 @@ public class HMAC extends RubyObject {
         final ByteList bytes = data.asString().getByteList();
         try {
             Mac mac = getMacInstance(algName);
-            mac.init( new SecretKeySpec(keyBytes, mac.getAlgorithm()) );
+            mac.init( new SimpleSecretKey(mac.getAlgorithm(), keyBytes) );
             mac.update(bytes.getUnsafeBytes(), bytes.getBegin(), bytes.getRealSize());
             return runtime.newString( new ByteList(mac.doFinal(), false) );
         }
@@ -108,7 +108,7 @@ public class HMAC extends RubyObject {
         final ByteList bytes = data.asString().getByteList();
         try {
             final Mac mac = getMacInstance(algName);
-            mac.init( new SecretKeySpec(keyBytes, mac.getAlgorithm()) );
+            mac.init( new SimpleSecretKey(mac.getAlgorithm(), keyBytes) );
             mac.update(bytes.getUnsafeBytes(), bytes.getBegin(), bytes.getRealSize());
             return runtime.newString( toHEX( mac.doFinal() ) );
         }
@@ -135,7 +135,7 @@ public class HMAC extends RubyObject {
         try {
             this.mac = getMacInstance(algName);
             this.key = key.asString().getBytes();
-            mac.init( new SecretKeySpec(this.key, mac.getAlgorithm()) );
+            mac.init( SimpleSecretKey.copy(mac.getAlgorithm(), this.key) );
         }
         catch (NoSuchAlgorithmException e) {
             throw getRuntime().newNotImplementedError("Unsupported MAC algorithm (HMAC[-]" + algName + ")");
@@ -159,7 +159,7 @@ public class HMAC extends RubyObject {
         try {
             this.mac = SecurityHelper.getMac(algName);
             this.key = that.key;
-            mac.init( new SecretKeySpec(key, algName) );
+            mac.init( SimpleSecretKey.copy(algName, key) );
         }
         catch (NoSuchAlgorithmException e) {
             throw getRuntime().newNotImplementedError("Unsupported MAC algorithm (" + algName + ")");
