@@ -26,6 +26,27 @@ end if defined? JRUBY_VERSION
 begin
   gem 'minitest'
   require 'minitest/autorun'
+  # NOTE: deal with maven plugin 1.0.10 setting output (gone on minitest 5) :
+  if Minitest.const_defined?(:Unit) && ! defined?(Minitest::Unit.output)
+      Minitest::Unit.module_eval do
+        @@report_path = nil
+        def self.report_path; @@report_path end
+        def self.output=(report_path) # called by the runit-maven-plugin
+          Minitest.extensions << 'output' # add a plugin (MiniT calls #plugin_output_init)
+          @@report_path = report_path
+        end
+      end
+      Minitest.module_eval do
+        def self.plugin_output_init(options)
+          summary = self.reporter.reporters.find { |rr| rr.is_a?(Minitest::SummaryReporter) }
+          if summary && Minitest::Unit.report_path
+            summary = summary.dup
+            summary.io = Minitest::Unit.report_path
+            self.reporter.reporters << summary
+          end
+        end
+      end
+  end
 rescue LoadError
 end
 
