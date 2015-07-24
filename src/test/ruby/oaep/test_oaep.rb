@@ -15,8 +15,8 @@ class TestOaep < TestCase
     key = OpenSSL::PKey::RSA.new(key)
 
     cipher_text = Base64.decode64(base64_cipher_text)
-    assert_nothing_raised {
-      decrypted = key.private_decrypt(cipher_text, OpenSSL::PKey::RSA::PKCS1_OAEP_PADDING)
-    }
+    # assert_nothing_raised {
+    key.private_decrypt(cipher_text, OpenSSL::PKey::RSA::PKCS1_OAEP_PADDING)
+    # }
   end
 end
