@@ -52,6 +52,22 @@ TestCase.class_eval do
     end
   end
 
+  unless method_defined?(:assert_not_equal)
+    def assert_not_equal(expected, actual)
+      assert expected != actual, "expected: #{expected} to not equal: #{actual} but did"
+    end
+  end
+
+  unless method_defined?(:assert_nothing_raised)
+    def assert_nothing_raised
+      begin
+        yield
+      rescue => e
+        assert false, "unexpected error raised: #{e.inspect}"
+      end
+    end
+  end
+
   def self.disable_security_restrictions!; end # do nothing on MRI
 
   def self.disable_security_restrictions!
