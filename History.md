@@ -1,5 +1,9 @@
-## 0.9.8.dev
+## 0.9.8
 
+* refactor `PKCS5.pbkdf2_hmac_sha1` to use BC APIs
+  thus less dependent on provider internals (jruby/jruby#3025)
+* HMAC - use our SimpleKey impl so that there's less[] copy
+  ... also allows for an empty key to work like MRI (jruby/jruby#2854)
 * fixing oaep encryption to use correct algorithm (#54)
 * [experimental] support NOT loading any (BC) jars on our own ... (#10)
 * disable DHE (by default) on Java <= 7 ... on Java 8 we (still) force 1024/2048
