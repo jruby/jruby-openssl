@@ -164,7 +164,9 @@ profile :id => 'test-9000' do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
   end
-  properties 'jruby.version' => '1.7.18', # https://github.com/jruby/jruby/issues/3184
+  # NOTE: we're work-around 9K maven-runit version bug (due minitest changes) !
+  # ... still can not build with 9K : https://github.com/jruby/jruby/issues/3184
+  properties 'jruby.version' => '1.7.18',
              'jruby.versions' => '9.0.0.0',
              'bc.versions' => supported_bc_versions.join(',')
 end

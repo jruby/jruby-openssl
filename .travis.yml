@@ -15,9 +15,6 @@ env:
   - TEST_PROFILE=test-9000
 script: mvn verify -P $TEST_PROFILE
 matrix:
-  # NOTE: 9k needs a compatible runit version (due minitest changes) !
-  allow_failures:
-    - env: TEST_PROFILE=test-9000
   exclude:
     - jdk: openjdk6
       env: TEST_PROFILE=test-9000
