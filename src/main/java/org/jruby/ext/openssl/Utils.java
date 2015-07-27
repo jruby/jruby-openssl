@@ -30,7 +30,6 @@ package org.jruby.ext.openssl;
 import java.io.IOException;
 
 import org.jruby.Ruby;
-import org.jruby.RubyBasicObject;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.exceptions.RaiseException;
