@@ -185,6 +185,7 @@
           <execution>
             <id>default-initialize</id>
             <configuration>
+              <addProjectClasspath>false</addProjectClasspath>
               <libDirectory>something-which-does-not-exists</libDirectory>
             </configuration>
           </execution>

@@ -21,7 +21,7 @@ plugin( 'org.codehaus.mojo:exec-maven-plugin', '1.3.2' ) do
   invoker_main << ' org.jruby.anno.InvokerGenerator'
   invoker_main << " #{gen_sources}/annotated_classes.txt ${project.build.outputDirectory}"
 
-  dependency 'org.jruby', 'jruby-core', '1.7.17'
+  dependency 'org.jruby', 'jruby-core', '${jruby.version}'
 
   execute_goal :java, :id => 'invoker-generator', :phase => 'process-classes',
       :mainClass => 'org.jruby.anno.InvokerGenerator', :classpathScope => 'compile',
@@ -84,7 +84,9 @@ jar 'junit:junit', '4.11', :scope => :test
 jruby_plugin! :gem do
   # when installing dependent gems we want to use the built in openssl
   # not the one from this lib directory
-  execute_goal :id => 'default-initialize', :libDirectory => 'something-which-does-not-exists'
+  # we compile against jruby-core-1.7.17 and want to keep this out of
+  # the plugin execution here
+  execute_goal :id => 'default-initialize', :addProjectClasspath => false, :libDirectory => 'something-which-does-not-exists'
   execute_goals :id => 'default-push', :skip => true
 end
 
