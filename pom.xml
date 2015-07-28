@@ -714,6 +714,7 @@
                     <pomInclude>*/pom.xml</pomInclude>
                   </pomIncludes>
                   <streamLogs>true</streamLogs>
+                  <addTestClassPath>false</addTestClassPath>
                   <properties>
                     <jruby.versions>${jruby.versions}</jruby.versions>
                     <jruby.modes>${jruby.modes}</jruby.modes>
