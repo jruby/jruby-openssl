@@ -408,10 +408,22 @@ public abstract class SecurityHelper {
             }
 
         }
-        return newInstance(Cipher.class,
-            new Class[] { CipherSpi.class, Provider.class, String.class },
-            new Object[] { spi, provider, transformation }
-        );
+        try {
+            return newInstance(Cipher.class,
+                new Class[] { CipherSpi.class, Provider.class, String.class },
+                new Object[] { spi, provider, transformation }
+            );
+        }
+        catch( IllegalStateException e ) {
+            // this can be due to trusted check in Cipher constructor
+            if (e.getCause().getClass() == NullPointerException.class) {
+                return newInstance(Cipher.class,
+                    new Class[] { CipherSpi.class, String.class },
+                    new Object[] { spi, transformation }
+                );
+            }
+            throw e;
+        }
     }
 
     /**
