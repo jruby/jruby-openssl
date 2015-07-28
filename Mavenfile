@@ -166,7 +166,7 @@ profile :id => 'test-9000' do
   end
   # NOTE: we're work-around 9K maven-runit version bug (due minitest changes) !
   # ... still can not build with 9K : https://github.com/jruby/jruby/issues/3184
-  properties 'jruby.version' => '1.7.18',
+  properties 'jruby.version' => '9.0.0.0',
              'jruby.versions' => '9.0.0.0',
              'bc.versions' => supported_bc_versions.join(',')
 end
