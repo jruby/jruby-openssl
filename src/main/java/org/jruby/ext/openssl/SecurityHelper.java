@@ -102,6 +102,28 @@ public abstract class SecurityHelper {
     private static Boolean registerProvider = null;
     private static final Map<String, Class> implEngines = new ConcurrentHashMap<String, Class>(16, 0.75f, 1);
 
+    /**
+     * inject under a given name a cipher. also ensures that the registered
+     * classes are getting used.
+     *
+     * @param name the name under which the class gets registered
+     * @param the CipherSpi class
+     */
+    public static void addCipher(String name, Class<? extends CipherSpi> clazz) {
+        implEngines.put("Cipher:" + name, clazz);
+        tryCipherInternal = true;
+    }
+
+    /**
+     * inject under a given name a signature
+     *
+     * @param name the name under which the class gets registered
+     * @param the SignaturSpi class
+     */
+    public static void addSignature(String name, Class<? extends SignatureSpi> clazz) {
+        implEngines.put("Signature:" + name, clazz);
+    }
+
     public static Provider getSecurityProvider() {
         if ( setBouncyCastleProvider && securityProvider == null ) {
             synchronized(SecurityHelper.class) {
@@ -417,10 +439,12 @@ public abstract class SecurityHelper {
         catch( IllegalStateException e ) {
             // this can be due to trusted check in Cipher constructor
             if (e.getCause().getClass() == NullPointerException.class) {
-                return newInstance(Cipher.class,
+                Cipher cipher = newInstance(Cipher.class,
                     new Class[] { CipherSpi.class, String.class },
                     new Object[] { spi, transformation }
                 );
+                setField(cipher, Cipher.class, "provider", provider);
+                return cipher;
             }
             throw e;
         }
@@ -735,5 +759,4 @@ public abstract class SecurityHelper {
             throw new IllegalStateException(e);
         }
     }
-
 }

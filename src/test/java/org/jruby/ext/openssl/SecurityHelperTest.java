@@ -10,6 +10,7 @@ import static org.junit.Assert.fail;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
+import java.security.Signature;
 import java.security.cert.CertificateException;
 
 import org.junit.After;
@@ -41,6 +42,24 @@ public class SecurityHelperTest {
     public void disableSecurityProvider() {
         SecurityHelper.securityProvider = null;
         SecurityHelper.setBouncyCastleProvider = false;
+    }
+
+    @Test
+    public void injectCipherImpl() throws Exception {
+        SecurityHelper.addCipher("fake", CipherSpiFake.class);
+        javax.crypto.Cipher cipher = SecurityHelper.getCipher("fake");
+        assertEquals(cipher.getProvider(), savedProvider);
+        java.lang.reflect.Field spi = cipher.getClass().getDeclaredField("spi");
+        spi.setAccessible(true);
+        assertEquals(spi.get(cipher).getClass(), CipherSpiFake.class);
+    }
+
+    @Test
+    public void injectSignatureImpl() throws Exception {
+        SecurityHelper.addSignature("fake", SignatureSpiFake.class);
+        Signature signature = SecurityHelper.getSignature("fake");
+        assertEquals(signature.getProvider(), savedProvider);
+        assertEquals(signature.getClass(), SignatureSpiFake.class);
     }
 
     @Test

@@ -1,0 +1,76 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2014 Karol Bucek.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package org.jruby.ext.openssl;
+
+import java.security.*;
+
+/**
+ * Created by cmeier on 7/29/15.
+ */
+class SignatureSpiFake extends Signature {
+
+    SignatureSpiFake() {
+        super("fake");
+    }
+
+    @Override
+    protected void engineInitVerify(PublicKey publicKey) throws InvalidKeyException {
+
+    }
+
+    @Override
+    protected void engineInitSign(PrivateKey privateKey) throws InvalidKeyException {
+
+    }
+
+    @Override
+    protected void engineUpdate(byte b) throws SignatureException {
+
+    }
+
+    @Override
+    protected void engineUpdate(byte[] b, int off, int len) throws SignatureException {
+
+    }
+
+    @Override
+    protected byte[] engineSign() throws SignatureException {
+        return new byte[0];
+    }
+
+    @Override
+    protected boolean engineVerify(byte[] sigBytes) throws SignatureException {
+        return false;
+    }
+
+    @Override
+    protected void engineSetParameter(String param, Object value) throws InvalidParameterException {
+
+    }
+
+    @Override
+    protected Object engineGetParameter(String param) throws InvalidParameterException {
+        return null;
+    }
+}
