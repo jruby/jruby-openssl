@@ -328,6 +328,9 @@ public class SSLSocket extends RubyObject {
             debugStackTrace(runtime, e);
             throw newSSLError(runtime, e);
         }
+        catch (RaiseException e) {
+            throw e;
+        }
         catch (RuntimeException e) {
             debugStackTrace(runtime, e);
             if ( "Could not generate DH keypair".equals( e.getMessage() ) ) {
