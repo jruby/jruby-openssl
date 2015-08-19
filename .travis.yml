@@ -18,3 +18,11 @@ matrix:
   exclude:
     - jdk: openjdk6
       env: TEST_PROFILE=test-9000
+notifications:
+  irc:
+    channels:
+      - "irc.freenode.org#jruby"
+    on_success: change
+    on_failure: always
+    template:
+      - "%{repository} (%{branch}:%{commit} by %{author}): %{message} (%{build_url})"
