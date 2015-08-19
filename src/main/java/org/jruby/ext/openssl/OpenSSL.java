@@ -205,7 +205,7 @@ public final class OpenSSL {
         return getDebug( OpenSSL ) == runtime.getTrue();
     }
 
-    static void debugStackTrace(final Ruby runtime, final Throwable e) {
+    public static void debugStackTrace(final Ruby runtime, final Throwable e) {
         if ( isDebug(runtime) ) e.printStackTrace(runtime.getOut());
     }
 
