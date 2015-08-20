@@ -28,7 +28,6 @@
 package org.jruby.ext.openssl.x509store;
 
 
-import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -293,62 +292,13 @@ public abstract class X509Utils {
     public static final String X509_PRIVATE_DIR;
 
     static {
-        // roughly following the ideas from https://www.happyassassin.net/2015/01/12/a-note-about-ssltls-trusted-certificate-stores-and-platforms/
-        // and falling back to trust store from java to be on the save side
-
+        OPENSSLDIR = "/usr/local/openssl"; // NOTE: blindly follow?!
         // TODO usability in limited environments should be tested/reviewed
         final String JAVA_HOME = SafePropertyAccessor.getProperty("java.home", "");
-
-        // if the default files/dirs exist we use them. with this a switch
-        // from MRI to JRuby produces the same results. otherwise we use the
-        // certs from JAVA_HOME.
-        final String LINUX_CERT_AREA = "/etc/ssl";
-        final String MACOS_CERT_AREA = "/System/Library/OpenSSL";
-
-        String certArea, certDir, privateDir;
-        String maybeCertFile;
-        String maybePkiCertFile = "/etc/pki/tls/certs/ca-bundle.crt";
-        try {
-            if (new File(LINUX_CERT_AREA).exists()) {
-                certArea = LINUX_CERT_AREA;
-                certDir = certArea + "/certs";
-                privateDir = certArea + "/private";
-                maybeCertFile = certDir + "/cert.pem";
-            }
-            else if (new File(MACOS_CERT_AREA).exists()) {
-                certArea = MACOS_CERT_AREA;
-                certDir = certArea + "/certs";
-                privateDir = certArea + "/private";
-                maybeCertFile = certArea + "/cert.pem";
-            }
-            else {
-                certArea = JAVA_HOME + "/lib/security";
-                certDir = certArea;
-                privateDir = certArea;
-                maybeCertFile = maybePkiCertFile;
-            }
-        }
-        catch (SecurityException e) {
-            maybeCertFile = null; maybePkiCertFile = null;
-            privateDir = certDir = certArea = JAVA_HOME + "/lib/security";
-        }
-
-        X509_CERT_AREA = certArea;
-        X509_CERT_DIR = certDir;
-        X509_PRIVATE_DIR = privateDir;
-
-        if (maybePkiCertFile != null && new File(maybePkiCertFile).exists()) {
-            X509_CERT_FILE = maybePkiCertFile;
-        }
-        else if (maybeCertFile != null && new File(maybeCertFile).exists()) {
-            X509_CERT_FILE = maybeCertFile;
-        }
-        else {
-            X509_CERT_FILE = JAVA_HOME + "/lib/security/cacerts";
-        }
-
-        // keep it with some meaninful content as it is a public constant
-        OPENSSLDIR = X509_CERT_AREA;
+        X509_CERT_AREA = JAVA_HOME + "/lib/security";
+        X509_CERT_DIR = X509_CERT_AREA;
+        X509_CERT_FILE = X509_CERT_DIR + "/cacerts";
+        X509_PRIVATE_DIR = "/usr/lib/ssl/private"; // NOTE: blindly follow?!
     }
 
     public static final String X509_CERT_DIR_EVP = "SSL_CERT_DIR";
