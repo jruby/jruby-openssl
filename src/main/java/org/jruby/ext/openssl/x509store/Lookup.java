@@ -27,9 +27,6 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
-
-import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
-
 import org.jruby.ext.openssl.util.Cache;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_CERT_DIR;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_ASN1;
@@ -242,10 +239,6 @@ public class Lookup {
                 return 0; // NOTE: really?
             }
         }
-        catch(IOException e) {
-            debugStackTrace(runtime, e);
-            return 0;
-        }
         finally {
             if ( reader != null ) {
                 try { reader.close(); } catch (Exception ignored) {}
@@ -291,10 +284,6 @@ public class Lookup {
                 X509Error.addError(X509_R_BAD_X509_FILETYPE);
                 return 0; // NOTE: really?
             }
-        }
-        catch(IOException e) {
-            debugStackTrace(runtime, e);
-            return 0;
         }
         finally {
             if ( reader != null ) {
@@ -356,10 +345,6 @@ public class Lookup {
             }
             return count;
         }
-        catch(IOException e) {
-            debugStackTrace(runtime, e);
-            return 0;
-        }
         finally {
             if ( reader != null ) {
                 try { reader.close(); } catch (Exception ignored) {}
@@ -381,9 +366,6 @@ public class Lookup {
                 store.addCertificate(certificate);
                 count++;
             }
-        }
-        catch(IOException e) {
-            return 0;
         }
         finally {
             try { fin.close(); } catch (Exception ignored) {}
@@ -540,10 +522,6 @@ public class Lookup {
                         ok = ctx.loadCertificateOrCRLFile(file, X509_FILETYPE_PEM) != 0 ? 1 : 0;
                     } else {
                         ok = (ctx.loadDefaultJavaCACertsFile() != 0) ? 1: 0;
-                        // it could be a PEM file
-                        if (ok == 0) {
-                            ok = ctx.loadCertificateOrCRLFile(file, X509_FILETYPE_PEM) != 0 ? 1 : 0;
-                        }
                     }
                     if (ok == 0) {
                         X509Error.addError(X509_R_LOADING_DEFAULTS);
