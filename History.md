@@ -1,3 +1,9 @@
+## 0.9.10
+
+* **regression** reverted fix for #49 (as it needs more work/testing) :
+  keep the default x509 certs and directories in line with MRI (#49), only if
+  they do not exists fallback on cacerts from the java.home/lib/security/cacerts
+
 ## 0.9.9
 
 * **regression** causing to re-package a RaiseException in `SSLSocket#accept`
