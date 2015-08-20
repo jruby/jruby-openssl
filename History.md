@@ -1,3 +1,10 @@
+## 0.9.9
+
+* **regression** causing to re-package a RaiseException in `SSLSocket#accept`
+* fix load error: jopenssl/load -- java.lang.VerifyError: using BC 1.51 or 1.52 (#62)
+* keep the default x509 certs and directories in line with MRI (#49), only if
+  they do not exists fallback on cacerts from the java.home/lib/security/cacerts
+
 ## 0.9.8
 
 * refactor `PKCS5.pbkdf2_hmac_sha1` to use BC APIs
@@ -8,7 +15,7 @@
 * [experimental] support NOT loading any (BC) jars on our own ... (#10)
 * disable DHE (by default) on Java <= 7 ... on Java 8 we (still) force 1024/2048
   (see jruby/jruby#2872 and #45)
-* handle parsing of "incomplete" X.509 certificates like MRI does (#42)
+* **regression** handle parsing of "incomplete" X.509 certs like MRI does (#42)
 * implement a CRL/certificate caching (for now off by default) in Lookup
   ... set *-J-Djruby.openssl.x509.lookup.cache=true* to enable
 * improve Store helper concurrency (with less synchronization)
@@ -31,7 +38,7 @@
 * now that we've matched w MRI's SSLContext::METHODS don't report custom ones
 * more ssl_version= compatibility fixes that match MRI (jruby/jruby#1736)
 * support setting ssl_version = "TLSv1_1" (or "TLSv1_2") just like MRI
-* [regression] make sure version is set when reading encoded certificate
+* **regression** make sure version is set when reading encoded certificate
   + signature algorithm should be read as well when decoding certificate (#39)
 * better accept handshake errors instead of "General SSLEngine problem (#37)
 * trying to decode DER application specific objects (based on patch from #36)
