@@ -147,6 +147,10 @@ module SSLTestHelper
     ssl.close rescue nil
   end
 
+  def java_version
+    java.lang.System.get_property('java.version')[2].to_i
+  end
+
   TEST_KEY_RSA1024 = <<-_end_of_pem_
 -----BEGIN RSA PRIVATE KEY-----
 MIICXgIBAAKBgQDLwsSw1ECnPtT+PkOgHhcGA71nwC2/nL85VBGnRqDxOqjVh7Cx

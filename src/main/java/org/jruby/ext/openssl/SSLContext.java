@@ -122,13 +122,18 @@ public class SSLContext extends RubyObject {
         SSL_VERSION_OSSL2JSSE.put("SSLv23", "SSL");
         SSL_VERSION_OSSL2JSSE.put("SSLv23_server", "SSL");
         SSL_VERSION_OSSL2JSSE.put("SSLv23_client", "SSL");
-        ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv2", "SSLv3", "TLSv1" });
+
+        if ( OpenSSL.javaVersion7(true) ) { // >= 1.7
+            ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv2", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2" });
+        } else {
+            ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv2", "SSLv3", "TLSv1" });
+        }
 
         // Historically we were ahead of MRI to support TLS
         // ... thus the non-standard names version names :
 
         SSL_VERSION_OSSL2JSSE.put("TLS", "TLS");
-        ENABLED_PROTOCOLS.put("TLS", new String[] { "TLSv1", "TLSv1.1" });
+        ENABLED_PROTOCOLS.put("TLS", new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" });
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1.1", "TLSv1.1");
         ENABLED_PROTOCOLS.put("TLSv1.1", new String[] { "TLSv1.1" });
