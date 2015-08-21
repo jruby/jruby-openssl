@@ -95,4 +95,33 @@ class TestSSL < TestCase
     end
   end
 
+  def test_ssl_version_tlsv1_1
+    return if java_version < 7 # TLS1_1 is not supported by JDK 6
+
+    ctx_proc = Proc.new do |ctx|
+      ctx.ssl_version = "TLSv1_1"
+    end
+    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.connect
+      assert_equal("TLSv1.1", ssl.ssl_version)
+      ssl.close
+    end
+  end
+
+  def test_ssl_version_tlsv1_2
+    return if java_version < 7 # TLS1_2 is not supported by JDK 6
+
+    ctx_proc = Proc.new do |ctx|
+      ctx.ssl_version = "TLSv1_2"
+    end
+    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.connect
+      assert_equal("TLSv1.2", ssl.ssl_version)
+      ssl.close
+    end
+  end
 end
