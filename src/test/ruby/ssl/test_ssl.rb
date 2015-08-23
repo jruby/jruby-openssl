@@ -96,8 +96,6 @@ class TestSSL < TestCase
   end
 
   def test_ssl_version_tlsv1_1
-    return if java_version < 7 # TLS1_1 is not supported by JDK 6
-
     ctx_proc = Proc.new do |ctx|
       ctx.ssl_version = "TLSv1_1"
     end
@@ -108,11 +106,9 @@ class TestSSL < TestCase
       assert_equal("TLSv1.1", ssl.ssl_version)
       ssl.close
     end
-  end
+  end unless java6? # TLS1_1 is not supported by JDK 6
 
   def test_ssl_version_tlsv1_2
-    return if java_version < 7 # TLS1_2 is not supported by JDK 6
-
     ctx_proc = Proc.new do |ctx|
       ctx.ssl_version = "TLSv1_2"
     end
@@ -123,5 +119,6 @@ class TestSSL < TestCase
       assert_equal("TLSv1.2", ssl.ssl_version)
       ssl.close
     end
-  end
+  end unless java6? # TLS1_2 is not supported by JDK 6
+
 end
