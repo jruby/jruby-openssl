@@ -103,7 +103,7 @@ class TestSSL < TestCase
       sock = TCPSocket.new("127.0.0.1", port)
       ssl = OpenSSL::SSL::SSLSocket.new(sock)
       ssl.connect
-      assert_equal("TLSv1.1", ssl.ssl_version)
+      assert_equal("TLSv1_1", ssl.ssl_version)
       ssl.close
     end
   end unless java6? # TLS1_1 is not supported by JDK 6
@@ -116,7 +116,7 @@ class TestSSL < TestCase
       sock = TCPSocket.new("127.0.0.1", port)
       ssl = OpenSSL::SSL::SSLSocket.new(sock)
       ssl.connect
-      assert_equal("TLSv1.2", ssl.ssl_version)
+      assert_equal("TLSv1_2", ssl.ssl_version)
       ssl.close
     end
   end unless java6? # TLS1_2 is not supported by JDK 6

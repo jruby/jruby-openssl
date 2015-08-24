@@ -929,7 +929,7 @@ public class SSLSocket extends RubyObject {
     @JRubyMethod
     public IRubyObject ssl_version() {
         if ( engine == null ) return getRuntime().getNil();
-        return getRuntime().newString( engine.getSession().getProtocol() );
+        return getRuntime().newString( engine.getSession().getProtocol().replace('.', '_') );
     }
 
     private transient SocketChannelImpl socketChannel;
