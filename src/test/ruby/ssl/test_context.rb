@@ -12,6 +12,9 @@ class TestSSLContext < TestCase
 
     assert ! methods.include?(:SSLv2)
     assert ! methods.include?(:SSLv2_client)
+
+    assert methods.include?(:'TLSv1_1_client')
+    assert methods.include?(:'TLSv1_1_server')
   end
 
   def test_context_new
