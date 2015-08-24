@@ -136,6 +136,8 @@ public class SSLContext extends RubyObject {
         ENABLED_PROTOCOLS.put("TLS", new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" });
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1.1", "TLSv1.1");
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_1_server", "TLSv1.1");
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_1_client", "TLSv1.1");
         ENABLED_PROTOCOLS.put("TLSv1.1", new String[] { "TLSv1.1" });
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1_1", "TLSv1.1"); // supported on MRI 2.x
@@ -143,6 +145,8 @@ public class SSLContext extends RubyObject {
         ENABLED_PROTOCOLS.put("TLSv1.2", new String[] { "TLSv1.2" });
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1.2", "TLSv1.2"); // just for completeness
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_2_server", "TLSv1.2");
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_2_client", "TLSv1.2");
     }
 
     private static ObjectAllocator SSLCONTEXT_ALLOCATOR = new ObjectAllocator() {
@@ -191,6 +195,9 @@ public class SSLContext extends RubyObject {
         SSLContext.defineConstant("METHODS", methods);
         // in 1.8.7 as well as 1.9.3 :
         // [:TLSv1, :TLSv1_server, :TLSv1_client, :SSLv3, :SSLv3_server, :SSLv3_client, :SSLv23, :SSLv23_server, :SSLv23_client]
+        // in 2.0.0 :
+        // [:TLSv1, :TLSv1_server, :TLSv1_client, :TLSv1_2, :TLSv1_2_server, :TLSv1_2_client, :TLSv1_1, :TLSv1_1_server,
+        //  :TLSv1_1_client, :SSLv3, :SSLv3_server, :SSLv3_client, :SSLv23, :SSLv23_server, :SSLv23_client]
 
         SSLContext.setConstant("SESSION_CACHE_OFF", runtime.newFixnum(SESSION_CACHE_OFF));
         SSLContext.setConstant("SESSION_CACHE_CLIENT", runtime.newFixnum(SESSION_CACHE_CLIENT));
