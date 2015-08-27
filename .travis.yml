@@ -13,11 +13,17 @@ env:
   - TEST_PROFILE=test-1.7.18
   - TEST_PROFILE=test-1.7.21
   - TEST_PROFILE=test-9000
-script: mvn verify -P $TEST_PROFILE
+
+# script: mvn verify -P $TEST_PROFILE
+script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_PROFILE; fi
+
 matrix:
   exclude:
     - jdk: openjdk6
       env: TEST_PROFILE=test-9000
+  include:
+    - jdk: openjdk7
+      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
 notifications:
   irc:
     channels:
