@@ -31,8 +31,8 @@ matrix:
       rvm: jruby
 notifications:
   irc:
-    channels:
-      - "irc.freenode.org#jruby"
+    #channels:
+    #  - "irc.freenode.org#jruby"
     on_success: change
     on_failure: always
     template:
