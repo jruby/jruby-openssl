@@ -1,10 +1,12 @@
 # coding: US-ASCII
-require 'base64'
+require File.expand_path('../test_helper', File.dirname(__FILE__))
+
 class TestOaep < TestCase
 
   def setup
     super
     self.class.disable_security_restrictions!
+    require 'base64'
   end
 
   def test_oaep_decrypt
