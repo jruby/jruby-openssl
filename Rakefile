@@ -29,3 +29,21 @@ Rake::TestTask.new do |task|
   task.loader = :direct
 end
 task :test => 'lib/jopenssl.jar'
+
+namespace :integration do
+  it_path = File.expand_path('../src/test/integration', __FILE__)
+  task :install do
+    Dir.chdir(it_path) do
+      ruby "-S bundle install --gemfile '#{it_path}/Gemfile'"
+    end
+  end
+  # desc "Run IT tests"
+  task :test => 'lib/jopenssl.jar' do
+    unless File.exist?(File.join(it_path, 'Gemfile.lock'))
+      raise "bundle not installed, run `rake integration:install'"
+    end
+    loader = "ARGV.each { |f| require f }"
+    test_files = FileList['src/test/integration/*_test.rb'].to_a
+    ruby "-Ilib -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
+  end
+end
