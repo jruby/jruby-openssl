@@ -24,7 +24,7 @@ matrix:
       env: TEST_PROFILE=test-9000
   include:
     - jdk: openjdk7
-      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+      env: TEST_COMMAND="ruby -S rake integration:install integration:test"
 notifications:
   irc:
     channels:
