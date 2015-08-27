@@ -189,10 +189,18 @@ public class PEMInputOutput {
     }
 
     /**
-     * c: PEM_X509_INFO_read_bio
+     * @deprecated Prefer passing in a buffered-reader esp. in loops as the
+     * method might return a X.509 object before reading the full PEM file !
      */
     public static Object readPEM(final Reader in, final char[] passwd) throws IOException {
-        final BufferedReader reader = makeBuffered(in); String line;
+        return readPEM(makeBuffered(in), passwd);
+    }
+
+    /**
+     * c: PEM_X509_INFO_read_bio
+     */
+    public static Object readPEM(final BufferedReader reader, final char[] passwd) throws IOException {
+        String line;
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
@@ -573,9 +581,17 @@ public class PEMInputOutput {
         return null;
     }
 
-    public static X509AuxCertificate readX509Certificate(final Reader in, final char[] passwd)
+    /**
+     * @deprecated Prefer passing in a buffered-reader esp. in loops as the
+     * method might return a X.509 object before reading the full PEM file !
+     */
+    public static X509AuxCertificate readX509Certificate(final Reader in, final char[] passwd) throws IOException {
+        return readX509Certificate(makeBuffered(in), passwd);
+    }
+
+    public static X509AuxCertificate readX509Certificate(final BufferedReader reader, final char[] passwd)
         throws IOException {
-        final BufferedReader reader = makeBuffered(in); String line;
+        String line;
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_X509_OLD) != -1 ) {
                 try {
@@ -605,9 +621,17 @@ public class PEMInputOutput {
         return null;
     }
 
-    public static X509AuxCertificate readX509Aux(final Reader in, final char[] passwd)
+    /**
+     * @deprecated Prefer passing in a buffered-reader esp. in loops as the
+     * method might return a X.509 object before reading the full PEM file !
+     */
+    public static X509AuxCertificate readX509Aux(final Reader in, final char[] passwd) throws IOException {
+        return readX509Aux(makeBuffered(in), passwd);
+    }
+
+    public static X509AuxCertificate readX509Aux(final BufferedReader reader, final char[] passwd)
         throws IOException {
-        final BufferedReader reader = makeBuffered(in); String line;
+        String line;
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_X509_OLD) != -1 ) {
                 try {
@@ -637,8 +661,16 @@ public class PEMInputOutput {
         return null;
     }
 
-    public static X509CRL readX509CRL(final Reader in, final char[] passwd) throws IOException {
-        final BufferedReader reader = makeBuffered(in); String line;
+    /**
+     * @deprecated Prefer passing in a buffered-reader esp. in loops as the
+     * method might return a X.509 object before reading the full PEM file !
+     */
+    public static X509CRL readX509CRL(final Reader reader, final char[] passwd) throws IOException {
+        return readX509CRL(makeBuffered(reader), passwd);
+    }
+
+    public static X509CRL readX509CRL(final BufferedReader reader, final char[] passwd) throws IOException {
+        String line;
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_X509_CRL) != -1 ) {
                 try {

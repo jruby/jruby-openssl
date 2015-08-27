@@ -184,30 +184,35 @@ public class Lookup {
 
         final Object[] cached = certCache.get(file);
 
-        Reader reader = null;
+        BufferedReader reader = null;
         try {
             X509AuxCertificate auxCert;
             if ( type == X509_FILETYPE_PEM ) {
                 int count = 0;
                 if ( cached != null ) {
-                    for ( int c = 0; c < cached.length; c++ ) {
+                    boolean storeError = false; for ( int c = 0; c < cached.length; c++ ) {
                         auxCert = buildAuxFromCached((X509Certificate) cached[c]);
-                        final int i = store.addCertificate(auxCert);
-                        if ( i != 0 ) count++;
+
+                        if ( ! storeError ) {
+                            if ( store.addCertificate(auxCert) != 0 ) count++;
+                            else { storeError = true; count = 0; } // return 0
+                        }
                     }
                 }
                 else {
-                    reader = new InputStreamReader(wrapJRubyNormalizedInputStream(file));
+                    reader = new BufferedReader(new InputStreamReader(wrapJRubyNormalizedInputStream(file)));
                     final ArrayList<Object> cacheEntry = new ArrayList<Object>(8);
 
-                    for (;;) {
+                    boolean storeError = false; for (;;) {
                         auxCert = PEMInputOutput.readX509Aux(reader, null);
                         if ( auxCert == null ) break;
 
                         cacheEntry.add( auxCert.cloneForCache() ); // make sure we cache aux
 
-                        final int i = store.addCertificate(auxCert);
-                        if ( i != 0 ) count++;
+                        if ( ! storeError ) {
+                            if ( store.addCertificate(auxCert) != 0 ) count++;
+                            else { storeError = true; count = 0; } // return 0
+                        }
                     }
 
                     certCache.put(file, cacheEntry.toArray( new Object[ cacheEntry.size() ] ));
@@ -228,7 +233,6 @@ public class Lookup {
                     auxCert = new X509AuxCertificate(cert);
                     certCache.put(file, new Object[] { auxCert.cloneForCache() });
                 }
-
                 //if ( auxCert == null ) {
                 //    X509Error.addError(13); return 0;
                 //}
@@ -258,7 +262,7 @@ public class Lookup {
     public int loadCRLFile(final String file, final int type) throws Exception {
         if ( file == null ) return 1;
 
-        Reader reader = null;
+        BufferedReader reader = null;
         try {
             InputStream in = wrapJRubyNormalizedInputStream(file);
             CRL crl;
@@ -267,8 +271,8 @@ public class Lookup {
                 int count = 0; for (;;) {
                     crl = PEMInputOutput.readX509CRL(reader, null);
                     if ( crl == null ) break;
-                    final int i = store.addCRL(crl);
-                    if ( i == 0 ) return 0; count++;
+                    if ( store.addCRL(crl) == 0 ) return 0;
+                    count++;
                 }
                 return count;
             }
@@ -291,8 +295,6 @@ public class Lookup {
             }
         }
     }
-
-
 
     /**
      * c: X509_LOOKUP_load_cert_crl_file
