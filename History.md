@@ -1,3 +1,12 @@
+## 0.9.11
+
+* add TLSv1_1_client, TLSv1_1_server, TLSv1_2_client and TLSv1_2_server options
+  to ssl_version (#65)
+* **regression** make sure we hold a buffered reader so that the loop continues
+  reading PEMs - previously introduced an incompatibility with cert verify (#67)
+* support negotiating up to TLS1_1 and TLS1_2 when the server supports these
+  ssl_versions (#63)
+
 ## 0.9.10
 
 * **regression** reverted fix for #49 (as it needs more work/testing) :
