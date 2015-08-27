@@ -302,9 +302,8 @@ public class Lookup {
 
         final Object[] cached = certCache.get(file);
 
-        Reader reader = null;
+        BufferedReader reader = null;
         try {
-
             int count = 0;
             if ( cached != null ) {
                 for ( int c = 0; c < cached.length; c++ ) {
@@ -320,7 +319,7 @@ public class Lookup {
                 }
             }
             else {
-                reader = new InputStreamReader(wrapJRubyNormalizedInputStream(file));
+                reader = new BufferedReader(new InputStreamReader(wrapJRubyNormalizedInputStream(file)));
                 final ArrayList<Object> cacheEntry = new ArrayList<Object>(8);
                 for (;;) {
                     Object cert = PEMInputOutput.readPEM(reader, null);
