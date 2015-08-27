@@ -278,10 +278,9 @@ public class Lookup {
             }
             else if ( type == X509_FILETYPE_ASN1 ) {
                 crl = SecurityHelper.getCertificateFactory("X.509").generateCRL(in);
-                if ( crl == null ) {
-                    X509Error.addError(13);
-                    return 0;
-                }
+                //if ( crl == null ) {
+                //    X509Error.addError(13); return 0;
+                //}
                 return store.addCRL(crl);
             }
             else {
