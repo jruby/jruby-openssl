@@ -14,6 +14,7 @@ env:
   - TEST_PROFILE=test-1.7.21
   - TEST_PROFILE=test-9000
 
+install: echo 'no bundle install atm!'
 # script: mvn verify -P $TEST_PROFILE
 script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_PROFILE; fi
 
