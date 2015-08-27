@@ -15,6 +15,10 @@ class TestSSLContext < TestCase
 
     assert methods.include?(:'TLSv1_1_client')
     assert methods.include?(:'TLSv1_1_server')
+
+    assert methods.include?(:'TLSv1_2')
+    assert methods.include?(:'TLSv1_2_client')
+    assert methods.include?(:'TLSv1_2_server')
   end
 
   def test_context_new
