@@ -55,6 +55,11 @@ class TestX509Store < TestCase
     assert store.verify( OpenSSL::X509::Certificate.new(File.read(@pem)))
   end
 
+  def test_verfy_with_wrong_argument
+    store = OpenSSL::X509::Store.new
+    assert_raise(TypeError) { store.verify( 'not an cert object' ) }
+  end
+
   def test_add_cert_concurrently
     store = OpenSSL::X509::Store.new
     t = []
