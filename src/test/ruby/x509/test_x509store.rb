@@ -55,6 +55,13 @@ class TestX509Store < TestCase
     assert store.verify( OpenSSL::X509::Certificate.new(File.read(@pem)))
   end
 
+  def test_use_non_existing_cert_file
+    ENV['SSL_CERT_FILE'] = 'non-existing-file.crt'
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+    assert !store.verify(@cert)
+  end
+
   def test_verfy_with_wrong_argument
     store = OpenSSL::X509::Store.new
     assert_raise(TypeError) { store.verify( 'not an cert object' ) }
