@@ -27,6 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Locale;
 
 import org.jcodings.specific.UTF8Encoding;
 import org.joda.time.DateTime;
@@ -132,6 +133,7 @@ abstract class StringHelper {
 
     private static final DateTimeFormatter ASN_DATE_NO_ZONE =
         DateTimeFormat.forPattern("MMM dd HH:mm:ss yyyy") // + " zzz"
+                      .withLocale(Locale.US)
                       .withZone(DateTimeZone.UTC);
 
     static StringBuilder appendGMTDateTime(final StringBuilder text, final DateTime time) {
