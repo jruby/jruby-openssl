@@ -107,7 +107,7 @@ public abstract class SecurityHelper {
      * classes are getting used.
      *
      * @param name the name under which the class gets registered
-     * @param the CipherSpi class
+     * @param clazz the CipherSpi class
      */
     public static void addCipher(String name, Class<? extends CipherSpi> clazz) {
         implEngines.put("Cipher:" + name, clazz);
@@ -118,7 +118,7 @@ public abstract class SecurityHelper {
      * inject under a given name a signature
      *
      * @param name the name under which the class gets registered
-     * @param the SignaturSpi class
+     * @param clazz the SignaturSpi class
      */
     public static void addSignature(String name, Class<? extends SignatureSpi> clazz) {
         implEngines.put("Signature:" + name, clazz);
@@ -431,22 +431,20 @@ public abstract class SecurityHelper {
 
         }
         try {
-            return newInstance(Cipher.class,
-                new Class[] { CipherSpi.class, Provider.class, String.class },
-                new Object[] { spi, provider, transformation }
-            );
-        }
-        catch( IllegalStateException e ) {
-            // this can be due to trusted check in Cipher constructor
-            if (e.getCause().getClass() == NullPointerException.class) {
-                Cipher cipher = newInstance(Cipher.class,
+            // this constructor does not verify the provider
+            Cipher cipher = newInstance(Cipher.class,
                     new Class[] { CipherSpi.class, String.class },
                     new Object[] { spi, transformation }
-                );
-                setField(cipher, Cipher.class, "provider", provider);
-                return cipher;
-            }
-            throw e;
+            );
+            setField(cipher, Cipher.class, "provider", provider);
+            return cipher;
+        }
+        catch( Exception e ) {
+            // this constructor does verify the provider which might fail
+            return newInstance(Cipher.class,
+                    new Class[] { CipherSpi.class, Provider.class, String.class },
+                    new Object[] { spi, provider, transformation }
+            );
         }
     }
 
