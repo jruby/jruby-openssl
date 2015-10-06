@@ -32,6 +32,7 @@ import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_PEM;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_CERT_ALREADY_IN_HASH_TABLE;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -372,6 +373,12 @@ public class Store implements X509TrustManager {
         catch (FileNotFoundException e) {
             // set_default_paths ignores FileNotFound
         }
+        catch (IOException e) {
+            if (!e.getClass().getSimpleName().equals("NotFound")) {
+                throw e;
+            }
+            // set_default_paths ignores FileNotFound
+        }
 
         lookup = addLookup(runtime, Lookup.hashDirLookup());
         //if ( lookup == null ) return 0;
@@ -380,6 +387,12 @@ public class Store implements X509TrustManager {
             lookup.addDir(new CertificateHashDir.Dir(null, X509_FILETYPE_DEFAULT));
         }
         catch (FileNotFoundException e) {
+            // set_default_paths ignores FileNotFound
+        }
+        catch (IOException e) {
+            if (!e.getClass().getSimpleName().equals("NotFound")) {
+                throw e;
+            }
             // set_default_paths ignores FileNotFound
         }
 

@@ -114,7 +114,16 @@ public class X509StoreContext extends RubyObject {
             if ( args.length > 2) chain = args[2];
         }
 
-        final X509AuxCertificate _cert = cert.isNil() ? null : ((X509Cert) cert).getAuxCert();
+        final X509AuxCertificate _cert;
+        if (cert.isNil()) {
+            _cert = null;
+        }
+        else {
+            if (! (cert instanceof X509Cert)) {
+                throw getRuntime().newTypeError(cert, "OpenSSL::X509::Certificate");
+            }
+            _cert = ((X509Cert) cert).getAuxCert();
+        }
         final List<X509AuxCertificate> _chain;
         if ( ! chain.isNil() ) {
             @SuppressWarnings("unchecked")

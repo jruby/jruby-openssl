@@ -352,8 +352,7 @@ public class Lookup {
         }
     }
 
-    public int loadDefaultJavaCACertsFile() throws IOException, GeneralSecurityException {
-        final String certsFile = X509Utils.X509_CERT_FILE.replace('/', File.separatorChar);
+    public int loadDefaultJavaCACertsFile(String certsFile) throws IOException, GeneralSecurityException {
         final FileInputStream fin = new FileInputStream(certsFile);
         int count = 0;
         try {
@@ -517,15 +516,15 @@ public class Lookup {
                         file = ctx.envEntry( getDefaultCertificateFileEnvironment() );
                     }
                     catch (RuntimeException e) { }
-
-                    if (file != null) {
+                    if (file == null) {
+                        file = X509Utils.X509_CERT_FILE.replace('/', File.separatorChar);
+                    }
+                    if (file.matches(".*\\.(crt|cer|pem)$")) {
                         ok = ctx.loadCertificateOrCRLFile(file, X509_FILETYPE_PEM) != 0 ? 1 : 0;
                     } else {
-                        ok = (ctx.loadDefaultJavaCACertsFile() != 0) ? 1: 0;
+                        ok = (ctx.loadDefaultJavaCACertsFile(file) != 0) ? 1: 0;
                     }
-                    if (ok == 0) {
-                        X509Error.addError(X509_R_LOADING_DEFAULTS);
-                    }
+                    // we ignore errors on loading default paths the same way MRI does it
                 } else {
                     if (arglInt == X509_FILETYPE_PEM) {
                         ok = (ctx.loadCertificateOrCRLFile(argp, X509_FILETYPE_PEM) != 0) ? 1 : 0;

@@ -3,21 +3,78 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestX509Store < TestCase
 
-  if defined? JRUBY_VERSION
-    def setup; require 'jopenssl/load' end
-  else
-    def setup; require 'openssl' end
+  def setup
+    require 'openssl'
+    @cert = OpenSSL::X509::Certificate.new(File.read(File.expand_path('../server.crt', __FILE__)))
+    @ca_cert = File.expand_path('../ca.crt', __FILE__)
+    @javastore = File.expand_path('../store', __FILE__)
+    @pem = File.expand_path('../EntrustnetSecureServerCertificationAuthority.pem', __FILE__)
+  end
+
+  def test_store_location_with_pem
+    ENV['SSL_CERT_FILE'] = nil
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+    assert !store.verify(@cert)
+    
+    ENV['SSL_CERT_FILE'] = @ca_cert
+    store = OpenSSL::X509::Store.new
+    assert !store.verify(@cert)
+    store.set_default_paths
+    assert store.verify(@cert)
+  end
+
+  def test_store_location_with_java_truststore
+    ENV['SSL_CERT_FILE'] = @javastore
+    store = OpenSSL::X509::Store.new
+    assert !store.verify(@cert)
+    store.set_default_paths
+    assert store.verify(@cert)
+  end
+
+  def test_use_gibberish_cert_file
+    ENV['SSL_CERT_FILE'] = File.expand_path('../gibberish.pem', __FILE__)
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+    assert !store.verify(@cert)
+  end
+
+  def test_use_default_cert_file_as_custom_file
+    ENV['SSL_CERT_FILE'] = OpenSSL::X509::DEFAULT_CERT_FILE
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+    cert = OpenSSL::X509::Certificate.new(File.read(File.expand_path('../digicert.pem', __FILE__)))
+    assert store.verify(cert)
+  end
+
+  def test_add_file_to_store_with_custom_cert_file
+    ENV['SSL_CERT_FILE'] = @ca_cert
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+    store.add_file @pem
+    assert store.verify( OpenSSL::X509::Certificate.new(File.read(@pem)))
+  end
+
+  def test_use_non_existing_cert_file
+    ENV['SSL_CERT_FILE'] = 'non-existing-file.crt'
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+    assert !store.verify(@cert)
+  end
+
+  def test_verfy_with_wrong_argument
+    store = OpenSSL::X509::Store.new
+    assert_raise(TypeError) { store.verify( 'not an cert object' ) }
   end
 
   def test_add_cert_concurrently
-    pem = File.expand_path('../EntrustnetSecureServerCertificationAuthority.pem', __FILE__)
     store = OpenSSL::X509::Store.new
     t = []
     (0..25).each do |i|
 
       t << Thread.new do
         (0..2).each do
-          store.add_file pem
+          store.add_file @pem
         end
       end
     end
