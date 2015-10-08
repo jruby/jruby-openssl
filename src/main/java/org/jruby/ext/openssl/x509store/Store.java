@@ -374,6 +374,8 @@ public class Store implements X509TrustManager {
             // set_default_paths ignores FileNotFound
         }
         catch (IOException e) {
+            // this is for older jrubies as they do not have a
+            // org.jruby.util.ResourceException.NotFound
             if (!e.getClass().getSimpleName().equals("NotFound")) {
                 throw e;
             }
