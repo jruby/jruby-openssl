@@ -1129,7 +1129,7 @@ public class Cipher extends RubyObject {
         // trying to allow update after final like cruby-openssl. Bad idea.
         if ( "RC4".equalsIgnoreCase(cryptoBase) ) return runtime.newString("");
 
-        ByteList str;
+        final ByteList str;
         try {
             final byte[] out = cipher.doFinal();
             if ( out != null ) {
@@ -1143,7 +1143,6 @@ public class Cipher extends RubyObject {
                 if ( "GCM".equalsIgnoreCase(cryptoMode) ) {
                     int tag_size = GCM_AUTH_TAG_LEN / Byte.SIZE;
                     this.authTag = new ByteList(str.bytes(), str.length() - tag_size, tag_size).bytes();
-                    str = new ByteList(str.bytes(), 0, str.length() - tag_size);
                 }
             }
             else {
