@@ -783,10 +783,10 @@ public class PEMInputOutput {
     public static void writeRSAPublicKey(Writer _out, RSAPublicKey obj) throws IOException {
         BufferedWriter out = makeBuffered(_out);
         byte[] encoding = getEncoded(obj);
-        out.write(BEF_G + PEM_STRING_RSA_PUBLIC + AFT);
+        out.write(BEF_G + PEM_STRING_PUBLIC + AFT);
         out.newLine();
         writeEncoded(out, encoding);
-        out.write(BEF_E + PEM_STRING_RSA_PUBLIC + AFT);
+        out.write(BEF_E + PEM_STRING_PUBLIC + AFT);
         out.newLine();
         out.flush();
     }
