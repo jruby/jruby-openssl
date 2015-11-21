@@ -702,7 +702,7 @@ public class SSLSocket extends RubyObject {
         flushData(true);
     }
 
-    private IRubyObject do_sysread(final ThreadContext context,
+    private IRubyObject sysreadImpl(final ThreadContext context,
         IRubyObject len, IRubyObject buff, final boolean blocking, final boolean exception) {
         final Ruby runtime = context.runtime;
 
@@ -763,12 +763,12 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject sysread(ThreadContext context, IRubyObject len) {
-        return do_sysread(context, len, null, true, true);
+        return sysreadImpl(context, len, null, true, true);
     }
 
     @JRubyMethod
     public IRubyObject sysread(ThreadContext context, IRubyObject len, IRubyObject buff) {
-        return do_sysread(context, len, buff, true, true);
+        return sysreadImpl(context, len, buff, true, true);
     }
 
     @Deprecated // @JRubyMethod(rest = true, required = 1, optional = 1)
@@ -785,20 +785,20 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len) {
-        return do_sysread(context, len, null, false, true);
+        return sysreadImpl(context, len, null, false, true);
     }
 
     @JRubyMethod
     public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len, IRubyObject arg) {
         if ( arg instanceof RubyHash ) { // exception: false
-            return do_sysread(context, len, null, false, getExceptionOpt(context, arg));
+            return sysreadImpl(context, len, null, false, getExceptionOpt(context, arg));
         }
-        return do_sysread(context, len, arg, false, true); // buffer arg
+        return sysreadImpl(context, len, arg, false, true); // buffer arg
     }
 
     @JRubyMethod
     public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len, IRubyObject buff, IRubyObject opts) {
-        return do_sysread(context, len, buff, false, getExceptionOpt(context, opts));
+        return sysreadImpl(context, len, buff, false, getExceptionOpt(context, opts));
     }
 
 
@@ -816,7 +816,7 @@ public class SSLSocket extends RubyObject {
         return null; // won't happen as checkArgumentCount raises
     }
 
-    private IRubyObject do_syswrite(final ThreadContext context,
+    private IRubyObject syswriteImpl(final ThreadContext context,
         final IRubyObject arg, final boolean blocking, final boolean exception)  {
         final Ruby runtime = context.runtime;
         try {
@@ -845,17 +845,17 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject syswrite(ThreadContext context, IRubyObject arg) {
-        return do_syswrite(context, arg, true, true);
+        return syswriteImpl(context, arg, true, true);
     }
 
     @JRubyMethod
     public IRubyObject syswrite_nonblock(ThreadContext context, IRubyObject arg) {
-        return do_syswrite(context, arg, false, true);
+        return syswriteImpl(context, arg, false, true);
     }
 
     @JRubyMethod
     public IRubyObject syswrite_nonblock(ThreadContext context, IRubyObject arg, IRubyObject opts) {
-        return do_syswrite(context, arg, false, getExceptionOpt(context, opts));
+        return syswriteImpl(context, arg, false, getExceptionOpt(context, opts));
     }
 
     private static boolean getExceptionOpt(final ThreadContext context, final IRubyObject opts) {
