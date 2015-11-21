@@ -121,4 +121,36 @@ class TestSSL < TestCase
     end
   end unless java6? # TLS1_2 is not supported by JDK 6
 
+  def test_read_nonblock_would_block
+    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.connect
+
+      if defined? OpenSSL::SSL::SSLErrorWaitReadable
+        begin
+          ssl.read_nonblock(2)
+          fail 'read would block error not raised!'
+        rescue OpenSSL::SSL::SSLErrorWaitReadable => e
+          assert_equal 'read would block', e.message
+        end
+      else
+        begin
+          ssl.read_nonblock(2)
+          fail 'read would block error not raised!'
+        rescue => e
+          assert_equal 'read would block', e.message
+        end
+      end
+      if RUBY_VERSION > '2.2'
+        result = eval "ssl.read_nonblock(5, 'buff', exception: false)"
+        assert_equal :wait_readable, result
+      end
+      result = ssl.sysread_nonblock(5, :exception => false)
+      assert_equal :wait_readable, result
+
+      ssl.close
+    end
+  end
+
 end
