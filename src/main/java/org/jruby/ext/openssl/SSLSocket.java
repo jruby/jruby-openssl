@@ -51,6 +51,7 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
+import org.jruby.RubyHash;
 import org.jruby.RubyIO;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
@@ -356,9 +357,10 @@ public class SSLSocket extends RubyObject {
     // SelectableChannel.configureBlocking(false) permanently instead of setting
     // temporarily. SSLSocket requires wrapping IO to be selectable so it should
     // be OK to set configureBlocking(false) permanently.
-    private boolean waitSelect(final int operations, final boolean blocking) throws IOException {
+    private Object waitSelect(final int operations, final boolean blocking, final boolean exception)
+        throws IOException {
         final SocketChannelImpl channel = socketChannelImpl();
-        if ( ! channel.isSelectable() ) return true;
+        if ( ! channel.isSelectable() ) return Boolean.TRUE;
 
         final Ruby runtime = getRuntime();
         final RubyThread thread = runtime.getCurrentContext().getThread();
@@ -381,16 +383,20 @@ public class SSLSocket extends RubyObject {
                             if ( result[0] == 0 ) {
                                 if ((operations & SelectionKey.OP_READ) != 0 && (operations & SelectionKey.OP_WRITE) != 0) {
                                     if ( key.isReadable() ) {
-                                        writeWouldBlock(runtime);
-                                    } else if ( key.isWritable() ) {
-                                        readWouldBlock(runtime);
-                                    } else { //neither, pick one
-                                        readWouldBlock(runtime);
+                                        writeWouldBlock(runtime, exception, result); return;
                                     }
-                                } else if ((operations & SelectionKey.OP_READ) != 0) {
-                                    readWouldBlock(runtime);
-                                } else if ((operations & SelectionKey.OP_WRITE) != 0) {
-                                    writeWouldBlock(runtime);
+                                    //else if ( key.isWritable() ) {
+                                    //    readWouldBlock(runtime, exception, result);
+                                    //}
+                                    else { //neither, pick one
+                                        readWouldBlock(runtime, exception, result); return;
+                                    }
+                                }
+                                else if ((operations & SelectionKey.OP_READ) != 0) {
+                                    readWouldBlock(runtime, exception, result); return;
+                                }
+                                else if ((operations & SelectionKey.OP_WRITE) != 0) {
+                                    writeWouldBlock(runtime, exception, result); return;
                                 }
                             }
                         }
@@ -408,16 +414,21 @@ public class SSLSocket extends RubyObject {
                 }
             });
 
-            if ( result[0] >= 1 ) {
-                Set<SelectionKey> keySet = selector.selectedKeys();
-                if ( keySet.iterator().next() == key ) return true;
+            switch ( result[0] ) {
+                case READ_WOULD_BLOCK_RESULT :
+                    return runtime.newSymbol("wait_readable"); // exception: false
+                case WRITE_WOULD_BLOCK_RESULT :
+                    return runtime.newSymbol("wait_writable"); // exception: false
+                case 0 : return Boolean.FALSE;
+                default :
+                    if ( result[0] >= 1 ) {
+                        Set<SelectionKey> keySet = selector.selectedKeys();
+                        if ( keySet.iterator().next() == key ) return Boolean.TRUE;
+                    }
+                    return Boolean.FALSE;
             }
-
-            return false;
         }
-        catch (InterruptedException ie) {
-            return false;
-        }
+        catch (InterruptedException interrupt) { return Boolean.FALSE; }
         finally {
             // Note: I don't like ignoring these exceptions, but it's
             // unclear how likely they are to happen or what damage we
@@ -452,17 +463,22 @@ public class SSLSocket extends RubyObject {
         }
     }
 
-    private static void readWouldBlock(final Ruby runtime) {
-        throw newSSLErrorWaitReadable(runtime, "read would block");
+    private static final int READ_WOULD_BLOCK_RESULT = Integer.MIN_VALUE + 1;
+    private static final int WRITE_WOULD_BLOCK_RESULT = Integer.MIN_VALUE + 2;
+
+    private static void readWouldBlock(final Ruby runtime, final boolean exception, final int[] result) {
+        if ( exception ) throw newSSLErrorWaitReadable(runtime, "read would block");
+        result[0] = READ_WOULD_BLOCK_RESULT;
     }
 
-    private static void writeWouldBlock(final Ruby runtime) {
-        throw newSSLErrorWaitWritable(runtime, "write would block");
+    private static void writeWouldBlock(final Ruby runtime, final boolean exception, final int[] result) {
+        if ( exception ) throw newSSLErrorWaitWritable(runtime, "write would block");
+        result[0] = WRITE_WOULD_BLOCK_RESULT;
     }
 
     private void doHandshake(final boolean blocking) throws IOException {
         while (true) {
-            boolean ready = waitSelect(SelectionKey.OP_READ | SelectionKey.OP_WRITE, blocking);
+            boolean ready = waitSelect(SelectionKey.OP_READ | SelectionKey.OP_WRITE, blocking, true) == Boolean.TRUE;
 
             // if not blocking, raise EAGAIN
             if ( ! blocking && ! ready ) {
@@ -487,7 +503,7 @@ public class SSLSocket extends RubyObject {
                 // does not mean writable. we explicitly wait for readable channel to avoid
                 // busy loop.
                 if (initialHandshake && status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
-                    waitSelect(SelectionKey.OP_READ, blocking);
+                    waitSelect(SelectionKey.OP_READ, blocking, true);
                 }
                 break;
             case NEED_WRAP:
@@ -669,33 +685,34 @@ public class SSLSocket extends RubyObject {
         flushData(true);
     }
 
-    private RubyString sysreadImpl(final ThreadContext context,
-        final IRubyObject[] args, final boolean blocking) {
+    private IRubyObject do_sysread(final ThreadContext context,
+        IRubyObject len, IRubyObject buff, final boolean blocking, final boolean exception) {
         final Ruby runtime = context.runtime;
 
-        final int len = RubyNumeric.fix2int(args[0]);
-        final RubyString buff;
+        final int length = RubyNumeric.fix2int(len);
+        final RubyString buffStr;
 
-        if ( args.length == 2 && ! args[1].isNil() ) {
-            buff = args[1].asString();
+        if ( buff != null && ! buff.isNil() ) {
+            buffStr = buff.asString();
         } else {
-            buff = runtime.newString();
+            buffStr = RubyString.newEmptyString(runtime); // fine since we're setValue
         }
-        if ( len == 0 ) {
-            buff.clear();
-            return buff;
+        if ( length == 0 ) {
+            buffStr.clear();
+            return buffStr;
         }
-        if ( len < 0 ) {
+        if ( length < 0 ) {
             throw runtime.newArgumentError("negative string size (or size too big)");
         }
 
         try {
             // So we need to make sure to only block when there is no data left to process
             if ( engine == null || ! ( peerAppData.hasRemaining() || peerNetData.position() > 0 ) ) {
-                waitSelect(SelectionKey.OP_READ, blocking);
+                final Object ex = waitSelect(SelectionKey.OP_READ, blocking, exception);
+                if ( ex instanceof IRubyObject ) return (IRubyObject) ex; // :wait_readable
             }
 
-            ByteBuffer dst = ByteBuffer.allocate(len);
+            ByteBuffer dst = ByteBuffer.allocate(length);
             int rr = -1;
             // ensure >0 bytes read; sysread is blocking read.
             while ( rr <= 0 ) {
@@ -712,46 +729,92 @@ public class SSLSocket extends RubyObject {
                     // instead of spinning until the rest comes in, call waitSelect to either block
                     // until the rest is available, or throw a "read would block" error if we are in
                     // non-blocking mode.
-                    waitSelect(SelectionKey.OP_READ, blocking);
+                    final Object ex = waitSelect(SelectionKey.OP_READ, blocking, exception);
+                    if ( ex instanceof IRubyObject ) return (IRubyObject) ex; // :wait_readable
                 }
             }
             byte[] bss = new byte[rr];
             dst.position(dst.position() - rr);
             dst.get(bss);
-            buff.setValue(new ByteList(bss, false));
-            return buff;
+            buffStr.setValue(new ByteList(bss, false));
+            return buffStr;
         }
         catch (IOException ioe) {
             throw runtime.newIOError(ioe.getMessage());
         }
     }
 
-    @JRubyMethod(rest = true, required = 1, optional = 1)
-    public IRubyObject sysread(ThreadContext context, IRubyObject[] args) {
-        return sysreadImpl(context, args, true);
+    @JRubyMethod
+    public IRubyObject sysread(ThreadContext context, IRubyObject len) {
+        return do_sysread(context, len, null, true, true);
     }
 
-    @JRubyMethod(rest = true, required = 1, optional = 2)
+    @JRubyMethod
+    public IRubyObject sysread(ThreadContext context, IRubyObject len, IRubyObject buff) {
+        return do_sysread(context, len, buff, true, true);
+    }
+
+    @Deprecated // @JRubyMethod(rest = true, required = 1, optional = 1)
+    public IRubyObject sysread(ThreadContext context, IRubyObject[] args) {
+        switch ( args.length) {
+            case 1 :
+                return sysread(context, args[0]);
+            case 2 :
+                return sysread(context, args[0], args[1]);
+        }
+        Arity.checkArgumentCount(context.runtime, args.length, 1, 2);
+        return null; // won't happen as checkArgumentCount raises
+    }
+
+    @JRubyMethod
+    public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len) {
+        return do_sysread(context, len, null, false, true);
+    }
+
+    @JRubyMethod
+    public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len, IRubyObject arg) {
+        if ( arg instanceof RubyHash ) { // exception: false
+            return do_sysread(context, len, null, false, getExceptionOpt(context, arg));
+        }
+        return do_sysread(context, len, arg, false, true); // buffer arg
+    }
+
+    @JRubyMethod
+    public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len, IRubyObject buff, IRubyObject opts) {
+        return do_sysread(context, len, buff, false, getExceptionOpt(context, opts));
+    }
+
+
+    @Deprecated // @JRubyMethod(rest = true, required = 1, optional = 2)
     public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject[] args) {
-        // TODO: options for exception raising
-        return sysreadImpl(context, args, false);
+        switch ( args.length) {
+            case 1 :
+                return sysread_nonblock(context, args[0]);
+            case 2 :
+                return sysread_nonblock(context, args[0], args[1]);
+            case 3 :
+                return sysread_nonblock(context, args[0], args[1], args[2]);
+        }
+        Arity.checkArgumentCount(context.runtime, args.length, 1, 3);
+        return null; // won't happen as checkArgumentCount raises
     }
 
     private IRubyObject do_syswrite(final ThreadContext context,
-        final IRubyObject arg, final boolean blocking)  {
+        final IRubyObject arg, final boolean blocking, final boolean exception)  {
         final Ruby runtime = context.runtime;
         try {
             checkClosed();
 
-            waitSelect(SelectionKey.OP_WRITE, blocking);
+            final Object ex = waitSelect(SelectionKey.OP_WRITE, blocking, exception);
+            if ( ex instanceof IRubyObject ) return (IRubyObject) ex; // :wait_writable
 
-            ByteList bls = arg.asString().getByteList();
-            ByteBuffer b1 = ByteBuffer.wrap(bls.getUnsafeBytes(), bls.getBegin(), bls.getRealSize());
+            ByteList bytes = arg.asString().getByteList();
+            ByteBuffer buff = ByteBuffer.wrap(bytes.getUnsafeBytes(), bytes.getBegin(), bytes.getRealSize());
             final int written;
             if ( engine == null ) {
-                written = writeToChannel(b1, blocking);
+                written = writeToChannel(buff, blocking);
             } else {
-                written = write(b1, blocking);
+                written = write(buff, blocking);
             }
 
             this.io.callMethod(context, "flush");
@@ -765,18 +828,26 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject syswrite(ThreadContext context, IRubyObject arg) {
-        return do_syswrite(context, arg, true);
+        return do_syswrite(context, arg, true, true);
     }
 
     @JRubyMethod
     public IRubyObject syswrite_nonblock(ThreadContext context, IRubyObject arg) {
-        return do_syswrite(context, arg, false);
+        return do_syswrite(context, arg, false, true);
     }
 
     @JRubyMethod
-    public IRubyObject syswrite_nonblock(ThreadContext context, IRubyObject arg, IRubyObject options) {
-        // TODO: options for exception raising
-        return do_syswrite(context, arg, false);
+    public IRubyObject syswrite_nonblock(ThreadContext context, IRubyObject arg, IRubyObject opts) {
+        return do_syswrite(context, arg, false, getExceptionOpt(context, opts));
+    }
+
+    private static boolean getExceptionOpt(final ThreadContext context, final IRubyObject opts) {
+        if ( opts instanceof RubyHash ) { // exception: true
+            final Ruby runtime = context.runtime;
+            IRubyObject exc = ((RubyHash) opts).op_aref(context, runtime.newSymbol("exception"));
+            return exc != runtime.getFalse();
+        }
+        return true;
     }
 
     private void checkClosed() {
@@ -888,6 +959,14 @@ public class SSLSocket extends RubyObject {
     }
 
     @JRubyMethod
+    public IRubyObject npn_protocol() {
+        if ( engine == null ) return getRuntime().getNil();
+        // NOTE: maybe a time to use https://github.com/benmmurphy/ssl_npn
+        warn(getRuntime().getCurrentContext(), "WARNING: SSLSocket#npn_protocol is not supported");
+        return getRuntime().getNil(); // throw new UnsupportedOperationException();
+    }
+
+    @JRubyMethod
     public IRubyObject state() {
         warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: SSLSocket#state");
         return getRuntime().getNil();
@@ -905,7 +984,7 @@ public class SSLSocket extends RubyObject {
         return getRuntime().getNil(); // throw new UnsupportedOperationException();
     }
 
-    javax.net.ssl.SSLSession getSession() {
+    final javax.net.ssl.SSLSession getSession() {
         return engine == null ? null : engine.getSession();
     }
 
