@@ -37,8 +37,9 @@ file('lib/jopenssl.jar') { Rake::Task['jar'].invoke }
 
 require 'rake/testtask'
 Rake::TestTask.new do |task|
-  task.libs << 'lib'
-  task.test_files = FileList['src/test/ruby/**/test*.rb']
+  task.libs << 'src/test/ruby'
+  test_files = FileList['src/test/ruby/**/test*.rb'].to_a
+  task.test_files = test_files.map { |path| path.sub('src/test/ruby/', '') }
   task.verbose = true
   task.loader = :direct
 end
@@ -58,7 +59,8 @@ namespace :integration do
     end
     loader = "ARGV.each { |f| require f }"
     test_files = FileList['src/test/integration/*_test.rb'].to_a
-    lib = [ 'lib' ]; lib << '.' if RUBY_VERSION > '2.2'
+    test_files.map! { |path| path.sub('src/test/integration/', '') }
+    lib = [ 'lib', 'src/test/integration' ]
     ruby "-I#{lib.join(':')} -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
   end
 end
