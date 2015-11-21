@@ -23,7 +23,6 @@ matrix:
   exclude:
     - jdk: openjdk6
       env: TEST_PROFILE=test-9.0.1.0
-  exclude:
     - jdk: openjdk6
       env: TEST_PROFILE=test-9.0.4.0
   include:
