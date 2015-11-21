@@ -80,7 +80,7 @@ public class SSLSocket extends RubyObject {
 
     private static final long serialVersionUID = -2084816623554406237L;
 
-    private static ObjectAllocator SSLSOCKET_ALLOCATOR = new ObjectAllocator() {
+    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
             return new SSLSocket(runtime, klass);
         }
@@ -88,7 +88,7 @@ public class SSLSocket extends RubyObject {
 
     public static void createSSLSocket(final Ruby runtime, final RubyModule SSL) { // OpenSSL::SSL
         final ThreadContext context = runtime.getCurrentContext();
-        RubyClass SSLSocket = SSL.defineClassUnder("SSLSocket", runtime.getObject(), SSLSOCKET_ALLOCATOR);
+        RubyClass SSLSocket = SSL.defineClassUnder("SSLSocket", runtime.getObject(), ALLOCATOR);
         // SSLSocket.addReadAttribute(context, "io");
         // SSLSocket.defineAlias("to_io", "io");
         // SSLSocket.addReadAttribute(context, "context");
