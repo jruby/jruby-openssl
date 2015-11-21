@@ -58,6 +58,6 @@ namespace :integration do
     end
     loader = "ARGV.each { |f| require f }"
     test_files = FileList['src/test/integration/*_test.rb'].to_a
-    ruby "-Ilib -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
+    ruby "-Ilib:. -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
   end
 end
