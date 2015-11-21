@@ -11,7 +11,7 @@ env:
   - TEST_PROFILE=test-1.7.4
   - TEST_PROFILE=test-1.7.13
   - TEST_PROFILE=test-1.7.18
-  - TEST_PROFILE=test-1.7.22
+  - TEST_PROFILE=test-1.7.21 # NOTE 1.7.22 has load-path issues - loads built-in openssl
   - TEST_PROFILE=test-9.0.1.0
   - TEST_PROFILE=test-9.0.4.0
 
