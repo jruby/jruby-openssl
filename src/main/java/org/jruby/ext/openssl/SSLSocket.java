@@ -208,19 +208,23 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject connect(final ThreadContext context) {
-        return connectImpl(context, true);
+        return connectImpl(context, true, true);
     }
 
     @JRubyMethod
-    public IRubyObject connect_nonblock(ThreadContext context) {
-        return connectImpl(context, false);
+    public IRubyObject connect_nonblock(final ThreadContext context) {
+        return connectImpl(context, false, true);
     }
 
-    private SSLSocket connectImpl(final ThreadContext context, final boolean blocking) {
-        final Ruby runtime = context.runtime;
+    @JRubyMethod
+    public IRubyObject connect_nonblock(final ThreadContext context, IRubyObject opts) {
+        return connectImpl(context, false, getExceptionOpt(context, opts));
+    }
+
+    private IRubyObject connectImpl(final ThreadContext context, final boolean blocking, final boolean exception) {
 
         if ( ! sslContext.isProtocolForClient() ) {
-            throw newSSLError(runtime, "called a function you should not call");
+            throw newSSLError(context.runtime, "called a function you should not call");
         }
 
         try {
@@ -231,53 +235,58 @@ public class SSLSocket extends RubyObject {
                 handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
             }
-            doHandshake(blocking);
+            final IRubyObject ex = doHandshake(blocking, exception);
+            if ( ex != null ) return ex; // :wait_readable | :wait_writable
         }
         catch (SSLHandshakeException e) {
             //debugStackTrace(runtime, e);
             // unlike server side, client should close outbound channel even if
             // we have remaining data to be sent.
             forceClose();
-            throw newSSLErrorFromHandshake(runtime, e);
+            throw newSSLErrorFromHandshake(context.runtime, e);
         }
         catch (NoSuchAlgorithmException e) {
-            debugStackTrace(runtime, e);
+            debugStackTrace(context.runtime, e);
             forceClose();
-            throw newSSLError(runtime, e);
+            throw newSSLError(context.runtime, e);
         }
         catch (KeyManagementException e) {
-            debugStackTrace(runtime, e);
+            debugStackTrace(context.runtime, e);
             forceClose();
-            throw newSSLError(runtime, e);
+            throw newSSLError(context.runtime, e);
         }
         catch (IOException e) {
-            //debugStackTrace(runtime, e);
+            //debugStackTrace(context.runtime, e);
             forceClose();
-            throw newSSLError(runtime, e);
+            throw newSSLError(context.runtime, e);
         }
         return this;
     }
 
     @JRubyMethod
-    public IRubyObject accept(ThreadContext context) {
-        return acceptImpl(context, true);
+    public IRubyObject accept(final ThreadContext context) {
+        return acceptImpl(context, true, true);
     }
 
     @JRubyMethod
-    public IRubyObject accept_nonblock(ThreadContext context) {
-        return acceptImpl(context, false);
+    public IRubyObject accept_nonblock(final ThreadContext context) {
+        return acceptImpl(context, false, true);
+    }
+
+    @JRubyMethod
+    public IRubyObject accept_nonblock(final ThreadContext context, IRubyObject opts) {
+        return acceptImpl(context, false, getExceptionOpt(context, opts));
     }
 
     @Deprecated
     public SSLSocket acceptCommon(ThreadContext context, boolean blocking) {
-        return acceptImpl(context, blocking);
+        return (SSLSocket) acceptImpl(context, blocking, true);
     }
 
-    private SSLSocket acceptImpl(final ThreadContext context, final boolean blocking) {
-        final Ruby runtime = context.runtime;
+    private IRubyObject acceptImpl(final ThreadContext context, final boolean blocking, final boolean exception) {
 
         if ( ! sslContext.isProtocolForServer() ) {
-            throw newSSLError(runtime, "called a function you should not call");
+            throw newSSLError(context.runtime, "called a function you should not call");
         }
 
         try {
@@ -302,7 +311,8 @@ public class SSLSocket extends RubyObject {
                 handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
             }
-            doHandshake(blocking);
+            final IRubyObject ex = doHandshake(blocking, exception);
+            if ( ex != null ) return ex; // :wait_readable | :wait_writable
         }
         catch (SSLHandshakeException e) {
             final String msg = e.getMessage();
@@ -310,34 +320,34 @@ public class SSLSocket extends RubyObject {
             // javax.net.ssl.SSLHandshakeException: No appropriate protocol (protocol is disabled or cipher suites are inappropriate)
             if ( e.getCause() == null && msg != null &&
                  msg.contains("(protocol is disabled or cipher suites are inappropriate)") )  {
-                debug(runtime, sslContext.getProtocol() + " protocol has been deactivated and is not available by default\n see the java.security.Security property jdk.tls.disabledAlgorithms in <JRE_HOME>/lib/security/java.security file");
+                debug(context.runtime, sslContext.getProtocol() + " protocol has been deactivated and is not available by default\n see the java.security.Security property jdk.tls.disabledAlgorithms in <JRE_HOME>/lib/security/java.security file");
             }
             else {
-                debugStackTrace(runtime, e);
+                debugStackTrace(context.runtime, e);
             }
-            throw newSSLErrorFromHandshake(runtime, e);
+            throw newSSLErrorFromHandshake(context.runtime, e);
         }
         catch (NoSuchAlgorithmException e) {
-            debugStackTrace(runtime, e);
-            throw newSSLError(runtime, e);
+            debugStackTrace(context.runtime, e);
+            throw newSSLError(context.runtime, e);
         }
         catch (KeyManagementException e) {
-            debugStackTrace(runtime, e);
-            throw newSSLError(runtime, e);
+            debugStackTrace(context.runtime, e);
+            throw newSSLError(context.runtime, e);
         }
         catch (IOException e) {
-            debugStackTrace(runtime, e);
-            throw newSSLError(runtime, e);
+            debugStackTrace(context.runtime, e);
+            throw newSSLError(context.runtime, e);
         }
         catch (RaiseException e) {
             throw e;
         }
         catch (RuntimeException e) {
-            debugStackTrace(runtime, e);
+            debugStackTrace(context.runtime, e);
             if ( "Could not generate DH keypair".equals( e.getMessage() ) ) {
-                throw SSL.handleCouldNotGenerateDHKeyPairError(runtime, e);
+                throw SSL.handleCouldNotGenerateDHKeyPairError(context.runtime, e);
             }
-            throw newSSLError(runtime, e);
+            throw newSSLError(context.runtime, e);
         }
         return this;
     }
@@ -477,11 +487,17 @@ public class SSLSocket extends RubyObject {
     }
 
     private void doHandshake(final boolean blocking) throws IOException {
+        doHandshake(blocking, true);
+    }
+
+    // might return :wait_readable | :wait_writable in case (true, false)
+    private IRubyObject doHandshake(final boolean blocking, final boolean exception) throws IOException {
         while (true) {
-            boolean ready = waitSelect(SelectionKey.OP_READ | SelectionKey.OP_WRITE, blocking, true) == Boolean.TRUE;
+            Object sel = waitSelect(SelectionKey.OP_READ | SelectionKey.OP_WRITE, blocking, exception);
+            if ( sel instanceof IRubyObject ) return (IRubyObject) sel; // :wait_readable | :wait_writable
 
             // if not blocking, raise EAGAIN
-            if ( ! blocking && ! ready ) {
+            if ( ! blocking && sel != Boolean.TRUE ) {
                 throw getRuntime().newErrnoEAGAINError("Resource temporarily unavailable");
             }
 
@@ -491,7 +507,7 @@ public class SSLSocket extends RubyObject {
             case FINISHED:
             case NOT_HANDSHAKING:
                 if ( initialHandshake ) finishInitialHandshake();
-                return;
+                return null; // OK
             case NEED_TASK:
                 doTasks();
                 break;
@@ -503,7 +519,8 @@ public class SSLSocket extends RubyObject {
                 // does not mean writable. we explicitly wait for readable channel to avoid
                 // busy loop.
                 if (initialHandshake && status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
-                    waitSelect(SelectionKey.OP_READ, blocking, true);
+                    sel = waitSelect(SelectionKey.OP_READ, blocking, exception);
+                    if ( sel instanceof IRubyObject ) return (IRubyObject) sel; // :wait_readable
                 }
                 break;
             case NEED_WRAP:
