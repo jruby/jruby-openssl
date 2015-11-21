@@ -119,8 +119,8 @@ public class X509StoreContext extends RubyObject {
             _cert = null;
         }
         else {
-            if (! (cert instanceof X509Cert)) {
-                throw getRuntime().newTypeError(cert, "OpenSSL::X509::Certificate");
+            if ( ! (cert instanceof X509Cert) ) {
+                throw context.runtime.newTypeError(cert, "OpenSSL::X509::Certificate");
             }
             _cert = ((X509Cert) cert).getAuxCert();
         }
