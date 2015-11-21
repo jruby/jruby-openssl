@@ -70,11 +70,15 @@ plugin( :compiler, '3.1',
       # NOTE: maybe '-J-Xbootclasspath/p:${unsafe.jar}' ... as well ?!
 end
 
-plugin! :clean, :filesets => [
+plugin :clean do
+  execute_goals( 'clean', :id => 'default-clean', :phase => 'clean',
+                 'filesets' => [
                     { :directory => 'lib', :includes => [ 'jopenssl.jar' ] },
                     { :directory => 'lib/org' },
-                    { :directory => 'target', :includes => [ '*' ] },
-                ]
+                    { :directory => 'target', :includes => [ '*' ] }
+                 ],
+                 'failOnError' =>  'false' )
+end
 
 # NOTE: unfortunately we can not use 1.6.8 to generate invokers ...
 # although we'd like to compile against 1.6 to make sure all is well
@@ -110,6 +114,8 @@ properties( 'jruby.plugins.version' => '1.0.10',
             # use this version of jruby for ALL the jruby-maven-plugins
             'jruby.version' => '1.7.18',
             # dump pom.xml as readonly when running 'rmvn'
+            'polyglot.dump.pom' => 'pom.xml',
+            'polyglot.dump.readonly' => true,
             'tesla.dump.pom' => 'pom.xml',
             'tesla.dump.readonly' => true )
 
@@ -150,7 +156,7 @@ profile :id => 'test-1.7.4' do
              'bc.versions' => supported_bc_versions.join(',')
 end
 
-%w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.19 1.7.20 1.7.21 }.each { |version|
+%w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.20 1.7.21 1.7.22 }.each { |version|
 
 profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
@@ -162,16 +168,28 @@ end
 
 }
 
-profile :id => 'test-9000' do
+%w{ 9.0.1.0 9.0.4.0 }.each { |version|
+profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
   end
   # NOTE: we're work-around 9K maven-runit version bug (due minitest changes) !
   # ... still can not build with 9K : https://github.com/jruby/jruby/issues/3184
-  properties 'jruby.version' => '9.0.0.0',
-             'jruby.versions' => '9.0.0.0',
+  properties 'jruby.version' => version, 'jruby.versions' => version,
              'bc.versions' => supported_bc_versions.join(',')
 end
+}
+
+#profile :id => 'test-9000' do
+#  plugin :invoker, '1.8' do
+#    execute_goals( :install, :run, invoker_run_options )
+#  end
+#  # NOTE: we're work-around 9K maven-runit version bug (due minitest changes) !
+#  # ... still can not build with 9K : https://github.com/jruby/jruby/issues/3184
+#  properties 'jruby.version' => '9.0.0.0',
+#             'jruby.versions' => '9.0.0.0',
+#             'bc.versions' => supported_bc_versions.join(',')
+#end
 
 profile :id => 'release' do
   plugin :gpg, '1.5' do
