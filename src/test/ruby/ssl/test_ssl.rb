@@ -151,6 +151,6 @@ class TestSSL < TestCase
 
       ssl.close
     end
-  end
+  end if RUBY_VERSION > '1.9'
 
 end
