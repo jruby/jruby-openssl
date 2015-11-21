@@ -11,12 +11,18 @@ class TestX509Store < TestCase
     @pem = File.expand_path('../EntrustnetSecureServerCertificationAuthority.pem', __FILE__)
   end
 
+  @@ssl_cert_file = ENV['SSL_CERT_FILE']
+
+  def teardown
+    ENV['SSL_CERT_FILE'] = @@ssl_cert_file
+  end
+
   def test_store_location_with_pem
     ENV['SSL_CERT_FILE'] = nil
     store = OpenSSL::X509::Store.new
     store.set_default_paths
     assert !store.verify(@cert)
-    
+
     ENV['SSL_CERT_FILE'] = @ca_cert
     store = OpenSSL::X509::Store.new
     assert !store.verify(@cert)
@@ -64,7 +70,7 @@ class TestX509Store < TestCase
 
   def test_verfy_with_wrong_argument
     store = OpenSSL::X509::Store.new
-    assert_raise(TypeError) { store.verify( 'not an cert object' ) }
+    assert_raise(TypeError) { store.verify( 'not a cert object' ) }
   end
 
   def test_add_cert_concurrently
