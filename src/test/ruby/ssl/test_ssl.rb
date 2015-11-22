@@ -153,4 +153,36 @@ class TestSSL < TestCase
     end
   end if RUBY_VERSION > '1.9'
 
+  def test_connect_nonblock_would_block
+    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+
+      if defined? OpenSSL::SSL::SSLErrorWaitReadable
+        begin
+          ssl.connect_nonblock
+          fail 'read would block error not raised!'
+        rescue OpenSSL::SSL::SSLErrorWaitReadable => e
+          assert_equal 'read would block', e.message
+        end
+      else
+        begin
+          ssl.connect_nonblock
+          fail 'read would block error not raised!'
+        rescue => e
+          assert_equal 'read would block', e.message
+        end
+      end
+
+      if RUBY_VERSION > '2.2'
+        result = eval "ssl.connect_nonblock(exception: false)"
+        assert_equal :wait_readable, result
+      end
+      result = ssl.connect_nonblock(:exception => false)
+      assert_equal :wait_readable, result
+
+      ssl.close
+    end
+  end if RUBY_VERSION > '1.9'
+
 end
