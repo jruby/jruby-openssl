@@ -38,6 +38,7 @@ import org.jruby.internal.runtime.methods.DynamicMethod;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.SafePropertyAccessor;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -177,13 +178,20 @@ public class SSL {
         return newCustomSSLError(runtime, "SSLErrorWaitWritable", message);
     }
 
+    // -Djruby.openssl.ssl.error_wait_nonblock.backtrace=false disables backtrace for WaitReadable/Writable
+    private static final boolean waitErrorBacktrace =
+        SafePropertyAccessor.getBoolean("jruby.openssl.ssl.error_wait_nonblock.backtrace", false);
+
     private static RaiseException newCustomSSLError(final Ruby runtime, final String name,
         final String message) {
         RubyClass errorClass = _SSL(runtime).getClass(name);
         if ( errorClass == null ) { // < Ruby 2.0
             errorClass = _SSL(runtime).getClass("SSLError"); // fallback
         }
-        return Utils.newError(runtime, errorClass, message, false);
+        if ( waitErrorBacktrace ) {
+            return Utils.newError(runtime, errorClass, message, false);
+        }
+        return Utils.newErrorWithoutTrace(runtime, errorClass, message, false);
     }
 
     static RubyModule _SSL(final Ruby runtime) {
