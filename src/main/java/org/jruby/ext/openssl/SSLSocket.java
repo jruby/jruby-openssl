@@ -158,6 +158,10 @@ public class SSLSocket extends RubyObject {
             throw runtime.newTypeError("IO expected but got " + args[0].getMetaClass().getName());
         }
         setInstanceVariable("@io", this.io = (RubyIO) args[0]); // compat (we do not read @io)
+        // Ruby 2.3 : @io.nonblock = true if @io.respond_to?(:nonblock=)
+        if (io.respondsTo("nonblock=")) {
+            io.callMethod(context, "nonblock=", runtime.getTrue());
+        }
         setInstanceVariable("@context", this.sslContext); // only compat (we do not use @context)
         // This is a bit of a hack: SSLSocket should share code with
         // RubyBasicSocket, which always sets sync to true.
@@ -879,7 +883,11 @@ public class SSLSocket extends RubyObject {
         close(true);
     }
 
+    //private boolean closed;
+
     private void close(boolean force)  {
+        //closed = true;
+
         if ( engine == null ) throw getRuntime().newEOFError();
 
         engine.closeOutbound();
@@ -895,13 +903,19 @@ public class SSLSocket extends RubyObject {
         }
     }
 
+    //final boolean isClosed() { return closed; }
+
     @JRubyMethod
     public IRubyObject sysclose(final ThreadContext context) {
+        //if ( isClosed() ) return context.runtime.getNil();
+        if ( this.io.callMethod(context, "closed?").isTrue() ) {
+            return context.runtime.getNil();
+        } // Ruby 2.3
         // no need to try shutdown when it's a server
         close( sslContext.isProtocolForClient() );
 
         if ( this.callMethod(context, "sync_close").isTrue() ) {
-            this.io.callMethod(context, "close");
+            return this.io.callMethod(context, "close");
         }
         return context.runtime.getNil();
     }
