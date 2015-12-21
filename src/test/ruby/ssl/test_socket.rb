@@ -1,3 +1,4 @@
+# frozen_string_literal: false
 require File.expand_path('test_helper', File.dirname(__FILE__))
 
 class TestSSLSocket < TestCase
@@ -53,5 +54,21 @@ class TestSSLSocket < TestCase
       assert socket.closed?
     end
   end
+
+  include SSLTestHelper
+
+  def test_ssl_sysread_blocking_error
+    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
+      server_connect(port) do |ssl|
+        ssl.write("abc\n")
+        # assert_raise(TypeError) { ssl.sysread(4, exception: false) }
+        buf = ''
+        assert_raise(ArgumentError) { ssl.sysread(4, buf, exception: false) }
+        assert_equal '', buf
+        assert_equal buf.object_id, ssl.sysread(4, buf).object_id
+        assert_equal "abc\n", buf
+      end
+    end
+  end if RUBY_VERSION > '2.0'
 
 end

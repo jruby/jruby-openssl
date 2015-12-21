@@ -127,6 +127,20 @@ module SSLTestHelper
   rescue Errno::EBADF, IOError, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET
   end
 
+  def server_connect(port, ctx = nil)
+    sock = TCPSocket.new('127.0.0.1', port)
+    ssl = ctx ? OpenSSL::SSL::SSLSocket.new(sock, ctx) : OpenSSL::SSL::SSLSocket.new(sock)
+    ssl.sync_close = true
+    ssl.connect
+    yield ssl if block_given?
+  ensure
+    if ssl
+      ssl.close
+    elsif sock
+      sock.close
+    end
+  end
+
   def starttls(ssl)
     ssl.puts("STARTTLS")
     #sleep 1 # When this line is eliminated, process on Cygwin blocks

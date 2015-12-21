@@ -795,6 +795,7 @@ public class SSLSocket extends RubyObject {
     @JRubyMethod
     public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len, IRubyObject arg) {
         if ( arg instanceof RubyHash ) { // exception: false
+            // NOTE: on Ruby 2.3 this is expected to raise a TypeError (but not on 2.2)
             return sysreadImpl(context, len, null, false, getExceptionOpt(context, arg));
         }
         return sysreadImpl(context, len, arg, false, true); // buffer arg
