@@ -56,7 +56,7 @@ class TestSSLSocket < TestCase
       end
     else
       begin
-        socket = Socket.new :INET, :STREAM
+        socket = UDPSocket.new :INET
         assert ! socket.closed?
         ssl = OpenSSL::SSL::SSLSocket.new(socket)
         ssl.sync_close = true
