@@ -45,13 +45,27 @@ class TestSSLSocket < TestCase
 
   def test_sync_close_without_connect
     require 'socket'
-    Socket.open(:INET, :STREAM) do |socket|
-      assert ! socket.closed?
-      ssl = OpenSSL::SSL::SSLSocket.new(socket)
-      ssl.sync_close = true
-      assert ! ssl.closed?
-      ssl.close
-      assert socket.closed?
+    if RUBY_VERSION > '2.2'
+      Socket.open(:INET, :STREAM) do |socket|
+        assert ! socket.closed?
+        ssl = OpenSSL::SSL::SSLSocket.new(socket)
+        ssl.sync_close = true
+        assert ! ssl.closed?
+        ssl.close
+        assert socket.closed?
+      end
+    else
+      begin
+        socket = Socket.new :INET, :STREAM
+        assert ! socket.closed?
+        ssl = OpenSSL::SSL::SSLSocket.new(socket)
+        ssl.sync_close = true
+        assert ! ssl.closed?
+        ssl.close
+        assert socket.closed?
+      ensure
+        socket && socket.close rescue nil
+      end
     end
   end
 
@@ -69,6 +83,6 @@ class TestSSLSocket < TestCase
         assert_equal "abc\n", buf
       end
     end
-  end if RUBY_VERSION > '2.0'
+  end if RUBY_VERSION > '2.2'
 
 end
