@@ -90,16 +90,17 @@ public final class OpenSSL {
         // OpenSSL::VERSION: "1.0.0"
         // OpenSSL::OPENSSL_VERSION: "OpenSSL 1.0.1c 10 May 2012"
         // OpenSSL::OPENSSL_VERSION_NUMBER: 268439615
-        // MRI 1.9.3 / 2.1.2 :
+        // MRI 1.9.3 / 2.2.3 :
         // OpenSSL::VERSION: "1.1.0"
         // OpenSSL::OPENSSL_VERSION: "OpenSSL 1.0.1f 6 Jan 2014"
         // OpenSSL::OPENSSL_VERSION_NUMBER: 268439663
+        // OpenSSL::OPENSSL_LIBRARY_VERSION: ""OpenSSL 1.0.2d 9 Jul 2015"
+        // OpenSSL::FIPS: false
 
         final byte[] version = { '1','.','1','.','0' };
+        final boolean ruby18 = runtime.getInstanceConfig().getCompatVersion() == CompatVersion.RUBY1_8;
+        if ( ruby18 ) version[2] = '0'; // 1.0.0 compatible on 1.8
 
-        if ( runtime.getInstanceConfig().getCompatVersion() == CompatVersion.RUBY1_8 ) {
-            version[2] = '0';
-        } // 1.0.0 compatible on 1.8
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
         final RubyModule _Jopenssl = runtime.getModule("Jopenssl");
@@ -107,14 +108,21 @@ public final class OpenSSL {
         final RubyString jVERSION = _Version.getConstantAt("VERSION").asString();
 
         final byte[] JRuby_OpenSSL_ = { 'J','R','u','b','y','-','O','p','e','n','S','S','L',' ' };
-        final int OPENSSL_VERSION_NUMBER = 999999999; // 9469999 do smt useful with it ?
+        final int OPENSSL_VERSION_NUMBER = 999999999; // NOTE: smt more useful?
 
         ByteList OPENSSL_VERSION = new ByteList( jVERSION.getByteList().length() + JRuby_OpenSSL_.length );
         OPENSSL_VERSION.setEncoding( jVERSION.getEncoding() );
         OPENSSL_VERSION.append( JRuby_OpenSSL_ );
         OPENSSL_VERSION.append( jVERSION.getByteList() );
-        _OpenSSL.setConstant("OPENSSL_VERSION", runtime.newString(OPENSSL_VERSION));
+
+        final RubyString VERSION;
+        _OpenSSL.setConstant("OPENSSL_VERSION", VERSION = runtime.newString(OPENSSL_VERSION));
         _OpenSSL.setConstant("OPENSSL_VERSION_NUMBER", runtime.newFixnum(OPENSSL_VERSION_NUMBER));
+        if ( ! ruby18 ) {
+            // MRI 2.3 tests do: /\AOpenSSL +0\./ !~ OpenSSL::OPENSSL_LIBRARY_VERSION
+            _OpenSSL.setConstant("OPENSSL_LIBRARY_VERSION", VERSION);
+            _OpenSSL.setConstant("OPENSSL_FIPS", runtime.getFalse());
+        }
     }
 
     static RubyClass _OpenSSLError(final Ruby runtime) {

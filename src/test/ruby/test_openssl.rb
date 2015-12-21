@@ -23,6 +23,13 @@ class TestOpenSSL < TestCase
       assert_equal 0, OpenSSL::OPENSSL_VERSION.index('JRuby-OpenSSL ')
     end
     assert OpenSSL::OPENSSL_VERSION_NUMBER
+
+    if RUBY_VERSION > '2.0'
+      # MRI 2.3 openssl/utils.rb does this (and we shall pass) :
+      assert defined?(OpenSSL::OPENSSL_LIBRARY_VERSION)
+      assert /\AOpenSSL +0\./ !~ OpenSSL::OPENSSL_LIBRARY_VERSION
+      #puts "OpenSSL::OPENSSL_LIBRARY_VERSION = #{OpenSSL::OPENSSL_LIBRARY_VERSION.inspect}"
+    end
   end
 
   def test_debug
