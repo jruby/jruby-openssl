@@ -757,10 +757,9 @@ public class SSLSocket extends RubyObject {
                     if ( ex instanceof IRubyObject ) return (IRubyObject) ex; // :wait_readable
                 }
             }
-            byte[] bytesRead = new byte[read];
-            dst.position(dst.position() - read);
-            dst.get(bytesRead);
-            buffStr.setValue(new ByteList(bytesRead, false));
+            final byte[] bytesRead = dst.array();
+            final int offset = dst.position() - read;
+            buffStr.setValue(new ByteList(bytesRead, offset, read, false));
             return buffStr;
         }
         catch (IOException ioe) {
