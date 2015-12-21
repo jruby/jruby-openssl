@@ -733,19 +733,22 @@ public class SSLSocket extends RubyObject {
                 if ( ex instanceof IRubyObject ) return (IRubyObject) ex; // :wait_readable
             }
 
-            ByteBuffer dst = ByteBuffer.allocate(length);
-            int rr = -1;
+            final ByteBuffer dst = ByteBuffer.allocate(length);
+            int read = -1;
             // ensure >0 bytes read; sysread is blocking read.
-            while ( rr <= 0 ) {
+            while ( read <= 0 ) {
                 if ( engine == null ) {
-                    rr = socketChannelImpl().read(dst);
+                    read = socketChannelImpl().read(dst);
                 } else {
-                    rr = read(dst, blocking);
+                    read = read(dst, blocking);
                 }
 
-                if ( rr == -1 ) throw runtime.newEOFError();
+                if ( read == -1 ) {
+                    if ( exception ) throw runtime.newEOFError();
+                    return runtime.getNil();
+                }
 
-                if ( rr == 0 && status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) {
+                if ( read == 0 && status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) {
                     // If we didn't get any data back because we only read in a partial TLS record,
                     // instead of spinning until the rest comes in, call waitSelect to either block
                     // until the rest is available, or throw a "read would block" error if we are in
@@ -754,10 +757,10 @@ public class SSLSocket extends RubyObject {
                     if ( ex instanceof IRubyObject ) return (IRubyObject) ex; // :wait_readable
                 }
             }
-            byte[] bss = new byte[rr];
-            dst.position(dst.position() - rr);
-            dst.get(bss);
-            buffStr.setValue(new ByteList(bss, false));
+            byte[] bytesRead = new byte[read];
+            dst.position(dst.position() - read);
+            dst.get(bytesRead);
+            buffStr.setValue(new ByteList(bytesRead, false));
             return buffStr;
         }
         catch (IOException ioe) {

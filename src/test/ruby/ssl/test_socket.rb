@@ -85,4 +85,68 @@ class TestSSLSocket < TestCase
     end
   end if RUBY_VERSION > '2.2'
 
+  def test_read_nonblock_no_exception
+    ssl_pair do |s1, s2|
+      assert_equal :wait_readable, eval('s2.read_nonblock 10, exception: false')
+      s1.write "abc\ndef\n"
+      IO.select [ s2 ]
+      ret = eval('s2.read_nonblock 2, exception: false')
+      assert_equal "ab", ret
+      assert_equal "c\n", s2.gets
+      ret = eval('s2.read_nonblock 10, exception: false')
+      assert_equal("def\n", ret)
+      s1.close
+      sleep 0.1
+      opts = { :exception => false }
+      assert_equal nil, s2.read_nonblock(10, opts)
+    end
+  end if RUBY_VERSION > '2.2'
+
+  private
+
+  def server
+    require 'socket'
+    host = "127.0.0.1"; port = 0
+    ctx = OpenSSL::SSL::SSLContext.new()
+    ctx.ciphers = "ADH"
+    server = TCPServer.new(host, port)
+    OpenSSL::SSL::SSLServer.new(server, ctx)
+  end
+
+  def client(port)
+    require 'socket'
+    host = "127.0.0.1"
+    ctx = OpenSSL::SSL::SSLContext.new()
+    ctx.ciphers = "ADH"
+    client = TCPSocket.new(host, port)
+    ssl = OpenSSL::SSL::SSLSocket.new(client, ctx)
+    ssl.connect
+    ssl.sync_close = true
+    ssl
+  end
+
+  def ssl_pair
+    ssl_server = server
+    thread = Thread.new do
+      ssl_server.accept.tap { ssl_server.close }
+    end
+    port = ssl_server.to_io.local_address.ip_port
+    ssl_client = client(port)
+    ssl_socket = thread.value
+    if block_given?
+      begin
+        yield ssl_client, ssl_socket
+      ensure
+        ssl_client.close unless ssl_client.closed?
+        ssl_socket.close unless ssl_socket.closed?
+      end
+    else
+      return ssl_client, ssl_socket
+    end
+  ensure
+    if thread && thread.alive?
+      thread.kill; thread.join
+    end
+  end
+
 end
