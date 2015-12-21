@@ -30,6 +30,23 @@ class TestSSLContext < TestCase
     end
   end
 
+  def test_setup
+    ctx = OpenSSL::SSL::SSLContext.new
+    assert_equal(ctx.setup, true)
+    assert_equal(ctx.setup, nil)
+
+    m = OpenSSL::SSL::SSLContext::METHODS.first
+
+    ex = assert_raise(ArgumentError) do
+      OpenSSL::SSL::SSLContext.new("#{m}\0")
+    end
+    # ex.message =~ /null/
+    ex = assert_raise(ArgumentError) do
+      OpenSSL::SSL::SSLContext.new("\u{ff33 ff33 ff2c}")
+    end
+    assert ex.message =~ /\u{ff33 ff33 ff2c}/
+  end
+
   def test_verify_mode
     context = OpenSSL::SSL::SSLContext.new
     assert_nil context.verify_mode
