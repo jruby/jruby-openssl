@@ -42,4 +42,16 @@ class TestSSLSocket < TestCase
     socket.inspect
   end
 
+  def test_sync_close_without_connect
+    require 'socket'
+    Socket.open(:INET, :STREAM) do |socket|
+      assert ! socket.closed?
+      ssl = OpenSSL::SSL::SSLSocket.new(socket)
+      ssl.sync_close = true
+      assert ! ssl.closed?
+      ssl.close
+      assert socket.closed?
+    end
+  end
+
 end

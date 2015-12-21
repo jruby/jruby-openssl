@@ -883,12 +883,11 @@ public class SSLSocket extends RubyObject {
         close(true);
     }
 
-    //private boolean closed;
-
     private void close(boolean force)  {
-        //closed = true;
-
-        if ( engine == null ) throw getRuntime().newEOFError();
+        if ( engine == null ) {
+            // if ( force ) throw getRuntime().newEOFError();
+            return;
+        }
 
         engine.closeOutbound();
 
@@ -902,8 +901,6 @@ public class SSLSocket extends RubyObject {
             debug(getRuntime(), "SSLSocket.close doShutdown failed", e);
         }
     }
-
-    //final boolean isClosed() { return closed; }
 
     @JRubyMethod
     public IRubyObject sysclose(final ThreadContext context) {
