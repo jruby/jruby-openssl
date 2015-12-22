@@ -16,7 +16,9 @@ JRuby-OpenSSL is the first release that aims to be Ruby **2.3** compatible.
 
 ## 0.9.12
 
-* avoid verifying the security provider when creating a cipher instance (#73)
+* when the Cipher/Signature needs to be created via java reflection use a constructor
+  which avoids verifying the bouncy-castle jars (which is the main reason for using
+  reflection since some classloader setups fails to verify those jars) (#73)
 * force US locale for date formatting
   otherwise it uses system locale, which is inconsistent with MRI.
 * X509::Store.set_default_paths ignores FileNotFound errors like MRI does (#68)
@@ -24,6 +26,8 @@ JRuby-OpenSSL is the first release that aims to be Ruby **2.3** compatible.
   throw a TypeError if the argument is not a OpenSSL::X509::Certificate (#69)
 * keep the default x509 certs and directories in line with MRI, only if
   they do not exists fallback on cacerts from the java.home/lib/security/cacerts
+* bring the default ca-certs paths/location more in line with MRI and fallback on
+  jvm truststore (java.home/lib/security/cacerts) when needed
 
 ## 0.9.11
 
