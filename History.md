@@ -1,3 +1,30 @@
+## 0.9.13
+
+JRuby-OpenSSL is the first release that aims to be Ruby **2.3** compatible.
+
+* SSLSocket#sysread do not copy bytes from buffer - re-use the backing array
+* handle read_nonblock EOF as nil when exception: false (Ruby 2.3 compatibility)
+* start exposing VERSION constant(s) directly on Jopenssl module
+* better not throw EOF on SSLSocket#sysclose for compatibility with MRI
+* setup "dummy" OpenSSL::OPENSSL_LIBRARY_VERSION constant for compatibility
+* Ruby 2.3 compatibility - adjust to changes in MRI's openssl .rb parts
+* update openssl/ssl.rb based on MRI 2.2's version
+* disable backtrace generation for wait non-block errors (use an empty array)
+* support SSLSocket#accept_nonblock/connect_nonblock with exception: false
+* support `exception: false` with syswrite_nonblock and sysread_nonblock
+* remove 'RSA' from RSA public key headers (#76)
+
+## 0.9.12
+
+* avoid verifying the security provider when creating a cipher instance (#73)
+* force US locale for date formatting
+  otherwise it uses system locale, which is inconsistent with MRI.
+* X509::Store.set_default_paths ignores FileNotFound errors like MRI does (#68)
+* check type on X509::Store.verify
+  throw a TypeError if the argument is not a OpenSSL::X509::Certificate (#69)
+* keep the default x509 certs and directories in line with MRI, only if
+  they do not exists fallback on cacerts from the java.home/lib/security/cacerts
+
 ## 0.9.11
 
 * add TLSv1_1_client, TLSv1_1_server, TLSv1_2_client and TLSv1_2_server options
