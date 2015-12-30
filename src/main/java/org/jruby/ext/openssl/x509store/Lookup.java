@@ -356,8 +356,10 @@ public class Lookup {
         final FileInputStream fin = new FileInputStream(certsFile);
         int count = 0;
         try {
-            KeyStore keystore = SecurityHelper.getKeyStore(KeyStore.getDefaultType());
-            // we pass a null password, as the cacerts file isn't password protected
+	    // hardcode the keystore type, as we expcet cacerts to be a java
+	    // keystore - especially needed for jdk9
+            KeyStore keystore = SecurityHelper.getKeyStore("jks");
+	    // we pass a null password, as the cacerts file isn't password protected
             keystore.load(fin, null);
             PKIXParameters params = new PKIXParameters(keystore);
             for ( TrustAnchor trustAnchor : params.getTrustAnchors() ) {
