@@ -409,17 +409,14 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod(name = "serial=")
     public IRubyObject set_serial(final IRubyObject serial) {
-        if ( ! serial.equals(this.serial) ) {
-            this.changed = true;
-        }
-
-        final String serialStr = serial.toString();
+        final String serialStr = serial.asString().toString();
         final BigInteger serialInt;
         if ( serialStr.equals("0") ) { // MRI compatibility: allow 0 serial number
             serialInt = BigInteger.ONE;
         } else {
             serialInt = new BigInteger(serialStr);
         }
+        this.changed = ! serialInt.equals(this.serial);
         //generator.setSerialNumber( serialInt.abs() );
         this.serial = serialInt; return serial;
     }
