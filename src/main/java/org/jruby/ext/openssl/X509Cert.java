@@ -310,7 +310,7 @@ public class X509Cert extends RubyObject {
 
         text.append("Certificate:\n");
         text.append(S20,0,4).append("Data:\n");
-        final int version = RubyNumeric.fix2int(this.version);
+        final int version = this.version == null ? 0 : RubyNumeric.fix2int(this.version);
         text.append(S20,0,8).append("Version: ").append( version + 1 ).
              append(" (0x").append( Integer.toString( version, 16 ) ).append(")\n");
         text.append(S20,0,8).append("Serial Number:\n");
@@ -382,12 +382,12 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod
     public IRubyObject version() {
-        return version;
+        return version != null ? version : ( version = getRuntime().newFixnum(0) );
     }
 
     @JRubyMethod(name = "version=")
     public IRubyObject set_version(final IRubyObject version) {
-        if ( ! version.equals(this.version) ) {
+        if ( ! version().equals(version) ) {
             this.changed = true;
         }
         return this.version = version;
