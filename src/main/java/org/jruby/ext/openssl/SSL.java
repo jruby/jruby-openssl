@@ -171,18 +171,27 @@ public class SSL {
     }
 
     public static RaiseException newSSLErrorWaitReadable(Ruby runtime, String message) {
-        return newCustomSSLError(runtime, "SSLErrorWaitReadable", message);
+        return newWaitSSLError(runtime, "SSLErrorWaitReadable", message);
     }
 
     public static RaiseException newSSLErrorWaitWritable(Ruby runtime, String message) {
-        return newCustomSSLError(runtime, "SSLErrorWaitWritable", message);
+        return newWaitSSLError(runtime, "SSLErrorWaitWritable", message);
     }
 
     // -Djruby.openssl.ssl.error_wait_nonblock.backtrace=false disables backtrace for WaitReadable/Writable
-    private static final boolean waitErrorBacktrace =
-        SafePropertyAccessor.getBoolean("jruby.openssl.ssl.error_wait_nonblock.backtrace", false);
+    private static final boolean waitErrorBacktrace;
 
-    private static RaiseException newCustomSSLError(final Ruby runtime, final String name,
+    static {
+        String backtrace = SafePropertyAccessor.getProperty("jruby.openssl.ssl.error_wait_nonblock.backtrace");
+        if (backtrace == null) {
+            // default to JRuby's Option<Boolean> ERRNO_BACKTRACE =
+            // ... "Generate backtraces for heavily-used Errno exceptions (EAGAIN)."
+            backtrace = SafePropertyAccessor.getProperty("jruby.errno.backtrace", "false");
+        }
+        waitErrorBacktrace = Boolean.parseBoolean(backtrace);
+    }
+
+    private static RaiseException newWaitSSLError(final Ruby runtime, final String name,
         final String message) {
         RubyClass errorClass = _SSL(runtime).getClass(name);
         if ( errorClass == null ) { // < Ruby 2.0
