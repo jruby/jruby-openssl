@@ -313,8 +313,20 @@ public class X509Cert extends RubyObject {
         final int version = this.version == null ? 0 : RubyNumeric.fix2int(this.version);
         text.append(S20,0,8).append("Version: ").append( version + 1 ).
              append(" (0x").append( Integer.toString( version, 16 ) ).append(")\n");
-        text.append(S20,0,8).append("Serial Number:\n");
-        text.append(S20,0,12).append( lowerHexBytes(serial.toByteArray(), 1) ).append('\n');
+        // <= 0x1122334455667788 printed on same line as :
+        // Serial Number: 1234605616436508552 (0x1122334455667788)
+        // but 0x112233445566778899 ends up :
+        // Serial Number:
+        //      11:22:33:44:55:66:77:88:99
+        text.append(S20,0,8).append("Serial Number:");
+        if ( serial.compareTo( new BigInteger("FFFFFFFFFFFFFFFF", 16) ) > 0 ) {
+            text.append('\n');
+            text.append(S20,0,12).append( lowerHexBytes(serial.toByteArray(), 1) ).append('\n');
+        }
+        else {
+            text.append(' ').append(serial.toString(10)).append(' ');
+            text.append('(').append("0x").append(serial.toString(16)).append(')').append('\n');
+        }
 
         text.append(S20,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
         //final RubyString issuer = issuer().asString(); ByteList bytes = issuer.getByteList();
