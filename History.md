@@ -1,3 +1,11 @@
+## 0.9.14
+
+* basic support for prompting for PEM password (working for RSA/DSA priv.key)
+* avoid NPE due version field in X509Cert - make sure it's treated as 0 (#78)
+  and fix settting ceritificate.serial = number
+* default WairReadable/Writable backtraces to JRuby's -Xerrno.backtrace
+* use hardcoded jks type for loading cacerts - for Java 9 compatibility (#79)
+
 ## 0.9.13
 
 JRuby-OpenSSL is the first release that aims to be Ruby **2.3** compatible.
