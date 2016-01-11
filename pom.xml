@@ -57,7 +57,7 @@ DO NOT MODIFIY - GENERATED CODE
     </snapshotRepository>
   </distributionManagement>
   <properties>
-    <bc.versions>1.50</bc.versions>
+    <bc.versions>1.54</bc.versions>
     <jruby.plugins.version>1.0.10</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <jruby.version>1.7.18</jruby.version>
@@ -94,12 +94,12 @@ DO NOT MODIFIY - GENERATED CODE
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
-      <version>1.50</version>
+      <version>1.54</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
-      <version>1.50</version>
+      <version>1.54</version>
     </dependency>
     <dependency>
       <groupId>org.jruby</groupId>
