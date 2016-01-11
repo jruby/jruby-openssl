@@ -64,8 +64,6 @@ import org.jruby.runtime.Visibility;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import static org.jruby.ext.openssl.OpenSSL.*;
 import org.jruby.ext.openssl.impl.CipherSpec;
-import static org.jruby.ext.openssl.impl.PKey.readPrivateKey;
-import static org.jruby.ext.openssl.impl.PKey.readPublicKey;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -118,7 +116,7 @@ public abstract class PKey extends RubyObject {
             KeyPair key = null;
             // d2i_PrivateKey_bio
             try {
-                key = readPrivateKey(input);
+                key =org.jruby.ext.openssl.impl.PKey.readPrivateKey(input);
             } catch (IOException ioe) {
                 // ignore
             } catch (GeneralSecurityException gse) {
@@ -145,7 +143,7 @@ public abstract class PKey extends RubyObject {
             PublicKey pubKey = null;
             // d2i_PUBKEY_bio
             try {
-                pubKey = readPublicKey(input);
+                pubKey = org.jruby.ext.openssl.impl.PKey.readPublicKey(input);
             } catch (IOException ioe) {
                 // ignore
             } catch (GeneralSecurityException gse) {
