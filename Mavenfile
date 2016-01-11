@@ -100,7 +100,7 @@ plugin :deploy, '2.8.1' do
   execute_goals( :deploy, :skip => false )
 end
 
-supported_bc_versions = %w{ 1.47 1.48 1.49 1.50 1.51 }
+supported_bc_versions = %w{ 1.49 1.50 1.51 1.52 1.53 1.54 }
 
 default_bc_version = File.read('lib/jopenssl/version.rb')[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
@@ -156,7 +156,9 @@ profile :id => 'test-1.7.4' do
              'bc.versions' => supported_bc_versions.join(',')
 end
 
-%w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.20 1.7.21 1.7.22 }.each { |version|
+jruby_1_7_versions = %w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.20 1.7.22 1.7.23 }
+
+jruby_1_7_versions.each { |version|
 
 profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
