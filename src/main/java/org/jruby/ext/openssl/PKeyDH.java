@@ -144,9 +144,11 @@ public class PKeyDH extends PKey {
                     }
                     this.dh_p = spec.getP();
                     this.dh_g = spec.getG();
-                } catch (NoClassDefFoundError e) {
+                }
+                catch (NoClassDefFoundError e) {
                     throw newDHError(runtime, bcExceptionMessage(e));
-                } catch (IOException e) {
+                }
+                catch (IOException e) {
                     throw runtime.newIOErrorFromException(e);
                 }
             } else {
@@ -156,7 +158,8 @@ public class PKeyDH extends PKey {
                 BigInteger p;
                 try {
                     p = generateP(bits, gval);
-                } catch(IllegalArgumentException e) {
+                }
+                catch(IllegalArgumentException e) {
                     throw runtime.newArgumentError(e.getMessage());
                 }
                 BigInteger g = BigInteger.valueOf(gval);

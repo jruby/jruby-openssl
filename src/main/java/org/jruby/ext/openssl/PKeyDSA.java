@@ -181,18 +181,26 @@ public class PKeyDSA extends PKey {
         final KeyFactory dsaFactory;
         try {
             dsaFactory = SecurityHelper.getKeyFactory("DSA");
-        } catch (NoSuchAlgorithmException e) {
+        }
+        catch (NoSuchAlgorithmException e) {
             throw runtime.newRuntimeError("unsupported key algorithm (DSA)");
-        } catch (RuntimeException e) {
+        }
+        catch (RuntimeException e) {
             throw runtime.newRuntimeError("unsupported key algorithm (DSA) " + e);
         }
         // TODO: ugly NoClassDefFoundError catching for no BC env. How can we remove this?
         boolean noClassDef = false;
         if ( key == null && ! noClassDef ) { // PEM_read_bio_DSAPrivateKey
             try {
-                key = PEMInputOutput.readDSAPrivateKey(new StringReader(str.toString()), passwd);
+                key = readPrivateKey(str, passwd);
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
+            catch (PEMInputOutput.PasswordRequiredException retry) {
+                if ( ttySTDIN(context) ) {
+                    try { key = readPrivateKey(str, passwordPrompt(context)); }
+                    catch (Exception e) { debugStackTrace(runtime, e); }
+                }
+            }
             catch (Exception e) { debugStackTrace(runtime, e); }
         }
         if ( key == null && ! noClassDef ) { // PEM_read_bio_DSAPublicKey
@@ -262,6 +270,11 @@ public class PKeyDSA extends PKey {
         }
         return this;
     }
+
+    //private static Object readPrivateKey(final RubyString str, final char[] passwd)
+    //    throws PEMInputOutput.PasswordRequiredException, IOException {
+    //    return PEMInputOutput.readDSAPrivateKey(new StringReader(str.toString()), passwd);
+    //}
 
     @JRubyMethod(name = "public?")
     public RubyBoolean public_p() {

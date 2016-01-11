@@ -209,7 +209,7 @@ public class PKeyRSA extends PKey {
         if ( arg instanceof RubyFixnum ) {
             int keysize = RubyNumeric.fix2int((RubyFixnum) arg);
             BigInteger exp = RSAKeyGenParameterSpec.F4;
-            if (null != pass && !pass.isNil()) {
+            if ( pass != null && ! pass.isNil() ) {
                 exp = BigInteger.valueOf(RubyNumeric.num2long(pass));
             }
             rsaGenerate(this, keysize, exp); return this;
@@ -222,18 +222,26 @@ public class PKeyRSA extends PKey {
         final KeyFactory rsaFactory;
         try {
             rsaFactory = SecurityHelper.getKeyFactory("RSA");
-        } catch (NoSuchAlgorithmException e) {
+        }
+        catch (NoSuchAlgorithmException e) {
             throw runtime.newRuntimeError("unsupported key algorithm (RSA)");
-        } catch (RuntimeException e) {
+        }
+        catch (RuntimeException e) {
             throw runtime.newRuntimeError("unsupported key algorithm (RSA) " + e);
         }
         // TODO: ugly NoClassDefFoundError catching for no BC env. How can we remove this?
         boolean noClassDef = false;
         if ( key == null && ! noClassDef ) { // PEM_read_bio_RSAPrivateKey
             try {
-                key = PEMInputOutput.readPrivateKey(new StringReader(str.toString()), passwd);
+                key = readPrivateKey(str, passwd);
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
+            catch (PEMInputOutput.PasswordRequiredException retry) {
+                if ( ttySTDIN(context) ) {
+                    try { key = readPrivateKey(str, passwordPrompt(context)); }
+                    catch (Exception e) { debugStackTrace(runtime, e); }
+                }
+            }
             catch (Exception e) { debugStackTrace(runtime, e); }
         }
         if ( key == null && ! noClassDef )  { // PEM_read_bio_RSAPublicKey

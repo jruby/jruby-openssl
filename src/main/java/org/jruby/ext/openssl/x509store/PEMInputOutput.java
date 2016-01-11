@@ -205,22 +205,25 @@ public class PEMInputOutput {
             if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
                     return readPublicKey(reader,BEF_E+PEM_STRING_PUBLIC);
-                } catch (Exception e) {
-                    throw new IOException("problem creating public key: " + e.toString(), e);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating public key: ", e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_DSA) != -1 ) {
                 try {
                     return readKeyPair(reader,passwd, "DSA", BEF_E+PEM_STRING_DSA);
-                } catch (Exception e) {
-                    throw new IOException("problem creating DSA private key: " + e.toString(), e);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating DSA private key: ", e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_RSA_PUBLIC) != -1 ) {
                 try {
                     return readPublicKey(reader,BEF_E+PEM_STRING_RSA_PUBLIC);
-                } catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating RSA public key: ", e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_X509_OLD) != -1 ) {
@@ -308,7 +311,8 @@ public class PEMInputOutput {
      * c: PEM_read_PrivateKey + PEM_read_bio_PrivateKey
      * CAUTION: KeyPair#getPublic() may be null.
      */
-    public static KeyPair readPrivateKey(final Reader in, char[] passwd) throws IOException {
+    public static KeyPair readPrivateKey(final Reader in, char[] passwd)
+        throws PasswordRequiredException, IOException {
         final String BEG_STRING_ECPRIVATEKEY = BEF_G + PEM_STRING_ECPRIVATEKEY;
         final String BEG_STRING_PKCS8INF = BEF_G + PEM_STRING_PKCS8INF;
         final String BEG_STRING_PKCS8 = BEF_G + PEM_STRING_PKCS8;
@@ -318,15 +322,17 @@ public class PEMInputOutput {
             if ( line.indexOf(BEG_STRING_RSA) != -1 ) {
                 try {
                     return readKeyPair(reader, passwd, "RSA", BEF_E + PEM_STRING_RSA);
-                } catch (Exception e) {
-                    throw new IOException("problem creating RSA private key: " + e.toString(), e);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating RSA private key: ", e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_DSA) != -1 ) {
                 try {
                     return readKeyPair(reader, passwd, "DSA", BEF_E + PEM_STRING_DSA);
-                } catch (Exception e) {
-                    throw new IOException("problem creating DSA private key: " + e.toString(), e);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating DSA private key: ", e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_ECPRIVATEKEY) != -1) { // TODO EC!
@@ -340,7 +346,7 @@ public class PEMInputOutput {
                     return org.jruby.ext.openssl.impl.PKey.readPrivateKey(((ASN1Object) info.parsePrivateKey()).getEncoded(ASN1Encoding.DER), type);
                 }
                 catch (Exception e) {
-                    throw new IOException("problem creating private key: " + e.toString(), e);
+                    throw mapReadException("problem creating private key: ", e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_PKCS8) != -1 ) {
@@ -355,12 +361,20 @@ public class PEMInputOutput {
                         privKey = derivePrivateKeyPBES1(eIn, algId, passwd);
                     }
                     return new KeyPair(null, privKey);
-                } catch (Exception e) {
-                    throw new IOException("problem creating private key: " + e.toString(), e);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating private key: ", e);
                 }
             }
         }
         return null;
+    }
+
+    private static IOException mapReadException(final String message, final Exception ex) {
+        if ( ex instanceof PasswordRequiredException ) {
+            return (PasswordRequiredException) ex;
+        }
+        return new IOException(message + ex, ex);
     }
 
     private static PrivateKey derivePrivateKeyPBES1(EncryptedPrivateKeyInfo eIn, AlgorithmIdentifier algId, char[] password)
@@ -452,7 +466,7 @@ public class PEMInputOutput {
                     return (DSAPublicKey) readPublicKey(reader, "DSA", BEF_E + PEM_STRING_DSA_PUBLIC);
                 }
                 catch (Exception e) {
-                    throw new IOException("problem creating DSA public key: " + e.toString(), e);
+                    throw mapReadException("problem creating DSA public key: ", e);
                 }
             }
         }
@@ -470,7 +484,7 @@ public class PEMInputOutput {
                     return (DSAPublicKey) readPublicKey(reader, "DSA", BEF_E + PEM_STRING_PUBLIC);
                 }
                 catch (Exception e) {
-                    throw new IOException("problem creating DSA public key: " + e.toString(), e);
+                    throw mapReadException("problem creating DSA public key: ", e);
                 }
             }
         }
@@ -480,7 +494,8 @@ public class PEMInputOutput {
     /*
      * c: PEM_read_bio_DSAPrivateKey
      */
-    public static KeyPair readDSAPrivateKey(final Reader in, final char[] passwd) throws IOException {
+    public static KeyPair readDSAPrivateKey(final Reader in, final char[] passwd)
+        throws PasswordRequiredException, IOException {
         final BufferedReader reader = makeBuffered(in); String line;
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_DSA) != -1 ) {
@@ -488,7 +503,7 @@ public class PEMInputOutput {
                     return readKeyPair(reader, passwd, "DSA", BEF_E + PEM_STRING_DSA);
                 }
                 catch (Exception e) {
-                    throw new IOException("problem creating DSA private key: " + e.toString(), e);
+                    throw mapReadException("problem creating DSA private key: ", e);
                 }
             }
         }
@@ -505,15 +520,17 @@ public class PEMInputOutput {
             if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
                     return readRSAPublicKey(reader, BEF_E + PEM_STRING_PUBLIC);
-                } catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating RSA public key: ", e);
                 }
             }
             else if ( line.indexOf(BEG_STRING_RSA_PUBLIC) != -1 ) {
                 try {
                     return readRSAPublicKey(reader, BEF_E + PEM_STRING_RSA_PUBLIC);
-                } catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating RSA public key: ", e);
                 }
             }
         }
@@ -524,7 +541,8 @@ public class PEMInputOutput {
      * reads an RSA public key encoded in an PKCS#1 RSA structure.
      * c: PEM_read_bio_RSAPublicKey
      */
-    public static RSAPublicKey readRSAPublicKey(Reader in, char[] f) throws IOException {
+    public static RSAPublicKey readRSAPublicKey(Reader in, char[] f)
+        throws PasswordRequiredException, IOException {
         final BufferedReader reader = makeBuffered(in); String line;
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
@@ -532,7 +550,7 @@ public class PEMInputOutput {
                     return (RSAPublicKey) readPublicKey(reader, "RSA", BEF_E + PEM_STRING_PUBLIC);
                 }
                 catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
+                    throw mapReadException("problem creating RSA public key: ", e);
                 }
             }
             else if ( line.indexOf(BEF_G+PEM_STRING_RSA_PUBLIC) != -1 ) {
@@ -540,7 +558,7 @@ public class PEMInputOutput {
                     return (RSAPublicKey) readPublicKey(reader, "RSA", BEF_E + PEM_STRING_RSA_PUBLIC);
                 }
                 catch (Exception e) {
-                    throw new IOException("problem creating RSA public key: " + e.toString(), e);
+                    throw mapReadException("problem creating RSA public key: ", e);
                 }
             }
         }
@@ -550,7 +568,8 @@ public class PEMInputOutput {
     /**
      * c: PEM_read_bio_RSAPrivateKey
      */
-    public static KeyPair readRSAPrivateKey(Reader in, char[] f) throws IOException {
+    public static KeyPair readRSAPrivateKey(Reader in, char[] f)
+        throws PasswordRequiredException, IOException {
         final BufferedReader reader = makeBuffered(in); String line;
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_RSA) != -1 ) {
@@ -558,7 +577,7 @@ public class PEMInputOutput {
                     return readKeyPair(reader,f, "RSA", BEF_E + PEM_STRING_RSA);
                 }
                 catch (Exception e) {
-                    throw new IOException("problem creating RSA private key: " + e.toString(), e);
+                    throw mapReadException("problem creating RSA private key: ", e);
                 }
             }
         }
@@ -1091,7 +1110,8 @@ public class PEMInputOutput {
     /**
      * Read a Key Pair
      */
-    private static KeyPair readKeyPair(BufferedReader in, char[] passwd, String type, String endMarker) throws Exception {
+    private static KeyPair readKeyPair(BufferedReader in, char[] passwd, String type, String endMarker)
+        throws PasswordRequiredException, IOException, GeneralSecurityException {
         boolean isEncrypted = false;
         String dekInfo = null;
 
@@ -1121,10 +1141,10 @@ public class PEMInputOutput {
         return org.jruby.ext.openssl.impl.PKey.readPrivateKey(keyBytes, type);
     }
 
-    private static byte[] decrypt(byte[] decoded, String dekInfo, char[] passwd) throws IOException, GeneralSecurityException {
-        if (passwd == null) {
-            throw new IOException("Password is null, but a password is required");
-        }
+    private static byte[] decrypt(byte[] decoded, String dekInfo, char[] passwd)
+        throws PasswordRequiredException, IOException, GeneralSecurityException {
+        if ( passwd == null ) throw new PasswordRequiredException();
+
         StringTokenizer tknz = new StringTokenizer(dekInfo, ",");
         String algorithm = tknz.nextToken();
         byte[] iv = Hex.decode(tknz.nextToken());
@@ -1149,6 +1169,14 @@ public class PEMInputOutput {
         Cipher cipher = SecurityHelper.getCipher(realName);
         cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv));
         return cipher.doFinal(decoded);
+    }
+
+    public static class PasswordRequiredException extends IOException {
+
+        PasswordRequiredException() {
+            super();
+        }
+
     }
 
     /**

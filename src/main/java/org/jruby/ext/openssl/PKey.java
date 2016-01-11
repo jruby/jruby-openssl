@@ -30,6 +30,7 @@ package org.jruby.ext.openssl;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
@@ -348,6 +349,34 @@ public abstract class PKey extends RubyObject {
             return pass.toString().toCharArray();
         }
         return null;
+    }
+
+    protected static char[] passwordPrompt(final ThreadContext context) {
+        return passwordPrompt(context, "Enter PEM pass phrase:");
+    }
+
+    protected static char[] passwordPrompt(final ThreadContext context, final String prompt) {
+        final RubyModule Kernel = context.runtime.getKernel();
+        // NOTE: just a fast and simple print && gets - hopefully better than nothing!
+        Kernel.callMethod("print", context.runtime.newString(prompt));
+        final RubyString gets = Kernel.callMethod(context, "gets").convertToString();
+        gets.chomp_bang(context);
+        return gets.toString().toCharArray();
+    }
+
+    protected static boolean ttySTDIN(final ThreadContext context) {
+        final IRubyObject stdin = context.runtime.getGlobalVariables().get("$stdin");
+        if ( stdin == null || stdin.isNil() ) return false;
+        try {
+            final IRubyObject tty = stdin.callMethod(context, "tty?");
+            return ! tty.isNil() && ! ( tty == context.runtime.getFalse() );
+        }
+        catch (RaiseException ex) { return false; }
+    }
+
+    static Object readPrivateKey(final RubyString str, final char[] passwd)
+        throws PEMInputOutput.PasswordRequiredException, IOException {
+        return PEMInputOutput.readPrivateKey(new StringReader(str.toString()), passwd);
     }
 
     protected static RubyString readInitArg(final ThreadContext context, IRubyObject arg) {
