@@ -104,7 +104,7 @@ supported_bc_versions = %w{ 1.49 1.50 1.51 1.52 1.53 1.54 }
 
 default_bc_version = File.read('lib/jopenssl/version.rb')[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
-properties( 'jruby.plugins.version' => '1.0.10',
+properties( 'jruby.plugins.version' => '1.1.3',
             'jruby.versions' => '1.7.18',
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
