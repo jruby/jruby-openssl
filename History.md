@@ -1,5 +1,7 @@
 ## 0.9.14
 
+* upgrade to using BC **1.54** as default (all versions >= 1.49 are supported)
+  for Bouncy-Castle release notes see http://bouncycastle.org/releasenotes.html
 * basic support for prompting for PEM password (working for RSA/DSA priv.key)
 * avoid NPE due version field in X509Cert - make sure it's treated as 0 (#78)
   and fix settting ceritificate.serial = number
