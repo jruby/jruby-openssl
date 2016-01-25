@@ -134,7 +134,8 @@ public class SSLSession extends RubyObject {
     @JRubyMethod(name = "timeout")
     public IRubyObject timeout(final ThreadContext context) {
         final SSLSessionContext sessionContext = sslSession().getSessionContext();
-        if ( sessionContext == null ) return context.nil;
+        // default in OpenSSL is 300
+        if ( sessionContext == null ) return context.runtime.newFixnum(300);
         return context.runtime.newFixnum(sessionContext.getSessionTimeout());
     }
 
