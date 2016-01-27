@@ -21,6 +21,8 @@ install: echo 'no bundle install atm!'
 script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_PROFILE; fi
 
 matrix:
+  allow_failures:
+    - rvm: jruby-1.7.22 # seems as an embed loading bug (same with 1.7.23)
   exclude:
     - jdk: openjdk6
       env: TEST_PROFILE=test-9.0.1.0
@@ -29,7 +31,7 @@ matrix:
   include:
     - jdk: oraclejdk7
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
-      rvm: jruby-1.7.22
+      rvm: jruby-1.7.24
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.0.4.0
