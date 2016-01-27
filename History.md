@@ -1,3 +1,8 @@
+## 0.9.15
+
+* always return a Fixnum from `OpenSSL::SSL::Session#timeout`, OpenSSL defaults
+  to 300 (been causing net/http.rb issues with timeouts on JRuby 9K)
+
 ## 0.9.14
 
 * upgrade to using BC **1.54** as default (all versions >= 1.49 are supported)
