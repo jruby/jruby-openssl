@@ -12,8 +12,7 @@ env:
   - TEST_PROFILE=test-1.7.13
   - TEST_PROFILE=test-1.7.18
   - TEST_PROFILE=test-1.7.22
-  # fails just like 1.7.22 :
-  #- TEST_PROFILE=test-1.7.23
+  - TEST_PROFILE=test-1.7.24
   - TEST_PROFILE=test-9.0.1.0
   - TEST_PROFILE=test-9.0.4.0
 
