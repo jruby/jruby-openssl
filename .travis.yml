@@ -22,7 +22,7 @@ script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_P
 
 matrix:
   allow_failures:
-    - rvm: jruby-1.7.22 # seems as an embed loading bug (same with 1.7.23)
+    - env: TEST_PROFILE=test-1.7.22 # seems as an embed loading bug (same with 1.7.23)
   exclude:
     - jdk: openjdk6
       env: TEST_PROFILE=test-9.0.1.0
