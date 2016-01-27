@@ -37,6 +37,11 @@ one can run a tests Ruby-style e.g. `jruby -Ilib:. src/test/ruby/test_bn.rb`
 * (advised) run JRuby's full suite using the staged new jruby-openssl gem
   e.g. https://github.com/jruby/jruby/commit/1df6315e9145195f19ad862be5e3a5
 
+* (advised) release the staging repository at Sonatype's if all is well
+
+* (optional) update JRuby to bundle new jruby-openssl gem (remove staging)
+  e.g. https://github.com/jruby/jruby/commit/8750e736491825eec1d1954a07d492
+
 * gem push the build gem from pkg/ e.g. `gem push pkg/jruby-openssl-0.9.15.gem`
 
 * tag the release e.g. `git tag v0.9.15`
@@ -46,7 +51,7 @@ one can run a tests Ruby-style e.g. `jruby -Ilib:. src/test/ruby/test_bn.rb`
 
 * `git push origin master --tags`
 
-* e.g. https://github.com/jruby/jruby/commit/8750e736491825eec1d1954a07d492
+* (advised) ... take the rest of the day off!
 
 
 #### Manually Deploying
