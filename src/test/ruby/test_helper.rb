@@ -10,10 +10,11 @@ if bc_version = ENV['BC_VERSION'] # && respond_to?(:require_jar)
 
   puts Java::OrgBouncycastleJceProvider::BouncyCastleProvider.new.info
 else
-  $CLASSPATH << 'pkg/classes'
-  jar = Dir['lib/org/bouncycastle/**/bcprov-*.jar'].first
+  base_dir = File.expand_path('../../..', File.dirname(__FILE__))
+  $CLASSPATH << File.join(base_dir, 'pkg/classes')
+  jar = Dir[File.join(base_dir, 'lib/org/bouncycastle/**/bcprov-*.jar')].first
   raise "bcprov jar not found" unless jar; $CLASSPATH << jar
-  jar = Dir['lib/org/bouncycastle/**/bcpkix-*.jar'].first
+  jar = Dir[File.join(base_dir, 'lib/org/bouncycastle/**/bcpkix-*.jar')].first
   raise "bcpkix jar not found" unless jar; $CLASSPATH << jar
 end if defined? JRUBY_VERSION
 

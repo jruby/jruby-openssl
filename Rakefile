@@ -42,6 +42,7 @@ Rake::TestTask.new do |task|
   task.test_files = test_files.map { |path| path.sub('src/test/ruby/', '') }
   task.verbose = true
   task.loader = :direct
+  task.ruby_opts = [ '-C', 'src/test/ruby', '-rbundler/setup' ]
 end
 task :test => 'lib/jopenssl.jar'
 
