@@ -42,6 +42,7 @@ import java.security.SecureRandom;
 import java.security.interfaces.DSAKey;
 import java.security.interfaces.DSAPrivateKey;
 import java.security.interfaces.DSAPublicKey;
+import java.security.spec.DSAPrivateKeySpec;
 import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 
@@ -111,6 +112,7 @@ public class PKeyDSA extends PKey {
     // a public key to be constructed incrementally, as required by the
     // current implementation of Net::SSH.
     // (see net-ssh-1.1.2/lib/net/ssh/transport/ossl/buffer.rb #read_keyblob)
+    private transient volatile BigInteger dsa_x;
     private transient volatile BigInteger dsa_y;
     private transient volatile BigInteger dsa_p;
     private transient volatile BigInteger dsa_q;
@@ -368,19 +370,28 @@ public class PKeyDSA extends PKey {
         return getRuntime().getNil();
     }
 
+    private DSAKey getDsaKey() {
+      DSAKey result;
+      return (result = publicKey) != null ? result : privateKey;
+    }
+
+    private IRubyObject toBN(BigInteger value) {
+      return value == null ? getRuntime().getNil() : BN.newBN(getRuntime(), value);
+    }
+
+    private synchronized BigInteger getP() {
+        DSAKey key = getDsaKey();
+        if (key != null) {
+            return key.getParams().getP();
+        }
+        else {
+            return dsa_p;
+        }
+    }
+
     @JRubyMethod(name = "p")
-    public synchronized IRubyObject get_p() {
-        // FIXME: return only for public?
-        DSAKey key; BigInteger param;
-        if ((key = this.publicKey) != null || (key = this.privateKey) != null) {
-            if ((param = key.getParams().getP()) != null) {
-                return BN.newBN(getRuntime(), param);
-            }
-        }
-        else if (dsa_p != null) {
-            return BN.newBN(getRuntime(), dsa_p);
-        }
-        return getRuntime().getNil();
+    public IRubyObject get_p() {
+        return toBN(getP());
     }
 
     @JRubyMethod(name = "p=")
@@ -388,19 +399,19 @@ public class PKeyDSA extends PKey {
         return setKeySpecComponent(SPEC_P, p);
     }
 
+    private synchronized BigInteger getQ() {
+        DSAKey key = getDsaKey();
+        if (key != null) {
+            return key.getParams().getQ();
+        }
+        else {
+            return dsa_q;
+        }
+    }
+
     @JRubyMethod(name = "q")
-    public synchronized IRubyObject get_q() {
-        // FIXME: return only for public?
-        DSAKey key; BigInteger param;
-        if ((key = this.publicKey) != null || (key = this.privateKey) != null) {
-            if ((param = key.getParams().getQ()) != null) {
-                return BN.newBN(getRuntime(), param);
-            }
-        }
-        else if (dsa_q != null) {
-            return BN.newBN(getRuntime(), dsa_q);
-        }
-        return getRuntime().getNil();
+    public IRubyObject get_q() {
+        return toBN(getQ());
     }
 
     @JRubyMethod(name = "q=")
@@ -408,19 +419,19 @@ public class PKeyDSA extends PKey {
         return setKeySpecComponent(SPEC_Q, q);
     }
 
+    private synchronized BigInteger getG() {
+        DSAKey key = getDsaKey();
+        if (key != null) {
+            return key.getParams().getG();
+        }
+        else {
+            return dsa_g;
+        }
+    }
+
     @JRubyMethod(name = "g")
-    public synchronized IRubyObject get_g() {
-        // FIXME: return only for public?
-        DSAKey key; BigInteger param;
-        if ((key = this.publicKey) != null || (key = this.privateKey) != null) {
-            if ((param = key.getParams().getG()) != null) {
-                return BN.newBN(getRuntime(), param);
-            }
-        }
-        else if (dsa_g != null) {
-            return BN.newBN(getRuntime(), dsa_g);
-        }
-        return getRuntime().getNil();
+    public IRubyObject get_g() {
+        return toBN(getG());
     }
 
     @JRubyMethod(name = "g=")
@@ -428,25 +439,27 @@ public class PKeyDSA extends PKey {
         return setKeySpecComponent(SPEC_G, g);
     }
 
-    @JRubyMethod(name = "pub_key")
-    public synchronized IRubyObject get_pub_key() {
-        DSAPublicKey key;
-        if ( ( key = this.publicKey ) != null ) {
-            return BN.newBN(getRuntime(), key.getY());
-        }
-        else if (dsa_y != null) {
-            return BN.newBN(getRuntime(), dsa_y);
-        }
-        return getRuntime().getNil();
-    }
-
     @JRubyMethod(name = "priv_key")
     public synchronized IRubyObject get_priv_key() {
         DSAPrivateKey key;
         if ((key = this.privateKey) != null) {
-            return BN.newBN(getRuntime(), key.getX());
+            return toBN(key.getX());
         }
-        return getRuntime().getNil();
+        return toBN(dsa_x);
+    }
+
+    @JRubyMethod(name = "priv_key=")
+    public synchronized IRubyObject set_priv_key(IRubyObject priv_key) {
+        return setKeySpecComponent(SPEC_X, priv_key);
+    }
+
+    @JRubyMethod(name = "pub_key")
+    public synchronized IRubyObject get_pub_key() {
+        DSAPublicKey key;
+        if ( ( key = this.publicKey ) != null ) {
+            return toBN(key.getY());
+        }
+        return toBN(dsa_y);
     }
 
     @JRubyMethod(name = "pub_key=")
@@ -458,15 +471,38 @@ public class PKeyDSA extends PKey {
         final BigInteger val = BN.getBigInteger(value);
 
         switch (index) {
+            case SPEC_X: this.dsa_x = val; break;
             case SPEC_Y: this.dsa_y = val; break;
             case SPEC_P: this.dsa_p = val; break;
             case SPEC_Q: this.dsa_q = val; break;
             case SPEC_G: this.dsa_g = val; break;
         }
 
-        if ( dsa_y != null && dsa_p != null && dsa_q != null && dsa_g != null ) {
-            // we now have all components. create the key :
-            DSAPublicKeySpec spec = new DSAPublicKeySpec(dsa_y, dsa_p, dsa_q, dsa_g);
+        // Don't access the dsa_p, dsa_q and dsa_g fields directly. They may
+        // have already been consumed and cleared.
+        BigInteger _dsa_p = getP();
+        BigInteger _dsa_q = getQ();
+        BigInteger _dsa_g = getG();
+
+        if ( dsa_x != null && _dsa_p != null && _dsa_q != null && _dsa_g != null ) {
+            // we now have all private key components. create the key :
+            DSAPrivateKeySpec spec = new DSAPrivateKeySpec(dsa_x, _dsa_p, _dsa_q, _dsa_g);
+            try {
+                this.privateKey = (DSAPrivateKey) SecurityHelper.getKeyFactory("DSA").generatePrivate(spec);
+            }
+            catch (InvalidKeySpecException e) {
+                throw newDSAError(getRuntime(), "invalid keyspec", e);
+            }
+            catch (NoSuchAlgorithmException e) {
+                throw newDSAError(getRuntime(), "unsupported key algorithm (DSA)", e);
+            }
+            // clear out the specValues
+            this.dsa_x = this.dsa_p = this.dsa_q = this.dsa_g = null;
+        }
+
+        if ( dsa_y != null && _dsa_p != null && _dsa_q != null && _dsa_g != null ) {
+            // we now have all public key components. create the key :
+            DSAPublicKeySpec spec = new DSAPublicKeySpec(dsa_y, _dsa_p, _dsa_q, _dsa_g);
             try {
                 this.publicKey = (DSAPublicKey) SecurityHelper.getKeyFactory("DSA").generatePublic(spec);
             }
@@ -483,10 +519,11 @@ public class PKeyDSA extends PKey {
         return value;
     }
 
-    private static final int SPEC_Y = 0;
-    private static final int SPEC_P = 1;
-    private static final int SPEC_Q = 2;
-    private static final int SPEC_G = 3;
+    private static final int SPEC_X = 0;
+    private static final int SPEC_Y = 1;
+    private static final int SPEC_P = 2;
+    private static final int SPEC_Q = 3;
+    private static final int SPEC_G = 4;
 
     public static RaiseException newDSAError(Ruby runtime, String message) {
         return Utils.newError(runtime, _PKey(runtime).getClass("DSAError"), message);
