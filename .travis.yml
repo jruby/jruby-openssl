@@ -22,16 +22,23 @@ script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_P
 
 matrix:
   allow_failures:
-    - env: TEST_PROFILE=test-1.7.22 # seems as an embed loading bug (same with 1.7.23)
+    #- env: TEST_PROFILE=test-1.7.22 # seems as an embed loading bug (same with 1.7.23)
+    - env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+      rvm: jruby-1.7.24
+    - env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+      rvm: jruby-1.7.18
   exclude:
     - jdk: openjdk6
       env: TEST_PROFILE=test-9.0.1.0
     - jdk: openjdk6
       env: TEST_PROFILE=test-9.0.5.0
   include:
-    - jdk: oraclejdk7
+    - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-1.7.24
+    - jdk: oraclejdk7
+      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+      rvm: jruby-1.7.18
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.0.5.0
