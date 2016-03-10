@@ -648,17 +648,19 @@ public class PKeyRSA extends PKey {
         return getRuntime().getNil();
     }
 
+    private BigInteger getPublicExponent() {
+        if (publicKey != null) {
+            return publicKey.getPublicExponent();
+        } else if (privateKey != null) {
+            return privateKey.getPublicExponent();
+        } else {
+            return rsa_e;
+        }
+    }
+
     @JRubyMethod(name="e")
     public synchronized IRubyObject get_e() {
-        RSAPublicKey key;
-        BigInteger e;
-        if ((key = publicKey) != null) {
-            e = key.getPublicExponent();
-        } else if(privateKey != null) {
-            e = privateKey.getPublicExponent();
-        } else {
-            e = rsa_e;
-        }
+        BigInteger e = getPublicExponent();
         if (e != null) {
             return BN.newBN(getRuntime(), e);
         }
@@ -679,17 +681,19 @@ public class PKeyRSA extends PKey {
         return value;
     }
 
+    private BigInteger getModulus() {
+        if (publicKey != null) {
+            return publicKey.getModulus();
+        } else if (privateKey != null) {
+            return privateKey.getModulus();
+        } else {
+            return rsa_n;
+        }
+    }
+
     @JRubyMethod(name="n")
     public synchronized IRubyObject get_n() {
-        RSAPublicKey key;
-        BigInteger n;
-        if ((key = publicKey) != null) {
-            n = key.getModulus();
-        } else if(privateKey != null) {
-            n = privateKey.getModulus();
-        } else {
-            n = rsa_n;
-        }
+        BigInteger n = getModulus();
         if (n != null) {
             return BN.newBN(getRuntime(), n);
         }
@@ -715,8 +719,12 @@ public class PKeyRSA extends PKey {
 
         if ( publicKey != null ) throw newRSAError(runtime, "illegal modification");
 
-        BigInteger e, n;
-        if ( (e = rsa_e) != null && (n = rsa_n) != null ) {
+        // Don't access the rsa_n and rsa_e fields directly. They may have
+        // already been consumed and cleared by generatePrivateKeyIfParams.
+        BigInteger _rsa_n = getModulus();
+        BigInteger _rsa_e = getPublicExponent();
+
+        if (_rsa_n != null && _rsa_e != null) {
             final KeyFactory rsaFactory;
             try {
                 rsaFactory = SecurityHelper.getKeyFactory("RSA");
@@ -726,7 +734,7 @@ public class PKeyRSA extends PKey {
             }
 
             try {
-                publicKey = (RSAPublicKey) rsaFactory.generatePublic(new RSAPublicKeySpec(n, e));
+                publicKey = (RSAPublicKey) rsaFactory.generatePublic(new RSAPublicKeySpec(_rsa_n, _rsa_e));
             }
             catch (InvalidKeySpecException ex) {
                 throw newRSAError(runtime, "invalid parameters");
@@ -741,7 +749,12 @@ public class PKeyRSA extends PKey {
 
         if ( privateKey != null ) throw newRSAError(runtime, "illegal modification");
 
-        if (rsa_e != null && rsa_n != null && rsa_p != null && rsa_q != null && rsa_d != null && rsa_dmp1 != null && rsa_dmq1 != null && rsa_iqmp != null) {
+        // Don't access the rsa_n and rsa_e fields directly. They may have
+        // already been consumed and cleared by generatePublicKeyIfParams.
+        BigInteger _rsa_n = getModulus();
+        BigInteger _rsa_e = getPublicExponent();
+
+        if (_rsa_n != null && _rsa_e != null && rsa_p != null && rsa_q != null && rsa_d != null && rsa_dmp1 != null && rsa_dmq1 != null && rsa_iqmp != null) {
             final KeyFactory rsaFactory;
             try {
                 rsaFactory = SecurityHelper.getKeyFactory("RSA");
@@ -752,7 +765,7 @@ public class PKeyRSA extends PKey {
 
             try {
                 privateKey = (RSAPrivateCrtKey) rsaFactory.generatePrivate(
-                    new RSAPrivateCrtKeySpec(rsa_n, rsa_e, rsa_d, rsa_p, rsa_q, rsa_dmp1, rsa_dmq1, rsa_iqmp)
+                    new RSAPrivateCrtKeySpec(_rsa_n, _rsa_e, rsa_d, rsa_p, rsa_q, rsa_dmp1, rsa_dmq1, rsa_iqmp)
                 );
             }
             catch (InvalidKeySpecException e) {

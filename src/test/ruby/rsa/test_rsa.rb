@@ -47,4 +47,47 @@ class TestRsa < TestCase
     # }
   end
 
+  def test_rsa_param_accessors
+    key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
+    key = OpenSSL::PKey::RSA.new(File.read(key_file))
+
+    [:e, :n, :d, :p, :q, :iqmp, :dmp1, :dmq1].each do |param|
+      rsa = OpenSSL::PKey::RSA.new
+      assert_nil(rsa.send(param))
+      value = key.send(param)
+      rsa.send("#{param}=", value)
+      assert_equal(value, rsa.send(param), param)
+    end
+  end
+
+  def test_rsa_from_params_public_first
+    key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
+    key = OpenSSL::PKey::RSA.new(File.read(key_file))
+
+    rsa = OpenSSL::PKey::RSA.new
+    rsa.e, rsa.n = key.e, key.n
+    assert_nothing_raised { rsa.public_encrypt('Test string') }
+    [:e, :n].each {|param| assert_equal(key.send(param), rsa.send(param)) }
+
+    rsa.d, rsa.p, rsa.q, rsa.iqmp, rsa.dmp1, rsa.dmq1 = key.d, key.p, key.q, key.iqmp, key.dmp1, key.dmq1
+    assert_nothing_raised { rsa.private_encrypt('Test string') }
+    [:e, :n, :d, :p, :q, :iqmp, :dmp1, :dmq1].each do |param|
+      assert_equal(key.send(param), rsa.send(param), param)
+    end
+  end
+
+  def test_rsa_from_params_private_first
+    key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
+    key = OpenSSL::PKey::RSA.new(File.read(key_file))
+
+    rsa = OpenSSL::PKey::RSA.new
+    rsa.d, rsa.p, rsa.q, rsa.iqmp, rsa.dmp1, rsa.dmq1 = key.d, key.p, key.q, key.iqmp, key.dmp1, key.dmq1
+    rsa.e, rsa.n = key.e, key.n
+    assert_nothing_raised { rsa.public_encrypt('Test string') }
+    assert_nothing_raised { rsa.private_encrypt('Test string') }
+    [:e, :n, :d, :p, :q, :iqmp, :dmp1, :dmq1].each do |param|
+      assert_equal(key.send(param), rsa.send(param), param)
+    end
+  end
+
 end
