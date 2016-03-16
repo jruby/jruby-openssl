@@ -1,7 +1,7 @@
 #-*- mode: ruby -*-
 
 begin
-  require 'maven/ruby/tasks'
+  require 'ruby-maven'
 rescue LoadError
   warn "ruby-maven not available - some tasks will not work " <<
        "either `gem install ruby-maven' or use mvn instead of rake"
@@ -16,20 +16,22 @@ rescue LoadError
     end
   end
 else
-  Rake::Task[:jar].clear
+  #Rake::Task[:jar].clear rescue nil
   desc "Package jopenssl.jar with the compiled classes"
-  task :jar => :maven do
-    maven.prepare_package '-Dmaven.test.skip=true'
+  task :jar do
+    RubyMaven.exec( 'prepare-package -Dmaven.test.skip=true' )
   end
   namespace :jar do
     desc "Package jopenssl.jar file (and dependendent jars)"
-    task :all => :maven do
-      maven.package '-Dmaven.test.skip=true'
+    task :all do
+      RubyMaven.exec( 'package -Dmaven.test.skip=true' )
     end
   end
 end
 
-# the actual build configuration is inside the Mavenfile
+task :build do
+  RubyMaven.exec('package -Dmaven.test.skip')
+end
 
 task :default => :build
 

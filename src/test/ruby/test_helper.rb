@@ -11,7 +11,10 @@ if bc_version = ENV['BC_VERSION'] # && respond_to?(:require_jar)
   puts Java::OrgBouncycastleJceProvider::BouncyCastleProvider.new.info
 else
   base_dir = File.expand_path('../../..', File.dirname(__FILE__))
-  $CLASSPATH << File.join(base_dir, 'pkg/classes')
+
+  jar = File.join(base_dir, 'lib/jopenssl.jar')
+  raise "jopenssl.jar jar not found" unless jar; $CLASSPATH << jar
+
   jar = Dir[File.join(base_dir, 'lib/org/bouncycastle/**/bcprov-*.jar')].first
   raise "bcprov jar not found" unless jar; $CLASSPATH << jar
   jar = Dir[File.join(base_dir, 'lib/org/bouncycastle/**/bcpkix-*.jar')].first
