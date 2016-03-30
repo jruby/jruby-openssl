@@ -115,9 +115,4 @@ public class Name {
         }
     }
 
-    @Deprecated
-    public boolean isEqual(final X500Principal principal) {
-        return equalTo(principal);
-    }
-
 }// X509_NAME
