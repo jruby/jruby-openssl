@@ -148,7 +148,7 @@ public class Purpose {
     /**
      * c: X509_PURPOSE_add
      */
-    public static int add(int id, int trust, int flags, CheckPurposeFunction ck, String name, String sname, Object arg) {
+    static int add(int id, int trust, int flags, CheckPurposeFunction ck, String name, String sname, Object arg) {
         flags &= ~X509Utils.X509_PURPOSE_DYNAMIC;
         flags |= X509Utils.X509_PURPOSE_DYNAMIC_NAME;
         int idx = getByID(id);
@@ -167,7 +167,7 @@ public class Purpose {
         ptmp.trust = trust;
         ptmp.checkPurpose = ck;
         ptmp.userData = arg;
-        if(idx == -1) {
+        if (idx == -1) {
             xptable.add(ptmp);
         }
         return 1;
