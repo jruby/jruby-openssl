@@ -27,6 +27,7 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -35,13 +36,14 @@ import java.util.List;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public abstract class X509Object implements Comparable<X509Object> {
+
     /**
      * c: X509_OBJECT_idx_by_subject
      */
-    public static int indexBySubject(List<? extends X509Object> h, int type, Name name) {
-        int ix = 0;
-        for ( X509Object oo : h ) {
-            if ( type == oo.type() && oo.isName(name) ) return ix;
+    public static int indexBySubject(final List<? extends X509Object> list, int type, Name name) {
+        for ( int i = 0; i < list.size(); i++ ) {
+            final X509Object obj = list.get(i);
+            if ( type == obj.type() && obj.isName(name) ) return i;
         }
         return -1;
     }
@@ -49,9 +51,9 @@ public abstract class X509Object implements Comparable<X509Object> {
     /**
      * c: X509_OBJECT_retrieve_by_subject
      */
-    public static X509Object retrieveBySubject(final List<? extends X509Object> h, int type, Name name) {
-        for ( X509Object o : h ) {
-            if ( type == o.type() && o.isName(name) ) return o;
+    public static X509Object retrieveBySubject(final Collection<? extends X509Object> list, int type, Name name) {
+        for ( X509Object obj : list ) {
+            if ( type == obj.type() && obj.isName(name) ) return obj;
         }
         return null;
     }
@@ -59,9 +61,9 @@ public abstract class X509Object implements Comparable<X509Object> {
     /**
      * c: X509_OBJECT_retrieve_match
      */
-    public static X509Object retrieveMatch(final List<? extends X509Object> h, X509Object x) {
-        for ( X509Object o : h ) {
-            if ( o.matches(x) ) return o;
+    public static X509Object retrieveMatch(final Collection<? extends X509Object> list, X509Object x) {
+        for ( X509Object obj : list ) {
+            if ( obj.matches(x) ) return obj;
         }
         return null;
     }
@@ -79,4 +81,5 @@ public abstract class X509Object implements Comparable<X509Object> {
     public int compareTo(X509Object other) {
         return type() - other.type();
     }
+
 }// X509_OBJECT
