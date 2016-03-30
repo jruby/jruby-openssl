@@ -12,7 +12,7 @@
  * rights and limitations under the License.
  *
  * Copyright (C) 2006 Ola Bini <ola@ologix.com>
- * 
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
  * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -27,13 +27,23 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import java.security.PrivateKey;
+
 /**
  * c: X509_OBJECT
  *
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class PKey extends X509Object {
-    public java.security.PrivateKey pkey;
+
+    public /* final */ java.security.PrivateKey pkey;
+
+    @Deprecated // not-used
+    public PKey() { /* no-op */  }
+
+    public PKey(PrivateKey pkey) {
+        this.pkey = pkey;
+    }
 
     public int type() {
         return X509Utils.X509_LU_PKEY;

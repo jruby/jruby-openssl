@@ -52,17 +52,18 @@ public class Certificate extends X509Object {
 
     @Override
     public boolean matches(final X509Object other) {
-        return other instanceof Certificate &&
-            x509.getSubjectX500Principal().equals( ((Certificate) other).x509.getSubjectX500Principal() );
+        if (other instanceof Certificate) {
+            final Certificate that = (Certificate) other;
+            return this.x509.getSubjectX500Principal().equals( that.x509.getSubjectX500Principal() );
+        }
+        return false;
     }
 
     @Override
     public int compareTo(final X509Object other) {
-        int ret = super.compareTo(other);
-        if (ret == 0) {
-            ret = x509.equals( ( (Certificate) other ).x509 ) ? 0 : -1;
-        }
-        return ret;
+        int cmp = super.compareTo(other);
+        if (cmp != 0) return cmp;
+        return x509.equals( ( (Certificate) other ).x509 ) ? 0 : -1;
     }
 
 }// X509_OBJECT_CERT

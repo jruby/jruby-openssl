@@ -36,7 +36,14 @@ import java.security.cert.X509CRL;
  */
 public class CRL extends X509Object {
 
-    public java.security.cert.CRL crl;
+    public /* final */ java.security.cert.CRL crl;
+
+    @Deprecated // not-used
+    public CRL() { /* */ }
+
+    public CRL(X509CRL crl) {
+        this.crl = crl;
+    }
 
     @Override
     public int type() {
@@ -45,22 +52,24 @@ public class CRL extends X509Object {
 
     @Override
     public boolean isName(final Name name) {
-        return name.equalTo( ((X509CRL) this.crl).getIssuerX500Principal() );
+        return name.equalTo( ((X509CRL) crl).getIssuerX500Principal() );
     }
 
     @Override
     public boolean matches(final X509Object other) {
-        return other instanceof CRL &&
-        ((X509CRL) crl).getIssuerX500Principal().equals( ((X509CRL)((CRL) other).crl).getIssuerX500Principal() );
+        if (other instanceof CRL) {
+            final X509CRL thisCRL = (X509CRL) crl;
+            final X509CRL thatCRL = (X509CRL)((CRL) other).crl;
+            return thisCRL.getIssuerX500Principal().equals( thatCRL.getIssuerX500Principal() );
+        }
+        return false;
     }
 
     @Override
-    public int compareTo(X509Object oth) {
-        int ret = super.compareTo(oth);
-        if (ret == 0) {
-            ret = crl.equals( ((CRL) oth).crl ) ? 0 : -1;
-        }
-        return ret;
+    public int compareTo(final X509Object other) {
+        int cmp = super.compareTo(other);
+        if (cmp != 0) return cmp;
+        return crl.equals( ((CRL) other).crl ) ? 0 : -1;
     }
 
 }// X509_OBJECT_CRL
