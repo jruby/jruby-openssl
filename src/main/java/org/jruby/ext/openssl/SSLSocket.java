@@ -191,7 +191,9 @@ public class SSLSocket extends RubyObject {
         peerAppData.limit(0);
         netData.limit(0);
         dummy = ByteBuffer.allocate(0);
-        return this.engine = engine;
+        this.engine = engine;
+        copySessionSetupIfSet();
+        return engine;
     }
 
     @JRubyMethod(name = "io", alias = "to_io")
@@ -1054,23 +1056,31 @@ public class SSLSocket extends RubyObject {
         return session;
     }
 
+    private transient SSLSession setSession = null;
+
     @JRubyMethod(name = "session=")
     public IRubyObject set_session(IRubyObject session) {
         final ThreadContext context = getRuntime().getCurrentContext();
         // NOTE: we can not fully support this without the SSL provider internals
         // but we can assume setting a session= is meant as a forced session re-use
-        if ( reusableSSLEngine() ) {
-            engine.setEnableSessionCreation(false);
-            if ( session instanceof SSLSession ) {
-                final SSLSession theSession = (SSLSession) session;
-                if ( ! theSession.equals( getSession(context) ) ) {
-                    getSession(context).set_timeout(context, theSession.timeout(context));
+        if ( session instanceof SSLSession ) {
+            setSession = (SSLSession) session;
+            if ( engine != null ) copySessionSetupIfSet();
+        }
+        //warn(context, "WARNING: SSLSocket#session= has not effect");
+        return context.nil;
+    }
+
+    private void copySessionSetupIfSet() {
+        if ( setSession != null ) {
+            if ( reusableSSLEngine() ) {
+                engine.setEnableSessionCreation(false);
+                final ThreadContext context = getRuntime().getCurrentContext();
+                if ( ! setSession.equals( getSession(context) ) ) {
+                    getSession(context).set_timeout(context, setSession.timeout(context));
                 }
             }
-            return getSession(context);
         }
-        warn(context, "WARNING: SSLSocket#session= has not effect");
-        return context.nil;
     }
 
     @JRubyMethod
