@@ -44,6 +44,7 @@ import org.jruby.util.ByteList;
 import static org.jruby.ext.openssl.OpenSSL._OpenSSLError;
 import static org.jruby.ext.openssl.OpenSSL.warn;
 import static org.jruby.ext.openssl.SSL._SSL;
+import static org.jruby.ext.openssl.OpenSSL.warn;
 
 /**
  * OpenSSL::SSL::Session
@@ -88,7 +89,7 @@ public class SSLSession extends RubyObject {
     }
 
     SSLSession initializeImpl(final ThreadContext context, final SSLSocket socket) {
-        sslSession = socket.getSession();
+        sslSession = socket.sslSession();
         return this;
     }
 

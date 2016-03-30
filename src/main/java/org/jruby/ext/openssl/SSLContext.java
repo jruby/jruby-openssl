@@ -662,10 +662,12 @@ public class SSLContext extends RubyObject {
     }
 
     // should keep SSLContext as a member for introducin SSLSession. later...
-    SSLEngine createSSLEngine(String peerHost, int peerPort) throws NoSuchAlgorithmException, KeyManagementException {
+    final SSLEngine createSSLEngine(String peerHost, int peerPort)
+        throws NoSuchAlgorithmException, KeyManagementException {
         final SSLEngine engine;
         // an empty peerHost implies no SNI (RFC 3546) support requested
-        if (peerHost == null || peerHost.length() == 0) {
+        if ( peerHost == null || peerHost.length() == 0 ) {
+            // no hints for an internal session reuse strategy
             engine = internalContext.getSSLContext().createSSLEngine();
         }
         // SNI is attempted for valid peerHost hostname on Java >= 7

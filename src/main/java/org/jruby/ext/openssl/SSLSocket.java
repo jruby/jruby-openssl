@@ -1009,13 +1009,33 @@ public class SSLSocket extends RubyObject {
         return getRuntime().getNil();
     }
 
-    @JRubyMethod(name = "session_reused?")
-    public IRubyObject session_reused_p() {
-        warn(getRuntime().getCurrentContext(), "WARNING: SSLSocket#session_reused? is not supported");
-        return getRuntime().getNil(); // throw new UnsupportedOperationException();
+    private boolean reusableSSLEngine() {
+        if ( engine != null ) {
+            final String peerHost = engine.getPeerHost();
+            if ( peerHost != null && peerHost.length() > 0 ) {
+                // NOT getSSLContext().createSSLEngine() - no hints for session reuse
+                return true;
+            }
+        }
+        return false;
     }
 
-    final javax.net.ssl.SSLSession getSession() {
+    @JRubyMethod(name = "session_reused?")
+    public IRubyObject session_reused_p() {
+        if ( reusableSSLEngine() ) {
+            if ( ! engine.getEnableSessionCreation() ) {
+                // if session creation is disabled we can be sure its to be re-used
+                return getRuntime().getTrue();
+            }
+            //return getRuntime().getFalse(); // NOTE: likely incorrect (we can not decide)
+        }
+        //warn(getRuntime().getCurrentContext(), "WARNING: SSLSocket#session_reused? is not supported");
+        return getRuntime().getNil(); // can not decide - probably not
+    }
+
+    // JSSE: SSL Sessions can be reused only if connecting to the same host at the same port
+
+    final javax.net.ssl.SSLSession sslSession() {
         return engine == null ? null : engine.getSession();
     }
 
@@ -1023,7 +1043,11 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod(name = "session")
     public IRubyObject session(final ThreadContext context) {
-        if ( getSession() == null ) return context.nil;
+        if ( sslSession() == null ) return context.nil;
+        return getSession(context);
+    }
+
+    private SSLSession getSession(final ThreadContext context) {
         if ( session == null ) {
             return session = new SSLSession(context.runtime).initializeImpl(context, this);
         }
@@ -1032,8 +1056,21 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod(name = "session=")
     public IRubyObject set_session(IRubyObject session) {
-        warn(getRuntime().getCurrentContext(), "WARNING: SSLSocket#session= is not supported");
-        return getRuntime().getNil(); // throw new UnsupportedOperationException();
+        final ThreadContext context = getRuntime().getCurrentContext();
+        // NOTE: we can not fully support this without the SSL provider internals
+        // but we can assume setting a session= is meant as a forced session re-use
+        if ( reusableSSLEngine() ) {
+            engine.setEnableSessionCreation(false);
+            if ( session instanceof SSLSession ) {
+                final SSLSession theSession = (SSLSession) session;
+                if ( ! theSession.equals( getSession(context) ) ) {
+                    getSession(context).set_timeout(context, theSession.timeout(context));
+                }
+            }
+            return getSession(context);
+        }
+        warn(context, "WARNING: SSLSocket#session= has not effect");
+        return context.nil;
     }
 
     @JRubyMethod
