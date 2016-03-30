@@ -32,5 +32,6 @@ package org.jruby.ext.openssl.x509store;
  *
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
-public class PolicyTree {
+/*public*/ class PolicyTree {
+    // not-used
 }// X509_POLICY_TREE
