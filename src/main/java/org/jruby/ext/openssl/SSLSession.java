@@ -28,7 +28,9 @@ import javax.net.ssl.SSLSessionContext;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
+import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.RubyTime;
@@ -96,15 +98,30 @@ public class SSLSession extends RubyObject {
 
     @JRubyMethod(name = "==")
     public IRubyObject op_eqq(final ThreadContext context, final IRubyObject other) {
+        return context.runtime.newBoolean( equals(other) );
+    }
+
+    @Override
+    public boolean equals(final Object other) {
         if ( other instanceof SSLSession ) {
             final SSLSession that = (SSLSession) other;
             if ( this.sslSession.getProtocol().equals( that.sslSession.getProtocol() ) ) {
                 if ( Arrays.equals( this.sslSession.getId(), that.sslSession.getId() ) ) {
-                    return context.runtime.getTrue();
+                    return true;
                 }
             }
         }
-        return context.runtime.getFalse();
+        return false;
+    }
+
+    @Override
+    public final int hashCode() {
+        return 17 * sslSession.hashCode();
+    }
+
+    @Override
+    public RubyFixnum hash() {
+        return getRuntime().newFixnum(hashCode());
     }
 
     @JRubyMethod(name = "id")
@@ -146,8 +163,7 @@ public class SSLSession extends RubyObject {
             warn(context, "WARNING: can not set Session#timeout=("+ timeout +") no session context");
             return context.nil;
         }
-        final long t = timeout.convertToInteger().getLongValue();
-        sessionContext.setSessionTimeout((int) t); // in seconds as well
+        sessionContext.setSessionTimeout(RubyNumeric.fix2int(timeout)); // in seconds as well
         return timeout;
     }
 
