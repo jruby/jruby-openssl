@@ -1046,12 +1046,12 @@ public class SSLSocket extends RubyObject {
     @JRubyMethod(name = "session")
     public IRubyObject session(final ThreadContext context) {
         if ( sslSession() == null ) return context.nil;
-        return getSession(context);
+        return getSession(context.runtime);
     }
 
-    private SSLSession getSession(final ThreadContext context) {
+    private SSLSession getSession(final Ruby runtime) {
         if ( session == null ) {
-            return session = new SSLSession(context.runtime).initializeImpl(context, this);
+            return session = new SSLSession(runtime).initializeImpl(this);
         }
         return session;
     }
@@ -1060,7 +1060,6 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod(name = "session=")
     public IRubyObject set_session(IRubyObject session) {
-        final ThreadContext context = getRuntime().getCurrentContext();
         // NOTE: we can not fully support this without the SSL provider internals
         // but we can assume setting a session= is meant as a forced session re-use
         if ( session instanceof SSLSession ) {
@@ -1068,7 +1067,7 @@ public class SSLSocket extends RubyObject {
             if ( engine != null ) copySessionSetupIfSet();
         }
         //warn(context, "WARNING: SSLSocket#session= has not effect");
-        return context.nil;
+        return getRuntime().getNil();
     }
 
     private void copySessionSetupIfSet() {
@@ -1076,8 +1075,8 @@ public class SSLSocket extends RubyObject {
             if ( reusableSSLEngine() ) {
                 engine.setEnableSessionCreation(false);
                 final ThreadContext context = getRuntime().getCurrentContext();
-                if ( ! setSession.equals( getSession(context) ) ) {
-                    getSession(context).set_timeout(context, setSession.timeout(context));
+                if ( ! setSession.equals( getSession(context.runtime) ) ) {
+                    getSession(context.runtime).set_timeout(context, setSession.timeout(context));
                 }
             }
         }

@@ -82,13 +82,13 @@ public class SSLSession extends RubyObject {
         final Ruby runtime = context.runtime;
 
         if ( arg instanceof SSLSocket ) {
-            return initializeImpl(context, (SSLSocket) arg);
+            return initializeImpl((SSLSocket) arg);
         }
 
         throw runtime.newNotImplementedError("Session#initialize with " + arg.getMetaClass().getName());
     }
 
-    SSLSession initializeImpl(final ThreadContext context, final SSLSocket socket) {
+    SSLSession initializeImpl(final SSLSocket socket) {
         sslSession = socket.sslSession();
         return this;
     }
