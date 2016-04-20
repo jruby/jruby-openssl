@@ -47,14 +47,14 @@ public class Certificate extends X509Object {
 
     @Override
     public boolean isName(final Name name) {
-        return name.equalTo( x509.getSubjectX500Principal() );
+        return name.equalToCertificateSubject(x509);
     }
 
     @Override
     public boolean matches(final X509Object other) {
         if (other instanceof Certificate) {
             final Certificate that = (Certificate) other;
-            return this.x509.getSubjectX500Principal().equals( that.x509.getSubjectX500Principal() );
+            return X509AuxCertificate.equalSubjects(this.x509, that.x509);
         }
         return false;
     }

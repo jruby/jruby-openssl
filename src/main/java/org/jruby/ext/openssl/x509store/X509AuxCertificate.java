@@ -55,6 +55,7 @@ import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.x509.Certificate;
+import org.bouncycastle.jce.provider.X509CertificateObject;
 
 import org.jruby.ext.openssl.SecurityHelper;
 
@@ -68,7 +69,7 @@ import org.jruby.ext.openssl.SecurityHelper;
 public class X509AuxCertificate extends X509Certificate implements Cloneable {
     private static final long serialVersionUID = -909543379295427515L;
 
-    private final X509Certificate cert;
+    final X509Certificate cert;
 
     final X509Aux aux;
 
@@ -235,7 +236,7 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
     }
 
     @Override
-    public int 	hashCode() {
+    public int hashCode() {
         int ret = cert.hashCode();
         ret += 3 * (aux == null ? 1 : aux.hashCode());
         return ret;
@@ -255,7 +256,7 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
     }
 
     @Override
-    public  Set<String> getCriticalExtensionOIDs() {
+    public Set<String> getCriticalExtensionOIDs() {
         return cert.getCriticalExtensionOIDs();
     }
 
@@ -297,6 +298,16 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
         catch (IOException ioe) {
             throw new CertificateEncodingException(ioe.getMessage(), ioe);
         }
+    }
+
+    static boolean equalSubjects(final X509AuxCertificate cert1, final X509AuxCertificate cert2) {
+        if ( cert1.cert == cert2.cert ) return true;
+
+        if ( cert1.cert instanceof X509CertificateObject && cert2.cert instanceof X509CertificateObject ) {
+            return cert1.cert.getSubjectDN().equals( cert2.cert.getSubjectDN() ); // less expensive on mem
+        }
+        // otherwise need to take the 'expensive' path :
+        return cert1.getSubjectX500Principal().equals( cert2.getSubjectX500Principal() );
     }
 
 }// X509AuxCertificate
