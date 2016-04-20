@@ -28,7 +28,7 @@ Gem::Specification.new do |s|
   s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{bc_version}"
   s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{bc_version}"
 
-  s.add_development_dependency 'jar-dependencies', '~> 0.1.0'
+  s.add_development_dependency 'jar-dependencies', '~> 0.1'
 
   s.add_development_dependency 'mocha', '~> 1.1.0'
   s.add_development_dependency 'ruby-maven', '~> 3.0'
