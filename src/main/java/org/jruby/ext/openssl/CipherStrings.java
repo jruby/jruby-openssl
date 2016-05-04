@@ -598,7 +598,7 @@ public class CipherStrings {
     static {
         Definitions = new HashMap<String, Def>( 48, 1 );
         // TODO review base on OpenSSL's static const SSL_CIPHER cipher_aliases[] ?!
-        Definitions.put(SSL_TXT_ALL,new Def(0,SSL_TXT_ALL, 0,SSL_ALL & ~SSL_eNULL & ~SSL_kECDH & ~SSL_kECDHE, SSL_ALL ,0,0,0,SSL_ALL,SSL_ALL));
+        Definitions.put(SSL_TXT_ALL,new Def(0,SSL_TXT_ALL, 0,SSL_ALL & ~SSL_eNULL, SSL_ALL ,0,0,0,SSL_ALL,SSL_ALL));
         Definitions.put(SSL_TXT_CMPALL,new Def(0,SSL_TXT_CMPALL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_CMPDEF,new Def(0,SSL_TXT_CMPDEF,0,SSL_ADH, 0,0,0,0,SSL_AUTH_MASK,0));
         Definitions.put(SSL_TXT_kKRB5,new Def(0,SSL_TXT_kKRB5,0,SSL_kKRB5,0,0,0,0,SSL_MKEY_MASK,0));
