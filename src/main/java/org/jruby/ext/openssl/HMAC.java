@@ -30,7 +30,6 @@ package org.jruby.ext.openssl;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
