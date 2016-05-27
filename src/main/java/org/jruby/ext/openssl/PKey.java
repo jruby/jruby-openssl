@@ -85,6 +85,7 @@ public abstract class PKey extends RubyObject {
         PKeyRSA.createPKeyRSA(runtime, PKey, PKeyPKey);
         PKeyDSA.createPKeyDSA(runtime, PKey, PKeyPKey);
         PKeyDH.createPKeyDH(runtime, PKey, PKeyPKey);
+        PKeyEC.createPKeyEC(runtime, PKey, PKeyPKey);
     }
 
     public static RaiseException newPKeyError(Ruby runtime, String message) {
