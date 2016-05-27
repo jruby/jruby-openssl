@@ -54,8 +54,11 @@ import java.security.cert.X509Certificate;
 import java.security.cert.X509CRL;
 import java.security.interfaces.DSAPublicKey;
 import java.security.interfaces.DSAPrivateKey;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.spec.ECParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -335,8 +338,13 @@ public class PEMInputOutput {
                     throw mapReadException("problem creating DSA private key: ", e);
                 }
             }
-            else if ( line.indexOf(BEG_STRING_ECPRIVATEKEY) != -1) { // TODO EC!
-                throw new UnsupportedOperationException("EC private key not supported");
+            else if ( line.indexOf(BEG_STRING_ECPRIVATEKEY) != -1) {
+                try {
+                    return readKeyPair(reader, passwd, "ECDSA", BEF_E + PEM_STRING_ECPRIVATEKEY);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating DSA private key: ", e);
+                }
             }
             else if ( line.indexOf(BEG_STRING_PKCS8INF) != -1) {
                 try {
@@ -448,9 +456,8 @@ public class PEMInputOutput {
     // PEM_read_bio_PUBKEY
     public static PublicKey readPubKey(Reader in) throws IOException {
         PublicKey pubKey = readRSAPubKey(in);
-        if (pubKey == null) {
-            pubKey = readDSAPubKey(in);
-        }
+        if (pubKey == null) pubKey = readDSAPubKey(in);
+        if (pubKey == null) pubKey = readECPubKey(in);
         return pubKey;
     }
 
@@ -578,6 +585,55 @@ public class PEMInputOutput {
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating RSA private key: ", e);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static ECPublicKey readECPubKey(Reader in) throws IOException {
+        final String BEG_STRING_EC_PUBLIC = BEF_G + "EC PUBLIC KEY";
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_EC_PUBLIC) != -1 ) {
+                try {
+                    return (ECPublicKey) readPublicKey(reader, "ECDSA", BEF_E + "EC PUBLIC KEY");
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating ECDSA public key: ", e);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static ECPublicKey readECPublicKey(final Reader in, final char[] passwd) throws IOException {
+        // final String BEG_STRING_EC = BEF_G + "EC PUBLIC KEY";
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
+                try {
+                    return (ECPublicKey) readPublicKey(reader, "ECDSA", BEF_E + PEM_STRING_PUBLIC);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating ECDSA public key: ", e);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static KeyPair readECPrivateKey(final Reader in, final char[] passwd)
+        throws PasswordRequiredException, IOException {
+        final String BEG_STRING_EC = BEF_G + "EC PRIVATE KEY";
+        final BufferedReader reader = makeBuffered(in); String line;
+        while ( ( line = reader.readLine() ) != null ) {
+            if ( line.indexOf(BEG_STRING_EC) != -1 ) {
+                try {
+                    return readKeyPair(reader, passwd, "ECDSA", BEF_E + "EC PRIVATE KEY");
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating ECDSA private key: ", e);
                 }
             }
         }
@@ -810,6 +866,18 @@ public class PEMInputOutput {
         out.newLine();
         out.flush();
     }
+
+    public static void writeECPublicKey(Writer _out, ECPublicKey obj) throws IOException {
+        BufferedWriter out = makeBuffered(_out);
+        byte[] encoding = getEncoded(obj);
+        out.write(BEF_G); out.write(PEM_STRING_PUBLIC); out.write(AFT);
+        out.newLine();
+        writeEncoded(out, encoding);
+        out.write(BEF_E); out.write(PEM_STRING_PUBLIC); out.write(AFT);
+        out.newLine();
+        out.flush();
+    }
+
     public static void writePKCS7(Writer _out, ContentInfo obj) throws IOException {
         BufferedWriter out = makeBuffered(_out);
         byte[] encoding = getEncoded(obj);
@@ -966,6 +1034,29 @@ public class PEMInputOutput {
         }
     }
 
+    public static void writeECPrivateKey(Writer _out, ECPrivateKey obj, CipherSpec cipher, char[] passwd) throws IOException {
+        assert (obj != null);
+        final String PEM_STRING_EC = "EC PRIVATE KEY";
+        BufferedWriter out = makeBuffered(_out);
+        org.bouncycastle.asn1.sec.ECPrivateKey keyStruct = new org.bouncycastle.asn1.sec.ECPrivateKey(obj.getS());
+        if (cipher != null && passwd != null) {
+            writePemEncrypted(out, PEM_STRING_EC, keyStruct.getEncoded(), cipher, passwd);
+        } else {
+            writePemPlain(out, PEM_STRING_EC, keyStruct.getEncoded());
+        }
+    }
+
+    public static void writeECParameters(Writer _out, ASN1ObjectIdentifier obj, CipherSpec cipher, char[] passwd) throws IOException {
+        assert (obj != null);
+        final String PEM_STRING_EC = "EC PARAMETERS";
+        BufferedWriter out = makeBuffered(_out);
+        if (cipher != null && passwd != null) {
+            writePemEncrypted(out, PEM_STRING_EC, obj.getEncoded(), cipher, passwd);
+        } else {
+            writePemPlain(out, PEM_STRING_EC, obj.getEncoded());
+        }
+    }
+
     private static void writePemPlain(final BufferedWriter out,
         final String PEM_ID, final byte[] encoding) throws IOException {
         out.write(BEF_G); out.write(PEM_ID); out.write(AFT);
@@ -1099,7 +1190,7 @@ public class PEMInputOutput {
 
     private static PublicKey readPublicKey(BufferedReader in, String endMarker) throws IOException {
         byte[] input = readBase64Bytes(in, endMarker);
-        String[] algs = { "RSA", "DSA" };
+        String[] algs = { "RSA", "DSA", "ECDSA" };
         for (int i = 0; i < algs.length; i++) {
             PublicKey key = readPublicKey(input, algs[i], endMarker);
             if (key != null) {
