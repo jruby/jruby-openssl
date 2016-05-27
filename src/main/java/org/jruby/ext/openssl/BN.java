@@ -119,7 +119,7 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name="initialize", required=1, optional=1, visibility = Visibility.PRIVATE)
-    public synchronized IRubyObject initialize(final ThreadContext context,
+    public IRubyObject initialize(final ThreadContext context,
         final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
         if (this.value != BigInteger.ZERO) { // already initialized
@@ -171,7 +171,7 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name = "copy")
-    public synchronized IRubyObject copy(IRubyObject other) {
+    public IRubyObject copy(IRubyObject other) {
         if (this != other) {
             this.value = getBigInteger(other);
         }
