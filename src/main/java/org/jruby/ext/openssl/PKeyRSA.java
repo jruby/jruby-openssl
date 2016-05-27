@@ -379,7 +379,7 @@ public class PKeyRSA extends PKey {
         StringBuilder result = new StringBuilder();
         if (privateKey != null) {
             int len = privateKey.getModulus().bitLength();
-            result.append("Private-Key: (").append(len).append(" bit)").append("\n");
+            result.append("Private-Key: (").append(len).append(" bit)").append('\n');
             result.append("modulus:");
             addSplittedAndFormatted(result, privateKey.getModulus());
             result.append("publicExponent: ").append(privateKey.getPublicExponent()).append(" (0x").append(privateKey.getPublicExponent().toString(16)).append(")\n");
@@ -401,7 +401,7 @@ public class PKeyRSA extends PKey {
             addSplittedAndFormatted(result, publicKey.getModulus());
             result.append("Exponent: ").append(publicKey.getPublicExponent()).append(" (0x").append(publicKey.getPublicExponent().toString(16)).append(")\n");
         }
-        return getRuntime().newString(result.toString());
+        return RubyString.newString(getRuntime(), result);
     }
 
     @Override
