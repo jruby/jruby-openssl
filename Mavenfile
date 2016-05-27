@@ -157,6 +157,7 @@ profile :id => 'test-1.7.4' do
 end
 
 jruby_1_7_versions = %w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.20 1.7.22 1.7.23 }
+jruby_1_7_versions += %w{ 1.7.24 1.7.25 }
 
 jruby_1_7_versions.each { |version|
 
@@ -170,7 +171,9 @@ end
 
 }
 
-%w{ 9.0.1.0 9.0.4.0 }.each { |version|
+jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.0.0 9.1.1.0 }
+
+jruby_9_K_versions.each { |version|
 profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
