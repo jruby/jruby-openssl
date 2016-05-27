@@ -798,6 +798,7 @@ public class PEMInputOutput {
         out.newLine();
         out.flush();
     }
+
     /** writes an RSA public key encoded in an PKCS#1 RSA structure. */
     public static void writeRSAPublicKey(Writer _out, RSAPublicKey obj) throws IOException {
         BufferedWriter out = makeBuffered(_out);
@@ -965,17 +966,18 @@ public class PEMInputOutput {
         }
     }
 
-    private static void writePemPlain(BufferedWriter out, String pemHeader, byte[] encoding) throws IOException {
-        out.write(BEF_G + pemHeader + AFT);
+    private static void writePemPlain(final BufferedWriter out,
+        final String PEM_ID, final byte[] encoding) throws IOException {
+        out.write(BEF_G); out.write(PEM_ID); out.write(AFT);
         out.newLine();
         writeEncoded(out, encoding);
-        out.write(BEF_E + pemHeader + AFT);
+        out.write(BEF_E); out.write(PEM_ID); out.write(AFT);
         out.newLine();
         out.flush();
     }
 
     private static void writePemEncrypted(final BufferedWriter out,
-        final String pemHeader, final byte[] encoding,
+        final String PEM_ID, final byte[] encoding,
         final CipherSpec cipherSpec, final char[] passwd) throws IOException {
 
         final Cipher cipher = cipherSpec.getCipher();
@@ -1003,16 +1005,16 @@ public class PEMInputOutput {
         catch (GeneralSecurityException e) {
             throw new IOException("exception using cipher: "+ cipherSpec.getOsslName()  + " (" + e + ")", e);
         }
-        out.write(BEF_G + pemHeader + AFT);
+        out.write(BEF_G); out.write(PEM_ID); out.write(AFT);
         out.newLine();
         out.write("Proc-Type: 4,ENCRYPTED");
         out.newLine();
-        out.write("DEK-Info: " + cipherSpec.getOsslName() + ",");
+        out.write("DEK-Info: " + cipherSpec.getOsslName() + ',');
         writeHexEncoded(out, iv);
         out.newLine();
         out.newLine();
         writeEncoded(out, encData);
-        out.write(BEF_E + pemHeader + AFT);
+        out.write(BEF_E); out.write(PEM_ID); out.write(AFT);
         out.flush();
     }
 
