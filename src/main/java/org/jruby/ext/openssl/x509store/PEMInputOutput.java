@@ -1038,7 +1038,8 @@ public class PEMInputOutput {
         assert (obj != null);
         final String PEM_STRING_EC = "EC PRIVATE KEY";
         BufferedWriter out = makeBuffered(_out);
-        org.bouncycastle.asn1.sec.ECPrivateKey keyStruct = new org.bouncycastle.asn1.sec.ECPrivateKey(obj.getS());
+        final int bitLength = obj.getParams().getOrder().bitLength();
+        org.bouncycastle.asn1.sec.ECPrivateKey keyStruct = new org.bouncycastle.asn1.sec.ECPrivateKey(bitLength, obj.getS());
         if (cipher != null && passwd != null) {
             writePemEncrypted(out, PEM_STRING_EC, keyStruct.getEncoded(), cipher, passwd);
         } else {
