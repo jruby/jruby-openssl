@@ -28,7 +28,6 @@
 package org.jruby.ext.openssl;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -111,6 +110,7 @@ import org.jruby.util.ByteList;
 import org.jruby.ext.openssl.impl.ASN1Registry;
 
 import static org.jruby.ext.openssl.OpenSSL.*;
+import org.jruby.ext.openssl.util.ByteArrayOutputStream;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>

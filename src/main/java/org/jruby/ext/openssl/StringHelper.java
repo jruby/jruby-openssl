@@ -56,6 +56,11 @@ abstract class StringHelper {
         return RubyString.newString(runtime, byteList);
     }
 
+    static RubyString newString(final Ruby runtime, final byte[] bytes, final int count) {
+        final ByteList byteList = new ByteList(bytes, 0, count, false);
+        return RubyString.newString(runtime, byteList);
+    }
+
     static RubyString newUTF8String(final Ruby runtime, final ByteList bytes) {
         ByteList byteList = new ByteList(RubyEncoding.encodeUTF8(bytes), UTF8Encoding.INSTANCE, false);
         return new RubyString(runtime, runtime.getString(), byteList);

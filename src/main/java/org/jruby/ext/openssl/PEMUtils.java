@@ -24,7 +24,6 @@
 package org.jruby.ext.openssl;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -60,6 +59,7 @@ import org.jruby.ext.openssl.impl.pem.PEMEncryptedKeyPair;
 import org.jruby.ext.openssl.impl.pem.PEMException;
 import org.jruby.ext.openssl.impl.pem.PEMKeyPair;
 import org.jruby.ext.openssl.impl.pem.PEMParser;
+import org.jruby.ext.openssl.util.ByteArrayOutputStream;
 //import org.bouncycastle.util.io.pem.PemReader;
 
 import static org.jruby.ext.openssl.x509store.PEMInputOutput.getKeyFactory;

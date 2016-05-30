@@ -34,8 +34,6 @@ import java.io.BufferedWriter;
 import java.io.BufferedReader;
 import java.io.Reader;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-
 import java.math.BigInteger;
 
 import java.security.GeneralSecurityException;
@@ -130,8 +128,8 @@ import org.jruby.ext.openssl.Cipher.Algorithm;
 import org.jruby.ext.openssl.impl.ASN1Registry;
 import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.impl.PKCS10Request;
-
 import org.jruby.ext.openssl.SecurityHelper;
+import org.jruby.ext.openssl.util.ByteArrayOutputStream;
 
 /**
  * Helper class to read and write PEM files correctly.
@@ -846,10 +844,10 @@ public class PEMInputOutput {
 
     public static void writeDSAPublicKey(Writer _out, DSAPublicKey obj) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding = getEncoded(obj);
+        final byte[] enc = getEncoded(obj);
         out.write(BEF_G + PEM_STRING_PUBLIC + AFT);
         out.newLine();
-        writeEncoded(out, encoding);
+        writeEncoded(out, enc, enc.length);
         out.write(BEF_E + PEM_STRING_PUBLIC + AFT);
         out.newLine();
         out.flush();
@@ -858,10 +856,10 @@ public class PEMInputOutput {
     /** writes an RSA public key encoded in an PKCS#1 RSA structure. */
     public static void writeRSAPublicKey(Writer _out, RSAPublicKey obj) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding = getEncoded(obj);
+        final byte[] enc = getEncoded(obj);
         out.write(BEF_G + PEM_STRING_PUBLIC + AFT);
         out.newLine();
-        writeEncoded(out, encoding);
+        writeEncoded(out, enc, enc.length);
         out.write(BEF_E + PEM_STRING_PUBLIC + AFT);
         out.newLine();
         out.flush();
@@ -869,10 +867,10 @@ public class PEMInputOutput {
 
     public static void writeECPublicKey(Writer _out, ECPublicKey obj) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding = getEncoded(obj);
+        final byte[] enc = getEncoded(obj);
         out.write(BEF_G); out.write(PEM_STRING_PUBLIC); out.write(AFT);
         out.newLine();
-        writeEncoded(out, encoding);
+        writeEncoded(out, enc, enc.length);
         out.write(BEF_E); out.write(PEM_STRING_PUBLIC); out.write(AFT);
         out.newLine();
         out.flush();
@@ -880,49 +878,49 @@ public class PEMInputOutput {
 
     public static void writePKCS7(Writer _out, ContentInfo obj) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding = getEncoded(obj);
+        final byte[] enc = getEncoded(obj);
         out.write(BEF_G + PEM_STRING_PKCS7 + AFT);
         out.newLine();
-        writeEncoded(out,encoding);
+        writeEncoded(out, enc, enc.length);
         out.write(BEF_E + PEM_STRING_PKCS7 + AFT);
         out.newLine();
         out.flush();
     }
     public static void writePKCS7(Writer _out, CMSSignedData obj) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding = getEncoded(obj);
+        final byte[] enc = getEncoded(obj);
         out.write(BEF_G + PEM_STRING_PKCS7 + AFT);
         out.newLine();
-        writeEncoded(out,encoding);
+        writeEncoded(out, enc, enc.length);
         out.write(BEF_E + PEM_STRING_PKCS7 + AFT);
         out.newLine();
         out.flush();
     }
-    public static void writePKCS7(final Writer _out, final byte[] encoded) throws IOException {
+    public static void writePKCS7(final Writer _out, final byte[] enc) throws IOException {
         BufferedWriter out = makeBuffered(_out);
         out.write(BEF_G + PEM_STRING_PKCS7 + AFT);
         out.newLine();
-        writeEncoded(out,encoded);
+        writeEncoded(out, enc, enc.length);
         out.write(BEF_E + PEM_STRING_PKCS7 + AFT);
         out.newLine();
         out.flush();
     }
     public static void writeX509Certificate(final Writer _out, final X509Certificate cert) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding = getEncoded(cert);
+        final byte[] enc = getEncoded(cert);
         out.write(BEF_G + PEM_STRING_X509 + AFT);
         out.newLine();
-        writeEncoded(out, encoding);
+        writeEncoded(out, enc, enc.length);
         out.write(BEF_E + PEM_STRING_X509 + AFT);
         out.newLine();
         out.flush();
     }
     public static void writeX509Aux(final Writer _out, final X509AuxCertificate cert) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        byte[] encoding;
+        final byte[] encoding; final int encLen;
         try {
             if ( cert.aux == null ) {
-                encoding = cert.getEncoded();
+                encoding = cert.getEncoded(); encLen = encoding.length;
             }
             else {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -958,7 +956,7 @@ public class PEMInputOutput {
                 }
                 enc = new DLSequence(a1).getEncoded();
                 baos.write(enc, 0, enc.length);
-                encoding = baos.toByteArray();
+                encoding = baos.buffer(); encLen = baos.size();
             }
         }
         catch (CertificateEncodingException e) {
@@ -966,7 +964,7 @@ public class PEMInputOutput {
         }
         out.write(BEF_G + PEM_STRING_X509_TRUSTED + AFT);
         out.newLine();
-        writeEncoded(out,encoding);
+        writeEncoded(out, encoding, encLen);
         out.write(BEF_E + PEM_STRING_X509_TRUSTED + AFT);
         out.newLine();
         out.flush();
@@ -976,7 +974,7 @@ public class PEMInputOutput {
         byte[] encoding = getEncoded(obj);
         out.write(BEF_G + PEM_STRING_X509_CRL + AFT);
         out.newLine();
-        writeEncoded(out, encoding);
+        writeEncoded(out, encoding, encoding.length);
         out.write(BEF_E + PEM_STRING_X509_CRL + AFT);
         out.newLine();
         out.flush();
@@ -986,7 +984,7 @@ public class PEMInputOutput {
         byte[] encoding = getEncoded(obj.toASN1Structure());
         out.write(BEF_G + PEM_STRING_X509_REQ + AFT);
         out.newLine();
-        writeEncoded(out,encoding);
+        writeEncoded(out, encoding, encoding.length);
         out.write(BEF_E + PEM_STRING_X509_REQ + AFT);
         out.newLine();
         out.flush();
@@ -1012,12 +1010,11 @@ public class PEMInputOutput {
         v.add(new ASN1Integer(x));
 
         aOut.writeObject(new DLSequence(v));
-        byte[] encoding = bOut.toByteArray();
 
         if (cipher != null && passwd != null) {
-            writePemEncrypted(out, PEM_STRING_DSA, encoding, cipher, passwd);
+            writePemEncrypted(out, PEM_STRING_DSA, bOut.buffer(), bOut.size(), cipher, passwd);
         } else {
-            writePemPlain(out, PEM_STRING_DSA, encoding);
+            writePemPlain(out, PEM_STRING_DSA, bOut.buffer(), bOut.size());
         }
     }
 
@@ -1060,9 +1057,14 @@ public class PEMInputOutput {
 
     private static void writePemPlain(final BufferedWriter out,
         final String PEM_ID, final byte[] encoding) throws IOException {
+        writePemPlain(out, PEM_ID, encoding, encoding.length);
+    }
+
+    private static void writePemPlain(final BufferedWriter out,
+        final String PEM_ID, final byte[] encoding, final int encLen) throws IOException {
         out.write(BEF_G); out.write(PEM_ID); out.write(AFT);
         out.newLine();
-        writeEncoded(out, encoding);
+        writeEncoded(out, encoding, encLen);
         out.write(BEF_E); out.write(PEM_ID); out.write(AFT);
         out.newLine();
         out.flush();
@@ -1070,6 +1072,12 @@ public class PEMInputOutput {
 
     private static void writePemEncrypted(final BufferedWriter out,
         final String PEM_ID, final byte[] encoding,
+        final CipherSpec cipherSpec, final char[] passwd) throws IOException {
+        writePemEncrypted(out, PEM_ID, encoding, encoding.length, cipherSpec, passwd);
+    }
+
+    private static void writePemEncrypted(final BufferedWriter out,
+        final String PEM_ID, final byte[] encoding, final int encCount,
         final CipherSpec cipherSpec, final char[] passwd) throws IOException {
 
         final Cipher cipher = cipherSpec.getCipher();
@@ -1085,7 +1093,7 @@ public class PEMInputOutput {
         final byte[] encData;
         try {
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(iv));
-            encData = cipher.doFinal(encoding);
+            encData = cipher.doFinal(encoding, 0, encCount);
         }
         catch (InvalidKeyException e) {
             final String msg = e.getMessage();
@@ -1105,7 +1113,7 @@ public class PEMInputOutput {
         writeHexEncoded(out, iv);
         out.newLine();
         out.newLine();
-        writeEncoded(out, encData);
+        writeEncoded(out, encData, encData.length);
         out.write(BEF_E); out.write(PEM_ID); out.write(AFT);
         out.flush();
     }
@@ -1141,11 +1149,10 @@ public class PEMInputOutput {
         ASN1OutputStream aOut = new ASN1OutputStream(bOut);
 
         aOut.writeObject(new DLSequence(v));
-        byte[] encoding = bOut.toByteArray();
 
         out.write(BEF_G); out.write(PEM_STRING_DHPARAMS); out.write(AFT);
         out.newLine();
-        writeEncoded(out, encoding);
+        writeEncoded(out, bOut.buffer(), bOut.size());
         out.write(BEF_E); out.write(PEM_STRING_DHPARAMS); out.write(AFT);
         out.newLine();
         out.flush();
@@ -1483,9 +1490,10 @@ public class PEMInputOutput {
         }
     }
 
-    private static void writeEncoded(BufferedWriter out, byte[] bytes) throws IOException {
-        char[]  buf = new char[64];
-        bytes = Base64.encode(bytes);
+    private static void writeEncoded(BufferedWriter out,
+        byte[] bytes, final int bytesLen) throws IOException {
+        final char[] buf = new char[64];
+        bytes = Base64.encode(bytes, 0 ,bytesLen);
         for (int i = 0; i < bytes.length; i += buf.length) {
             int index = 0;
 
@@ -1493,7 +1501,7 @@ public class PEMInputOutput {
                 if ((i + index) >= bytes.length) {
                     break;
                 }
-                buf[index] = (char)bytes[i + index];
+                buf[index] = (char) bytes[i + index];
                 index++;
             }
             out.write(buf, 0, index);
