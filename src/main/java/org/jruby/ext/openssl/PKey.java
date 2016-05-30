@@ -208,23 +208,10 @@ public abstract class PKey extends RubyObject {
             signature.update(inp);
             byte[] sigge = signature.sign();
             return RubyString.newString(getRuntime(), sigge);
-        } catch (GeneralSecurityException gse) {
+        }
+        catch (GeneralSecurityException gse) {
             throw newPKeyError(getRuntime(), gse.getMessage());
         }
-        /*
-    GetPKey(self, pkey);
-    EVP_SignInit(&ctx, GetDigestPtr(digest));
-    StringValue(data);
-    EVP_SignUpdate(&ctx, RSTRING(data)->ptr, RSTRING(data)->len);
-    str = rb_str_new(0, EVP_PKEY_size(pkey)+16);
-    if (!EVP_SignFinal(&ctx, RSTRING(str)->ptr, &buf_len, pkey))
-    ossl_raise(ePKeyError, NULL);
-    assert(buf_len <= RSTRING(str)->len);
-    RSTRING(str)->len = buf_len;
-    RSTRING(str)->ptr[buf_len] = 0;
-
-    return str;
-         */
     }
 
     @JRubyMethod(name = "verify")
@@ -247,11 +234,14 @@ public abstract class PKey extends RubyObject {
             signature.initVerify(getPublicKey());
             signature.update(dataBytes);
             valid = signature.verify(sigBytes);
-        } catch (NoSuchAlgorithmException e) {
+        }
+        catch (NoSuchAlgorithmException e) {
             throw newPKeyError(getRuntime(), "unsupported algorithm: " + algorithm);
-        } catch (SignatureException e) {
+        }
+        catch (SignatureException e) {
             throw newPKeyError(getRuntime(), "invalid signature");
-        } catch (InvalidKeyException e) {
+        }
+        catch (InvalidKeyException e) {
             throw newPKeyError(getRuntime(), "invalid key");
         }
         return getRuntime().newBoolean(valid);
