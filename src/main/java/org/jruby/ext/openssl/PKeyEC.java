@@ -12,6 +12,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -29,26 +30,23 @@ import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Collections;
 import java.util.Enumeration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.List;
+import javax.crypto.KeyAgreement;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1OutputStream;
 import org.bouncycastle.asn1.DLSequence;
 
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
-//import org.bouncycastle.jce.interfaces.ECPublicKey;
-//import org.bouncycastle.jce.interfaces.ECPrivateKey;
+import org.bouncycastle.crypto.params.ECNamedDomainParameters;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.ECPointUtil;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
-//import org.bouncycastle.jce.spec.ECParameterSpec;
-//import org.bouncycastle.jce.spec.ECPublicKeySpec;
-//import org.bouncycastle.jce.spec.ECPrivateKeySpec;
-//import org.bouncycastle.math.ec.ECPoint;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -60,12 +58,12 @@ import org.jruby.RubyString;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
-import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
-import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
+import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.runtime.component.VariableEntry;
 
 import org.jruby.ext.openssl.impl.CipherSpec;
 import static org.jruby.ext.openssl.OpenSSL.debug;
@@ -73,6 +71,8 @@ import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 import static org.jruby.ext.openssl.PKey._PKey;
 import org.jruby.ext.openssl.impl.ECPrivateKeyWithName;
 import static org.jruby.ext.openssl.impl.PKey.readECPrivateKey;
+import org.jruby.ext.openssl.util.ByteArrayOutputStream;
+import org.jruby.ext.openssl.x509store.PEMInputOutput;
 
 /**
  * OpenSSL::PKey::EC implementation.
@@ -81,8 +81,7 @@ import static org.jruby.ext.openssl.impl.PKey.readECPrivateKey;
  */
 public final class PKeyEC extends PKey {
 
-    // TODO
-    // private static final long serialVersionUID = -1L;
+    private static final long serialVersionUID = 1L;
 
     private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
         public PKeyEC allocate(Ruby runtime, RubyClass klass) { return new PKeyEC(runtime, klass); }
@@ -166,6 +165,13 @@ public final class PKeyEC extends PKey {
         throw new IllegalStateException("could not identify curve name: " + curveName);
     }
 
+    private static boolean isCurveName(final String curveName) {
+        try {
+            return getCurveOID(curveName) != null;
+        }
+        catch (IllegalStateException ex) { return false; }
+    }
+
     private static String getCurveName(final ASN1ObjectIdentifier oid) {
         String name;
         name = org.bouncycastle.asn1.sec.SECNamedCurves.getName(oid);
@@ -233,6 +239,12 @@ public final class PKeyEC extends PKey {
         if ( args.length > 1 ) pass = args[1];
         final char[] passwd = password(pass);
         final RubyString str = readInitArg(context, arg);
+        final String strJava = str.toString();
+
+        if ( isCurveName(strJava) ) {
+            this.curveName = strJava;
+            return this;
+        }
 
         Object key = null;
         final KeyFactory ecdsaFactory;
@@ -249,7 +261,7 @@ public final class PKeyEC extends PKey {
         boolean noClassDef = false;
         if ( key == null && ! noClassDef ) { // PEM_read_bio_DSAPrivateKey
             try {
-                key = readPrivateKey(str, passwd);
+                key = readPrivateKey(strJava, passwd);
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (PEMInputOutput.PasswordRequiredException retry) {
@@ -262,14 +274,14 @@ public final class PKeyEC extends PKey {
         }
         if ( key == null && ! noClassDef ) {
             try {
-                key = PEMInputOutput.readECPublicKey(new StringReader(str.toString()), passwd);
+                key = PEMInputOutput.readECPublicKey(new StringReader(strJava), passwd);
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (Exception e) { debugStackTrace(runtime, e); }
         }
         if ( key == null && ! noClassDef ) {
             try {
-                key = PEMInputOutput.readECPubKey(new StringReader(str.toString()));
+                key = PEMInputOutput.readECPubKey(new StringReader(strJava));
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (Exception e) { debugStackTrace(runtime, e); }
@@ -377,19 +389,84 @@ public final class PKeyEC extends PKey {
 
     @JRubyMethod(name = "dsa_sign_asn1")
     public IRubyObject dsa_sign_asn1(final ThreadContext context, final IRubyObject data) {
-        // final ECDomainParameters params = getDomainParameters();
         try {
-            ECGenParameterSpec genSpec = new ECGenParameterSpec(getCurveName());
-            KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("ECDSA"); // "BC"
-            gen.initialize(genSpec, new SecureRandom());
-            KeyPair pair = gen.generateKeyPair();
-            this.publicKey = (ECPublicKey) pair.getPublic();
-            this.privateKey = pair.getPrivate();
+            ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec(getCurveName());
+            ASN1ObjectIdentifier oid = getCurveOID(getCurveName());
+            ECNamedDomainParameters domainParams = new ECNamedDomainParameters(oid,
+                params.getCurve(), params.getG(), params.getN(), params.getH(), params.getSeed()
+            );
+
+            final ECDSASigner signer = new ECDSASigner();
+            final ECPrivateKey privKey = (ECPrivateKey) this.privateKey;
+            signer.init(true, new ECPrivateKeyParameters(privKey.getS(), domainParams));
+
+            final byte[] message = data.convertToString().getBytes();
+            BigInteger[] signature = signer.generateSignature(message); // [r, s]
+
+//            final byte[] r = signature[0].toByteArray();
+//            final byte[] s = signature[1].toByteArray();
+//            // ASN.1 encode as: 0x30 len 0x02 rlen (r) 0x02 slen (s)
+//            final int len = 1 + (1 + r.length) + 1 + (1 + s.length);
+//
+//            final byte[] encoded = new byte[1 + 1 + len]; int i;
+//            encoded[0] = 0x30;
+//            encoded[1] = (byte) len;
+//            encoded[2] = 0x20;
+//            encoded[3] = (byte) r.length;
+//            System.arraycopy(r, 0, encoded, i = 4, r.length); i += r.length;
+//            encoded[i++] = 0x20;
+//            encoded[i++] = (byte) s.length;
+//            System.arraycopy(s, 0, encoded, i, s.length);
+
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            ASN1OutputStream asn1 = new ASN1OutputStream(bytes);
+
+            ASN1EncodableVector v = new ASN1EncodableVector();
+            v.add(new ASN1Integer(signature[0])); // r
+            v.add(new ASN1Integer(signature[1])); // s
+
+            asn1.writeObject(new DLSequence(v));
+
+            return StringHelper.newString(context.runtime, bytes.buffer(), bytes.size());
+        }
+        catch (IOException ex) {
+            throw newECError(context.runtime, ex.toString());
+        }
+        catch (RuntimeException ex) {
+            throw newECError(context.runtime, ex.toString());
+        }
+    }
+
+
+    @JRubyMethod(name = "dh_compute_key")
+    public IRubyObject dh_compute_key(final ThreadContext context, final IRubyObject point) {
+        try {
+            KeyAgreement agreement = SecurityHelper.getKeyAgreement("ECDH"); // "BC"
+            agreement.init(getPrivateKey());
+            if ( point.isNil() ) {
+                agreement.doPhase(getPublicKey(), true);
+            }
+            else {
+                final ECPoint ecPoint = ((Point) point).asECPoint();
+                final String name = getCurveName();
+
+                KeyFactory keyFactory = KeyFactory.getInstance("EC"); // "BC"
+                ECParameterSpec spec = getParamSpec(name);
+                ECPublicKey ecPublicKey = (ECPublicKey) keyFactory.generatePublic(new ECPublicKeySpec(ecPoint, spec));
+                agreement.doPhase(ecPublicKey, true);
+            }
+            final byte[] secret = agreement.generateSecret();
+            return StringHelper.newString(context.runtime, secret);
+        }
+        catch (NoSuchAlgorithmException ex) {
+            throw newECError(context.runtime, ex.toString());
+        }
+        catch (InvalidKeyException ex) {
+            throw newECError(context.runtime, ex.toString());
         }
         catch (GeneralSecurityException ex) {
             throw newECError(context.runtime, ex.toString());
         }
-        return this;
     }
 
     private Group getGroup(boolean required) {
@@ -433,16 +510,23 @@ public final class PKeyEC extends PKey {
             throw context.runtime.newTypeError(arg, _EC(context.runtime).getClass("Point"));
         }
         final Point point = (Point) arg;
-        ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec(getCurveName());
-        ECParameterSpec params = new ECNamedCurveSpec(spec.getName(), spec.getCurve(), spec.getG(), spec.getN(), spec.getH(), spec.getSeed());
-        ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(point.asECPoint(), params);
+        ECPublicKeySpec keySpec = new ECPublicKeySpec(point.asECPoint(), getParamSpec());
         try {
-            this.publicKey = (ECPublicKey) SecurityHelper.getKeyFactory("ECDSA").generatePublic(pubKeySpec);
+            this.publicKey = (ECPublicKey) SecurityHelper.getKeyFactory("ECDSA").generatePublic(keySpec);
             return arg;
         }
         catch (GeneralSecurityException ex) {
             throw newECError(context.runtime, ex.getMessage());
         }
+    }
+
+    private static ECParameterSpec getParamSpec(final String curveName) {
+        ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec(curveName);
+        return new ECNamedCurveSpec(spec.getName(), spec.getCurve(), spec.getG(), spec.getN(), spec.getH(), spec.getSeed());
+    }
+
+    private ECParameterSpec getParamSpec() {
+        return getParamSpec(getCurveName());
     }
 
     /**
@@ -464,11 +548,9 @@ public final class PKeyEC extends PKey {
         else {
             s = (BigInteger) arg;
         }
-        ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec(getCurveName());
-        ECParameterSpec params = new ECNamedCurveSpec(spec.getName(), spec.getCurve(), spec.getG(), spec.getN(), spec.getH(), spec.getSeed());
-        ECPrivateKeySpec privKeySpec = new ECPrivateKeySpec(s, params);
+        ECPrivateKeySpec keySpec = new ECPrivateKeySpec(s, getParamSpec());
         try {
-            this.privateKey = SecurityHelper.getKeyFactory("ECDSA").generatePrivate(privKeySpec);
+            this.privateKey = SecurityHelper.getKeyFactory("ECDSA").generatePrivate(keySpec);
             return arg;
         }
         catch (GeneralSecurityException ex) {
@@ -510,14 +592,14 @@ public final class PKeyEC extends PKey {
     }
 
     @Override
-    @JRubyMethod(name = { "to_pem" }, alias = "export", rest = true)
+    @JRubyMethod(name = "to_pem", alias = "export", rest = true)
     public RubyString to_pem(final IRubyObject[] args) {
         Arity.checkArgumentCount(getRuntime(), args, 0, 2);
 
         CipherSpec spec = null; char[] passwd = null;
         if ( args.length > 0 ) {
             spec = cipherSpec( args[0] );
-            if ( args.length > 1 ) passwd = password(args[1]);
+            if ( args.length > 1 ) passwd = password( args[1] );
         }
 
         try {
@@ -641,7 +723,7 @@ public final class PKeyEC extends PKey {
         public IRubyObject generator(final ThreadContext context) {
             if ( paramSpec == null ) return context.nil;
             final ECPoint generator = paramSpec.getGenerator();
-            final int bitLength = paramSpec.getOrder().bitLength();
+            //final int bitLength = paramSpec.getOrder().bitLength();
             return new Point(context.runtime, generator, this);
         }
 
@@ -665,7 +747,26 @@ public final class PKeyEC extends PKey {
             }
         }
 
-        final EllipticCurve getCurve() { return paramSpec.getCurve(); }
+        final EllipticCurve getCurve() {
+            if (paramSpec == null) {
+                paramSpec = getParamSpec(getCurveName());
+            }
+            return paramSpec.getCurve();
+        }
+
+//        @Override
+//        @JRubyMethod
+//        @SuppressWarnings("unchecked")
+//        public IRubyObject inspect() {
+//            final EllipticCurve curve = getCurve();
+//            final StringBuilder part = new StringBuilder();
+//            String cname = getMetaClass().getRealClass().getName();
+//            part.append("#<").append(cname).append(":0x");
+//            part.append(Integer.toHexString(System.identityHashCode(this)));
+//            // part.append(' ');
+//            part.append(" a:").append(curve.getA()).append(" b:").append(curve.getA());
+//            return RubyString.newString(getRuntime(), part.append('>'));
+//        }
 
     }
 
@@ -708,6 +809,11 @@ public final class PKeyEC extends PKey {
             this.group = group;
         }
 
+        private static RaiseException newError(final Ruby runtime, final String message) {
+            final RubyClass Error = _EC(runtime).getClass("Point").getClass("Error");
+            return Utils.newError(runtime, Error, message);
+        }
+
         @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
             final Ruby runtime = context.runtime;
@@ -726,7 +832,13 @@ public final class PKeyEC extends PKey {
             }
             if ( argc == 2 ) { // (group, bn)
                 final byte[] encoded = ((BN) args[1]).getValue().abs().toByteArray();
-                this.point = ECPointUtil.decodePoint(group.getCurve(), encoded);
+                try {
+                    this.point = ECPointUtil.decodePoint(group.getCurve(), encoded);
+                }
+                catch (IllegalArgumentException ex) {
+                    // MRI: OpenSSL::PKey::EC::Point::Error: invalid encoding
+                    throw newError(context.runtime, ex.getMessage());
+                }
             }
 
             return this;
@@ -762,7 +874,30 @@ public final class PKeyEC extends PKey {
         @JRubyMethod
         public BN to_bn(final ThreadContext context) {
             final byte[] encoded = encode(bitLength(), point);
-            return BN.newBN(context.runtime, new BigInteger(encoded));
+            return BN.newBN(context.runtime, new BigInteger(1, encoded));
+        }
+
+        private boolean isInfinity() {
+            return point == ECPoint.POINT_INFINITY;
+        }
+
+        @JRubyMethod(name = "infinity?")
+        public RubyBoolean infinity_p() {
+            return getRuntime().newBoolean( isInfinity() );
+        }
+
+        @JRubyMethod(name = "set_to_infinity!")
+        public IRubyObject set_to_infinity_b() {
+            this.point = ECPoint.POINT_INFINITY;
+            return this;
+        }
+
+        @Override
+        @JRubyMethod
+        @SuppressWarnings("unchecked")
+        public IRubyObject inspect() {
+            VariableEntry entry = new VariableEntry( "group", group == null ? (Object) "nil" : group );
+            return ObjectSupport.inspect(this, (List) Collections.singletonList(entry));
         }
 
     }
