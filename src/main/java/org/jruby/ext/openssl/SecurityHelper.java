@@ -64,6 +64,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherSpi;
+import javax.crypto.KeyAgreement;
+import javax.crypto.KeyAgreementSpi;
 import javax.crypto.KeyGenerator;
 import javax.crypto.KeyGeneratorSpi;
 import javax.crypto.Mac;
@@ -538,6 +540,30 @@ public abstract class SecurityHelper {
 
         return newInstance(KeyGenerator.class,
             new Class[] { KeyGeneratorSpi.class, Provider.class, String.class },
+            new Object[] { spi, provider, algorithm }
+        );
+    }
+
+    /**
+     * @note code calling this should not assume BC provider internals !
+     */
+    public static KeyAgreement getKeyAgreement(final String algorithm) throws NoSuchAlgorithmException {
+        try {
+            final Provider provider = getSecurityProvider();
+            if ( provider != null ) return getKeyAgreement(algorithm, provider);
+        }
+        catch (NoSuchAlgorithmException e) { }
+        catch (SecurityException e) { debugStackTrace(e); }
+        return KeyAgreement.getInstance(algorithm);
+    }
+
+    static KeyAgreement getKeyAgreement(final String algorithm, final Provider provider)
+        throws NoSuchAlgorithmException {
+        final KeyAgreementSpi spi = (KeyAgreementSpi) getImplEngine("KeyAgreement", algorithm);
+        if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " not found");
+
+        return newInstance(KeyAgreement.class,
+            new Class[] { KeyAgreementSpi.class, Provider.class, String.class },
             new Object[] { spi, provider, algorithm }
         );
     }
