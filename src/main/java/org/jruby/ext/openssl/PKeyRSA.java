@@ -217,6 +217,7 @@ public class PKeyRSA extends PKey {
 
         final char[] passwd = password(pass);
         final RubyString str = readInitArg(context, arg);
+        final String strJava = str.toString();
 
         Object key = null;
         final KeyFactory rsaFactory;
@@ -233,12 +234,12 @@ public class PKeyRSA extends PKey {
         boolean noClassDef = false;
         if ( key == null && ! noClassDef ) { // PEM_read_bio_RSAPrivateKey
             try {
-                key = readPrivateKey(str, passwd);
+                key = readPrivateKey(strJava, passwd);
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (PEMInputOutput.PasswordRequiredException retry) {
                 if ( ttySTDIN(context) ) {
-                    try { key = readPrivateKey(str, passwordPrompt(context)); }
+                    try { key = readPrivateKey(strJava, passwordPrompt(context)); }
                     catch (Exception e) { debugStackTrace(runtime, e); }
                 }
             }
@@ -246,14 +247,14 @@ public class PKeyRSA extends PKey {
         }
         if ( key == null && ! noClassDef )  { // PEM_read_bio_RSAPublicKey
             try {
-                key = PEMInputOutput.readRSAPublicKey(new StringReader(str.toString()), passwd);
+                key = PEMInputOutput.readRSAPublicKey(new StringReader(strJava), passwd);
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (Exception e) { debugStackTrace(runtime, e); }
         }
         if ( key == null && ! noClassDef ) { // PEM_read_bio_RSA_PUBKEY
             try {
-                key = PEMInputOutput.readRSAPubKey(new StringReader(str.toString()));
+                key = PEMInputOutput.readRSAPubKey(new StringReader(strJava));
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (Exception e) { debugStackTrace(runtime, e); }

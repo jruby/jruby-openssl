@@ -362,9 +362,14 @@ public abstract class PKey extends RubyObject {
         catch (RaiseException ex) { return false; }
     }
 
+    static Object readPrivateKey(final String str, final char[] passwd)
+        throws PEMInputOutput.PasswordRequiredException, IOException {
+        return PEMInputOutput.readPrivateKey(new StringReader(str), passwd);
+    }
+
     static Object readPrivateKey(final RubyString str, final char[] passwd)
         throws PEMInputOutput.PasswordRequiredException, IOException {
-        return PEMInputOutput.readPrivateKey(new StringReader(str.toString()), passwd);
+        return readPrivateKey(str.toString(), passwd);
     }
 
     protected static RubyString readInitArg(final ThreadContext context, IRubyObject arg) {

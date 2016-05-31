@@ -178,6 +178,7 @@ public class PKeyDSA extends PKey {
 
         final char[] passwd = password(pass);
         final RubyString str = readInitArg(context, arg);
+        final String strJava = str.toString();
 
         Object key = null;
         final KeyFactory dsaFactory;
@@ -194,12 +195,12 @@ public class PKeyDSA extends PKey {
         boolean noClassDef = false;
         if ( key == null && ! noClassDef ) { // PEM_read_bio_DSAPrivateKey
             try {
-                key = readPrivateKey(str, passwd);
+                key = readPrivateKey(strJava, passwd);
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (PEMInputOutput.PasswordRequiredException retry) {
                 if ( ttySTDIN(context) ) {
-                    try { key = readPrivateKey(str, passwordPrompt(context)); }
+                    try { key = readPrivateKey(strJava, passwordPrompt(context)); }
                     catch (Exception e) { debugStackTrace(runtime, e); }
                 }
             }
@@ -207,14 +208,14 @@ public class PKeyDSA extends PKey {
         }
         if ( key == null && ! noClassDef ) { // PEM_read_bio_DSAPublicKey
             try {
-                key = PEMInputOutput.readDSAPublicKey(new StringReader(str.toString()), passwd);
+                key = PEMInputOutput.readDSAPublicKey(new StringReader(strJava), passwd);
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (Exception e) { debugStackTrace(runtime, e); }
         }
         if ( key == null && ! noClassDef ) { // PEM_read_bio_DSA_PUBKEY
             try {
-                key = PEMInputOutput.readDSAPubKey(new StringReader(str.toString()));
+                key = PEMInputOutput.readDSAPubKey(new StringReader(strJava));
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (Exception e) { debugStackTrace(runtime, e); }
