@@ -99,8 +99,8 @@ public abstract class SecurityHelper {
     private static String BC_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
     static boolean setBouncyCastleProvider = true; // (package access for tests)
     static Provider securityProvider; // 'BC' provider (package access for tests)
-    private static Boolean registerProvider = null;
-    private static final Map<String, Class> implEngines = new ConcurrentHashMap<String, Class>(16, 0.75f, 1);
+    private static volatile Boolean registerProvider = null;
+    static final Map<String, Class> implEngines = new ConcurrentHashMap<String, Class>(16, 0.75f, 1);
 
     /**
      * inject under a given name a cipher. also ensures that the registered
@@ -152,8 +152,10 @@ public abstract class SecurityHelper {
         return null;
     }
 
-    public static synchronized void setRegisterProvider(boolean register) {
-        registerProvider = Boolean.valueOf(register); doRegisterProvider();
+    public static synchronized void setRegisterProvider(final boolean register) {
+        registerProvider = Boolean.valueOf(register);
+        if ( register ) getSecurityProvider(); // so that securityProvider != null
+        // getSecurityProvider does doRegisterProvider();
     }
 
     static boolean isProviderAvailable(final String name) {
@@ -168,13 +170,14 @@ public abstract class SecurityHelper {
     private static void doRegisterProvider() {
         if ( registerProvider != null ) {
             synchronized(SecurityHelper.class) {
-                if ( registerProvider != null && registerProvider.booleanValue() ) {
+                final Boolean register = registerProvider;
+                if ( register != null && register.booleanValue() ) {
                     if ( securityProvider != null ) {
                         Security.addProvider(securityProvider);
+                        registerProvider = null;
                     }
                 }
             }
-            registerProvider = null;
         }
     }
 

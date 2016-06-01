@@ -56,8 +56,7 @@ public final class OpenSSL {
     }
 
     public static void createOpenSSL(final Ruby runtime) {
-        boolean registerProvider = SafePropertyAccessor.getBoolean("jruby.openssl.provider.register");
-        SecurityHelper.setRegisterProvider( registerProvider );
+        SecurityHelper.setRegisterProvider( SafePropertyAccessor.getBoolean("jruby.openssl.provider.register") );
 
         final RubyModule _OpenSSL = runtime.getOrCreateModule("OpenSSL");
         RubyClass _StandardError = runtime.getClass("StandardError");
