@@ -4,4 +4,4 @@ source 'https://rubygems.org'
 gemspec
 
 # for the rake task
-gem 'ruby-maven', '~> 3.3.8'
+gem 'ruby-maven', ENV['RUBY_MAVEN_VERSION'] || '~> 3.3.8'
