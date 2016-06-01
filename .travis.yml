@@ -18,7 +18,7 @@ env:
   - TEST_PROFILE=test-9.1.1.0
 
 install: echo 'no bundle install atm!'
-# script: mvn verify -P $TEST_PROFILE
+
 script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_PROFILE; fi
 
 matrix:
@@ -30,23 +30,23 @@ matrix:
       rvm: jruby-1.7.18
   include:
     - jdk: openjdk6
-      env: TEST_PROFILE=test-1.6.8
-      rvm: jruby-1.7.24
+      env: TEST_COMMAND="jruby -S gem install ruby-maven -v 3.3.8 && rmvn verify -P test-1.6.8"
+      rvm: jruby-1.7.22
     - jdk: openjdk6
-      env: TEST_PROFILE=test-1.7.4
-      rvm: jruby-1.7.24
+      env: TEST_COMMAND="jruby -S gem install ruby-maven -v 3.3.8 && rmvn verify -P test-1.7.4"
+      rvm: jruby-1.7.22
     - jdk: openjdk6
-      env: TEST_PROFILE=test-1.7.13
-      rvm: jruby-1.7.24
+      env: TEST_COMMAND="jruby -S gem install ruby-maven -v 3.3.8 && rmvn verify -P test-1.7.13"
+      rvm: jruby-1.7.22
     - jdk: openjdk6
-      env: TEST_PROFILE=test-1.7.18
-      rvm: jruby-1.7.24
+      env: TEST_COMMAND="jruby -S gem install ruby-maven -v 3.3.8 && rmvn verify -P test-1.7.18"
+      rvm: jruby-1.7.22
     - jdk: openjdk6
-      env: TEST_PROFILE=test-1.7.22
-      rvm: jruby-1.7.24
+      env: TEST_COMMAND="jruby -S gem install ruby-maven -v 3.3.8 && rmvn verify -P test-1.7.22"
+      rvm: jruby-1.7.22
     - jdk: openjdk6
-      env: TEST_PROFILE=test-1.7.24
-      rvm: jruby-1.7.24
+      env: TEST_COMMAND="jruby -S gem install ruby-maven -v 3.3.8 && rmvn verify -P test-1.7.24"
+      rvm: jruby-1.7.22
     #
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
