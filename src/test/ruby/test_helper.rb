@@ -8,7 +8,7 @@ if bc_version = ENV['BC_VERSION'] # && respond_to?(:require_jar)
   require_jar 'org.bouncycastle', 'bcprov-jdk15on', bc_version
   Jars.freeze_loading if defined? Jars.freeze_loading
 
-  puts Java::OrgBouncycastleJceProvider::BouncyCastleProvider.new.info
+  puts Java::OrgBouncycastleJceProvider::BouncyCastleProvider.new.info if $VERBOSE
 else
   base_dir = File.expand_path('../../..', File.dirname(__FILE__))
 
