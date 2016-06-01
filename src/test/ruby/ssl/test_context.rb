@@ -103,6 +103,8 @@ class TestSSLContext < TestCase
   end
 
   def test_context_ciphers
+    return skip('on Java 6') if defined?(ENV_JAVA) && ENV_JAVA['java.version'] < '1.7'
+    
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = "ALL"
 

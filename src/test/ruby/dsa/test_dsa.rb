@@ -1,7 +1,7 @@
 # coding: US-ASCII
 require File.expand_path('../test_helper', File.dirname(__FILE__))
 
-class TestDsa < TestCase
+class TestDSA < TestCase
 
   def setup
     super
