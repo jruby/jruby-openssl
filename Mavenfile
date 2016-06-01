@@ -100,7 +100,7 @@ plugin :deploy, '2.8.1' do
   execute_goals( :deploy, :skip => false )
 end
 
-supported_bc_versions = %w{ 1.49 1.50 1.51 1.52 1.53 1.54 }
+supported_bc_versions = %w{ 1.51 1.52 1.53 1.54 } # due EC support dropped <= 1.50
 
 default_bc_version = File.read('lib/jopenssl/version.rb')[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
@@ -184,17 +184,6 @@ profile :id => "test-#{version}" do
              'bc.versions' => supported_bc_versions.join(',')
 end
 }
-
-#profile :id => 'test-9000' do
-#  plugin :invoker, '1.8' do
-#    execute_goals( :install, :run, invoker_run_options )
-#  end
-#  # NOTE: we're work-around 9K maven-runit version bug (due minitest changes) !
-#  # ... still can not build with 9K : https://github.com/jruby/jruby/issues/3184
-#  properties 'jruby.version' => '9.0.0.0',
-#             'jruby.versions' => '9.0.0.0',
-#             'bc.versions' => supported_bc_versions.join(',')
-#end
 
 profile :id => 'release' do
   plugin :gpg, '1.5' do
