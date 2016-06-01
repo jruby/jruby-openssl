@@ -51,7 +51,7 @@ class TestEC < TestCase
     #puts signature.inspect
   end
 
-  require 'base64'
+  require File.expand_path('base64.rb', File.dirname(__FILE__))
 
   def test_encrypt
     p256dh = "BNFege3oh74znsDbVkGf5CRAtLVUHlo5NTU9-inepE_HpUBWUq3FP_dJR-WDORPvKL7fM_AKyfYch-nKY7kDOe0="
