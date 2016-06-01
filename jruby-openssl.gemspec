@@ -19,7 +19,8 @@ Gem::Specification.new do |s|
   s.require_paths = ['lib']
 
   s.files = `git ls-files`.split("\n").
-    select { |f| f =~ /^(lib)/ || f =~ /^History|LICENSE|README|Rakefile/i } +
+    select { |f| f =~ /^(lib)/ ||
+                 f =~ /^History|LICENSE|README|Rakefile|Mavenfile|pom.xml/i } +
     Dir.glob('lib/**/*.jar') # 'lib/jopenssl.jar' and potentially BC jars
 
   bc_version = version_rb.match( /.*\sBOUNCY_CASTLE_VERSION\s*=\s*['"](.*)['"]/ )[1]
