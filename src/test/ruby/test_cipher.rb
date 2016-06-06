@@ -363,6 +363,42 @@ class TestCipher < TestCase
     #assert_equal "", cipher.final
   end
 
+  def test_aes_gcm
+    ['aes-128-gcm', 'aes-192-gcm', 'aes-256-gcm'].each do |algo|
+      pt = "You should all use Authenticated Encryption!"
+      cipher, key, iv = new_encryptor(algo)
+
+      cipher.auth_data = "aad"
+      ct  = cipher.update(pt) + cipher.final
+      tag = cipher.auth_tag
+      assert_equal(16, tag.size)
+
+      decipher = new_decryptor(algo, key, iv)
+      decipher.auth_tag = tag
+      decipher.auth_data = "aad"
+
+      assert_equal(pt, decipher.update(ct) + decipher.final)
+    end
+  end
+
+  def new_encryptor(algo)
+    cipher = OpenSSL::Cipher.new(algo)
+    cipher.encrypt
+    key = cipher.random_key
+    iv = cipher.random_iv
+    [cipher, key, iv]
+  end
+  private :new_encryptor
+
+  def new_decryptor(algo, key, iv)
+    OpenSSL::Cipher.new(algo).tap do |cipher|
+      cipher.decrypt
+      cipher.key = key
+      cipher.iv = iv
+    end
+  end
+  private :new_decryptor
+
   def test_aes_128_gcm_with_auth_tag
     cipher = OpenSSL::Cipher.new('aes-128-gcm')
     cipher.encrypt
