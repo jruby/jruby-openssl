@@ -68,6 +68,7 @@ class TestCipher < TestCase
     #puts OpenSSL::Cipher.ciphers.size
 
     OpenSSL::Cipher.ciphers.each do |cipher_name|
+      next if cipher_name.end_with?('wrap') # e.g. 'id-aes256-wrap'
       OpenSSL::Cipher.new cipher_name
     end
   end
@@ -347,6 +348,57 @@ class TestCipher < TestCase
     actual = cipher.update(bytes)
     assert_equal expected, actual
     #assert_equal "", cipher.final
+
+    cipher = OpenSSL::Cipher.new('aes-256-gcm')
+    assert_equal cipher, cipher.encrypt
+    assert_equal 32, cipher.key_len
+    assert_equal 12, cipher.iv_len
+    cipher.key = '01245678' * 4
+    cipher.iv = '0123456' * 2
+
+    bytes = '0101' * 8
+    expected = "\xA8I0\xF8\xCD?Z\xFD\x8E\"T\xF5\xF2\xC5\xC8\x05\xD4b\x85\xA3}'\xC99]\xC1\x16\x8B\x13\x9E-)" # from MRI
+    actual = cipher.update(bytes)
+    assert_equal expected, actual
+    #assert_equal "", cipher.final
+  end
+
+  def test_aes_128_gcm_with_auth_tag
+    cipher = OpenSSL::Cipher.new('aes-128-gcm')
+    cipher.encrypt
+    #assert_equal 16, cipher.key_len
+    #assert_equal 12, cipher.iv_len
+    cipher.key = '01' * 8
+    cipher.iv = '1001' * 3
+
+    plaintext = "Hello World"
+
+    padding = cipher.update("\0\0")
+    text = cipher.update(plaintext)
+
+    final = cipher.final; a_tag = cipher.auth_tag
+
+    assert_equal "\xB5\xFD", padding unless defined? JRUBY_VERSION
+    assert_equal "\xCCxqd\xDE\x92\x95\xAD0\xB4=", text unless defined? JRUBY_VERSION
+    assert_equal "", final unless defined? JRUBY_VERSION
+
+    assert_equal "\xB5\xFD\xCCxqd\xDE\x92\x95\xAD0\xB4=", padding + text + final
+
+    assert_equal "\ay\xBA\x89\xC9\x91\xF8N\xB7\xD6\x17+\x0F\\\xF8N", a_tag
+
+    assert_equal a_tag, cipher.auth_tag
+    assert_raise(OpenSSL::Cipher::CipherError) { cipher.update("\0\0") }
+    assert_equal a_tag, cipher.auth_tag
+    assert_raise(OpenSSL::Cipher::CipherError) { cipher.final }
+  end
+
+  def test_encrypt_auth_data_non_gcm
+    cipher = OpenSSL::Cipher.new 'aes-128-cfb'
+    cipher.encrypt
+    #length = 16
+    #cipher.iv = '0' * length
+    #cipher.key = '1' * length
+    assert_raise(OpenSSL::Cipher::CipherError) { cipher.auth_tag }
   end
 
   def test_encrypt_aes_cfb_16_incompatibility
