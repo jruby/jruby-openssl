@@ -561,7 +561,12 @@ public class Cipher extends RubyObject {
             // TODO check cryptoMode CFB/OFB
             final String defaultPadding = "PKCS5Padding";
 
-            if ( padding == null ) return defaultPadding;
+            if ( padding == null ) {
+                if ( "GCM".equalsIgnoreCase(cryptoMode) ) {
+                    return "NoPadding";
+                }
+                return defaultPadding;
+            }
             if ( padding.equalsIgnoreCase("PKCS5Padding") ) {
                 return "PKCS5Padding";
             }
