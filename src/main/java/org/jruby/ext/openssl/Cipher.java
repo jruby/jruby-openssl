@@ -1075,8 +1075,9 @@ public class Cipher extends RubyObject {
 
         checkCipherNotNull(runtime);
 
-        final byte[] data = arg.asString().getBytes();
-        if ( data.length == 0 ) {
+        final ByteList data = arg.asString().getByteList();
+        final int length = data.length();
+        if ( length == 0 ) {
             throw runtime.newArgumentError("data must not be empty");
         }
 
@@ -1088,12 +1089,17 @@ public class Cipher extends RubyObject {
 
         final ByteList str;
         try {
-            final byte[] out = cipher.update(data);
+            final byte[] in = data.getUnsafeBytes();
+            final int offset = data.begin();
+            final byte[] out = cipher.update(in, offset, length);
             if ( out != null ) {
                 str = new ByteList(out, false);
-                if ( realIV != null ) setLastIVIfNeeded( encryptMode ? out : data );
+                if ( realIV != null ) {
+                    if ( encryptMode ) setLastIVIfNeeded( out );
+                    else setLastIVIfNeeded( in, offset, length );
+                }
 
-                processedDataBytes += data.length;
+                processedDataBytes += length;
             }
             else {
                 str = new ByteList(ByteList.NULL_ARRAY);
@@ -1160,10 +1166,14 @@ public class Cipher extends RubyObject {
     }
 
     private void setLastIVIfNeeded(final byte[] tmpIV) {
-        final int len = ivLength;
-        if ( lastIV == null ) lastIV = new byte[len];
-        if ( tmpIV.length >= len ) {
-            System.arraycopy(tmpIV, tmpIV.length - len, lastIV, 0, len);
+        setLastIVIfNeeded(tmpIV, 0, tmpIV.length);
+    }
+
+    private void setLastIVIfNeeded(final byte[] tmpIV, final int offset, final int length) {
+        final int ivLen = this.ivLength;
+        if ( lastIV == null ) lastIV = new byte[ivLen];
+        if ( length >= ivLen ) {
+            System.arraycopy(tmpIV, offset + (length - ivLen), lastIV, 0, ivLen);
         }
     }
 
