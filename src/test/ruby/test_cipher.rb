@@ -312,6 +312,43 @@ class TestCipher < TestCase
     end
   end
 
+  def test_aes_128_gcm
+    cipher = OpenSSL::Cipher.new('aes-128-gcm')
+    assert_equal cipher, cipher.encrypt
+    cipher.key = '01' * 8
+    cipher.iv = '0' * 16
+
+    bytes = '0000' * 4
+    expected = "\xAC\xC8\x0E\xEDbX,\xB4\xCD\x02\x06O(p\xF8u" # from MRI
+    actual = cipher.update(bytes)
+    assert_equal expected, actual
+    assert_equal "", cipher.final unless defined? JRUBY_VERSION
+
+    cipher = OpenSSL::Cipher.new('aes-128-gcm')
+    assert_equal cipher, cipher.encrypt
+    cipher.key = '01' * 8
+    cipher.iv = '012345678' * 2
+
+    bytes = '0000' * 4
+    expected = "\xF3\xEF\xE6K\xBAJ\xAB=7m'\b\xE0\x06U\x9B" # from MRI
+    actual = cipher.update(bytes)
+    assert_equal expected, actual
+    #assert_equal "", cipher.final unless defined? JRUBY_VERSION
+
+    cipher = OpenSSL::Cipher.new('aes-128-gcm')
+    assert_equal cipher, cipher.encrypt
+    assert_equal 16, cipher.key_len
+    assert_equal 12, cipher.iv_len
+    cipher.key = '01' * 8
+    cipher.iv = '0' * 12
+
+    bytes = '0000' * 4
+    expected = "\xAC\xC8\x0E\xEDbX,\xB4\xCD\x02\x06O(p\xF8u" # from MRI
+    actual = cipher.update(bytes)
+    assert_equal expected, actual
+    #assert_equal "", cipher.final
+  end
+
   def test_encrypt_aes_cfb_16_incompatibility
     cipher = OpenSSL::Cipher.new 'AES-128-CFB'
     assert_equal cipher, cipher.encrypt

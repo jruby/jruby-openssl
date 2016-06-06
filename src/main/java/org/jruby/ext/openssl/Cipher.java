@@ -38,6 +38,7 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
+import java.security.spec.AlgorithmParameterSpec;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,12 +46,14 @@ import java.util.Map;
 import static javax.crypto.Cipher.DECRYPT_MODE;
 import static javax.crypto.Cipher.ENCRYPT_MODE;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.RC2ParameterSpec;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
+import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
@@ -611,7 +614,9 @@ public class Cipher extends RubyObject {
 
             if ( ivLength == -1 ) {
                 if ( "AES".equals(base) ) {
-                    ivLength = 16;
+                    ivLength = 16; // OpenSSL defaults to 12
+                    // NOTE: we can NOT handle 12 for non GCM mode
+                    if ( "GCM".equals(mode) ) ivLength = 12;
                 }
                 //else if ( "DES".equals(base) ) {
                 //    ivLength = 8;
@@ -790,22 +795,22 @@ public class Cipher extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject name() {
+    public final RubyString name() {
         return getRuntime().newString(name);
     }
 
     @JRubyMethod
-    public IRubyObject key_len() {
+    public final RubyInteger key_len() {
         return getRuntime().newFixnum(keyLength);
     }
 
     @JRubyMethod
-    public IRubyObject iv_len() {
+    public final RubyInteger iv_len() {
         return getRuntime().newFixnum(ivLength);
     }
 
     @JRubyMethod(name = "key_len=", required = 1)
-    public IRubyObject set_key_len(IRubyObject len) {
+    public final IRubyObject set_key_len(IRubyObject len) {
         this.keyLength = RubyNumeric.fix2int(len);
         return len;
     }
@@ -959,7 +964,7 @@ public class Cipher extends RubyObject {
         cipher = getCipherInstance();
     }
 
-    javax.crypto.Cipher getCipherInstance() {
+    final javax.crypto.Cipher getCipherInstance() {
         try {
             return getCipherInstance(realName, false);
         }
@@ -1040,15 +1045,22 @@ public class Cipher extends RubyObject {
                     );
                 }
                 else {
+                    final AlgorithmParameterSpec ivSpec;
+                    if ( "GCM".equalsIgnoreCase(cryptoMode) ) { // e.g. 'aes-128-gcm'
+                        ivSpec = new GCMParameterSpec(this.ivLength * 8, this.realIV);
+                    }
+                    else {
+                        ivSpec = new IvParameterSpec(this.realIV);
+                    }
                     cipher.init(encryptMode ? ENCRYPT_MODE : DECRYPT_MODE,
                         new SimpleSecretKey(getCipherAlgorithm(), this.key),
-                        new IvParameterSpec(this.realIV)
+                        ivSpec
                     );
                 }
             }
         }
         catch (InvalidKeyException e) {
-            throw newCipherError(runtime, e + ": possibly you need to install Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE");
+            throw newCipherError(runtime, e + "\n possibly you need to install Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files for your JRE");
         }
         catch (Exception e) {
             debugStackTrace(runtime, e);
