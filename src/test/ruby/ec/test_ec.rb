@@ -100,7 +100,7 @@ class TestEC < TestCase
       :auth => Base64.urlsafe_decode64(auth))
 
     assert_equal "Hello World", decrypted_data
-  end
+  end if RUBY_VERSION > '1.9'
 
   def generate_ecdh_key(group = 'prime256v1')
     curve = OpenSSL::PKey::EC.new(group)
