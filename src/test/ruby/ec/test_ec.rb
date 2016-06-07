@@ -81,6 +81,116 @@ class TestEC < TestCase
     assert_equal expected, server.dh_compute_key(client_public_key)
   end
 
+  def test_encrypt_integration # inspired by WebPush
+    require File.expand_path('ece.rb', File.dirname(__FILE__)) unless defined? ECE
+    require File.expand_path('hkdf.rb', File.dirname(__FILE__)) unless defined? HKDF
+
+    p256dh = Base64.urlsafe_encode64 generate_ecdh_key
+    auth = Base64.urlsafe_encode64 Random.new.bytes(16)
+
+    payload = Encryption.encrypt("Hello World", p256dh, auth)
+
+    encrypted = payload.fetch(:ciphertext)
+
+    decrypted_data = ECE.decrypt(encrypted,
+      :key => payload.fetch(:shared_secret),
+      :salt => payload.fetch(:salt),
+      :server_public_key => payload.fetch(:server_public_key_bn),
+      :user_public_key => Base64.urlsafe_decode64(p256dh),
+      :auth => Base64.urlsafe_decode64(auth))
+
+    assert_equal "Hello World", decrypted_data
+  end
+
+  def generate_ecdh_key(group = 'prime256v1')
+    curve = OpenSSL::PKey::EC.new(group)
+    curve.generate_key
+    str = curve.public_key.to_bn.to_s(2)
+    puts "curve.public_key.to_bn.to_s(2): #{str.inspect}" if $VERBOSE
+    str
+  end
+  private :generate_ecdh_key
+
+  module Encryption # EC + (symmetric) AES GCM AAED encryption
+    extend self
+
+    def encrypt(message, p256dh, auth)
+
+      group_name = "prime256v1"
+      salt = Random.new.bytes(16)
+
+      server = OpenSSL::PKey::EC.new(group_name)
+      server.generate_key
+      server_public_key_bn = server.public_key.to_bn
+
+      group = OpenSSL::PKey::EC::Group.new(group_name)
+      client_public_key_bn = OpenSSL::BN.new(Base64.urlsafe_decode64(p256dh), 2)
+
+      #puts client_public_key_bn.to_s if $VERBOSE
+
+      client_public_key = OpenSSL::PKey::EC::Point.new(group, client_public_key_bn)
+
+      shared_secret = server.dh_compute_key(client_public_key)
+
+      client_auth_token = Base64.urlsafe_decode64(auth)
+
+      prk = HKDF.new(shared_secret, :salt => client_auth_token, :algorithm => 'SHA256', :info => "Content-Encoding: auth\0").next_bytes(32)
+
+      context = create_context(client_public_key_bn, server_public_key_bn)
+
+      content_encryption_key_info = create_info('aesgcm', context)
+      content_encryption_key = HKDF.new(prk, :salt => salt, :info => content_encryption_key_info).next_bytes(16)
+
+      nonce_info = create_info('nonce', context)
+      nonce = HKDF.new(prk, :salt => salt, :info => nonce_info).next_bytes(12)
+
+      ciphertext = encrypt_payload(message, content_encryption_key, nonce)
+
+      {
+        :ciphertext => ciphertext, :salt => salt, :shared_secret => shared_secret,
+        :server_public_key_bn => convert16bit(server_public_key_bn)
+      }
+    end
+
+    private
+
+    def create_context(client_public_key, server_public_key)
+      c = convert16bit(client_public_key)
+      s = convert16bit(server_public_key)
+      context = "\0"
+      context += [c.bytesize].pack("n*")
+      context += c
+      context += [s.bytesize].pack("n*")
+      context += s
+      context
+    end
+
+    def encrypt_payload(plaintext, content_encryption_key, nonce)
+      cipher = OpenSSL::Cipher.new('aes-128-gcm')
+      cipher.encrypt
+      cipher.key = content_encryption_key
+      cipher.iv = nonce
+      padding = cipher.update("\0\0")
+      text = cipher.update(plaintext)
+
+      e_text = padding + text + cipher.final
+      e_tag = cipher.auth_tag
+
+      e_text + e_tag
+    end
+
+    def create_info(type, context)
+      info = "Content-Encoding: "
+      info += type; info += "\0"; info += "P-256"; info += context
+      info
+    end
+
+    def convert16bit(key)
+      [key.to_s(16)].pack("H*")
+    end
+
+  end
+
   def setup
     super
     self.class.disable_security_restrictions!
