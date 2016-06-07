@@ -1,3 +1,23 @@
+## 0.9.17
+
+* support Cipher#auth_tag and auth_data for GCM ciphers (e.g. aes-128-gcm)
+* need to drop support for BC <= 1.50 due EC support (N/A in older BCs)
+* (somehow working) draft at implementing PKey::EC (elliptic curve support)
+  DH encryption expected to behave correctly
+* make sure (initial) BC security provider registration works!
+  ... when **-Djruby.openssl.provider.register=true** (due #94)
+* Make ALL cipherstring match ECDHE cihphers (#91)
+* fix X.509 indexBySubject returning correct index
+* try to handle `SSLContext.session=` and also try answering `session_reused?`
+* handle equals/hashCode on SSL::Session and raise on timeout int overflow
+* Allow DSA private keys to be initialized from parameters. (#83)
+* Instantiate both the private and public keys when setting parameters. (#82)
+
+## 0.9.16
+
+* add hard dependency to jar-dependencies (#74)
+* Recognize Android java.version (#81)
+
 ## 0.9.15
 
 * always return a Fixnum from `OpenSSL::SSL::Session#timeout`, OpenSSL defaults
