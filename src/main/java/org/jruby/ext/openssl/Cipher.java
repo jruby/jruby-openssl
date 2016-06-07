@@ -1267,8 +1267,7 @@ public class Cipher extends RubyObject {
             throw newCipherError(context.runtime, "authentication tag not supported by this cipher");
         }
         final RubyString auth_tag = tag.asString();
-        this.auth_tag = auth_tag.getByteList();
-        auth_tag.setByteListShared();
+        this.auth_tag = StringHelper.setByteListShared(auth_tag);
         return auth_tag;
     }
 
@@ -1290,8 +1289,7 @@ public class Cipher extends RubyObject {
             throw newCipherError(context.runtime, "authentication data not supported by this cipher");
         }
         final RubyString auth_data = data.asString();
-        this.auth_data = auth_data.getByteList();
-        auth_data.setByteListShared();
+        this.auth_data = StringHelper.setByteListShared(auth_data);
         return auth_data;
     }
 
