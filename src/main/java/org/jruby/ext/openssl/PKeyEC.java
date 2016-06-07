@@ -907,15 +907,31 @@ public final class PKeyEC extends PKey {
     }
 
     private static byte[] encode(final int bitLength, final ECPoint point) {
-        int keyLengthBytes = bitLength / 8;
-        byte[] encoded = new byte[1 + 2 * keyLengthBytes];
+        if ( point == ECPoint.POINT_INFINITY )  return new byte[1];
+
+        final int bytesLength = (bitLength + 7) / 8;
+        byte[] encoded = new byte[1 + bytesLength + bytesLength];
 
         encoded[0] = 0x04;
 
-        System.arraycopy(point.getAffineX().toByteArray(), 0, encoded, 1, keyLengthBytes);
-        System.arraycopy(point.getAffineY().toByteArray(), 0, encoded, 1 + keyLengthBytes, keyLengthBytes);
+        addIntBytes(point.getAffineX(), bytesLength, encoded, 1);
+        addIntBytes(point.getAffineY(), bytesLength, encoded, 1 + bytesLength);
 
         return encoded;
+    }
+
+    private static void addIntBytes(BigInteger i, final int length, final byte[] dest, final int destOffset) {
+       final byte[] bytes = i.toByteArray();
+
+       if (length < bytes.length) {
+           System.arraycopy(bytes, bytes.length - length, dest, destOffset, length);
+        }
+        else if (length > bytes.length) {
+            System.arraycopy(bytes, 0, dest, destOffset + (length - bytes.length), bytes.length);
+        }
+        else {
+            System.arraycopy(bytes, 0, dest, destOffset, length);
+        }
     }
 
 }
