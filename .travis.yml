@@ -16,6 +16,7 @@ env:
   - TEST_PROFILE=test-9.0.1.0
   - TEST_PROFILE=test-9.0.5.0
   - TEST_PROFILE=test-9.1.1.0
+  - TEST_PROFILE=test-9.1.2.0
 
 install: if [[ -v BUNDLE_INSTALL ]]; then jruby -S bundle install; else echo ""; fi
 
@@ -70,6 +71,9 @@ matrix:
     - jdk: oraclejdk7
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.1.1.0
+    - jdk: oraclejdk8
+      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+      rvm: jruby-9.1.2.0
 notifications:
   irc:
     channels:
