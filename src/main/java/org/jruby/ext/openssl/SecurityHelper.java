@@ -99,6 +99,7 @@ import org.bouncycastle.operator.bc.BcRSAContentVerifierProviderBuilder;
 public abstract class SecurityHelper {
 
     private static String BC_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
+    private static String BC_PROVIDER_NAME = "BC";
     static boolean setBouncyCastleProvider = true; // (package access for tests)
     static Provider securityProvider; // 'BC' provider (package access for tests)
     private static volatile Boolean registerProvider = null;
@@ -192,13 +193,27 @@ public abstract class SecurityHelper {
             final Provider provider = getSecurityProvider();
             if ( provider != null ) return getCertificateFactory(type, provider);
         }
-        catch (CertificateException e) { }
+        catch (CertificateException e) {e.printStackTrace(); }
         return CertificateFactory.getInstance(type);
     }
 
     static CertificateFactory getCertificateFactory(final String type, final Provider provider)
         throws CertificateException {
-        final CertificateFactorySpi spi = (CertificateFactorySpi) getImplEngine("CertificateFactory", type);
+        final CertificateFactorySpi spi;
+        boolean addedBC = false;
+        synchronized(SecurityHelper.class) {
+            try {
+                if (provider.getName().equals(BC_PROVIDER_NAME) && Security.getProvider(BC_PROVIDER_NAME) == null) {
+                    Security.addProvider(provider);
+                    addedBC = true;
+                }
+                spi = (CertificateFactorySpi) getImplEngine("CertificateFactory", type);
+            } finally {
+                if (addedBC) {
+                    Security.removeProvider(BC_PROVIDER_NAME);
+                }
+            }
+        }
         if ( spi == null ) throw new CertificateException(type + " not found");
         return newInstance(CertificateFactory.class,
                 new Class[]{ CertificateFactorySpi.class, Provider.class, String.class },
