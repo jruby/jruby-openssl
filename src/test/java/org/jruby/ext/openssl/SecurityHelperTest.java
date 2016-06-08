@@ -10,8 +10,10 @@ import static org.junit.Assert.fail;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
+import java.security.Security;
 import java.security.Signature;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 
 import org.junit.After;
 import org.junit.Before;
@@ -432,6 +434,27 @@ public class SecurityHelperTest {
         }
         catch (NoSuchAlgorithmException e) {
             // OK
+        }
+    }
+
+    @Test
+    public void testCertificateFactoryProviderStaysConstant() throws Exception {
+        Provider[] registeredProviders = Security.getProviders();
+
+        try {
+            // clear previous providers
+            for (Provider provider : registeredProviders) Security.removeProvider(provider.getName());
+
+            CertificateFactory certFactory1 = SecurityHelper.getCertificateFactory("X.509");
+            CertificateFactory certFactory2 = SecurityHelper.getCertificateFactory("X.509");
+
+            assertSame(certFactory1.getProvider(), certFactory2.getProvider());
+        } finally {
+            // clear any added by the test
+            for (Provider provider : Security.getProviders()) Security.removeProvider(provider.getName());
+
+            // restore previous providers
+            for (Provider provider : registeredProviders) Security.addProvider(provider);
         }
     }
 
