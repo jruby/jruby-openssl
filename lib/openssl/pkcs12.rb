@@ -5,9 +5,6 @@ module OpenSSL
     class PKCS12Error < OpenSSLError
     end
 
-    java_import java.io.StringReader
-    java_import java.io.StringBufferInputStream
-    java_import java.io.ByteArrayOutputStream
     java_import 'org.jruby.ext.openssl.PEMUtils'
     java_import 'org.jruby.ext.openssl.SecurityHelper'
 
@@ -27,11 +24,11 @@ module OpenSSL
         @der = file.read
         file.close
       else
-        str.force_encoding(Encoding::ASCII_8BIT)
+        str.force_encoding(Encoding::ASCII_8BIT) if str.respond_to?(:force_encoding)
         @der = str
       end
 
-      p12_input_stream = StringBufferInputStream.new(@der)
+      p12_input_stream = java.io.StringBufferInputStream.new(@der)
 
       store = SecurityHelper.getKeyStore("PKCS12")
       store.load(p12_input_stream, password.to_java.to_char_array)
@@ -87,7 +84,7 @@ module OpenSSL
 
       begin
         der_bytes = PEMUtils.generatePKCS12(
-          StringReader.new(key.to_pem), certificates.to_java_bytes,
+          java.io.StringReader.new(key.to_pem), certificates.to_java_bytes,
           alias_name, ( pass.nil? ? "" : pass ).to_java.to_char_array
         )
       rescue java.security.KeyStoreException, java.security.cert.CertificateException => e
