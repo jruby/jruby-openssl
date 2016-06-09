@@ -1,5 +1,6 @@
 ## 0.9.17
 
+* temporarily register BC provider on X.509 factory (work-around for #94)
 * support Cipher#auth_tag and auth_data for GCM ciphers (e.g. aes-128-gcm)
 * need to drop support for BC <= 1.50 due EC support (N/A in older BCs)
 * (somehow working) draft at implementing PKey::EC (elliptic curve support)
