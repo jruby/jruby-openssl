@@ -193,7 +193,7 @@ public abstract class SecurityHelper {
             final Provider provider = getSecurityProvider();
             if ( provider != null ) return getCertificateFactory(type, provider);
         }
-        catch (CertificateException e) {e.printStackTrace(); }
+        catch (CertificateException e) { debugStackTrace(e); }
         return CertificateFactory.getInstance(type);
     }
 
