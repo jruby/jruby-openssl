@@ -623,9 +623,14 @@ public class BN extends RubyObject {
     public IRubyObject prime_p(IRubyObject[] args) {
         final Ruby runtime = getRuntime();
         int argc = Arity.checkArgumentCount(runtime, args, 0, 1);
+
+        // negative numbers are always considered non-prime
+        if (this.value.signum() < 0) return runtime.getFalse();
+
+        int certainty = argc == 0 ? DEFAULT_CERTAINTY : RubyNumeric.fix2int(args[0]);
+
         // BigInteger#isProbablePrime will actually limit checks to a maximum of 50,
         // depending on bit count.
-        int certainty = argc == 0 ? DEFAULT_CERTAINTY : RubyNumeric.fix2int(args[0]);
         return runtime.newBoolean(this.value.isProbablePrime(certainty));
     }
 
@@ -635,9 +640,14 @@ public class BN extends RubyObject {
     public IRubyObject prime_fasttest_p(IRubyObject[] args) {
         final Ruby runtime = getRuntime();
         int argc = Arity.checkArgumentCount(runtime, args, 0, 2);
+
+        // negative numbers are always considered non-prime
+        if (this.value.signum() < 0) return runtime.getFalse();
+
+        int certainty = argc == 0 ? DEFAULT_CERTAINTY : RubyNumeric.fix2int(args[0]);
+        
         // BigInteger#isProbablePrime will actually limit checks to a maximum of 50,
         // depending on bit count.
-        int certainty = argc == 0 ? DEFAULT_CERTAINTY : RubyNumeric.fix2int(args[0]);
         return runtime.newBoolean(this.value.isProbablePrime(certainty));
     }
 
