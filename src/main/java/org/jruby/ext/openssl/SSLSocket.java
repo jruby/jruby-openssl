@@ -958,7 +958,7 @@ public class SSLSocket extends RubyObject {
             throw X509Cert.newCertificateError(runtime, e);
         }
         catch (SSLPeerUnverifiedException e) {
-            if (runtime.isVerbose() || OpenSSL.isDebug(runtime)) {
+            if (OpenSSL.isDebug(runtime)) {
                 runtime.getWarnings().warning(String.format("%s: %s", e.getClass().getName(), e.getMessage()));
             }
         }
