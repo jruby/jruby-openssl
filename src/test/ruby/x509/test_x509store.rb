@@ -76,8 +76,7 @@ class TestX509Store < TestCase
   def test_add_cert_concurrently
     store = OpenSSL::X509::Store.new
     t = []
-    (0..25).each do |i|
-
+    (0..25).each do
       t << Thread.new do
         (0..2).each do
           store.add_file @pem
@@ -85,9 +84,7 @@ class TestX509Store < TestCase
       end
     end
 
-    t.each do |t|
-      t.join
-    end
+    t.each(&:join)
     # just ensure there is no concurreny error
     assert true
   end

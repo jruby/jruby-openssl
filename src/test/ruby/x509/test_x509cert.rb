@@ -105,22 +105,22 @@ END
 
     exts = cert.extensions.dup
 
-    assert ext = exts.find { |ext| ext.oid == 'basicConstraints' }, "missing 'basicConstraints' among: #{exts.join(', ')}"
+    assert ext = exts.find { |e| e.oid == 'basicConstraints' }, "missing 'basicConstraints' among: #{exts.join(', ')}"
     assert_equal 'CA:TRUE', ext.value
     assert ext.critical?
 
-    assert ext = exts.find { |ext| ext.oid == 'authorityKeyIdentifier' }, "missing 'authorityKeyIdentifier' among: #{exts.join(', ')}"
+    assert ext = exts.find { |e| e.oid == 'authorityKeyIdentifier' }, "missing 'authorityKeyIdentifier' among: #{exts.join(', ')}"
     assert_equal "keyid:97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB\n", ext.value
     assert ! ext.critical?
 
-    assert ext = exts.find { |ext| ext.oid == 'subjectKeyIdentifier' }, "missing 'subjectKeyIdentifier' among: #{exts.join(', ')}"
+    assert ext = exts.find { |e| e.oid == 'subjectKeyIdentifier' }, "missing 'subjectKeyIdentifier' among: #{exts.join(', ')}"
     assert_equal "97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB", ext.value
     assert ! ext.critical?
 
-    assert ext = exts.find { |ext| ext.oid == 'subjectAltName' }, "missing 'subjectAltName' among: #{exts.join(', ')}"
+    assert ext = exts.find { |e| e.oid == 'subjectAltName' }, "missing 'subjectAltName' among: #{exts.join(', ')}"
     assert_equal 'email:self@jruby.org', ext.value
     exts.delete(ext)
-    assert ext = exts.find { |ext| ext.oid == 'subjectAltName' }, "missing 'subjectAltName' among: #{exts.join(', ')}"
+    assert ext = exts.find { |e| e.oid == 'subjectAltName' }, "missing 'subjectAltName' among: #{exts.join(', ')}"
     assert_equal 'DNS:jruby.org', ext.value
   end
 
@@ -161,7 +161,7 @@ END
       when /IP\:/
         # NOTE: probably fine as "IP:174.129.31.214" on JRuby while on MRI :
         # assert_equal 'IP Address:174.129.31.214', ext.value
-        assert_match /IP.*?:174.129.31.214/, ext.value
+        assert_match( /IP.*?:174.129.31.214/, ext.value )
       else
         assert_equal ca_exts[i][1], ext.value
       end
