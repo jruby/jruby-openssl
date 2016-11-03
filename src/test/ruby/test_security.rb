@@ -129,7 +129,7 @@ end
 
 ##
 
-Security.install_security_manager
+Security.install_security_manager if ENV['INSTALL_SECURITY_MANAGER'].eql?('true')
 
 ##
 
@@ -167,4 +167,6 @@ end
 
 Security.permissive!
 
-puts "using permissive! security with installed manager: #{java.lang.System.getSecurityManager}"
+if manager = java.lang.System.getSecurityManager
+  puts "using permissive! security with installed manager: #{manager}"
+end
