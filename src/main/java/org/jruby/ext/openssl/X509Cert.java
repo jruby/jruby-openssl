@@ -737,4 +737,13 @@ public class X509Cert extends RubyObject {
         return GeneralNames.getInstance( value ).getNames();
     }
 
+    @Override
+    public Object toJava(Class target) {
+        if ( target.isAssignableFrom(X509Certificate.class) ) {
+            if ( target == X509AuxCertificate.class ) return getAuxCert();
+            return cert;
+        }
+        return super.toJava(target);
+    }
+
 }// X509Cert
