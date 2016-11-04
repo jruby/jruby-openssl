@@ -93,6 +93,12 @@ TestCase.class_eval do
     end
   end
 
+  unless method_defined?(:assert_not_same)
+    def assert_not_same(expected, actual)
+      assert ! expected.equal?(actual), "expected: #{expected} to be same as: #{actual} but did"
+    end
+  end
+
   def self.disable_security_restrictions!; end # do nothing on MRI
 
   @@security_restrictions = nil
