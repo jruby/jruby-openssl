@@ -1,0 +1,10 @@
+$ /usr/lib/ssl/misc/CA.sh -newca
+
+$ /usr/lib/ssl/misc/CA.sh -newreq
+
+$ /usr/lib/ssl/misc/CA.sh -sign
+Signed certificate is in newcert.pem
+
+$ keytool -import -file demoCA/cacert.pem -alias demoCA -keystore javastore.ts -storepass javastore
+Trust this certificate? [no]:  y
+Certificate was added to keystore

@@ -3,11 +3,11 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestX509Store < TestCase
 
-  def setup
-    require 'openssl'
-    @cert = OpenSSL::X509::Certificate.new(File.read(File.expand_path('../server.crt', __FILE__)))
-    @ca_cert = File.expand_path('../ca.crt', __FILE__)
-    @javastore = File.expand_path('../store', __FILE__)
+  def setup; require 'openssl'
+    cert = File.read(File.expand_path('../newcert.pem', __FILE__)) # File.read(File.expand_path('../server.crt', __FILE__))
+    @cert = OpenSSL::X509::Certificate.new(cert)
+    @ca_cert = File.expand_path('../ca.crt', __FILE__) # File.expand_path('../demoCA/cacert.pem', __FILE__)
+    @javastore = File.expand_path('../javastore.ts', __FILE__)
     @pem = File.expand_path('../EntrustnetSecureServerCertificationAuthority.pem', __FILE__)
   end
 
@@ -21,28 +21,38 @@ class TestX509Store < TestCase
     ENV['SSL_CERT_FILE'] = nil
     store = OpenSSL::X509::Store.new
     store.set_default_paths
-    assert !store.verify(@cert)
+    assert ! store.verify(@cert)
 
     ENV['SSL_CERT_FILE'] = @ca_cert
     store = OpenSSL::X509::Store.new
-    assert !store.verify(@cert)
+    assert ! store.verify(@cert)
     store.set_default_paths
-    assert store.verify(@cert)
+
+    #puts @cert.inspect
+    #puts @cert.to_java java.security.cert.X509Certificate
+
+    verified = store.verify(@cert)
+    assert verified, "CA verification failed: #{store.inspect}"
   end
 
   def test_store_location_with_java_truststore
     ENV['SSL_CERT_FILE'] = @javastore
     store = OpenSSL::X509::Store.new
-    assert !store.verify(@cert)
+    assert ! store.verify(@cert)
     store.set_default_paths
-    assert store.verify(@cert)
+
+    #puts @cert.inspect
+    #puts @cert.to_java java.security.cert.X509Certificate
+
+    verified = store.verify(@cert)
+    assert verified, "JKS verification failed: #{store.inspect}"
   end
 
   def test_use_gibberish_cert_file
     ENV['SSL_CERT_FILE'] = File.expand_path('../gibberish.pem', __FILE__)
     store = OpenSSL::X509::Store.new
     store.set_default_paths
-    assert !store.verify(@cert)
+    assert ! store.verify(@cert)
   end
 
   def test_use_default_cert_file_as_custom_file
@@ -50,7 +60,9 @@ class TestX509Store < TestCase
     store = OpenSSL::X509::Store.new
     store.set_default_paths
     cert = OpenSSL::X509::Certificate.new(File.read(File.expand_path('../digicert.pem', __FILE__)))
-    assert store.verify(cert)
+
+    verified = store.verify(cert)
+    assert verified, "digicert.pem verification failed: #{store.inspect}"
   end
 
   def test_add_file_to_store_with_custom_cert_file
@@ -65,7 +77,7 @@ class TestX509Store < TestCase
     ENV['SSL_CERT_FILE'] = 'non-existing-file.crt'
     store = OpenSSL::X509::Store.new
     store.set_default_paths
-    assert !store.verify(@cert)
+    assert ! store.verify(@cert)
   end
 
   def test_verfy_with_wrong_argument
