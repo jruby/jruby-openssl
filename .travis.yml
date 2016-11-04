@@ -31,13 +31,13 @@ matrix:
       rvm: jruby-1.7.18
   include:
     - jdk: oraclejdk7
-      env: TEST_COMMAND="jruby -S rake test" BUNDLE_INSTALL=true
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-1.7.24
     - jdk: oraclejdk7
-      env: TEST_COMMAND="jruby -S rake test" BUNDLE_INSTALL=true
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-1.7.25
     - jdk: oraclejdk7
-      env: TEST_COMMAND="jruby -S rake test" BUNDLE_INSTALL=true
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-1.7.26
     #
     - jdk: openjdk6
