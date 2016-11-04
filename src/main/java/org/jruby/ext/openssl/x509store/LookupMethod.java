@@ -37,15 +37,15 @@ import java.math.BigInteger;
 public class LookupMethod {
     public String name;
 
-    static interface NewItemFunction extends Function1<Lookup> {}
-    static interface FreeFunction extends Function1<Lookup> {}
-    static interface InitFunction extends Function1<Lookup> {}
-    static interface ShutdownFunction extends Function1<Lookup> {}
-    static interface ControlFunction extends Function5<Lookup, Integer, String, Number, String[]> {}
-    static interface BySubjectFunction extends Function4<Lookup, Integer, Name, X509Object[]> {}
-    static interface ByIssuerSerialNumberFunction extends Function5<Lookup, Integer, Name, BigInteger, X509Object[]> {}
-    static interface ByFingerprintFunction extends Function4<Lookup, Integer, String, X509Object[]> {}
-    static interface ByAliasFunction extends Function4<Lookup, Integer, String, X509Object[]> {}
+    interface NewItemFunction extends Function1<Lookup> {}
+    interface FreeFunction extends Function1<Lookup> {}
+    interface InitFunction extends Function1<Lookup> {}
+    interface ShutdownFunction extends Function1<Lookup> {}
+    interface ControlFunction extends Function5<Lookup, Integer, String, Number, String[]> {}
+    interface BySubjectFunction extends Function4<Lookup, Integer, Name, X509Object[]> {}
+    interface ByIssuerSerialNumberFunction extends Function5<Lookup, Integer, Name, BigInteger, X509Object[]> {}
+    interface ByFingerprintFunction extends Function4<Lookup, Integer, String, X509Object[]> {}
+    interface ByAliasFunction extends Function4<Lookup, Integer, String, X509Object[]> {}
 
     /**
      * c: new_item

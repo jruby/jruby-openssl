@@ -27,6 +27,7 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import org.jruby.ext.openssl.OpenSSL;
 import org.jruby.ext.openssl.util.Cache;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_CERT_DIR;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_ASN1;
@@ -356,10 +357,10 @@ public class Lookup {
         final FileInputStream fin = new FileInputStream(certsFile);
         int count = 0;
         try {
-	    // hardcode the keystore type, as we expcet cacerts to be a java
-	    // keystore - especially needed for jdk9
+	        // hardcode the keystore type, as we expect cacerts to be a java
+	        // keystore - especially needed for jdk9
             KeyStore keystore = SecurityHelper.getKeyStore("jks");
-	    // we pass a null password, as the cacerts file isn't password protected
+	        // null password - as the cacerts file isn't password protected
             keystore.load(fin, null);
             PKIXParameters params = new PKIXParameters(keystore);
             for ( TrustAnchor trustAnchor : params.getTrustAnchors() ) {
@@ -515,9 +516,11 @@ public class Lookup {
             case X509_L_FILE_LOAD:
                 if (arglInt == X509_FILETYPE_DEFAULT) {
                     try {
-                        file = ctx.envEntry( getDefaultCertificateFileEnvironment() );
+                        file = ctx.envEntry( getDefaultCertificateFileEnvironment() ); // ENV['SSL_CERT_FILE']
                     }
-                    catch (RuntimeException e) { }
+                    catch (RuntimeException e) {
+                        OpenSSL.debug(ctx.runtime, "failed to read SSL_CERT_FILE", e);
+                    }
                     if (file == null) {
                         file = X509Utils.X509_CERT_FILE.replace('/', File.separatorChar);
                     }

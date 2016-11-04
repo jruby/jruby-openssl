@@ -216,11 +216,11 @@ public final class OpenSSL {
         if ( isDebug(runtime) ) e.printStackTrace(runtime.getOut());
     }
 
-    static void debug(final Ruby runtime, final String msg) {
+    public static void debug(final Ruby runtime, final String msg) {
         if ( isDebug(runtime) ) runtime.getOut().println(msg);
     }
 
-    static void debug(final Ruby runtime, final String msg, final Throwable e) {
+    public static void debug(final Ruby runtime, final String msg, final Throwable e) {
         if ( isDebug(runtime) ) runtime.getOut().println(msg + ' ' + e);
     }
 
