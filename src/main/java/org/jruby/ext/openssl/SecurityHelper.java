@@ -202,7 +202,7 @@ public abstract class SecurityHelper {
         final CertificateFactorySpi spi;
         boolean addedBC = false;
         synchronized(SecurityHelper.class) {
-            try {
+            try { // TODO fixed since BC 1.55 (only needed on 1.54) and should be removed eventually ...
                 if (provider.getName().equals(BC_PROVIDER_NAME) && Security.getProvider(BC_PROVIDER_NAME) == null) {
                     Security.addProvider(provider);
                     addedBC = true;
