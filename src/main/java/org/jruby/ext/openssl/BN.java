@@ -794,28 +794,28 @@ public class BN extends RubyObject {
 
     @JRubyMethod(name = "rand_range", meta = true)
     public static IRubyObject rand_range(IRubyObject recv, IRubyObject arg) {
-        return getRandomBNInRange(recv.getRuntime(), getBigInteger(arg), getSecureRandom());
+        return randomValueInRange(recv.getRuntime(), getBigInteger(arg), getSecureRandom());
     }
 
     @JRubyMethod(name = "pseudo_rand_range", meta = true)
     public static IRubyObject pseudo_rand_range(IRubyObject recv, IRubyObject arg) {
-        return getRandomBNInRange(recv.getRuntime(), getBigInteger(arg), getRandom());
+        return randomValueInRange(recv.getRuntime(), getBigInteger(arg), getRandom());
     }
 
-    private static BN getRandomBNInRange(Ruby runtime, BigInteger limit, Random random) {
+    private static BN randomValueInRange(Ruby runtime, BigInteger limit, Random random) {
         BigInteger value;
         try {
-            value = getRandomBIInRange(limit, random);
+            value = randomIntegerInRange(limit, random);
         }
         catch (IllegalArgumentException e) {
-            throw newBNError(runtime, "illegal range");
+            throw newBNError(runtime, e.getMessage());
         }
-        return newBN(runtime, value);
+        return newInstance(runtime, value);
     }
 
-    public static BigInteger getRandomBIInRange(BigInteger limit, Random random) {
+    public static BigInteger randomIntegerInRange(BigInteger limit, Random random) {
         if (limit.signum() < 0) {
-            throw new IllegalArgumentException("illegal range");
+            throw new IllegalArgumentException("illegal range: " + limit);
         }
         int bits = limit.bitLength();
         BigInteger value;

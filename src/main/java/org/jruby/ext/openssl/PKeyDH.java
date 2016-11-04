@@ -60,7 +60,6 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.runtime.Visibility;
 
-import static org.jruby.ext.openssl.PKey._PKey;
 import static org.jruby.ext.openssl.OpenSSL.bcExceptionMessage;
 
 /**
@@ -209,9 +208,9 @@ public class PKeyDH extends PKey {
         // subject to Miller-Rabin [certainty = 0], but is subject to other constraints)
         // see also [ossl]/crypto/dh/dh_key.c #generate_key
         if (limit == 0) {
-            BigInteger pSub2 = p.subtract(TWO);
+            final BigInteger pSub2 = p.subtract(TWO);
             do {
-                x = BN.getRandomBIInRange(pSub2, secureRandom);
+                x = BN.randomIntegerInRange(pSub2, secureRandom);
             } while (x.equals(BigInteger.ZERO));
         } else {
             do {
