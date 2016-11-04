@@ -113,7 +113,7 @@ public class Store implements X509TrustManager {
         };
     }
 
-    @Deprecated int cache = 1; // not-used
+    // @Deprecated int cache = 1; // not-used
 
     private volatile X509Object[] objects = new X509Object[0];
     private volatile Lookup[] certLookups = new Lookup[0];
