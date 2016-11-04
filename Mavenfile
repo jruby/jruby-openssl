@@ -102,7 +102,8 @@ end
 
 supported_bc_versions = %w{ 1.51 1.52 1.53 1.54 } # due EC support dropped <= 1.50
 
-default_bc_version = File.read('lib/jopenssl/version.rb')[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
+default_bc_version = File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
+default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
 properties( 'jruby.plugins.version' => '1.0.10',
             'jruby.versions' => '1.7.18',
@@ -157,7 +158,7 @@ profile :id => 'test-1.7.4' do
 end
 
 jruby_1_7_versions = %w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.20 1.7.22 1.7.23 }
-jruby_1_7_versions += %w{ 1.7.24 1.7.25 }
+jruby_1_7_versions += %w{ 1.7.24 1.7.25 1.7.26 }
 
 jruby_1_7_versions.each { |version|
 
@@ -171,7 +172,7 @@ end
 
 }
 
-jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.0.0 9.1.1.0 9.1.2.0 }
+jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.0.0 9.1.1.0 9.1.2.0 9.1.5.0 }
 
 jruby_9_K_versions.each { |version|
 profile :id => "test-#{version}" do
