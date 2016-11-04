@@ -126,4 +126,34 @@ class TestX509Extension < TestCase
     assert ext1.to_der != ext2.to_der
   end
 
+  def test_subject_alt_name_sign_to_pem
+    domain_list = 'test.example.com,test2.example.com,example.com,www.example.com'
+
+    rsa_key = OpenSSL::PKey::RSA.new(2048)
+    csr = OpenSSL::X509::Request.new
+    csr.subject = OpenSSL::X509::Name.new [ ["C", 'AU'], ["ST", "NSW"], ["O", 'org'], ["CN", 'www.example.com'] ]
+    csr.public_key = rsa_key.public_key
+
+    extensions = OpenSSL::ASN1::Set [ OpenSSL::ASN1::Sequence([ subject_alt_name(domain_list) ]) ]
+    csr.add_attribute(OpenSSL::X509::Attribute.new('extReq', extensions))
+    csr.add_attribute(OpenSSL::X509::Attribute.new('msExtReq', extensions))
+
+    csr.sign rsa_key, OpenSSL::Digest::SHA256.new
+
+    puts csr.to_text if $VERBOSE
+
+    csr = OpenSSL::X509::Request.new pem = csr.to_pem
+    assert_equal 2, csr.attributes.length
+    ext_set = csr.attributes.first.value ; seq = ext_set.first.value
+    assert_equal 'subjectAltName', seq.first.value.first.value
+    dns = seq.first.value.last.value
+    assert dns =~ /test.example.com.*?test2.example.com.*?example.com.*?www.example.com/
+  end
+
+  def subject_alt_name(domains)
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.create_extension("subjectAltName", domains.split(',').map { |d| "DNS: #{d}" }.join(','))
+  end
+  private :subject_alt_name
+
 end

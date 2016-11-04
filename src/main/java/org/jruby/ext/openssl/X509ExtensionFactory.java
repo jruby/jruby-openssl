@@ -42,6 +42,7 @@ import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -458,8 +459,13 @@ public class X509ExtensionFactory extends RubyObject {
 
     private static ASN1Encodable parseSubjectAltName(final String valuex) throws IOException {
         if ( valuex.startsWith(DNS_) ) {
-            final String dns = valuex.substring(DNS_.length());
-            return new GeneralName(GeneralName.dNSName, dns);
+            final String[] vals = valuex.split(",");
+            final GeneralName[] names = new GeneralName[vals.length];
+            for ( int i = 0; i < vals.length; i++ ) {
+                final String dns = vals[i].substring(DNS_.length());
+                names[i] = new GeneralName(GeneralName.dNSName, dns);
+            }
+            return new GeneralNames(names);
         }
         if ( valuex.startsWith(DNS_Name_) ) {
             final String dns = valuex.substring(DNS_Name_.length());
