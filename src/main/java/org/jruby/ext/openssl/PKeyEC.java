@@ -688,7 +688,12 @@ public final class PKeyEC extends PKey {
         @JRubyMethod
         public IRubyObject curve_name(final ThreadContext context) {
             if (curve_name == null) {
-                curve_name = RubyString.newString(context.runtime, key.getCurveName());
+                String prefix, curveName = key.getCurveName();
+                // BC 1.54: "brainpoolP512t1" 1.55: "brainpoolp512t1"
+                if (curveName.startsWith(prefix = "brainpoolp")) {
+                    curveName = "brainpoolP" + curveName.substring(prefix.length());
+                }
+                curve_name = RubyString.newString(context.runtime, curveName);
             }
             return curve_name.dup();
         }
