@@ -94,7 +94,7 @@ public class X509Request extends RubyObject {
 
     public X509Request(Ruby runtime, RubyClass type) {
         super(runtime, type);
-        attributes = new ArrayList<X509Attribute>();
+        attributes = new ArrayList<X509Attribute>(4);
     }
 
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
@@ -128,7 +128,7 @@ public class X509Request extends RubyObject {
             this.public_key = newPKeyImplInstance(context, "DSA", enc);
         }
         else {
-            throw runtime.newLoadError("not implemented algo for public key: " + algorithm);
+            throw runtime.newNotImplementedError("public key algorithm: " + algorithm);
         }
 
         this.subject = newName( context, request.getSubject() );
