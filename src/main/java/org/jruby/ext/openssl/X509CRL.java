@@ -396,7 +396,9 @@ public class X509CRL extends RubyObject {
             if ( ext.isRealCritical() ) text.append("critical");
             text.append('\n');
             final String value = ext.value(context).toString();
-            text.append(S20,0,16).append( value );
+            for ( String val : value.split("\n") ) {
+                text.append(S20, 0, 16).append(val).append('\n');
+            }
             if ( value.charAt(value.length() - 1) != '\n' ) text.append('\n');
         }
     }
