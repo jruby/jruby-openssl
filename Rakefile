@@ -60,10 +60,8 @@ namespace :integration do
     unless File.exist?(File.join(it_path, 'Gemfile.lock'))
       raise "bundle not installed, run `rake integration:install'"
     end
-    loader = "ARGV.each { |f| require f }"
-    test_files = FileList['src/test/integration/*_test.rb'].to_a
-    test_files.map! { |path| path.sub('src/test/integration/', '') }
-    lib = [ 'lib', 'src/test/integration' ]
-    ruby "-I#{lib.join(':')} -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
+    loader = "ARGV.each { |f| require f }" ; lib = [ 'lib', it_path ]
+    test_files = FileList['src/test/integration/*_test.rb'].map { |path| path.sub('src/test/integration/', '') }
+    ruby "-I#{lib.join(':')} -C src/test/integration -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
   end
 end
