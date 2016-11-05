@@ -414,6 +414,8 @@ public class X509Cert extends RubyObject {
         return cert.getSignature();
     }
 
+    BigInteger getSerial() { return serial; }
+
     @JRubyMethod
     public IRubyObject serial() {
         return BN.newBN(getRuntime(), serial);
@@ -433,6 +435,8 @@ public class X509Cert extends RubyObject {
         this.serial = serialInt; return serial;
     }
 
+    X509Name getSubject() { return ((X509Name) subject); }
+
     @JRubyMethod
     public IRubyObject subject() {
         return subject;
@@ -443,6 +447,8 @@ public class X509Cert extends RubyObject {
         if ( ! subject.equals(this.subject) ) this.changed = true;
         return this.subject = subject;
     }
+
+    X509Name getIssuer() { return ((X509Name) issuer); }
 
     @JRubyMethod
     public IRubyObject issuer() {

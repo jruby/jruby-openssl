@@ -32,15 +32,8 @@ import java.math.BigInteger;
 
 import java.security.GeneralSecurityException;
 
-import org.bouncycastle.asn1.ASN1Boolean;
-import org.bouncycastle.asn1.ASN1Encodable;
-import org.bouncycastle.asn1.ASN1EncodableVector;
-import org.bouncycastle.asn1.ASN1Encoding;
-import org.bouncycastle.asn1.ASN1Integer;
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.DERBitString;
-import org.bouncycastle.asn1.DEROctetString;
-import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 
@@ -187,28 +180,28 @@ public class X509ExtensionFactory extends RubyObject {
         final ASN1Encodable value;
         try {
             final String id = objectId.getId();
-            if (id.equals("2.5.29.14")) { //subjectKeyIdentifier
+            if (id.equals("2.5.29.14")) { // subjectKeyIdentifier
                 value = new DEROctetString(parseSubjectKeyIdentifier(context, oid, valuex));
             }
-            else if (id.equals("2.5.29.35")) { //authorityKeyIdentifier
+            else if (id.equals("2.5.29.35")) { // authorityKeyIdentifier
                 value = parseAuthorityKeyIdentifier(context, valuex);
             }
-            else if (id.equals("2.5.29.17")) { //subjectAltName
+            else if (id.equals("2.5.29.17")) { // subjectAltName
                 value = parseSubjectAltName(valuex);
             }
-            else if (id.equals("2.5.29.18")) { //issuerAltName
+            else if (id.equals("2.5.29.18")) { // issuerAltName
                 value = parseIssuerAltName(context, valuex);
             }
-            else if (id.equals("2.5.29.19")) { //basicConstraints
+            else if (id.equals("2.5.29.19")) { // basicConstraints
                 value = parseBasicConstrains(valuex);
             }
-            else if (id.equals("2.5.29.15")) { //keyUsage
+            else if (id.equals("2.5.29.15")) { // keyUsage
                 value = parseKeyUsage(oid, valuex);
             }
-            else if (id.equals("2.16.840.1.113730.1.1")) { //nsCertType
+            else if (id.equals("2.16.840.1.113730.1.1")) { // nsCertType
                 value = parseNsCertType(oid, valuex);
             }
-            else if (id.equals("2.5.29.37")) { //extendedKeyUsage
+            else if (id.equals("2.5.29.37")) { // extendedKeyUsage
                 value = parseExtendedKeyUsage(valuex);
             }
             else {
@@ -404,19 +397,31 @@ public class X509ExtensionFactory extends RubyObject {
         return new DLSequence(vec);
     }
 
-    private DLSequence parseAuthorityKeyIdentifier(final ThreadContext context, final String valuex) {
+    private ASN1Sequence parseAuthorityKeyIdentifier(final ThreadContext context, final String valuex) {
         final ASN1EncodableVector vec = new ASN1EncodableVector();
-        if ( valuex.startsWith("keyid:always") ) {
-            vec.add(new DEROctetString(derDigest(context)));
-        } else if ( valuex.startsWith("keyid") ) {
-            vec.add(new DEROctetString(derDigest(context)));
+
+        for ( String value : valuex.split(",") ) { // e.g. "keyid:always,issuer:always"
+            if ( value.startsWith("keyid:") ) { // keyid:always
+                ASN1Encodable publicKeyIdentifier = new DEROctetString(publicKeyIdentifier(context));
+                vec.add(new DERTaggedObject(false, 0, publicKeyIdentifier));
+            }
+            else if ( value.startsWith("issuer:") ) { // issuer:always
+                GeneralName issuerName = new GeneralName(authorityCertIssuer(context));
+                vec.add(new DERTaggedObject(false, 1, new GeneralNames(issuerName)));
+
+                BigInteger issuerSerial = getIssuerSerialNumber(context);
+                if ( issuerSerial != null ) {
+                    vec.add(new DERTaggedObject(false, 2, new ASN1Integer(issuerSerial)));
+                }
+            }
         }
-        return new DLSequence(vec);
+
+        return new DERSequence(vec);
     }
 
-    private byte[] derDigest(final ThreadContext context) {
+    private byte[] publicKeyIdentifier(final ThreadContext context) {
         final Ruby runtime = context.runtime;
-        IRubyObject pkey = getInstanceVariable("@issuer_certificate").callMethod(context, "public_key");
+        IRubyObject pkey = getPublicKey(context);
         IRubyObject der;
         if (pkey instanceof PKeyRSA) {
             der = pkey.callMethod(context, "to_der");
@@ -425,6 +430,39 @@ public class X509ExtensionFactory extends RubyObject {
             der = der.callMethod(context, "value").callMethod(context, "[]", runtime.newFixnum(1)).callMethod(context, "value");
         }
         return getSHA1Digest(runtime, der.asString().getBytes());
+    }
+
+    private IRubyObject getPublicKey(final ThreadContext context) {
+        IRubyObject issuer_cert = getInstanceVariable("@issuer_certificate");
+        if ( issuer_cert instanceof X509Cert ) {
+            return ((X509Cert) issuer_cert).public_key(context);
+        }
+        return issuer_cert.callMethod(context, "public_key");
+    }
+
+    private X500Name authorityCertIssuer(final ThreadContext context) {
+        IRubyObject issuer = getIssuer(context);
+        if ( issuer instanceof X509Name ) {
+            return ((X509Name) issuer).getX500Name();
+        }
+        throw new UnsupportedOperationException();
+    }
+
+    private IRubyObject getIssuer(final ThreadContext context) {
+        IRubyObject issuer_cert = getInstanceVariable("@issuer_certificate");
+        if ( issuer_cert instanceof X509Cert ) {
+            return ((X509Cert) issuer_cert).getIssuer();
+        }
+        return issuer_cert.callMethod(context, "issuer");
+    }
+
+    private BigInteger getIssuerSerialNumber(final ThreadContext context) {
+        IRubyObject issuer_cert = getInstanceVariable("@issuer_certificate");
+        if ( issuer_cert instanceof X509Cert ) {
+            return ((X509Cert) issuer_cert).getSerial();
+        }
+        IRubyObject serial = issuer_cert.callMethod(context, "serial");
+        return serial.isNil() ? null : ((BN) serial).getValue();
     }
 
     private static byte[] getSHA1Digest(Ruby runtime, byte[] bytes) {
@@ -507,7 +545,7 @@ public class X509ExtensionFactory extends RubyObject {
 
     private DEROctetString parseSubjectKeyIdentifier(final ThreadContext context, final String oid, final String valuex) {
         if ( "hash".equalsIgnoreCase(valuex) ) {
-            return new DEROctetString(derDigest(context));
+            return new DEROctetString(publicKeyIdentifier(context));
         }
         if ( valuex.length() == 20 || ! isHex(valuex) ) {
             return new DEROctetString(ByteList.plain(valuex));
