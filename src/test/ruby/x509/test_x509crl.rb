@@ -55,7 +55,7 @@ EOF
     crl_data = File.read(File.expand_path('../revoked.crl', __FILE__))
     crl = OpenSSL::X509::CRL.new crl_data
 
-    #puts "CRL (revoked) text = \n#{crl.to_text}"
+    puts "CRL (revoked) text = \n#{crl.to_text}" if $VERBOSE
 
     expected_text = REVOKED_TEXT.split("\n")[0, 12]
 
