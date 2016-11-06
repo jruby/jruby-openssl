@@ -1,3 +1,14 @@
+## 0.9.18
+
+* handle X.509 authorityKeyIdentifier parsing somehow right (#102)
+* simple resolution for handling subjectAltName multiple DNS: names (#102)
+* upgrading BC to 1.55
+  normalize "brainpoolP512t1" curve name for BC 1.55 compatibility
+* allow for X509::Certificate to be converted to a Java certificate
+* at least OpenSSL.debug potential env read failure on set_default_paths
+* negative BN values are always considered not prime.
+* Don't print a warning for missing client certs (#110)
+
 ## 0.9.17
 
 * temporarily register BC provider on X.509 factory (work-around for #94)
