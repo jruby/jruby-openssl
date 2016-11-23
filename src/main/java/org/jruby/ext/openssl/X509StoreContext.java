@@ -127,9 +127,17 @@ public class X509StoreContext extends RubyObject {
         final List<X509AuxCertificate> _chain;
         if ( ! chain.isNil() ) {
             @SuppressWarnings("unchecked")
-            final List<X509Cert> certs = (List<X509Cert>) chain; // RubyArray
+            final RubyArray certs = (RubyArray) chain;
             _chain = new ArrayList<X509AuxCertificate>( certs.size() );
-            for ( X509Cert x : certs ) _chain.add( x.getAuxCert() );
+
+            for (int i = 0; i < certs.size(); i++) {
+                // NOTE: if we use the normal java syntax for iterating over this
+                // RubyArray, the `toJava` method of the X509Cert class will be
+                // implicitly called, and that will return the BC certificate object
+                // rather than the JRuby one.
+                X509Cert c = (X509Cert) certs.eltOk(i);
+                _chain.add(c.getAuxCert());
+            }
         }
         else {
             _chain = new ArrayList<X509AuxCertificate>(4);
