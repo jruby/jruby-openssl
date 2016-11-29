@@ -26,6 +26,20 @@ class TestBN < TestCase
     assert OpenSSL::BN.include? Comparable
   end
 
+  def test_cmp
+    bn1 = OpenSSL::BN.new('1')
+    bn2 = OpenSSL::BN.new('1')
+    bn3 = OpenSSL::BN.new('2')
+    assert_equal(false, bn1 == nil)
+    assert_equal(true,  bn1 != nil)
+    assert_equal(true, bn1 == bn2)
+    assert_equal(false, bn1 == bn3)
+    assert_equal(true, bn1.eql?(bn2))
+    assert_equal(false, bn1.eql?(bn3))
+    assert_equal(bn1.hash, bn2.hash)
+    assert_not_equal(bn3.hash, bn1.hash)
+  end if RUBY_VERSION >= '2.3'
+
   def test_to_bn
     bn = OpenSSL::BN.new('4224')
     assert_equal bn, 4224.to_bn
