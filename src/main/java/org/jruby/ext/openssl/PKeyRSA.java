@@ -71,7 +71,6 @@ import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.PKey._PKey;
-import static org.jruby.ext.openssl.PKey.cipherSpec;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPublicKey;
 import static org.jruby.ext.openssl.impl.PKey.toDerRSAKey;
@@ -105,6 +104,10 @@ public class PKeyRSA extends PKey {
 
     public static RaiseException newRSAError(Ruby runtime, String message) {
         return Utils.newError(runtime, _PKey(runtime).getClass("RSAError"), message);
+    }
+
+    static RaiseException newRSAError(Ruby runtime, Throwable cause) {
+        return Utils.newError(runtime, _PKey(runtime).getClass("RSAError"), cause.getMessage(), cause);
     }
 
     public PKeyRSA(Ruby runtime, RubyClass type) {
@@ -149,44 +152,45 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name = "generate", meta = true, rest = true)
     public static IRubyObject generate(IRubyObject self, IRubyObject[] args) {
+        final Ruby runtime = self.getRuntime();
         BigInteger exp = RSAKeyGenParameterSpec.F4;
-        if ( Arity.checkArgumentCount(self.getRuntime(), args, 1, 2) == 2 ) {
+        if ( Arity.checkArgumentCount(runtime, args, 1, 2) == 2 ) {
             if (args[1] instanceof RubyFixnum) {
                 exp = BigInteger.valueOf(RubyNumeric.num2long(args[1]));
             } else {
                 exp = ((RubyBignum) args[1]).getValue();
             }
         }
-        int keysize = RubyNumeric.fix2int(args[0]);
-        PKeyRSA rsa = new PKeyRSA(self.getRuntime(), (RubyClass) self);
-        rsaGenerate(rsa, keysize, exp);
-        return rsa;
+        final int keySize = RubyNumeric.fix2int(args[0]);
+        return rsaGenerate(runtime, new PKeyRSA(runtime, (RubyClass) self), keySize, exp);
     }
 
     /*
      * c: rsa_generate
      */
-    private static void rsaGenerate(PKeyRSA rsa, int keysize, BigInteger exp) throws RaiseException {
+    private static PKeyRSA rsaGenerate(final Ruby runtime,
+        PKeyRSA rsa, int keySize, BigInteger exp) throws RaiseException {
         try {
             KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("RSA");
             if ( "IBMJCEFIPS".equals( gen.getProvider().getName() ) ) {
-                gen.initialize(keysize); // IBMJCEFIPS does not support parameters
+                gen.initialize(keySize); // IBMJCEFIPS does not support parameters
             } else {
-                gen.initialize(new RSAKeyGenParameterSpec(keysize, exp), new SecureRandom());
+                gen.initialize(new RSAKeyGenParameterSpec(keySize, exp), new SecureRandom());
             }
             KeyPair pair = gen.generateKeyPair();
             rsa.privateKey = (RSAPrivateCrtKey) pair.getPrivate();
             rsa.publicKey = (RSAPublicKey) pair.getPublic();
         }
         catch (NoSuchAlgorithmException e) {
-            throw newRSAError(rsa.getRuntime(), e.getMessage());
+            throw newRSAError(runtime, e.getMessage());
         }
         catch (InvalidAlgorithmParameterException e) {
-            throw newRSAError(rsa.getRuntime(), e.getMessage());
+            throw newRSAError(runtime, e.getMessage());
         }
         catch (RuntimeException e) {
-            throw newRSAError(rsa.getRuntime(), e.getMessage());
+            throw newRSAError(rsa.getRuntime(), e);
         }
+        return rsa;
     }
 
     static PKeyRSA newInstance(final Ruby runtime, final PublicKey publicKey) {
@@ -207,12 +211,12 @@ public class PKeyRSA extends PKey {
         if ( args.length > 1 ) pass = args[1];
 
         if ( arg instanceof RubyFixnum ) {
-            int keysize = RubyNumeric.fix2int((RubyFixnum) arg);
+            int keySize = RubyNumeric.fix2int((RubyFixnum) arg);
             BigInteger exp = RSAKeyGenParameterSpec.F4;
             if ( pass != null && ! pass.isNil() ) {
                 exp = BigInteger.valueOf(RubyNumeric.num2long(pass));
             }
-            rsaGenerate(this, keysize, exp); return this;
+            return rsaGenerate(runtime, this, keySize, exp);
         }
 
         final char[] passwd = password(pass);
@@ -441,7 +445,7 @@ public class PKeyRSA extends PKey {
 
     private String getPadding(final int padding) {
         if ( padding < 1 || padding > 4 ) {
-            throw newRSAError(getRuntime(), null);
+            throw newRSAError(getRuntime(), "");
         }
         // BC accepts "/NONE/*" but SunJCE doesn't. use "/ECB/*"
         String p = "/ECB/PKCS1Padding";
@@ -461,7 +465,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil() ) {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( privateKey == null ) throw newRSAError(context.runtime, "private key needed.");
+        if ( privateKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, ENCRYPT_MODE, privateKey);
     }
 
@@ -471,7 +475,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil())  {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( privateKey == null ) throw newRSAError(context.runtime, "private key needed.");
+        if ( privateKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, DECRYPT_MODE, privateKey);
     }
 
@@ -481,6 +485,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil())  {
             padding = RubyNumeric.fix2int(args[1]);
         }
+        if ( publicKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, ENCRYPT_MODE, publicKey);
     }
 
@@ -490,6 +495,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil() ) {
             padding = RubyNumeric.fix2int(args[1]);
         }
+        if ( publicKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, DECRYPT_MODE, publicKey);
     }
 
@@ -545,7 +551,7 @@ public class PKeyRSA extends PKey {
         if ( privateKey != null ) {
             throw newRSAError(context.runtime, "illegal modification");
         }
-        rsa_dmp1 = BN.getBigInteger(value);
+        rsa_dmp1 = BN.asBigInteger(value);
         generatePrivateKeyIfParams(context);
         return value;
     }
@@ -555,7 +561,7 @@ public class PKeyRSA extends PKey {
         if ( privateKey != null ) {
             throw newRSAError(context.runtime, "illegal modification");
         }
-        rsa_dmq1 = BN.getBigInteger(value);
+        rsa_dmq1 = BN.asBigInteger(value);
         generatePrivateKeyIfParams(context);
         return value;
     }
@@ -565,7 +571,7 @@ public class PKeyRSA extends PKey {
         if ( privateKey != null ) {
             throw newRSAError(context.runtime, "illegal modification");
         }
-        rsa_iqmp = BN.getBigInteger(value);
+        rsa_iqmp = BN.asBigInteger(value);
         generatePrivateKeyIfParams(context);
         return value;
     }
