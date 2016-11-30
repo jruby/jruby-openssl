@@ -32,13 +32,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.SecureRandom;
+import java.security.*;
 import java.security.interfaces.DSAKey;
 import java.security.interfaces.DSAPrivateKey;
 import java.security.interfaces.DSAPublicKey;
@@ -62,6 +56,7 @@ import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
+import org.jruby.util.ByteList;
 
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.impl.PKey.readDSAPrivateKey;
@@ -359,10 +354,25 @@ public class PKeyDSA extends PKey {
         }
     }
 
-    @JRubyMethod
-    public IRubyObject syssign(IRubyObject arg) {
-        // TODO
-        return getRuntime().getNil();
+    @JRubyMethod // ossl_dsa_sign
+    public IRubyObject syssign(IRubyObject data) {
+        final Ruby runtime = getRuntime();
+
+        DSAPrivateKey privateKey;
+        if ((privateKey = this.privateKey) == null) {
+            throw newDSAError(runtime, "Private DSA key needed!");
+        }
+
+        try {
+            Signature signature = SecurityHelper.getSignature("SHA1withDSA"); // DSS1
+            signature.initSign(privateKey);
+            signature.update( data.convertToString().getBytes() );
+            ByteList sign = new ByteList(signature.sign(), false);
+            return RubyString.newString(runtime, sign);
+        }
+        catch (GeneralSecurityException ex) {
+            throw newPKeyError(runtime, ex.getMessage());
+        }
     }
 
     @JRubyMethod
@@ -372,12 +382,12 @@ public class PKeyDSA extends PKey {
     }
 
     private DSAKey getDsaKey() {
-      DSAKey result;
-      return (result = publicKey) != null ? result : privateKey;
+        DSAKey result;
+        return (result = publicKey) != null ? result : privateKey;
     }
 
     private IRubyObject toBN(BigInteger value) {
-      return value == null ? getRuntime().getNil() : BN.newBN(getRuntime(), value);
+        return value == null ? getRuntime().getNil() : BN.newBN(getRuntime(), value);
     }
 
     private synchronized BigInteger getP() {
@@ -385,9 +395,7 @@ public class PKeyDSA extends PKey {
         if (key != null) {
             return key.getParams().getP();
         }
-        else {
-            return dsa_p;
-        }
+        return dsa_p;
     }
 
     @JRubyMethod(name = "p")
@@ -405,9 +413,7 @@ public class PKeyDSA extends PKey {
         if (key != null) {
             return key.getParams().getQ();
         }
-        else {
-            return dsa_q;
-        }
+        return dsa_q;
     }
 
     @JRubyMethod(name = "q")
@@ -425,9 +431,7 @@ public class PKeyDSA extends PKey {
         if (key != null) {
             return key.getParams().getG();
         }
-        else {
-            return dsa_g;
-        }
+        return dsa_g;
     }
 
     @JRubyMethod(name = "g")
