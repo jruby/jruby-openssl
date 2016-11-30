@@ -274,12 +274,17 @@ public class PKeyDH extends PKey {
         return getRuntime().newBoolean(dh_y != null);
     }
 
+    @Override
+    public boolean isPrivateKey() {
+        return dh_x != null /* || haveEngine */;
+    }
+
     @JRubyMethod(name = "private?")
     public RubyBoolean private_p() {
         // FIXME! need to figure out what it means in MRI/OSSL code to
         // claim a DH is private if an engine is present -- doesn't really
         // map to Java implementation.
-        return getRuntime().newBoolean(dh_x != null /* || haveEngine */);
+        return getRuntime().newBoolean(isPrivateKey());
     }
 
     @Override

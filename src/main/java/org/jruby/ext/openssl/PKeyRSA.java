@@ -322,9 +322,14 @@ public class PKeyRSA extends PKey {
         return publicKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
+    @Override
+    public boolean isPrivateKey() {
+        return privateKey != null;
+    }
+
     @JRubyMethod(name = "private?")
     public RubyBoolean private_p() {
-        return privateKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
+        return getRuntime().newBoolean(isPrivateKey());
     }
 
     @Override

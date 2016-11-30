@@ -64,6 +64,7 @@ import org.jruby.runtime.Visibility;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import static org.jruby.ext.openssl.OpenSSL.*;
 import org.jruby.ext.openssl.impl.CipherSpec;
+import org.jruby.util.ByteList;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -187,6 +188,8 @@ public abstract class PKey extends RubyObject {
 
     public String getAlgorithm() { return "NONE"; }
 
+    public boolean isPrivateKey() { return getPrivateKey() != null; }
+
     public abstract RubyString to_der() ;
 
     public abstract RubyString to_pem(final IRubyObject[] args) ;
@@ -198,54 +201,66 @@ public abstract class PKey extends RubyObject {
 
     @JRubyMethod(name = "sign")
     public IRubyObject sign(IRubyObject digest, IRubyObject data) {
-        if (!this.callMethod(getRuntime().getCurrentContext(), "private?").isTrue()) {
-            throw getRuntime().newArgumentError("Private key is needed.");
+        final Ruby runtime = getRuntime();
+        if ( ! isPrivateKey() ) {
+            throw runtime.newArgumentError("Private key is needed.");
         }
         String digAlg = ((Digest) digest).getShortAlgorithm();
         try {
-            Signature signature = SecurityHelper.getSignature(digAlg + "WITH" + getAlgorithm());
-            signature.initSign(getPrivateKey());
-            byte[] inp = data.convertToString().getBytes();
-            signature.update(inp);
-            byte[] sigge = signature.sign();
-            return RubyString.newString(getRuntime(), sigge);
+            ByteList sign = sign(digAlg + "WITH" + getAlgorithm(), getPrivateKey(), data.convertToString().getByteList());
+            return RubyString.newString(runtime, sign);
         }
-        catch (GeneralSecurityException gse) {
-            throw newPKeyError(getRuntime(), gse.getMessage());
+        catch (GeneralSecurityException ex) {
+            throw newPKeyError(runtime, ex.getMessage());
         }
     }
 
+    static ByteList sign(final String signAlg, final PrivateKey privateKey, final ByteList data)
+        throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        Signature signature = SecurityHelper.getSignature(signAlg);
+        signature.initSign( privateKey );
+        signature.update( data.getUnsafeBytes(), data.getBegin(), data.getRealSize() );
+        return new ByteList(signature.sign(), false);
+    }
+
     @JRubyMethod(name = "verify")
-    public IRubyObject verify(IRubyObject digest, IRubyObject sig, IRubyObject data) {
+    public IRubyObject verify(IRubyObject digest, IRubyObject sign, IRubyObject data) {
+        final Ruby runtime = getRuntime();
         if ( ! (digest instanceof Digest) ) {
-            throw newPKeyError(getRuntime(), "invalid digest");
+            throw newPKeyError(runtime, "invalid digest");
         }
-        if ( ! (sig instanceof RubyString) ) {
-            throw newPKeyError(getRuntime(), "invalid signature");
-        }
-        if ( ! (data instanceof RubyString) ) {
-            throw newPKeyError(getRuntime(), "invalid data");
-        }
-        byte[] sigBytes = ((RubyString) sig).getBytes();
-        byte[] dataBytes = ((RubyString) data).getBytes();
+        ByteList sigBytes = convertToString(runtime, sign, "OpenSSL::PKey::PKeyError", "invalid signature").getByteList();
+        ByteList dataBytes = convertToString(runtime, data, "OpenSSL::PKey::PKeyError", "invalid data").getByteList();
         String algorithm = ((Digest) digest).getShortAlgorithm() + "WITH" + getAlgorithm();
-        boolean valid;
         try {
-            Signature signature = SecurityHelper.getSignature(algorithm);
-            signature.initVerify(getPublicKey());
-            signature.update(dataBytes);
-            valid = signature.verify(sigBytes);
+            return runtime.newBoolean( verify(algorithm, getPublicKey(), dataBytes, sigBytes) );
         }
         catch (NoSuchAlgorithmException e) {
-            throw newPKeyError(getRuntime(), "unsupported algorithm: " + algorithm);
+            throw newPKeyError(runtime, "unsupported algorithm: " + algorithm);
         }
         catch (SignatureException e) {
-            throw newPKeyError(getRuntime(), "invalid signature");
+            throw newPKeyError(runtime, "invalid signature");
         }
         catch (InvalidKeyException e) {
-            throw newPKeyError(getRuntime(), "invalid key");
+            throw newPKeyError(runtime, "invalid key");
         }
-        return getRuntime().newBoolean(valid);
+    }
+
+    static RubyString convertToString(final Ruby runtime, final IRubyObject str, final String errorType, final CharSequence errorMsg) {
+        try {
+            return str.convertToString();
+        }
+        catch (RaiseException ex) { // to_str conversion failed
+            throw Utils.newError(runtime, (RubyClass) runtime.getClassFromPath(errorType), errorMsg == null ? null : errorMsg.toString());
+        }
+    }
+
+    static boolean verify(final String signAlg, final PublicKey publicKey, final ByteList data, final ByteList sign)
+        throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        Signature signature = SecurityHelper.getSignature(signAlg);
+        signature.initVerify(publicKey);
+        signature.update(data.getUnsafeBytes(), data.getBegin(), data.getRealSize());
+        return signature.verify(sign.getUnsafeBytes(), sign.getBegin(), sign.getRealSize());
     }
 
     // shared Helpers for PKeyRSA / PKEyDSA :
