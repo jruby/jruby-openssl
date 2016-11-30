@@ -32,15 +32,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.math.BigInteger;
-import java.security.GeneralSecurityException;
-import java.security.InvalidKeyException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Signature;
-import java.security.SignatureException;
+import java.security.*;
 import java.security.interfaces.DSAPrivateKey;
 import java.security.interfaces.DSAPublicKey;
 import java.security.interfaces.RSAPrivateCrtKey;
@@ -261,6 +253,26 @@ public abstract class PKey extends RubyObject {
         signature.initVerify(publicKey);
         signature.update(data.getUnsafeBytes(), data.getBegin(), data.getRealSize());
         return signature.verify(sign.getUnsafeBytes(), sign.getBegin(), sign.getRealSize());
+    }
+
+    private static boolean tryContextSecureRandom = true;
+
+    static SecureRandom getSecureRandom(final Ruby runtime) {
+        if ( tryContextSecureRandom ) {
+            final ThreadContext context = runtime.getCurrentContext();
+            try {
+                SecureRandom random = context.secureRandom;
+                if (random == null) { // public SecureRandom getSecureRandom() on 9K
+                    random = (SecureRandom) context.getClass().getMethod("getSecureRandom").invoke(context);
+                }
+                return random;
+            }
+            catch (Throwable ex) {
+                tryContextSecureRandom = false;
+                debug(runtime, "PKey falling back to using new SecureRandom()", ex);
+            }
+        }
+        return new SecureRandom();
     }
 
     // shared Helpers for PKeyRSA / PKEyDSA :

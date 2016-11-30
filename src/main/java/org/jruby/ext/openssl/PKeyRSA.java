@@ -175,7 +175,7 @@ public class PKeyRSA extends PKey {
             if ( "IBMJCEFIPS".equals( gen.getProvider().getName() ) ) {
                 gen.initialize(keySize); // IBMJCEFIPS does not support parameters
             } else {
-                gen.initialize(new RSAKeyGenParameterSpec(keySize, exp), new SecureRandom());
+                gen.initialize(new RSAKeyGenParameterSpec(keySize, exp), getSecureRandom(runtime));
             }
             KeyPair pair = gen.generateKeyPair();
             rsa.privateKey = (RSAPrivateCrtKey) pair.getPrivate();

@@ -136,7 +136,7 @@ public class PKeyDSA extends PKey {
         PKeyDSA dsa, int keySize) throws RaiseException {
         try {
             KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("DSA");
-            gen.initialize(keySize, new SecureRandom());
+            gen.initialize(keySize, getSecureRandom(runtime));
             KeyPair pair = gen.generateKeyPair();
             dsa.privateKey = (DSAPrivateKey) pair.getPrivate();
             dsa.publicKey = (DSAPublicKey) pair.getPublic();

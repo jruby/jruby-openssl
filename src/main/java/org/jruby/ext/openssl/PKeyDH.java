@@ -93,17 +93,6 @@ public class PKeyDH extends PKey {
         return Utils.newError(runtime, _PKey(runtime).getClass("DHError"), message);
     }
 
-    private static SecureRandom _secureRandom;
-
-    private static SecureRandom getSecureRandom() {
-        SecureRandom rand;
-        if ((rand = _secureRandom) != null) {
-            return rand;
-        }
-        // FIXME: do we want a particular algorithm / provider? BC?
-        return _secureRandom = new SecureRandom();
-    }
-
     // transient because: we do not want these value serialized (insecure)
     // volatile because: permits unsynchronized reads in some cases
     private transient volatile BigInteger dh_p;
@@ -201,7 +190,7 @@ public class PKeyDH extends PKey {
         if (limit < 0) throw new IllegalArgumentException("invalid limit");
 
         BigInteger x;
-        SecureRandom secureRandom = getSecureRandom();
+        SecureRandom secureRandom = new SecureRandom();
         // adapting algorithm from org.bouncycastle.crypto.generators.DHKeyGeneratorHelper,
         // which seems a little stronger (?) than OpenSSL's (OSSL just generates a random,
         // while BC generates a random potential prime [for limit > 0], though it's not
@@ -252,11 +241,11 @@ public class PKeyDH extends PKey {
     @JRubyMethod(name = "compute_key")
     public synchronized IRubyObject compute_key(IRubyObject other_pub_key) {
         BigInteger x, y, p;
-        if ((y = BN.getBigInteger(other_pub_key)) == null) {
+        if ((y = BN.asBigInteger(other_pub_key)) == null) {
             throw getRuntime().newArgumentError("invalid public key");
         }
         if ((x = this.dh_x) == null || (p = this.dh_p) == null) {
-            throw newDHError(getRuntime(), "can't compute key");
+            throw newDHError(getRuntime(), "incomplete DH");
         }
         int plen;
         if ((plen = p.bitLength()) == 0 || plen > OPENSSL_DH_MAX_MODULUS_BITS) {
