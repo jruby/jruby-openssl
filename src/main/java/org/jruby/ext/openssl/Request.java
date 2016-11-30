@@ -5,7 +5,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyClass;
 
 /**
- * @deprecated use {@link X509Attribute}
+ * @deprecated use {@link X509Request}
  */
 @Deprecated
 public class Request extends X509Request {
