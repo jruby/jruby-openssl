@@ -61,4 +61,14 @@ class TestDSA < TestCase
       assert_equal(key.send(param), dsa.send(param), param)
     end
   end
+
+  def test_dsa_sys_sign_verify
+    dsa = OpenSSL::PKey::DSA.new(1024)
+    doc = 'Sign ME!'
+    digest = OpenSSL::Digest::SHA1.digest(doc)
+    sig = dsa.syssign(digest)
+    puts sig.inspect if $VERBOSE
+    assert dsa.sysverify(digest, sig).eql?(true)
+  end
+
 end

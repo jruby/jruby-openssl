@@ -124,28 +124,29 @@ public class PKeyDSA extends PKey {
 
     @JRubyMethod(name = "generate", meta = true)
     public static IRubyObject generate(IRubyObject self, IRubyObject arg) {
-        final int keysize = RubyNumeric.fix2int(arg);
-        PKeyDSA dsa = new PKeyDSA(self.getRuntime(), (RubyClass) self);
-        dsaGenerate(dsa, keysize);
-        return dsa;
+        final Ruby runtime = self.getRuntime();
+        final int keySize = RubyNumeric.fix2int(arg);
+        return dsaGenerate(runtime, new PKeyDSA(runtime, (RubyClass) self), keySize);
     }
 
     /*
      * c: dsa_generate
      */
-    private static void dsaGenerate(PKeyDSA dsa, int keysize) throws RaiseException {
+    private static PKeyDSA dsaGenerate(final Ruby runtime,
+        PKeyDSA dsa, int keySize) throws RaiseException {
         try {
             KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("DSA");
-            gen.initialize(keysize, new SecureRandom());
+            gen.initialize(keySize, new SecureRandom());
             KeyPair pair = gen.generateKeyPair();
             dsa.privateKey = (DSAPrivateKey) pair.getPrivate();
             dsa.publicKey = (DSAPublicKey) pair.getPublic();
+            return dsa;
         }
         catch (NoSuchAlgorithmException e) {
-            throw newDSAError(dsa.getRuntime(), e.getMessage());
+            throw newDSAError(runtime, e.getMessage());
         }
         catch (RuntimeException e) {
-            throw newDSAError(dsa.getRuntime(), e.getMessage(), e);
+            throw newDSAError(runtime, e.getMessage(), e);
         }
     }
 
@@ -167,8 +168,8 @@ public class PKeyDSA extends PKey {
         if ( args.length > 1 ) pass = args[1];
 
         if ( arg instanceof RubyFixnum ) {
-            int keysize = RubyNumeric.fix2int((RubyFixnum) arg);
-            dsaGenerate(this, keysize); return this;
+            int keySize = RubyNumeric.fix2int((RubyFixnum) arg);
+            return dsaGenerate(context.runtime, this, keySize);
         }
 
         final char[] passwd = password(pass);
@@ -364,21 +365,31 @@ public class PKeyDSA extends PKey {
         }
 
         try {
-            Signature signature = SecurityHelper.getSignature("SHA1withDSA"); // DSS1
-            signature.initSign(privateKey);
-            signature.update( data.convertToString().getBytes() );
-            ByteList sign = new ByteList(signature.sign(), false);
+            ByteList sign = sign("NONEwithDSA", privateKey, data.convertToString().getByteList()); // DSS1
             return RubyString.newString(runtime, sign);
         }
         catch (GeneralSecurityException ex) {
-            throw newPKeyError(runtime, ex.getMessage());
+            throw newDSAError(runtime, ex.getMessage());
         }
     }
 
-    @JRubyMethod
-    public IRubyObject sysverify(IRubyObject arg, IRubyObject arg2) {
-        // TODO
-        return getRuntime().getNil();
+    @JRubyMethod // ossl_dsa_verify
+    public IRubyObject sysverify(IRubyObject data, IRubyObject sign) {
+        final Ruby runtime = getRuntime();
+        ByteList sigBytes = convertToString(runtime, sign, "OpenSSL::PKey::DSAError", "invalid signature").getByteList();
+        ByteList dataBytes = convertToString(runtime, data, "OpenSSL::PKey::DSAError", "invalid data").getByteList();
+        try {
+            return runtime.newBoolean( verify("NONEwithDSA", getPublicKey(), dataBytes, sigBytes) );
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw newDSAError(runtime, e.getMessage());
+        }
+        catch (SignatureException e) {
+            throw newDSAError(runtime, "invalid signature");
+        }
+        catch (InvalidKeyException e) {
+            throw newDSAError(runtime, "invalid key");
+        }
     }
 
     private DSAKey getDsaKey() {
