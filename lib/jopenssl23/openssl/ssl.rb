@@ -108,10 +108,8 @@ module OpenSSL
       #
       # You can get a list of valid methods with OpenSSL::SSL::SSLContext::METHODS
       def initialize(version = nil)
-        INIT_VARS.each { |v| instance_variable_set v, nil }
-        self.options = self.options | OpenSSL::SSL::OP_ALL
-        return unless version
-        self.ssl_version = version
+        self.options |= OpenSSL::SSL::OP_ALL
+        self.ssl_version = version if version
       end unless defined? JRUBY_VERSION # JRuby: handled in "native" Java
 
       ##
