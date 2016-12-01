@@ -969,12 +969,13 @@ public class SSLContext extends RubyObject {
         public java.security.cert.X509Certificate[] getCertificateChain(String alias) {
             if ( internalContext == null ) return null;
 
-            final ArrayList<java.security.cert.X509Certificate> chain =
-                    new ArrayList<java.security.cert.X509Certificate>();
+            final List<java.security.cert.X509Certificate> chain;
             if ( internalContext.extraChainCert != null ) {
-                chain.addAll(internalContext.extraChainCert);
+                chain = (List) internalContext.extraChainCert;
             }
             else if ( internalContext.cert != null ) {
+                chain = new ArrayList<java.security.cert.X509Certificate>(8);
+
                 StoreContext storeCtx = internalContext.createStoreContext(null);
                 X509AuxCertificate x = internalContext.cert;
                 while (true) {
@@ -1000,6 +1001,9 @@ public class SSLContext extends RubyObject {
                         break;
                     }
                 }
+            }
+            else {
+                chain = Collections.EMPTY_LIST;
             }
             return chain.toArray( new java.security.cert.X509Certificate[chain.size()] );
         }
