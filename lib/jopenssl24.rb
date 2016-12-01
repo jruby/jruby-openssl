@@ -77,6 +77,36 @@ module OpenSSL
 
     end
 
+    # openssl/lib/openssl/pkey.rb :
+
+    class DH
+
+      remove_const :DEFAULT_512 if const_defined?(:DEFAULT_512)
+
+      DEFAULT_2048 = new <<-_end_of_pem_
+-----BEGIN DH PARAMETERS-----
+MIIBCAKCAQEA7E6kBrYiyvmKAMzQ7i8WvwVk9Y/+f8S7sCTN712KkK3cqd1jhJDY
+JbrYeNV3kUIKhPxWHhObHKpD1R84UpL+s2b55+iMd6GmL7OYmNIT/FccKhTcveab
+VBmZT86BZKYyf45hUF9FOuUM9xPzuK3Vd8oJQvfYMCd7LPC0taAEljQLR4Edf8E6
+YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
+1bNveX5wInh5GDx1FGhKBZ+s1H+aedudCm7sCgRwv8lKWYGiHzObSma8A86KG+MD
+7Lo5JquQ3DlBodj3IDyPrxIv96lvRPFtAwIBAg==
+-----END DH PARAMETERS-----
+      _end_of_pem_
+
+    end
+
+    remove_const :DEFAULT_TMP_DH_CALLBACK if const_defined?(:DEFAULT_TMP_DH_CALLBACK)
+
+    DEFAULT_TMP_DH_CALLBACK = lambda { |ctx, is_export, keylen|
+      warn "using default DH parameters." if $VERBOSE
+      case keylen
+        when 1024 then OpenSSL::PKey::DH::DEFAULT_1024
+        when 2048 then OpenSSL::PKey::DH::DEFAULT_2048
+        else nil
+      end
+    }
+
   end
 
 end
