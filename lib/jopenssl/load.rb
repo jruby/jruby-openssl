@@ -27,6 +27,7 @@ org.jruby.ext.openssl.OpenSSL.load(JRuby.runtime)
 
 if RUBY_VERSION > '2.3'
   load 'jopenssl23/openssl.rb'
+  load 'jopenssl24.rb' if RUBY_VERSION >= '2.4'
 elsif RUBY_VERSION > '2.2'
   load 'jopenssl22/openssl.rb'
 elsif RUBY_VERSION > '2.1'
