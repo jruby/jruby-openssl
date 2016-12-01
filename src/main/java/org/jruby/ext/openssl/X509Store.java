@@ -189,7 +189,7 @@ public class X509Store extends RubyObject {
 
     @JRubyMethod
     public X509Store add_cert(final IRubyObject cert) {
-        X509AuxCertificate auxCert = (cert instanceof X509Cert) ? ((X509Cert) cert).getAuxCert() : (X509AuxCertificate)null;
+        X509AuxCertificate auxCert = cert instanceof X509Cert ? ((X509Cert) cert).getAuxCert() : null;
         if ( store.addCertificate(auxCert) != 1 ) {
             throw newStoreError(getRuntime(), X509Error.getLastErrorMessage());
         }
