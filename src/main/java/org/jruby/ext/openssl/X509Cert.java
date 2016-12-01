@@ -151,13 +151,23 @@ public class X509Cert extends RubyObject {
         return wrap(runtime.getCurrentContext(), cert.getEncoded());
     }
 
+    static X509Cert wrap(ThreadContext context, Certificate cert)
+        throws CertificateEncodingException {
+        return wrap(context, cert.getEncoded());
+    }
+
     // this is the javax.security counterpart of the previous wrap method
     public static IRubyObject wrap(Ruby runtime, javax.security.cert.Certificate cert)
         throws javax.security.cert.CertificateEncodingException {
         return wrap(runtime.getCurrentContext(), cert.getEncoded());
     }
 
-    static IRubyObject wrap(final ThreadContext context, final byte[] encoded) {
+    static X509Cert wrap(ThreadContext context, javax.security.cert.Certificate cert)
+        throws javax.security.cert.CertificateEncodingException {
+        return wrap(context, cert.getEncoded());
+    }
+
+    static X509Cert wrap(final ThreadContext context, final byte[] encoded) {
         //final Ruby runtime = context.runtime;
         //final RubyString enc = StringHelper.newString(runtime, encoded);
         //return _Certificate(runtime).callMethod(context, "new", enc);

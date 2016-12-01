@@ -927,14 +927,14 @@ public class SSLSocket extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject cert() {
-        final Ruby runtime = getRuntime();
+    public IRubyObject cert(final ThreadContext context) {
+        final Ruby runtime = context.runtime;
         if ( engine == null ) return runtime.getNil();
 
         try {
             Certificate[] cert = engine.getSession().getLocalCertificates();
             if ( cert != null && cert.length > 0 ) {
-                return X509Cert.wrap(runtime, cert[0]);
+                return X509Cert.wrap(context, cert[0]);
             }
         }
         catch (CertificateEncodingException e) {
@@ -943,15 +943,20 @@ public class SSLSocket extends RubyObject {
         return runtime.getNil();
     }
 
+    // @Deprecated
+    public final IRubyObject cert() {
+        return cert(getRuntime().getCurrentContext());
+    }
+
     @JRubyMethod
-    public IRubyObject peer_cert() {
-        final Ruby runtime = getRuntime();
+    public IRubyObject peer_cert(final ThreadContext context) {
+        final Ruby runtime = context.runtime;
         if ( engine == null ) return runtime.getNil();
 
         try {
             Certificate[] cert = engine.getSession().getPeerCertificates();
             if ( cert.length > 0 ) {
-                return X509Cert.wrap(runtime, cert[0]);
+                return X509Cert.wrap(context, cert[0]);
             }
         }
         catch (CertificateEncodingException e) {
@@ -965,18 +970,23 @@ public class SSLSocket extends RubyObject {
         return runtime.getNil();
     }
 
+    // @Deprecated
+    public final IRubyObject peer_cert() {
+        return peer_cert(getRuntime().getCurrentContext());
+    }
+
     @JRubyMethod
-    public IRubyObject peer_cert_chain() {
-        final Ruby runtime = getRuntime();
+    public IRubyObject peer_cert_chain(final ThreadContext context) {
+        final Ruby runtime = context.runtime;
         if ( engine == null ) return runtime.getNil();
 
         try {
             javax.security.cert.Certificate[] certs = engine.getSession().getPeerCertificateChain();
-            RubyArray arr = runtime.newArray(certs.length);
+            IRubyObject[] cert_chain = new IRubyObject[ certs.length ];
             for ( int i = 0; i < certs.length; i++ ) {
-                arr.append( X509Cert.wrap(runtime, certs[i]) );
+                cert_chain[i] = X509Cert.wrap(context, certs[i]);
             }
-            return arr;
+            return runtime.newArrayNoCopy(cert_chain);
         }
         catch (javax.security.cert.CertificateEncodingException e) {
             throw X509Cert.newCertificateError(getRuntime(), e);
@@ -987,6 +997,11 @@ public class SSLSocket extends RubyObject {
             }
         }
         return runtime.getNil();
+    }
+
+    // @Deprecated
+    public final IRubyObject peer_cert_chain() {
+        return peer_cert_chain(getRuntime().getCurrentContext());
     }
 
     @JRubyMethod

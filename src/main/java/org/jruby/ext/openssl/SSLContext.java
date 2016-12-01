@@ -469,18 +469,17 @@ public class SSLContext extends RubyObject {
             final Collection<CipherStrings.Def> cipherDefs =
                     CipherStrings.matchingCiphers(this.ciphers, supported, false);
 
-            final RubyArray cipherList = runtime.newArray( cipherDefs.size() );
+            final IRubyObject[] cipherList = new IRubyObject[ cipherDefs.size() ];
 
-            for ( CipherStrings.Def def : cipherDefs ) {
-                final RubyArray cipher = runtime.newArray(4);
-                cipher.store(0, newUTF8String(runtime, def.name));
-                cipher.store(1, newUTF8String(runtime, sslVersionString(def.algorithms)));
-                cipher.store(2, runtime.newFixnum(def.algStrengthBits));
-                cipher.store(3, runtime.newFixnum(def.algBits));
-
-                cipherList.append(cipher);
+            int i = 0; for ( CipherStrings.Def def : cipherDefs ) {
+                cipherList[i++] = runtime.newArrayNoCopy(
+                    newUTF8String(runtime, def.name), // 0
+                    newUTF8String(runtime, sslVersionString(def.algorithms)), // 1
+                    runtime.newFixnum(def.algStrengthBits), // 2
+                    runtime.newFixnum(def.algBits) // 3
+                );
             }
-            return cipherList;
+            return runtime.newArrayNoCopy(cipherList);
         }
         catch (GeneralSecurityException gse) {
             throw newSSLError(runtime, gse.getMessage());
