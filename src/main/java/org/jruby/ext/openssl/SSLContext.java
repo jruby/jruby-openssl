@@ -854,8 +854,7 @@ public class SSLContext extends RubyObject {
 
             // initialize SSL context :
 
-            final javax.net.ssl.SSLContext sslContext;
-            sslContext = SecurityHelper.getSSLContext(protocol);
+            final javax.net.ssl.SSLContext sslContext = SecurityHelper.getSSLContext(protocol);
 
             if ( protocolForClient ) {
                 final SSLSessionContext clientContext = sslContext.getClientSessionContext();
@@ -871,11 +870,17 @@ public class SSLContext extends RubyObject {
                     serverContext.setSessionCacheSize(sessionCacheSize);
                 }
             }
+            this.sslContext = initContext(sslContext);
+        }
 
+        protected javax.net.ssl.SSLContext initContext(javax.net.ssl.SSLContext sslContext) throws KeyManagementException {
             final KeyManager[] keyManager = new KeyManager[] { new KeyManagerImpl(this) };
             final TrustManager[] trustManager = new TrustManager[] { new TrustManagerImpl(this) };
+            // SSLContext on Sun JDK :
+            // private final java.security.Provider provider; "SunJSSE"
+            // private final javax.net.ssl.SSLContextSpi; sun.security.ssl.SSLContextImpl
             sslContext.init(keyManager, trustManager, null);
-            this.sslContext = sslContext;
+            return sslContext;
         }
 
         final Store store;
