@@ -216,16 +216,20 @@ public final class OpenSSL {
         if ( isDebug(runtime) ) e.printStackTrace(runtime.getOut());
     }
 
-    public static void debug(final Ruby runtime, final String msg) {
-        if ( isDebug(runtime) ) runtime.getOut().println(msg);
+    public static void debug(final Ruby runtime, final CharSequence msg) {
+        if ( isDebug(runtime) ) runtime.getOut().println(msg.toString());
     }
 
-    public static void debug(final Ruby runtime, final String msg, final Throwable e) {
-        if ( isDebug(runtime) ) runtime.getOut().println(msg + ' ' + e);
+    public static void debug(final Ruby runtime, final CharSequence msg, final Throwable e) {
+        if ( isDebug(runtime) ) runtime.getOut().println(msg.toString() + ' ' + e);
     }
 
-    static void warn(final ThreadContext context, final String msg) {
+    static void warn(final ThreadContext context, final CharSequence msg) {
         warn(context, RubyString.newString(context.runtime, msg));
+    }
+
+    static void warn(final ThreadContext context, final RubyString msg) {
+        warn(context, (IRubyObject) msg);
     }
 
     static void warn(final ThreadContext context, final IRubyObject msg) {
