@@ -930,12 +930,8 @@ public class SSLContext extends RubyObject {
 
         @Override
         public String chooseEngineClientAlias(String[] keyType, java.security.Principal[] issuers, javax.net.ssl.SSLEngine engine) {
-            if (internalContext == null) {
-                return null;
-            }
-            if (internalContext.privateKey == null) {
-                return null;
-            }
+            if (internalContext.privateKey == null) return null;
+
             for (int i = 0; i < keyType.length; i++) {
                 if (keyType[i].equalsIgnoreCase(internalContext.keyAlgorithm)) {
                     return keyType[i];
@@ -946,9 +942,8 @@ public class SSLContext extends RubyObject {
 
         @Override
         public String chooseEngineServerAlias(String keyType, java.security.Principal[] issuers, javax.net.ssl.SSLEngine engine) {
-            if (internalContext == null || internalContext.privateKey == null) {
-                return null;
-            }
+            if (internalContext.privateKey == null) return null;
+
             if (keyType.equalsIgnoreCase(internalContext.keyAlgorithm)) {
                 return keyType;
             }
@@ -967,9 +962,8 @@ public class SSLContext extends RubyObject {
 
         @Override // c: ssl3_output_cert_chain
         public java.security.cert.X509Certificate[] getCertificateChain(String alias) {
-            if ( internalContext == null ) return null;
-
             final List<java.security.cert.X509Certificate> chain;
+
             if ( internalContext.extraChainCert != null ) {
                 chain = (List) internalContext.extraChainCert;
             }
@@ -1015,10 +1009,7 @@ public class SSLContext extends RubyObject {
 
         @Override
         public java.security.PrivateKey getPrivateKey(String alias) {
-            if (internalContext == null || internalContext.privateKey == null) {
-                return null;
-            }
-            return internalContext.privateKey;
+            return internalContext.privateKey; // might be null
         }
 
         @Override
@@ -1049,16 +1040,12 @@ public class SSLContext extends RubyObject {
 
         @Override
         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-            if ( internalContext == null ) return null;
-
             final int size = internalContext.clientCert.size();
             return internalContext.clientCert.toArray( new java.security.cert.X509Certificate[size] );
         }
 
         // c: ssl_verify_cert_chain
         private void checkTrusted(final String purpose, final X509Certificate[] chain) throws CertificateException {
-            if ( internalContext == null ) throw new CertificateException("uninitialized trust manager");
-
             if ( chain != null && chain.length > 0 ) {
                 if ( (internalContext.verifyMode & SSL.VERIFY_PEER) != 0 ) {
                     // verify_peer
