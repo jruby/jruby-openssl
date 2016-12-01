@@ -351,7 +351,7 @@ public class PKeyDH extends PKey {
 
     @JRubyMethod(name = "p=")
     public synchronized IRubyObject set_p(IRubyObject arg) {
-        this.dh_p = BN.getBigInteger(arg);
+        this.dh_p = BN.asBigInteger(arg);
         return arg;
     }
 
@@ -363,7 +363,7 @@ public class PKeyDH extends PKey {
 
     @JRubyMethod(name = "g=")
     public synchronized IRubyObject set_g(IRubyObject arg) {
-        this.dh_g = BN.getBigInteger(arg);
+        this.dh_g = BN.asBigInteger(arg);
         return arg;
     }
 
@@ -383,7 +383,7 @@ public class PKeyDH extends PKey {
 
     @JRubyMethod(name = "pub_key=")
     public synchronized IRubyObject set_pub_key(IRubyObject arg) {
-        this.dh_y = BN.getBigInteger(arg);
+        this.dh_y = BN.asBigInteger(arg);
         return arg;
     }
 
@@ -403,7 +403,7 @@ public class PKeyDH extends PKey {
 
     @JRubyMethod(name = "priv_key=")
     public synchronized IRubyObject set_priv_key(IRubyObject arg) {
-        this.dh_x = BN.getBigInteger(arg);
+        this.dh_x = BN.asBigInteger(arg);
         return arg;
     }
 
