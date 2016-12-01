@@ -255,24 +255,8 @@ public abstract class PKey extends RubyObject {
         return signature.verify(sign.getUnsafeBytes(), sign.getBegin(), sign.getRealSize());
     }
 
-    private static boolean tryContextSecureRandom = true;
-
     static SecureRandom getSecureRandom(final Ruby runtime) {
-        if ( tryContextSecureRandom ) {
-            final ThreadContext context = runtime.getCurrentContext();
-            try {
-                SecureRandom random = context.secureRandom;
-                if (random == null) { // public SecureRandom getSecureRandom() on 9K
-                    random = (SecureRandom) context.getClass().getMethod("getSecureRandom").invoke(context);
-                }
-                return random;
-            }
-            catch (Throwable ex) {
-                tryContextSecureRandom = false;
-                debug(runtime, "PKey falling back to using new SecureRandom()", ex);
-            }
-        }
-        return new SecureRandom();
+        return OpenSSL.getSecureRandom(runtime);
     }
 
     // shared Helpers for PKeyRSA / PKEyDSA :

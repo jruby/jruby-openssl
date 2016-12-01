@@ -24,6 +24,7 @@
 package org.jruby.ext.openssl;
 
 import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
 import java.util.Map;
 
 import org.jruby.CompatVersion;
@@ -269,7 +270,41 @@ public final class OpenSSL {
         return javaName("").contains("OpenJDK");
     }
 
-    //
+    // shared secure-random :
+
+    private static boolean tryContextSecureRandom = true;
+
+    static SecureRandom getSecureRandom(final Ruby runtime) {
+        return getSecureRandom(runtime, false);
+    }
+
+
+    static SecureRandom getSecureRandom(final Ruby runtime, final boolean nullByDefault) {
+        if ( tryContextSecureRandom ) {
+            SecureRandom random = getSecureRandomFrom(runtime.getCurrentContext());
+            if ( random != null ) return random;
+        }
+        return nullByDefault ? null : new SecureRandom();
+    }
+
+    static SecureRandom getSecureRandomFrom(final ThreadContext context) {
+        if ( tryContextSecureRandom ) {
+            try {
+                SecureRandom random = context.secureRandom;
+                if (random == null) { // public SecureRandom getSecureRandom() on 9K
+                    random = (SecureRandom) context.getClass().getMethod("getSecureRandom").invoke(context);
+                }
+                return random;
+            }
+            catch (Throwable ex) {
+                tryContextSecureRandom = false;
+                debug(context.runtime, "JRuby-OpenSSL failed to retrieve secure random from thread-context", ex);
+            }
+        }
+        return null;
+    }
+
+    // internals
 
     static IRubyObject to_der_if_possible(final ThreadContext context, IRubyObject obj) {
         if ( ! obj.respondsTo("to_der"))  return obj;
