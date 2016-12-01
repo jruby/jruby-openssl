@@ -446,9 +446,7 @@ public class SSLContext extends RubyObject {
         */
 
         try {
-            internalContext = new InternalContext(
-                cert, key, store, clientCert, extraChainCert, verifyMode, timeout
-            );
+            internalContext = createInternalContext(context, cert, key, store, clientCert, extraChainCert, verifyMode, timeout);
         }
         catch (GeneralSecurityException e) {
             throw newSSLError(runtime, e);
@@ -821,6 +819,15 @@ public class SSLContext extends RubyObject {
         return (RubyClass) _SSL(runtime).getConstantAt("SSLContext");
     }
 
+    private InternalContext createInternalContext(ThreadContext context,
+        final X509Cert xCert, final PKey pKey, final Store store,
+        final List<X509AuxCertificate> clientCert, final List<X509AuxCertificate> extraChainCert,
+        final int verifyMode, final int timeout) throws NoSuchAlgorithmException, KeyManagementException {
+        InternalContext internalContext = new InternalContext(xCert, pKey, store, clientCert, extraChainCert, verifyMode, timeout);
+        internalContext.initSSLContext(context);
+        return internalContext;
+    }
+
     /**
      * c: SSL_CTX
      */
@@ -870,17 +877,19 @@ public class SSLContext extends RubyObject {
                     serverContext.setSessionCacheSize(sessionCacheSize);
                 }
             }
-            this.sslContext = initContext(sslContext);
+            this.sslContext = sslContext;
         }
 
-        protected javax.net.ssl.SSLContext initContext(javax.net.ssl.SSLContext sslContext) throws KeyManagementException {
+        protected void initSSLContext(final ThreadContext context) throws KeyManagementException {
             final KeyManager[] keyManager = new KeyManager[] { new KeyManagerImpl(this) };
             final TrustManager[] trustManager = new TrustManager[] { new TrustManagerImpl(this) };
-            // SSLContext on Sun JDK :
+            // SSLContext (internals) on Sun JDK :
             // private final java.security.Provider provider; "SunJSSE"
             // private final javax.net.ssl.SSLContextSpi; sun.security.ssl.SSLContextImpl
-            sslContext.init(keyManager, trustManager, null);
-            return sslContext;
+            sslContext.init(keyManager, trustManager, OpenSSL.getSecureRandomFrom(context));
+            // if secureRandom == null JSSE will try :
+            // - new SecureRandom();
+            // - SecureRandom.getInstance("PKCS11", cryptoProvider);
         }
 
         final Store store;
