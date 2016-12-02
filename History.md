@@ -1,3 +1,13 @@
+## 0.9.19
+
+* re-use secure random from thread-context on SSL context initialization
+* preliminary OpenSSL 1.1 (Ruby 2.4) compatibility bits (#112)
+* try using thread-shared secure random gen (in PKey-s) where possible
+* implement PKeyDSA#syssign and PKeyDSA#sysverify methods
+* avoid (unnecessary) byte[] copies in PKey#sign/verify 
+* fix ClassCastException error in X509Store.verify (#113)
+* align BH#hash with eql? (+ equals/hashCode on Java)
+
 ## 0.9.18
 
 * handle X.509 authorityKeyIdentifier parsing somehow right (#102)
