@@ -344,9 +344,7 @@ public class SSLContext extends RubyObject {
         final List<X509AuxCertificate> clientCert;
         if ( value != null && ! value.isNil() ) {
             if ( value.respondsTo("each") ) {
-                final List<X509Cert> cCerts = convertToX509Certs(context, value);
-                clientCert = new ArrayList<X509AuxCertificate>(cCerts.size());
-                for ( X509Cert x : cCerts ) clientCert.add( x.getAuxCert() );
+                clientCert = convertToAuxCerts(context, value);
             } else {
                 if ( ! ( value instanceof X509Cert ) ) {
                     throw runtime.newTypeError("OpenSSL::X509::Certificate expected but got @client_ca = " + value.inspect());
@@ -359,9 +357,7 @@ public class SSLContext extends RubyObject {
         value = getInstanceVariable("@extra_chain_cert");
         final List<X509AuxCertificate> extraChainCert;
         if ( value != null && ! value.isNil() ) {
-            final List<X509Cert> eCerts = convertToX509Certs(context, value);
-            extraChainCert = new ArrayList<X509AuxCertificate>(eCerts.size());
-            for ( X509Cert x : eCerts ) extraChainCert.add( x.getAuxCert() );
+            extraChainCert = convertToAuxCerts(context, value);
         }
         else {
             extraChainCert = null;
@@ -794,25 +790,43 @@ public class SSLContext extends RubyObject {
         return 0;
     }
 
-    private List<X509Cert> convertToX509Certs(final ThreadContext context, IRubyObject value) {
-        final ArrayList<X509Cert> result = new ArrayList<X509Cert>();
+    private static List<X509AuxCertificate> convertToAuxCerts(final ThreadContext context, IRubyObject value) {
         final RubyModule SSLContext = _SSLContext(context.runtime);
         final RubyModule Certificate = _Certificate(context.runtime);
+        if ( value instanceof RubyArray ) {
+            final RubyArray val = (RubyArray) value;
+            final int size = val.size();
+            final ArrayList<X509AuxCertificate> result = new ArrayList<X509AuxCertificate>(size);
+            for ( int i=0; i<size; i++ ) result.add( assureCertificate(context, Certificate, val.eltInternal(i)).getAuxCert() );
+            return result;
+        }
+        if ( value instanceof List ) {
+            final List<X509Cert> val = (List) value;
+            final int size = val.size();
+            final ArrayList<X509AuxCertificate> result = new ArrayList<X509AuxCertificate>(size);
+            for ( int i=0; i<size; i++ ) result.add( assureCertificate(context, Certificate, val.get(i)).getAuxCert() );
+            return result;
+        }
+        // else :
+        final ArrayList<X509AuxCertificate> result = new ArrayList<X509AuxCertificate>();
         Utils.invoke(context, value, "each",
             CallBlock.newCallClosure(value, SSLContext, Arity.NO_ARGUMENTS, new BlockCallback() {
 
                 public IRubyObject call(ThreadContext context, IRubyObject[] args, Block block) {
-                    final IRubyObject cert = args[0];
-                    if ( ! ( Certificate.isInstance(cert) ) ) {
-                        throw context.runtime.newTypeError("wrong argument : " + cert.inspect() + " is not a " + Certificate.getName());
-                    }
-                    result.add( (X509Cert) cert );
+                    result.add( assureCertificate(context, Certificate, args[0]).getAuxCert() );
                     return context.nil;
                 }
 
             }, context)
         );
         return result;
+    }
+
+    private static X509Cert assureCertificate(final ThreadContext context, final RubyModule Certificate, final IRubyObject cert) {
+        if ( ! ( Certificate.isInstance(cert) ) ) {
+            throw context.runtime.newTypeError("wrong argument : " + cert.inspect() + " is not a " + Certificate.getName());
+        }
+        return (X509Cert) cert;
     }
 
     static RubyClass _SSLContext(final Ruby runtime) {
