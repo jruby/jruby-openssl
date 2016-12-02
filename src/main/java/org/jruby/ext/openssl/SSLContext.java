@@ -557,7 +557,7 @@ public class SSLContext extends RubyObject {
         RubyHash DEFAULT_PARAMS = (RubyHash) SSLContext.getConstantAt("DEFAULT_PARAMS");
         if ( args.length == 0 ) params = DEFAULT_PARAMS;
         else {
-            params = (RubyHash) DEFAULT_PARAMS.callMethod(context, "merge", args[0]);
+            params = (RubyHash) DEFAULT_PARAMS.merge(context, args[0], Block.NULL_BLOCK);
         }
         final SSLContext self = this;
         params.visitAll(new RubyHash.Visitor() {
