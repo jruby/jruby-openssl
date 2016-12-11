@@ -5,16 +5,33 @@
 
 Under the hood uses the [Bouncy Castle Crypto APIs](http://www.bouncycastle.org/).
 
+Each jruby-openssl gem release includes a certain version, usually the latest available, 
+of the library (namely BC Provider and PKIX/CMS/EAC/PKCS/OCSP/TSP/OPENSSL jars).
+
 Please report bugs and incompatibilities (preferably with test-cases) to either
 the JRuby [mailing list][1] or the [bug tracker][2].
 
 ## Compatibility
 
-Since version **0.9.6** jruby-openssl aims to be compatible with all JRuby versions
-**>= 1.6.8** (including 1.7 and 9k), if it's not we consider that a bug, report.
 
-We currently (for 0.9.x) require the Bouncy Castle Java APIs to be **>= 1.49**,
-for JRuby-OpenSSL **gem <= 0.9.6** you also need to make sure BC jars <= 1.50 !
+| JRuby-OpenSSL | JRuby compat  | JVM compat | supported BC |
+| ------------- |:-------------:| ----------:| ------------:|
+|         0.9.6 |   1.6.8-9.0.2 |   Java 6-8 |    1.47-1.50 |
+|        0.9.12 |   1.6.8-9.0.5 |   Java 6-8 |    1.47-1.52 |
+|        0.9.13 |   1.6.8-9.1.2 |   Java 6-8 |    1.49-1.52 |
+|        0.9.14 |   1.6.8-9.1.5 |   Java 6-8 |    1.49-1.54 |
+|        0.9.17 |   1.6.8-9.1.5 |   Java 6-8 |    1.50-1.54 |
+|        0.9.18 |   1.6.8-9.1.7 |   Java 6-8 |    1.50-1.55 |
+
+NOTE: backwards JRuby compatibility was not handled for versions <= **0.9.6** 
+
+## Security
+
+JRuby-OpenSSL is an essential part of [JRuby](http://jruby.org), please report security 
+vulnerabilities to `security@jruby.org` as detailed on JRuby's [security page](http://jruby.org/security).
+ 
+Please note that most OpenSSL vulnerabilities do not effect JRuby since its not using 
+any of OpenSSL's C code, only Ruby parts (*.rb) are the same as in MRI's OpenSSL library. 
 
 ## Testing
 
