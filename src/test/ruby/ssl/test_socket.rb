@@ -102,6 +102,18 @@ class TestSSLSocket < TestCase
     end
   end if RUBY_VERSION > '2.2'
 
+  def test_connect_non_connected; require 'socket'
+    socket = OpenSSL::SSL::SSLSocket.new(Socket.new(:INET, :STREAM))
+    begin
+      socket.connect_nonblock
+    rescue => e
+      assert_equal Errno::EPIPE, e.class
+      puts e.inspect if $VERBOSE
+    ensure
+      socket.close
+    end
+  end if RUBY_VERSION > '2.2'
+
   private
 
   def server

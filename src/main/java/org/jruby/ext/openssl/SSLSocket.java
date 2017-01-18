@@ -266,7 +266,14 @@ public class SSLSocket extends RubyObject {
             forceClose();
             throw newSSLError(context.runtime, e);
         }
+        catch (NotYetConnectedException e) {
+            throw newErrnoEPIPEError(context.runtime, "SSL_connect");
+        }
         return this;
+    }
+
+    private static RaiseException newErrnoEPIPEError(final Ruby runtime, final String detail) {
+        return Utils.newError(runtime, runtime.getErrno().getClass("EPIPE"), detail);
     }
 
     @JRubyMethod
