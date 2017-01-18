@@ -132,13 +132,11 @@ public class SSLSocket extends RubyObject {
     private ByteBuffer dummy;
 
     private boolean initialHandshake = false;
-    private boolean handshaken = false;
 
     private SSLEngineResult.HandshakeStatus handshakeStatus;
     private SSLEngineResult.Status status;
 
     int verifyResult = X509Utils.V_OK;
-
 
     @Deprecated
     public IRubyObject _initialize(final ThreadContext context,
