@@ -114,6 +114,28 @@ class TestSSLSocket < TestCase
     end
   end if RUBY_VERSION > '2.2'
 
+  def test_connect_nonblock
+    ssl_server = server
+    thread = Thread.new do
+      ssl_server.accept.tap { ssl_server.close }
+    end
+
+    host = "127.0.0.1"
+    ctx = OpenSSL::SSL::SSLContext.new()
+    ctx.ciphers = "ADH"
+    client = TCPSocket.new host, server_port(ssl_server)
+    client = OpenSSL::SSL::SSLSocket.new(client, ctx)
+    begin
+      client.connect_nonblock
+    rescue OpenSSL::SSL::SSLErrorWaitReadable => e
+      # #<OpenSSL::SSL::SSLErrorWaitReadable: read would block>
+      puts e.inspect if $VERBOSE
+    ensure
+      thread.kill if thread.alive?
+      client.close unless client.closed?
+    end
+  end if RUBY_VERSION > '2.2'
+
   private
 
   def server
@@ -137,13 +159,16 @@ class TestSSLSocket < TestCase
     ssl
   end
 
+  def server_port(ssl_server = server)
+    ssl_server.to_io.local_address.ip_port
+  end
+
   def ssl_pair
     ssl_server = server
     thread = Thread.new do
       ssl_server.accept.tap { ssl_server.close }
     end
-    port = ssl_server.to_io.local_address.ip_port
-    ssl_client = client(port)
+    ssl_client = client server_port(ssl_server)
     ssl_socket = thread.value
     if block_given?
       begin
@@ -156,9 +181,7 @@ class TestSSLSocket < TestCase
       return ssl_client, ssl_socket
     end
   ensure
-    if thread && thread.alive?
-      thread.kill; thread.join
-    end
+    thread.tap { thread.kill; thread.join } if thread && thread.alive?
   end
 
 end
