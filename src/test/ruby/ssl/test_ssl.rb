@@ -185,4 +185,17 @@ class TestSSL < TestCase
     end
   end if RUBY_VERSION > '1.9'
 
+  def test_renegotiation_cb
+    num_handshakes = 0
+    renegotiation_cb = Proc.new { |ssl| num_handshakes += 1 }
+    ctx_proc = Proc.new { |ctx| ctx.renegotiation_cb = renegotiation_cb }
+    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true, {:ctx_proc => ctx_proc}) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.connect
+      assert_equal(1, num_handshakes)
+      ssl.close
+    end
+  end
+
 end

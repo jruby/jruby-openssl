@@ -132,11 +132,13 @@ public class SSLSocket extends RubyObject {
     private ByteBuffer dummy;
 
     private boolean initialHandshake = false;
+    private boolean handshaken = false;
 
     private SSLEngineResult.HandshakeStatus handshakeStatus;
     private SSLEngineResult.Status status;
 
     int verifyResult = X509Utils.V_OK;
+
 
     @Deprecated
     public IRubyObject _initialize(final ThreadContext context,
@@ -241,6 +243,7 @@ public class SSLSocket extends RubyObject {
                 handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
             }
+            callRenegotiationCallback(context);
             final IRubyObject ex = doHandshake(blocking, exception);
             if ( ex != null ) return ex; // :wait_readable | :wait_writable
         }
@@ -317,6 +320,7 @@ public class SSLSocket extends RubyObject {
                 handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
             }
+            callRenegotiationCallback(context);
             final IRubyObject ex = doHandshake(blocking, exception);
             if ( ex != null ) return ex; // :wait_readable | :wait_writable
         }
@@ -583,6 +587,18 @@ public class SSLSocket extends RubyObject {
 
     private void finishInitialHandshake() {
         initialHandshake = false;
+    }
+    
+    private void callRenegotiationCallback(final ThreadContext context) throws RaiseException {
+        IRubyObject renegotiationCallback = sslContext.getInstanceVariable("@renegotiation_cb");
+        if(renegotiationCallback == null || renegotiationCallback.isNil()) {
+            return;
+        }
+        else {
+            // the return of the Proc is not important
+            // Can throw ruby exception to "disallow" renegotiations
+            renegotiationCallback.callMethod(context, "call", this);
+        }    
     }
 
     public int write(ByteBuffer src, boolean blocking) throws SSLException, IOException {
