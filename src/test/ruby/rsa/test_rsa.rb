@@ -90,4 +90,17 @@ class TestRSA < TestCase
     end
   end
 
+  def test_read_private_key
+    cert = File.join(File.dirname(__FILE__), 'private_key.pem')
+    assert key = OpenSSL::PKey.read(File.read(cert))
+    assert key.is_a?(OpenSSL::PKey::RSA)
+  end
+
+  def test_read_private_key_with_password
+    cert = File.join(File.dirname(__FILE__), 'private_key_with_pass.pem')
+    pass = "secure-password!42"
+    assert key = OpenSSL::PKey.read(File.read(cert), pass)
+    assert key.is_a?(OpenSSL::PKey::RSA)
+  end
+
 end

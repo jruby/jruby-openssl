@@ -125,12 +125,21 @@ public abstract class PKey extends RubyObject {
                 }
             }
             if (key != null) {
-                if (key.getPublic().getAlgorithm().equals("RSA")) {
-                    return new PKeyRSA(runtime, _PKey(runtime).getClass("RSA"), (RSAPrivateCrtKey) key.getPrivate(),
-                            (RSAPublicKey) key.getPublic());
-                } else if (key.getPublic().getAlgorithm().equals("DSA")) {
-                    return new PKeyDSA(runtime, _PKey(runtime).getClass("DSA"), (DSAPrivateKey) key.getPrivate(),
-                            (DSAPublicKey) key.getPublic());
+                final String alg = getAlgorithm(key);
+                if ( "RSA".equals(alg) ) {
+                    return new PKeyRSA(runtime, _PKey(runtime).getClass("RSA"),
+                            (RSAPrivateCrtKey) key.getPrivate(), (RSAPublicKey) key.getPublic()
+                    );
+                }
+                if ( "DSA".equals(alg) ) {
+                    return new PKeyDSA(runtime, _PKey(runtime).getClass("DSA"),
+                            (DSAPrivateKey) key.getPrivate(), (DSAPublicKey) key.getPublic()
+                    );
+                }
+                if ( "ECDSA".equals(alg) ) {
+                    return new PKeyEC(runtime, _PKey(runtime).getClass("EC"),
+                            (PrivateKey) key.getPrivate(), (PublicKey) key.getPublic()
+                    );
                 }
             }
 
@@ -153,15 +162,26 @@ public abstract class PKey extends RubyObject {
             }
 
             if (pubKey != null) {
-                if (pubKey.getAlgorithm().equals("RSA")) {
+                if ( "RSA".equals(pubKey.getAlgorithm()) ) {
                     return new PKeyRSA(runtime, (RSAPublicKey) pubKey);
-                } else if (key.getPublic().getAlgorithm().equals("DSA")) {
+                }
+                if ( "DSA".equals(pubKey.getAlgorithm()) ) {
                     return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
+                }
+                if ( "ECDSA".equals(pubKey.getAlgorithm()) ) {
+                    return new PKeyEC(runtime, pubKey);
                 }
             }
 
             throw runtime.newArgumentError("Could not parse PKey");
         }
+
+        private static String getAlgorithm(final KeyPair key) {
+            if ( key.getPrivate() != null ) return key.getPrivate().getAlgorithm();
+            if ( key.getPublic() != null ) return key.getPublic().getAlgorithm();
+            return null;
+        }
+
     }
 
     public PKey(Ruby runtime, RubyClass type) {
