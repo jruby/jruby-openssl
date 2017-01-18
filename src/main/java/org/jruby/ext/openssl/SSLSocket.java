@@ -32,6 +32,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -40,7 +41,6 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
-import java.util.Set;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
@@ -905,8 +905,10 @@ public class SSLSocket extends RubyObject {
         try {
             doShutdown();
         }
-        catch (IOException e) {
-            // ignore?
+        catch (IOException e) { // ignore?
+            debug(getRuntime(), "SSLSocket.close doShutdown failed", e);
+        }
+        catch (NotYetConnectedException e) {
             debug(getRuntime(), "SSLSocket.close doShutdown failed", e);
         }
     }
@@ -1122,7 +1124,7 @@ public class SSLSocket extends RubyObject {
         throw new IllegalStateException("unknow channel impl: " + channel + " of type " + channel.getClass().getName());
     }
 
-    private static interface SocketChannelImpl {
+    private interface SocketChannelImpl {
 
         boolean isOpen() ;
 
