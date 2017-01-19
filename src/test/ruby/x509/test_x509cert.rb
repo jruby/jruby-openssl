@@ -275,6 +275,13 @@ EOF
     assert cert.to_text.index('Signature Algorithm: sha256WithRSAEncryption')
   end
 
+  def test_to_text_read_back
+    crt = File.expand_path('ca.crt', File.dirname(__FILE__))
+    cert = OpenSSL::X509::Certificate.new File.read(crt)
+    assert cert.to_text.index('X509v3 Authority Key Identifier:')
+    assert cert.to_text.match /X509v3 Authority Key Identifier:\s*keyid:BA:5E:E9:90:3B:5B:F6:79:A2:D3:65:09:C5:39:6A:E7:43:6B:F8:3D/m
+  end
+
   def test_to_text_npe_regression
     # https://github.com/jruby/jruby-openssl/issues/78
     key = OpenSSL::PKey::RSA.generate(2048)
