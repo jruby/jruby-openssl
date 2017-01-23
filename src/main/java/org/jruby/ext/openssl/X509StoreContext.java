@@ -73,6 +73,7 @@ public class X509StoreContext extends RubyObject {
     public static void createX509StoreContext(final Ruby runtime, final RubyModule X509) {
         RubyClass StoreContext = X509.defineClassUnder("StoreContext", runtime.getObject(), X509STORECTX_ALLOCATOR);
         StoreContext.defineAnnotatedMethods(X509StoreContext.class);
+        StoreContext.undefineMethod("dup");
     }
 
     private static RubyClass _StoreContext(final Ruby runtime) {
