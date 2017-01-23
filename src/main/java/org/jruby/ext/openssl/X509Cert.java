@@ -567,8 +567,14 @@ public class X509Cert extends RubyObject {
 
         // Have to obey some artificial constraints of the OpenSSL implementation. Stupid.
         final String keyAlg = ((PKey) key).getAlgorithm();
-        final String digAlg = ((Digest) digest).getShortAlgorithm();
-        final String digName = ((Digest) digest).name().toString();
+        final String digAlg; final String digName;
+        if (digest instanceof Digest) {
+            digAlg = ((Digest) digest).getShortAlgorithm();
+            digName = ((Digest) digest).name().toString();
+        }
+        else {
+            digAlg = digest.asJavaString(); digName = null;
+        }
 
         if( ( "DSA".equalsIgnoreCase(keyAlg) && "MD5".equalsIgnoreCase(digAlg) ) ||
             ( "RSA".equalsIgnoreCase(keyAlg) && "DSS1".equals(digName) ) ) {
