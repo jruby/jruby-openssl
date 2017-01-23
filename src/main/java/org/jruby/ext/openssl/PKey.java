@@ -214,10 +214,8 @@ public abstract class PKey extends RubyObject {
     @JRubyMethod(name = "sign")
     public IRubyObject sign(IRubyObject digest, IRubyObject data) {
         final Ruby runtime = getRuntime();
-        if ( ! isPrivateKey() ) {
-            throw runtime.newArgumentError("Private key is needed.");
-        }
-        String digAlg = ((Digest) digest).getShortAlgorithm();
+        if ( ! isPrivateKey() ) throw runtime.newArgumentError("Private key is needed.");
+        String digAlg = (digest instanceof Digest) ? ((Digest) digest).getShortAlgorithm() : digest.asJavaString();
         try {
             ByteList sign = sign(digAlg + "WITH" + getAlgorithm(), getPrivateKey(), data.convertToString().getByteList());
             return RubyString.newString(runtime, sign);
@@ -238,12 +236,10 @@ public abstract class PKey extends RubyObject {
     @JRubyMethod(name = "verify")
     public IRubyObject verify(IRubyObject digest, IRubyObject sign, IRubyObject data) {
         final Ruby runtime = getRuntime();
-        if ( ! (digest instanceof Digest) ) {
-            throw newPKeyError(runtime, "invalid digest");
-        }
         ByteList sigBytes = convertToString(runtime, sign, "OpenSSL::PKey::PKeyError", "invalid signature").getByteList();
         ByteList dataBytes = convertToString(runtime, data, "OpenSSL::PKey::PKeyError", "invalid data").getByteList();
-        String algorithm = ((Digest) digest).getShortAlgorithm() + "WITH" + getAlgorithm();
+        String digAlg = (digest instanceof Digest) ? ((Digest) digest).getShortAlgorithm() : digest.asJavaString();
+        final String algorithm = digAlg + "WITH" + getAlgorithm();
         try {
             return runtime.newBoolean( verify(algorithm, getPublicKey(), dataBytes, sigBytes) );
         }
