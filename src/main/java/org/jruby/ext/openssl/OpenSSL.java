@@ -36,6 +36,7 @@ import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
 import org.jruby.runtime.ThreadContext;
+import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.util.SafePropertyAccessor;
@@ -188,6 +189,19 @@ public final class OpenSSL {
 
     // internal (package-level) helpers :
 
+    /**
+     * PRIMARILY MEANT FOR TESTING ONLY, USAGE IS DISCOURAGED!
+     * @see org.jruby.ext.openssl.util.CryptoSecurity
+     */
+    @JRubyMethod(name = "_disable_security_restrictions!", visibility = Visibility.PRIVATE, meta = true)
+    public static IRubyObject _disable_security_restrictions(ThreadContext context, IRubyObject self) {
+        Boolean unrestrict = org.jruby.ext.openssl.util.CryptoSecurity.unrestrictSecurity();
+        Boolean allPerm = org.jruby.ext.openssl.util.CryptoSecurity.setAllPermissionPolicy();
+        if ( unrestrict == null || allPerm == null ) return context.nil;
+        return context.runtime.newBoolean( unrestrict && allPerm );
+    }
+
+
     private static boolean debug;
 
     // on by default, warnings can be disabled using -Djruby.openssl.warn=false
@@ -195,15 +209,15 @@ public final class OpenSSL {
 
     static boolean isDebug() { return debug; }
 
-    static void debugStackTrace(final Throwable e) {
+    public static void debugStackTrace(final Throwable e) {
         if ( isDebug() ) e.printStackTrace(System.out);
     }
 
-    static void debug(final String msg) {
+    public static void debug(final String msg) {
         if ( isDebug() ) System.out.println(msg);
     }
 
-    static void debug(final String msg, final Throwable e) {
+    public static void debug(final String msg, final Throwable e) {
         if ( isDebug() ) System.out.println(msg + ' ' + e);
     }
 
@@ -237,7 +251,7 @@ public final class OpenSSL {
         if ( warn ) context.runtime.getModule("OpenSSL").callMethod(context, "warn", msg);
     }
 
-    private static String javaVersion(final String def) {
+    public static String javaVersion(final String def) {
         final String javaVersionProperty =
                 SafePropertyAccessor.getProperty("java.version", def);
         if ( javaVersionProperty == "0" ) return "1.7.0"; // Android
@@ -262,11 +276,11 @@ public final class OpenSSL {
         return SafePropertyAccessor.getProperty("java.vm.name", def);
     }
 
-    static boolean javaHotSpot() {
+    public static boolean javaHotSpot() {
         return javaName("").contains("HotSpot(TM)");
     }
 
-    static boolean javaOpenJDK() {
+    public static boolean javaOpenJDK() {
         return javaName("").contains("OpenJDK");
     }
 
