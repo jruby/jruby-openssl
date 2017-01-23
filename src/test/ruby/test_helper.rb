@@ -99,46 +99,28 @@ TestCase.class_eval do
     end
   end
 
-  def self.disable_security_restrictions!; end # do nothing on MRI
+  def self.disable_security_restrictions!; @@security_restrictions = nil end # do nothing on MRI
 
-  @@security_restrictions = nil
+  @@security_restrictions = ''
 
   def self.disable_security_restrictions!
-    jce_security_class = java.lang.Class.for_name('javax.crypto.JceSecurity')
-    restricted_field = jce_security_class.getDeclaredField('isRestricted')
-    restricted_field.accessible = true
-    @@security_restrictions = restricted_field.getBoolean(nil)
-    return false unless @@security_restrictions
-
-    if java.lang.reflect.Modifier.isFinal restricted_field.modifiers
-      field_class = java.lang.Class.for_name('java.lang.reflect.Field')
-      # NOTE: this no longer works since 8u111 as it's using unsafe :
-      # Can not set static final boolean field javax.crypto.JceSecurity.isRestricted to (boolean)false
-      #   sun.reflect.UnsafeFieldAccessorImpl.throwFinalFieldIllegalAccessException(sun/reflect/UnsafeFieldAccessorImpl.java:76)
-      #   sun.reflect.UnsafeFieldAccessorImpl.throwFinalFieldIllegalAccessException(sun/reflect/UnsafeFieldAccessorImpl.java:84)
-      #   sun.reflect.UnsafeQualifiedStaticBooleanFieldAccessorImpl.setBoolean(sun/reflect/UnsafeQualifiedStaticBooleanFieldAccessorImpl.java:93)
-      #   java.lang.reflect.Field.setBoolean(java/lang/reflect/Field.java:801)
-      mods_field = field_class.getDeclaredField('modifiers')
-      mods_field.accessible = true
-
-      # restricted_field = jce_security_class.getDeclaredField('isRestricted')
-      # restricted_field.accessible = true
-      mods_field.setInt restricted_field, (~java.lang.reflect.Modifier::FINAL & restricted_field.modifiers)
+    debug = OpenSSL.debug
+    begin
+      OpenSSL.debug = true
+      #org.jruby.ext.openssl.util.CryptoSecurity.unrestrictSecurity
+      #org.jruby.ext.openssl.util.CryptoSecurity.setAllPermissionPolicy
+      @@security_restrictions = OpenSSL.send :_disable_security_restrictions!
+    ensure
+      OpenSSL.debug = debug
     end
-    restricted_field.setBoolean nil, false; return true
-  rescue Java::JavaLang::ClassNotFoundException => e
-    warn "failed to disable JCE security restrictions: #{e.inspect}"; nil
-  rescue Java::JavaLang::NoSuchFieldException => e # Java 6
-    warn "failed to disable JCE security restrictions: #{e.inspect}"; nil
-  rescue Java::JavaLang::IllegalAccessException => e
-    warn "failed to disable JCE security restrictions: #{e.inspect}"; nil
-  rescue NameError => e
-    warn "failed to disable JCE security restrictions: #{e.inspect}"; nil
   end if defined? JRUBY_VERSION
 
+  def self.disable_security_restrictions
+    disable_security_restrictions! if @@security_restrictions.eql?('')
+  end
+
   def self.security_restrictions?
-    disable_security_restrictions! if @@security_restrictions.nil?
-    @@security_restrictions
+    disable_security_restrictions; return @@security_restrictions
   end
 
   def self.java6?; java_version.last.to_i == 6 end
@@ -155,8 +137,7 @@ TestCase.class_eval do
 
   private
 
-  def issue_cert(dn, key, serial, not_before, not_after, extensions,
-                 issuer, issuer_key, digest)
+  def issue_cert(dn, key, serial, not_before, not_after, extensions, issuer, issuer_key, digest)
     cert = OpenSSL::X509::Certificate.new
     issuer = cert unless issuer
     issuer_key = key unless issuer_key

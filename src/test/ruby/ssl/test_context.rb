@@ -102,13 +102,16 @@ class TestSSLContext < TestCase
 
   def test_context_ciphers
     return skip('on Java 6') if defined?(ENV_JAVA) && ENV_JAVA['java.version'] < '1.7'
-    
+
+    self.class.disable_security_restrictions
+
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = "ALL"
 
-    all_ciphers = context.ciphers.map{ |cipher_array| cipher_array[0] }
+    all_ciphers = context.ciphers.map { |cipher_array| cipher_array[0] }
 
-    # Java 8 (1.8.0_112-b15) :
+    # NOTE: assuming JCE installed ()CryptoSecurity.setAllPermissionPolicy)
+    #  ...  otherwise on Java 8 (1.8.0_112-b15) :
     # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
     # Ignoring unavailable cipher suite: TLS_DH_anon_WITH_AES_256_CBC_SHA
     # Ignoring unavailable cipher suite: TLS_DH_anon_WITH_AES_256_CBC_SHA256
@@ -177,15 +180,14 @@ class TestSSLContext < TestCase
     # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
     # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
 
-    java_8 = (ENV_JAVA['java.version'] == '1.8') || nil
-
-    expected_ciphers = [java_8 && "ECDHE-ECDSA-AES256-SHA",
-                        java_8 && "ECDHE-RSA-AES256-SHA",
-                        java_8 && "AES256-SHA",
-                        java_8 && "ECDH-ECDSA-AES256-SHA",
-                        java_8 && "ECDH-RSA-AES256-SHA",
-                        java_8 && "DHE-RSA-AES256-SHA",
-                        java_8 && "DHE-DSS-AES256-SHA",
+    jce_installed = true # || nil
+    expected_ciphers = [jce_installed && "ECDHE-ECDSA-AES256-SHA",
+                        jce_installed && "ECDHE-RSA-AES256-SHA",
+                        jce_installed && "AES256-SHA",
+                        jce_installed && "ECDH-ECDSA-AES256-SHA",
+                        jce_installed && "ECDH-RSA-AES256-SHA",
+                        jce_installed && "DHE-RSA-AES256-SHA",
+                        jce_installed && "DHE-DSS-AES256-SHA",
                         "ECDHE-ECDSA-AES128-SHA256",
                         "ECDHE-RSA-AES128-SHA256",
                         "ECDH-ECDSA-AES128-SHA256",
@@ -204,8 +206,8 @@ class TestSSLContext < TestCase
                         "ECDH-RSA-DES-CBC3-SHA",
                         "EDH-RSA-DES-CBC3-SHA",
                         "EDH-DSS-DES-CBC3-SHA",
-                        java_8 && "AECDH-AES256-SHA",
-                        java_8 && "ADH-AES256-SHA",
+                        jce_installed && "AECDH-AES256-SHA",
+                        jce_installed && "ADH-AES256-SHA",
                         "AECDH-AES128-SHA",
                         "ADH-AES128-SHA",
                         "AECDH-DES-CBC3-SHA",
