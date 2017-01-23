@@ -47,7 +47,9 @@ import java.util.Enumeration;
 
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
+import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.pkcs.CertificationRequestInfo;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
@@ -108,6 +110,16 @@ public class PKCS10Request {
 
     public PKCS10Request(ASN1Sequence sequence) {
         this(CertificationRequest.getInstance(sequence));
+    }
+
+    private void resetSignedRequest() {
+        if ( signedRequest == null ) return;
+
+        CertificationRequest req = signedRequest.toASN1Structure();
+        CertificationRequestInfo reqInfo = new CertificationRequestInfo(subject, publicKeyInfo, req.getCertificationRequestInfo().getAttributes());
+        ASN1Sequence seq = (ASN1Sequence) req.toASN1Primitive();
+        req = new CertificationRequest(reqInfo, (AlgorithmIdentifier) seq.getObjectAt(1), (DERBitString) seq.getObjectAt(2));
+        signedRequest = new PKCS10CertificationRequest(req); // valid = true;
     }
 
     // sign
@@ -178,6 +190,7 @@ public class PKCS10Request {
 
     public void setSubject(final X500Name subject) {
         this.subject = subject;
+        resetSignedRequest();
     }
 
     public X500Name getSubject() {
@@ -190,6 +203,7 @@ public class PKCS10Request {
         this.publicKeyInfo = makePublicKeyInfo(publicKey);
         //if ( publicKey == null ) publicKeyAlgorithm = null;
         //else publicKeyAlgorithm = publicKey.getAlgorithm();
+        resetSignedRequest();
     }
 
     private String getPublicKeyAlgorithm() {
