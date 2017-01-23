@@ -1008,7 +1008,11 @@ public class Cipher extends RubyObject {
             throw newCipherError(runtime, "salt must be an 8-octet string");
         }
 
-        final String algorithm = vdigest.isNil() ? "MD5" : ((Digest) vdigest).getAlgorithm();
+        final String algorithm;
+        if ( vdigest.isNil() ) algorithm = "MD5";
+        else {
+            algorithm = (vdigest instanceof Digest) ? ((Digest) vdigest).getAlgorithm() : vdigest.asJavaString();
+        }
         final MessageDigest digest = Digest.getDigest(runtime, algorithm);
         KeyAndIv result = evpBytesToKey(keyLength, ivLength, digest, salt, pass, iter);
         this.key = result.key;
