@@ -114,6 +114,22 @@ public class PKeyDSA extends PKey {
     private transient volatile BigInteger dsa_g;
 
     @Override
+    public IRubyObject initialize_copy(final IRubyObject original) {
+        if (this == original) return this;
+        checkFrozen();
+
+        final PKeyDSA that = (PKeyDSA) original;
+        this.publicKey = that.publicKey;
+        this.privateKey = that.privateKey;
+        this.dsa_x = that.dsa_x;
+        this.dsa_y = that.dsa_y;
+        this.dsa_p = that.dsa_p;
+        this.dsa_q = that.dsa_q;
+        this.dsa_g = that.dsa_g;
+        return this;
+    }
+
+    @Override
     public PublicKey getPublicKey() { return publicKey; }
 
     @Override

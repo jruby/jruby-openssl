@@ -142,6 +142,25 @@ public class PKeyRSA extends PKey {
     private transient volatile BigInteger rsa_iqmp;
 
     @Override
+    public IRubyObject initialize_copy(final IRubyObject original) {
+        if (this == original) return this;
+        checkFrozen();
+
+        final PKeyRSA that = (PKeyRSA) original;
+        this.publicKey = that.publicKey;
+        this.privateKey = that.privateKey;
+        this.rsa_e = that.rsa_e;
+        this.rsa_n = that.rsa_n;
+        this.rsa_d = that.rsa_d;
+        this.rsa_p = that.rsa_p;
+        this.rsa_q = that.rsa_q;
+        this.rsa_dmp1 = that.rsa_dmp1;
+        this.rsa_dmq1 = that.rsa_dmq1;
+        this.rsa_iqmp = that.rsa_iqmp;
+        return this;
+    }
+
+    @Override
     public PublicKey getPublicKey() { return publicKey; }
 
     @Override

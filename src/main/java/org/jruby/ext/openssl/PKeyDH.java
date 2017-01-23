@@ -110,6 +110,19 @@ public class PKeyDH extends PKey {
         super(runtime, clazz);
     }
 
+    @Override
+    public IRubyObject initialize_copy(final IRubyObject original) {
+        if (this == original) return this;
+        checkFrozen();
+
+        final PKeyDH that = (PKeyDH) original;
+        this.dh_p = that.dh_p;
+        this.dh_g = that.dh_g;
+        this.dh_y = that.dh_y;
+        this.dh_x = that.dh_x;
+        return this;
+    }
+
     @JRubyMethod(name="initialize", rest=true, visibility = Visibility.PRIVATE)
     public synchronized IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
