@@ -280,6 +280,18 @@ public class X509Extension extends RubyObject {
         return this;
     }
 
+    @Override
+    public IRubyObject initialize_copy(final IRubyObject original) {
+        if (this == original) return this;
+        checkFrozen();
+
+        final X509Extension that = (X509Extension) original;
+        this.value = that.value;
+        this.objectID = that.objectID;
+        this.critical = that.critical;
+        return this;
+    }
+
     @JRubyMethod
     public IRubyObject oid(final ThreadContext context) {
         return context.runtime.newString( oidSym(context.runtime) );

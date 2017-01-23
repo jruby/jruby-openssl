@@ -127,6 +127,18 @@ public class X509Attribute extends RubyObject {
         return this;
     }
 
+    @Override
+    public IRubyObject initialize_copy(final IRubyObject original) {
+        if (this == original) return this;
+        checkFrozen();
+
+        final X509Attribute that = (X509Attribute) original;
+        this.value = that.value == null ? null : that.value.dup();
+        this.oid = that.oid;
+        this.objectId = that.objectId;
+        return this;
+    }
+
     @JRubyMethod
     public IRubyObject to_der(final ThreadContext context) {
         final byte[] bytes;
