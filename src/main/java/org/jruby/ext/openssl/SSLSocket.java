@@ -95,6 +95,7 @@ public class SSLSocket extends RubyObject {
         SSLSocket.addReadWriteAttribute(context, "sync_close");
         SSLSocket.addReadWriteAttribute(context, "hostname");
         SSLSocket.defineAnnotatedMethods(SSLSocket.class);
+        SSLSocket.undefineMethod("dup");
     }
 
     public SSLSocket(Ruby runtime, RubyClass type) {

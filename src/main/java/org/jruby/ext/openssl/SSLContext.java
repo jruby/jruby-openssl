@@ -180,6 +180,7 @@ public class SSLContext extends RubyObject {
         SSLContext.defineAlias("ssl_timeout=", "timeout=");
 
         SSLContext.defineAnnotatedMethods(SSLContext.class);
+        SSLContext.undefineMethod("dup");
 
         final Set<String> methodKeys = SSL_VERSION_OSSL2JSSE.keySet();
         final RubyArray methods = runtime.newArray( methodKeys.size() );
