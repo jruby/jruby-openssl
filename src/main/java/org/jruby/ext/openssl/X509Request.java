@@ -85,6 +85,10 @@ public class X509Request extends RubyObject {
         _Request.defineAnnotatedMethods(X509Request.class);
     }
 
+    static RubyClass _RequestError(final Ruby runtime) {
+        return (RubyClass) _X509(runtime).getConstantAt("RequestError");
+    }
+
     private IRubyObject subject;
     private PKey public_key;
     private IRubyObject version;
@@ -287,7 +291,7 @@ public class X509Request extends RubyObject {
         PrivateKey privateKey = ((PKey) key).getPrivateKey();
 
         final Ruby runtime = context.runtime;
-        supportedSignatureAlgorithm(runtime, public_key, (Digest) digest);
+        supportedSignatureAlgorithm(runtime, _RequestError(runtime), public_key, (Digest) digest);
 
         final String digAlg = ((Digest) digest).getShortAlgorithm();
         try {
