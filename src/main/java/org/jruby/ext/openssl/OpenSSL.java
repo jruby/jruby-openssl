@@ -268,6 +268,11 @@ public final class OpenSSL {
         return atLeast ? gt <= 0 : gt == 0;
     }
 
+    static boolean javaVersion9(final boolean atLeast) {
+        final int gt = "9".compareTo( javaVersion("0").substring(0, 1) );
+        return atLeast ? gt <= 0 : gt == 0;
+    }
+
     private static String javaName(final String def) {
         // Sun Java 6 or Oracle Java 7/8
         // "Java HotSpot(TM) Server VM" or "Java HotSpot(TM) 64-Bit Server VM"

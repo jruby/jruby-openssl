@@ -139,7 +139,38 @@ public abstract class SecurityHelper {
         return securityProvider;
     }
 
+    static final boolean SPI_ACCESSIBLE;
+
+    static {
+        boolean canSetAccessible = true;
+        if ( OpenSSL.javaVersion9(true) ) {
+            final Provider provider = getSecurityProvider();
+            if ( provider != null ) {
+                try {
+                    // NOTE: some getXxx pieces might still work
+                    // where SPI are returned directly + there's a public <init> e.g. MessageDigest(...)
+                    getCertificateFactory("X.509", provider); // !!! disables EVERYTHING :(
+                }
+                catch (CertificateException ex) {
+                    debugStackTrace(ex);
+                    canSetAccessible = false;
+                }
+                catch (RuntimeException ex) {
+                    debugStackTrace(ex);
+                    // java.lang.reflect.InaccessibleObjectException (extends RuntimeException)
+                    canSetAccessible = false;
+                }
+            }
+        }
+        SPI_ACCESSIBLE = canSetAccessible;
+    }
+
+    static Provider getSecurityProviderIfAccessible() {
+        return SPI_ACCESSIBLE ? getSecurityProvider() : null;
+    }
+
     public static synchronized void setSecurityProvider(final Provider provider) {
+        if ( provider != null ) OpenSSL.debug("using provider: " + provider);
         securityProvider = provider;
     }
 
@@ -165,7 +196,7 @@ public abstract class SecurityHelper {
         return Security.getProvider(name) != null;
     }
 
-    static boolean isProviderRegistered() {
+    public static boolean isProviderRegistered() {
         if ( securityProvider == null ) return false;
         return Security.getProvider(securityProvider.getName()) != null;
     }
@@ -190,7 +221,7 @@ public abstract class SecurityHelper {
     public static CertificateFactory getCertificateFactory(final String type)
         throws CertificateException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getCertificateFactory(type, provider);
         }
         catch (CertificateException e) { debugStackTrace(e); }
@@ -227,7 +258,7 @@ public abstract class SecurityHelper {
     public static KeyFactory getKeyFactory(final String algorithm)
         throws NoSuchAlgorithmException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getKeyFactory(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
@@ -250,7 +281,7 @@ public abstract class SecurityHelper {
     public static KeyPairGenerator getKeyPairGenerator(final String algorithm)
         throws NoSuchAlgorithmException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getKeyPairGenerator(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
@@ -290,7 +321,7 @@ public abstract class SecurityHelper {
     public static KeyStore getKeyStore(final String type)
         throws KeyStoreException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getKeyStore(type, provider);
         }
         catch (KeyStoreException e) { }
@@ -307,7 +338,7 @@ public abstract class SecurityHelper {
      */
     public static MessageDigest getMessageDigest(final String algorithm) throws NoSuchAlgorithmException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getMessageDigest(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
@@ -341,7 +372,7 @@ public abstract class SecurityHelper {
 
     public static SecureRandom getSecureRandom() {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) {
                 final String algorithm = getSecureRandomAlgorithm(provider);
                 if ( algorithm != null ) {
@@ -473,7 +504,7 @@ public abstract class SecurityHelper {
      */
     public static Signature getSignature(final String algorithm) throws NoSuchAlgorithmException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getSignature(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
@@ -509,7 +540,7 @@ public abstract class SecurityHelper {
      */
     public static Mac getMac(final String algorithm) throws NoSuchAlgorithmException {
         Mac mac = null;
-        final Provider provider = getSecurityProvider();
+        final Provider provider = getSecurityProviderIfAccessible();
         if ( provider != null ) {
             mac = getMac(algorithm, provider, true);
         }
@@ -540,7 +571,7 @@ public abstract class SecurityHelper {
      */
     public static KeyGenerator getKeyGenerator(final String algorithm) throws NoSuchAlgorithmException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getKeyGenerator(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
@@ -564,7 +595,7 @@ public abstract class SecurityHelper {
      */
     public static KeyAgreement getKeyAgreement(final String algorithm) throws NoSuchAlgorithmException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getKeyAgreement(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
@@ -588,7 +619,7 @@ public abstract class SecurityHelper {
      */
     public static SecretKeyFactory getSecretKeyFactory(final String algorithm) throws NoSuchAlgorithmException {
         try {
-            final Provider provider = getSecurityProvider();
+            final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getSecretKeyFactory(algorithm, provider);
         }
         catch (NoSuchAlgorithmException e) { }
@@ -613,7 +644,7 @@ public abstract class SecurityHelper {
         throws NoSuchAlgorithmException {
         try {
             if ( providerSSLContext ) {
-                final Provider provider = getSecurityProvider();
+                final Provider provider = getSecurityProviderIfAccessible();
                 if ( provider != null ) {
                     return getSSLContext(protocol, provider);
                 }
