@@ -414,14 +414,12 @@ public abstract class PKey extends RubyObject {
         final String keyAlg = key.getAlgorithm();
         final String digAlg = digest.getShortAlgorithm();
         if ( ( "DSA".equalsIgnoreCase(keyAlg) && "MD5".equalsIgnoreCase(digAlg)) ||
-             ( "RSA".equalsIgnoreCase(keyAlg) && "DSS1".equals( digest.name().toString() ) ) ||
-             ( "DSA".equalsIgnoreCase(keyAlg) && "SHA1".equals( digest.name().toString() ) ) ) {
-            throw Utils.newError(runtime, errorClass, "unsupported key / digest algorithm ( "+ key +" / "+ digAlg +" )");
+             ( "RSA".equalsIgnoreCase(keyAlg) && "DSS1".equals( digest.name().toString() ) ) ) {
+            throw Utils.newError(runtime, errorClass, "unsupported key / digest algorithm ( "+ keyAlg +" / "+ digAlg +" )");
         }
     }
 
-    static void supportedSignatureAlgorithm(final Ruby runtime,
-        final PKey key, final Digest digest) {
+    static void supportedSignatureAlgorithm(final Ruby runtime, final PKey key, final Digest digest) {
         supportedSignatureAlgorithm(runtime, _OpenSSLError(runtime), key, digest);
     }
 
