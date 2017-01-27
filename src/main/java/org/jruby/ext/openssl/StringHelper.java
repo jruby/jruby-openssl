@@ -29,6 +29,8 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Locale;
 
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Primitive;
 import org.jcodings.specific.UTF8Encoding;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -113,7 +115,7 @@ abstract class StringHelper {
     static RubyString readPossibleDERInput(final ThreadContext context, final IRubyObject arg) {
         return readInput(context, OpenSSL.to_der_if_possible(context, arg));
     }
-
+    
     static RubyString readInput(final ThreadContext context, final IRubyObject arg) {
         if ( arg instanceof RubyIO ) {
             final IRubyObject result;
