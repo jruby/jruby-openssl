@@ -151,6 +151,12 @@ public class OCSP {
         final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         OCSP.defineClassUnder("OCSPError", OpenSSLError, OpenSSLError.getAllocator());
         
+        OCSPBasicResponse.createBasicResponse(runtime, OCSP);
+        OCSPCertificateId.createCertificateId(runtime, OCSP);
+        OCSPRequest.createRequest(runtime, OCSP);
+        OCSPResponse.createResponse(runtime, OCSP);
+        OCSPSingleResponse.createSingleResponse(runtime, OCSP);
+        
         //ResponseStatuses
         OCSP.setConstant(_RESPONSE_STATUS_SUCCESSFUL_STR, runtime.newFixnum(_RESPONSE_STATUS_SUCCESSFUL));
         OCSP.setConstant(_RESPONSE_STATUS_MALFORMEDREQUEST_STR, runtime.newFixnum(_RESPONSE_STATUS_MALFORMEDREQUEST));

@@ -125,6 +125,10 @@ public class OCSPBasicResponse extends RubyObject {
         return RubyFixnum.zero(context.getRuntime());
     }
     
+    public BasicOCSPResponse getBCOCSPResp() {
+        return this.bcBasicOCSPResponse;
+    }
+    
     public byte[] getNonce() {
         return this.nonce;
     }
