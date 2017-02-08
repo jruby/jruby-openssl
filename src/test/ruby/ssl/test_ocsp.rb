@@ -5,40 +5,42 @@ class TestOCSP < TestCase
   include SSLTestHelper
 
   def setup
+    super
     # @ca_cert
     #   |
     # @cert
     #   |----------|
     # @cert2   @ocsp_cert
+    now = Time.now
 
     ca_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCA")
-    @ca_key = TEST_KEY_RSA1024
+    @ca_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
     ca_exts = [
       ["basicConstraints", "CA:TRUE", true],
       ["keyUsage", "cRLSign,keyCertSign", true],
     ]
-    @ca_cert = issue_cert(ca_subj, @ca_key, 1, ca_exts, nil, nil)
+    @ca_cert = issue_cert(ca_subj, @ca_key, 1, now, now+1800, ca_exts, nil, nil, OpenSSL::Digest::SHA1.new)
 
     cert_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCA2")
-    @cert_key = TEST_KEY_RSA1024
+    @cert_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
     cert_exts = [
       ["basicConstraints", "CA:TRUE", true],
       ["keyUsage", "cRLSign,keyCertSign", true],
     ]
-    @cert = issue_cert(cert_subj, @cert_key, 5, cert_exts, @ca_cert, @ca_key)
+    @cert = issue_cert(cert_subj, @cert_key, 5, now, now+1800, cert_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA1.new)
 
     cert2_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCert")
-    @cert2_key = TEST_KEY_RSA1024
+    @cert2_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
     cert2_exts = [
     ]
-    @cert2 = issue_cert(cert2_subj, @cert2_key, 10, cert2_exts, @cert, @cert_key)
+    @cert2 = issue_cert(cert2_subj, @cert2_key, 10, now, now+1800, cert2_exts, @cert, @cert_key, OpenSSL::Digest::SHA1.new)
 
     ocsp_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCAOCSP")
-    @ocsp_key = TEST_KEY_RSA2048
+    @ocsp_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
     ocsp_exts = [
       ["extendedKeyUsage", "OCSPSigning", true],
     ]
-    @ocsp_cert = issue_cert(ocsp_subj, @ocsp_key, 100, ocsp_exts, @cert, @cert_key)
+    @ocsp_cert = issue_cert(ocsp_subj, @ocsp_key, 100, now, now+1800, ocsp_exts, @cert, @cert_key, OpenSSL::Digest::SHA1.new)
   end
 
   def test_new_certificate_id

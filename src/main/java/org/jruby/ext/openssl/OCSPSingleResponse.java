@@ -203,7 +203,7 @@ public class OCSPSingleResponse extends RubyObject {
                         );
                 return RubyTime.newTime(runtime, revokedInfo.getRevocationTime().getDate().getTime());
             }
-            catch (ParseException|IOException e) {
+            catch (Exception e) {
                 throw newOCSPError(runtime, e);
             }
         }

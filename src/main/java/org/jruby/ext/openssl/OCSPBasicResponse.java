@@ -32,8 +32,6 @@
 */
 package org.jruby.ext.openssl;
 
-import java.security.SecureRandom;
-
 import org.bouncycastle.asn1.ocsp.BasicOCSPResponse;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -74,7 +72,6 @@ public class OCSPBasicResponse extends RubyObject {
     
     private RubyString der;
     private byte[] nonce;
-    private SecureRandom random = new SecureRandom();
     private BasicOCSPResponse bcBasicOCSPResponse;
 
     public OCSPBasicResponse(Ruby runtime, RubyClass metaClass) {
@@ -91,13 +88,13 @@ public class OCSPBasicResponse extends RubyObject {
     }
     
     @JRubyMethod(name = "initialize", visibility = Visibility.PRIVATE)
-    public IRubyObject initialize() {
+    public IRubyObject initialize(final ThreadContext context) {
         return this;
     }
     
-    @JRubyMethod(name = "add_nonce")
-    public OCSPBasicResponse add_nonce(final ThreadContext context, final IRubyObject[] args) {
-        Ruby runtime = context.getRuntime();
+    @JRubyMethod(name = "add_nonce", rest = true)
+    public OCSPBasicResponse add_nonce(IRubyObject[] args) {
+        Ruby runtime = getRuntime();
         
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) {
             nonce = generateNonce();
@@ -139,7 +136,7 @@ public class OCSPBasicResponse extends RubyObject {
     }
     
     private byte[] generateNonce(byte[] bytes) {
-        random.nextBytes(bytes);
+        OpenSSL.getSecureRandom(getRuntime()).nextBytes(bytes);
         return bytes;
     }
     
