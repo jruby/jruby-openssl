@@ -32,9 +32,11 @@
 */
 package org.jruby.ext.openssl;
 
+import java.security.Security;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
@@ -148,6 +150,7 @@ public class OCSP {
     public static void createOCSP(final Ruby runtime, final RubyModule OpenSSL) {
         final RubyModule OCSP = OpenSSL.defineModuleUnder("OCSP");
         final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
+        Security.addProvider(new BouncyCastleProvider());
         OCSP.defineClassUnder("OCSPError", OpenSSLError, OpenSSLError.getAllocator());
         
         OCSPBasicResponse.createBasicResponse(runtime, OCSP);

@@ -31,8 +31,7 @@ class TestOCSP < TestCase
 
     cert2_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCert")
     @cert2_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
-    cert2_exts = [
-    ]
+    cert2_exts = []
     @cert2 = issue_cert(cert2_subj, @cert2_key, 10, now, now+1800, cert2_exts, @cert, @cert_key, OpenSSL::Digest::SHA1.new)
 
     ocsp_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCAOCSP")
@@ -77,15 +76,16 @@ class TestOCSP < TestCase
     asn1 = OpenSSL::ASN1.decode(der)
     # hash algorithm defaults to SHA-1
     assert_equal OpenSSL::ASN1.ObjectId("SHA1").to_der, asn1.value[0].value[0].to_der
-    assert_equal [cid.issuer_name_hash].pack("H*"), asn1.value[1].value
-    assert_equal [cid.issuer_key_hash].pack("H*"), asn1.value[2].value
+    assert_equal cid.issuer_name_hash, asn1.value[1].value
+    assert_equal cid.issuer_key_hash, asn1.value[2].value
     assert_equal @cert.serial, asn1.value[3].value
     assert_equal der, OpenSSL::OCSP::CertificateId.new(der).to_der
   end
 
   def test_certificate_id_dup
     cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert)
-    assert_equal cid.to_der, cid.dup.to_der
+    other = cid.dup.to_der
+    assert_equal cid.to_der, other
   end
 
   def test_request_der
@@ -173,12 +173,12 @@ class TestOCSP < TestCase
 
     # signed by CA
     bres = OpenSSL::OCSP::BasicResponse.new
-    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert, "SHA256")
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert, OpenSSL::Digest::SHA256.new)
     bres.add_status(cid, OpenSSL::OCSP::V_CERTSTATUS_GOOD, nil, -400, -300, 500, [])
-    bres.sign(@ca_cert, @ca_key, nil, 0, "SHA256")
+    bres.sign(@ca_cert, @ca_key, nil, 0, OpenSSL::Digest::SHA256.new)
     assert_equal false, bres.verify([], store) # signer not found
     assert_equal true, bres.verify([@ca_cert], store)
-    bres.sign(@ca_cert, @ca_key, [], 0, "SHA256")
+    bres.sign(@ca_cert, @ca_key, [], 0, OpenSSL::Digest::SHA256.new)
     assert_equal true, bres.verify([], store)
 
     # signed by OCSP signer

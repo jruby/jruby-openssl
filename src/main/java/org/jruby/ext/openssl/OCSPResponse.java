@@ -9,6 +9,10 @@ import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.ocsp.OCSPResponseStatus;
 import org.bouncycastle.asn1.ocsp.ResponseBytes;
+import org.bouncycastle.cert.ocsp.BasicOCSPResp;
+import org.bouncycastle.cert.ocsp.OCSPException;
+import org.bouncycastle.cert.ocsp.OCSPResp;
+import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
@@ -25,7 +29,6 @@ import org.jruby.runtime.builtin.IRubyObject;
 
 public class OCSPResponse extends RubyObject {
     private static final long serialVersionUID = 5763247988029815198L;
-    private static final String BASIC_RESPONSE_OID = "1.3.6.1.5.5.7.48.1.1";
 
     private static ObjectAllocator RESPONSE_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
@@ -47,8 +50,6 @@ public class OCSPResponse extends RubyObject {
     }
     
     private org.bouncycastle.asn1.ocsp.OCSPResponse bcResp;
-    private Integer status; //one of the OCSP Response Statuses
-    private OCSPBasicResponse basicResponse;
     
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, IRubyObject args[]) {
@@ -68,38 +69,70 @@ public class OCSPResponse extends RubyObject {
     }
     
     @JRubyMethod(name = "create", meta = true)
-    public static IRubyObject create(final ThreadContext context, IRubyObject status) {
-        Ruby runtime = context.getRuntime();
+    public static IRubyObject create(final ThreadContext context, final IRubyObject self, IRubyObject status) {
+        Ruby runtime = context.runtime;
+        OCSPRespBuilder builder = new OCSPRespBuilder();
+        OCSPResp tmpResp;
         OCSPResponse ret = new OCSPResponse(runtime);
-        ret.initialize(context, new IRubyObject[] {});
-        RubyFixnum rubyStatus = (RubyFixnum) status;
-        ret.setStatus((int)rubyStatus.getLongValue());        
+        try {
+            tmpResp = builder.build(RubyFixnum.fix2int((RubyFixnum)status), null);
+            ret.initialize(context, new IRubyObject[] { RubyString.newString(runtime, tmpResp.getEncoded())});
+        }
+        catch (Exception e) {
+            throw newOCSPError(runtime, e);
+        }
         
         return ret;
     }
     
     @JRubyMethod(name = "create", meta = true)
-    public static IRubyObject create(final ThreadContext context, IRubyObject status, IRubyObject basicResponse) {
+    public static IRubyObject create(final ThreadContext context, final IRubyObject self, IRubyObject status, IRubyObject basicResponse) {
+        Ruby runtime = context.runtime;
         if (basicResponse == null || basicResponse.isNil()) {
-            return create(context, status);
+            return create(context, self, status);
         } 
         else {
-            OCSPResponse ret = (OCSPResponse) create(context, status);
+            OCSPResponse ret = new OCSPResponse(runtime);
             OCSPBasicResponse rubyBasicResp = (OCSPBasicResponse) basicResponse;
-            ret.setBasicResponse(rubyBasicResp);
+            OCSPRespBuilder builder = new OCSPRespBuilder();
+            try {
+                OCSPResp tmpResp = builder.build(RubyFixnum.fix2int((RubyFixnum)status), new BasicOCSPResp(rubyBasicResp.getASN1BCOCSPResp()));
+                ret.initialize(context, new IRubyObject[] { RubyString.newString(runtime, tmpResp.getEncoded())});
+            }
+            catch (Exception e) {
+                throw newOCSPError(runtime, e);
+            }
             
             return ret;
         }
     }
     
+    @Override
+    @JRubyMethod(name = "initialize_copy", visibility = Visibility.PRIVATE)
+    public IRubyObject initialize_copy(IRubyObject obj) {
+        if ( this == obj ) return this;
+
+        checkFrozen();
+        this.bcResp = ((OCSPResponse)obj).getBCResp();
+        return this;
+    }
+    
     @JRubyMethod(name = "basic")
     public IRubyObject basic() {
-        return getBasicResponse();
+        Ruby runtime = getRuntime();
+        ThreadContext context = runtime.getCurrentContext();
+        if (bcResp == null || bcResp.getResponseBytes() == null || bcResp.getResponseBytes().getResponse() == null) {
+            return getRuntime().getCurrentContext().nil;
+        }
+        else {
+            OCSPBasicResponse ret = new OCSPBasicResponse(runtime);
+            return ret.initialize(context, RubyString.newString(runtime, bcResp.getResponseBytes().getResponse().getOctets()));
+        }
     }
     
     @JRubyMethod(name = "status")
     public IRubyObject status() {
-        return RubyFixnum.newFixnum(getRuntime(), this.status);
+        return RubyFixnum.newFixnum(getRuntime(), bcResp.getResponseStatus().getValue().longValue());
     }
     
     @JRubyMethod(name = "status_string")
@@ -112,14 +145,6 @@ public class OCSPResponse extends RubyObject {
     public IRubyObject to_der() {
         Ruby runtime = getRuntime();
         try {
-            if (bcResp == null) {
-                OCSPResponseStatus bcStatus = new OCSPResponseStatus(this.status);
-                ASN1ObjectIdentifier basicRespOid = new ASN1ObjectIdentifier(BASIC_RESPONSE_OID);
-                DEROctetString basicRespStr = new DEROctetString(basicResponse.getBCOCSPResp().getEncoded());
-                ResponseBytes bcRespBytes = new ResponseBytes(basicRespOid, basicRespStr);
-                bcResp = new org.bouncycastle.asn1.ocsp.OCSPResponse(bcStatus, bcRespBytes);
-            }
-
             return RubyString.newString(runtime, bcResp.getEncoded());
         }
         catch (IOException e) {
@@ -127,19 +152,10 @@ public class OCSPResponse extends RubyObject {
         }
     }
     
-    public void setStatus(Integer status) {
-        this.status = status;
+    public org.bouncycastle.asn1.ocsp.OCSPResponse getBCResp() {
+        return bcResp;
     }
-    
-    public void setBasicResponse(IRubyObject basicResponse) {
-        OCSPBasicResponse resp = (OCSPBasicResponse) basicResponse;
-        this.basicResponse = resp;
-    }
-    
-    public OCSPBasicResponse getBasicResponse() {
-        return this.basicResponse;
-    }
-    
+            
     private static RaiseException newOCSPError(Ruby runtime, Exception e) {
         return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), e);
     }

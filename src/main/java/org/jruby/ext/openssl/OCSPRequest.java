@@ -12,20 +12,23 @@ import java.security.SignatureException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.ocsp.CertID;
+import org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers;
 import org.bouncycastle.asn1.ocsp.Request;
 import org.bouncycastle.asn1.ocsp.Signature;
 import org.bouncycastle.asn1.ocsp.TBSRequest;
@@ -35,6 +38,7 @@ import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
 import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
@@ -76,7 +80,8 @@ public class OCSPRequest extends RubyObject {
     private final static String OCSP_NOVERIFY = "NOVERIFY";
     private final static String OCSP_TRUSTOTHER = "TRUSTOTHER";
     private final static String OCSP_NOCHAIN = "NOCHAIN";
-    private org.bouncycastle.asn1.ocsp.OCSPRequest asn1bcReq = null;
+    private org.bouncycastle.asn1.ocsp.OCSPRequest asn1bcReq;
+    private List<OCSPCertificateId> certificateIds = new ArrayList<OCSPCertificateId>();
     private byte[] nonce;
     
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
@@ -86,12 +91,7 @@ public class OCSPRequest extends RubyObject {
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) return this;
         
         RubyString derString = StringHelper.readPossibleDERInput(context, args[0]);
-        try {
-            asn1bcReq = org.bouncycastle.asn1.ocsp.OCSPRequest.getInstance(DERTaggedObject.fromByteArray(derString.getBytes()));
-        }
-        catch (IOException e) {
-            throw newOCSPError(runtime, e);
-        }
+        asn1bcReq = org.bouncycastle.asn1.ocsp.OCSPRequest.getInstance(derString.getBytes());
         
         return this;
     }
@@ -99,28 +99,7 @@ public class OCSPRequest extends RubyObject {
     @JRubyMethod(name = "add_certid")
     public IRubyObject add_certid(IRubyObject certId) {
         OCSPCertificateId rubyCertId = (OCSPCertificateId) certId;
-        List<org.bouncycastle.asn1.ocsp.Request> currentRequestList = new ArrayList<org.bouncycastle.asn1.ocsp.Request>();
-        Signature currentSig = null;
-        TBSRequest tbsReq = null;
-        GeneralName currentName = new GeneralName(4, "Placeholder");
-        Extensions currentExtensions = new Extensions(new Extension[] {});
-        
-        if (asn1bcReq != null && asn1bcReq.getTbsRequest() != null) {
-            currentSig = asn1bcReq.getOptionalSignature();
-            tbsReq = asn1bcReq.getTbsRequest();
-            currentRequestList = asn1ToRequestList(tbsReq.getRequestList());
-            currentName = tbsReq.getRequestorName();
-            currentExtensions = tbsReq.getRequestExtensions();
-        }
-        
-        CertID bcCertId = rubyCertId.getCertID();
-        org.bouncycastle.asn1.ocsp.Request bcReq = new org.bouncycastle.asn1.ocsp.Request(bcCertId, new Extensions(new Extension[] {}));
-        currentRequestList.add(bcReq);
-        
-        ASN1Sequence newReqSeq = listToAsn1(currentRequestList);
-        tbsReq = new TBSRequest(currentName, newReqSeq, currentExtensions);
-        asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(tbsReq, currentSig);
-        
+        certificateIds.add(rubyCertId);
         return this;
     }
 
@@ -128,42 +107,46 @@ public class OCSPRequest extends RubyObject {
     public IRubyObject add_nonce(IRubyObject[] args) {
         Ruby runtime = getRuntime();
         
+        byte[] tmpNonce;
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) {
-            nonce = generateNonce();
+            tmpNonce = generateNonce();
         }
         else {
             RubyString input = (RubyString)args[0];
-            nonce = generateNonce(input.getBytes());
+            tmpNonce = input.getBytes();
         }
+        
+        GeneralName requestorName = null;
+        ASN1Sequence requestList = new DERSequence();
+        Extensions extensions = null;
+        Signature sig = null;
+        List<Extension> tmpExtensions = new ArrayList<Extension>();
+        
+        if (asn1bcReq != null) {
+            TBSRequest currentTbsReq = asn1bcReq.getTbsRequest();
+            extensions = currentTbsReq.getRequestExtensions();
+            sig = asn1bcReq.getOptionalSignature();        
+            Enumeration<ASN1ObjectIdentifier> oids = extensions.oids();
+            while (oids.hasMoreElements()) {
+                tmpExtensions.add(extensions.getExtension(oids.nextElement()));
+            }
+        }
+        
+        tmpExtensions.add(new Extension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce, false, tmpNonce));
+        Extension[] exts = new Extension[tmpExtensions.size()];
+        Extensions newExtensions = new Extensions(tmpExtensions.toArray(exts));
+        TBSRequest newTbsReq = new TBSRequest(requestorName, requestList, newExtensions);
+
+        asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(newTbsReq, sig);
+        nonce = tmpNonce;
+        
         return this;
     }
     
     @JRubyMethod(name = "certid")
     public IRubyObject certid() {
         Ruby runtime = getRuntime();
-        ThreadContext context = runtime.getCurrentContext();
-        
-        if (asn1bcReq == null) {
-            return RubyArray.newEmptyArray(runtime);
-        }
-        
-        ASN1Sequence requests = asn1bcReq.getTbsRequest().getRequestList();
-        List<Request> javaReqs = asn1ToRequestList(requests);
-        RubyArray ret = RubyArray.newEmptyArray(runtime);
-        
-        try {
-            for (Request req : javaReqs) {
-                OCSPCertificateId certId = new OCSPCertificateId(runtime);
-                RubyString der = RubyString.newString(runtime, req.getReqCert().getEncoded(ASN1Encoding.DER));
-                certId.initialize(context, der);
-                ret.add(certId);
-            }
-        }
-        catch (IOException e) {
-            throw newOCSPError(runtime, e);
-        }
-        
-        return ret;
+        return RubyArray.newArray(runtime, certificateIds);
     }
     
     @JRubyMethod(name = "check_nonce")
@@ -175,7 +158,7 @@ public class OCSPRequest extends RubyObject {
         }
         else if (response instanceof OCSPResponse) {
             OCSPResponse rubyResp = (OCSPResponse) response;
-            return checkNonceImpl(runtime, this.nonce, rubyResp.getBasicResponse().getNonce());
+            return checkNonceImpl(runtime, this.nonce, ((OCSPBasicResponse)rubyResp.basic()).getNonce());
         }
         else {
             return checkNonceImpl(runtime, this.nonce, null);
@@ -183,14 +166,9 @@ public class OCSPRequest extends RubyObject {
     }
     
     @JRubyMethod(name = "sign", rest = true)
-    public IRubyObject sign(IRubyObject[] args) {
-        Ruby runtime = getRuntime();
-        ThreadContext context = runtime.getCurrentContext();
-        
-        if (asn1bcReq == null || asn1bcReq.getTbsRequest() == null) {
-            throw newOCSPError(runtime, new NullPointerException("Need at least one certid."));
-        }
-        
+    public IRubyObject sign(final ThreadContext context, IRubyObject[] args) {
+        Ruby runtime = context.getRuntime();
+                
         int flag = 0;
         IRubyObject additionalCerts = context.nil;
         IRubyObject flags = context.nil;
@@ -199,19 +177,23 @@ public class OCSPRequest extends RubyObject {
         IRubyObject nocerts = (RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCERTS);
         
         switch (Arity.checkArgumentCount(runtime, args, 2, 5)) {
-            case 1 :
-                additionalCerts = args[0];
-            case 2 :
-                additionalCerts = args[0];
-                flags = args[1];
-            default:
-                additionalCerts = args[0];
-                flags = args[1];
-                digest = args[2];
+            case 3 :
+                additionalCerts = args[2];
+                break;
+            case 4 :
+                additionalCerts = args[2];
+                flags = args[3];
+                break;
+            case 5 :
+                additionalCerts = args[2];
+                flags = args[3];
+                digest = args[4];
+                break;
+            default :
+                break;
+                    
         }
-        
-        java.security.Signature sig = null;
-        
+                
         if (digest.isNil()) digest = digestInstance.initialize(context, new IRubyObject[] { RubyString.newString(runtime, "SHA1") });
         if (additionalCerts.isNil()) flag |= RubyFixnum.fix2int(nocerts);
         if (!flags.isNil()) flag = RubyFixnum.fix2int(flags);
@@ -222,11 +204,8 @@ public class OCSPRequest extends RubyObject {
         TBSRequest newTbsReq = new TBSRequest(new GeneralName(signer.getSubject().getX500Name()), tbsReq.getRequestList(), tbsReq.getRequestExtensions());
         DERBitString sigBytes = null;
         try {
-            sig = java.security.Signature.getInstance(((Digest)digest).getRealName());
-            sig.initSign(signerKey.getPrivateKey());
-            sig.update(newTbsReq.getEncoded(ASN1Encoding.DER));
-            sigBytes = new DERBitString(sig.sign());
-            
+            RubyString signed = (RubyString)signerKey.sign(digest, RubyString.newString(runtime, newTbsReq.getEncoded()));
+            sigBytes = new DERBitString(signed.getBytes());            
         }
         catch (Exception e) {
             throw newOCSPError(runtime, e);
@@ -241,47 +220,53 @@ public class OCSPRequest extends RubyObject {
             
                 if (!additionalCerts.isNil()) {
                     @SuppressWarnings("unchecked")
-                    Iterator<X509Cert> it = ((RubyArray) additionalCerts).iterator();
+                    Iterator<java.security.cert.Certificate> it = ((RubyArray) additionalCerts).listIterator();
                     while (it.hasNext()) {
-                        X509Cert addlCert = it.next();
-                        vector.add(ASN1Primitive.fromByteArray(((RubyString)addlCert.to_der()).getBytes()));
+                        java.security.cert.Certificate addlCert = it.next();
+                        X509Cert rubyCert = X509Cert.wrap(context, addlCert);
+                        vector.add(ASN1Primitive.fromByteArray(((RubyString)rubyCert.to_der()).getBytes()));
                     }
                 }
             }
-            catch (IOException e) {
+            catch (Exception e) {
                 throw newOCSPError(runtime, e);
             }
             sigCerts = new DERSequence(vector);
         }
         
         Signature asn1Sig = null;
+        String digAlg = signerKey.getAlgorithm() + "-" + ((Digest) digest).getName();
+        ASN1ObjectIdentifier oid = ASN1.sym2Oid(runtime, digAlg.toLowerCase());
+        if (oid == null) throw newOCSPError(runtime, new NullPointerException("Signature Algorithm OID is null"));
         if (sigCerts == null) {
-            asn1Sig = new Signature(new AlgorithmIdentifier(ASN1.sym2Oid(runtime, ((Digest)digest).getName())), sigBytes);
+            asn1Sig = new Signature(new AlgorithmIdentifier(oid), sigBytes);
         }
         else {
-            asn1Sig = new Signature(new AlgorithmIdentifier(ASN1.sym2Oid(runtime, ((Digest)digest).getName())), sigBytes, sigCerts);
+            asn1Sig = new Signature(new AlgorithmIdentifier(oid), sigBytes, sigCerts);
         }
         
-        asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(tbsReq, asn1Sig);
+        this.asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(newTbsReq, asn1Sig);
                 
         return this;
     }
-    
-    @JRubyMethod(name = "to_der")
-    public IRubyObject to_der() {
-        Ruby runtime = getRuntime();
-        try {
-            return RubyString.newString(runtime, asn1bcReq.getEncoded(ASN1Encoding.DER));
-        }
-        catch (IOException e) {
-            throw newOCSPError(runtime, e);
-        }
-    }
-    
-    @JRubyMethod(name = "verify")
-    public IRubyObject verify(IRubyObject certificates, IRubyObject store, IRubyObject flags) {
+        
+    @JRubyMethod(name = "verify", rest = true)
+    public IRubyObject verify(IRubyObject[] args) {
         Ruby runtime = getRuntime();
         ThreadContext context = runtime.getCurrentContext();
+        IRubyObject flags;
+        Digest digestInstance = new Digest(runtime, _Digest(runtime));
+        
+        if (Arity.checkArgumentCount(runtime, args, 2, 3) == 2) {
+            flags = RubyFixnum.zero(runtime);
+        }
+        else {
+            flags = (RubyFixnum)args[2];
+        }
+        
+        IRubyObject certificates = args[0];
+        IRubyObject store = args[1];
+
         
         if (asn1bcReq == null) {
             throw newOCSPError(runtime, new NullPointerException("No certificate IDs added"));
@@ -290,11 +275,7 @@ public class OCSPRequest extends RubyObject {
         if (asn1bcReq.getOptionalSignature() == null) {
             throw newOCSPError(runtime, Utils.newRuntimeError(runtime, "Request not signed"));
         }
-        
-        if (flags == null || flags.isNil()) {
-            flags = RubyFixnum.zero(runtime);
-        }
-      
+              
         GeneralName genName = asn1bcReq.getTbsRequest().getRequestorName();
         if (genName.getTagNo() != 4) {
             throw newOCSPError(runtime, Utils.newRuntimeError(runtime, "Unsupported Requestor Name Type"));
@@ -313,8 +294,12 @@ public class OCSPRequest extends RubyObject {
                flags = RubyFixnum.newFixnum(runtime, (RubyFixnum.fix2int(flags) | RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOVERIFY))));
            if ((RubyFixnum.fix2int(flags) & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOSIGS))) == 0) {
                PKey signerPubKey = (PKey)signer.public_key(context);
-               boolean verified = verifyImpl(runtime, asn1bcReq, signerPubKey);
-               if (!verified) {
+               List<String> splitAlg = Arrays.asList(ASN1.oid2Sym(runtime, asn1bcReq.getOptionalSignature().getSignatureAlgorithm().getAlgorithm()).split("-"));
+               Digest digest = (Digest)digestInstance.initialize(context, new IRubyObject[] { RubyString.newString(runtime, splitAlg.get(splitAlg.size() - 1)) });
+               RubyBoolean verified = (RubyBoolean)signerPubKey.verify(digest,
+                       RubyString.newString(runtime, asn1bcReq.getOptionalSignature().getSignature().getEncoded()),
+                       RubyString.newString(runtime, asn1bcReq.getTbsRequest().getEncoded()));
+               if (verified.isFalse()) {
                    return (RubyBoolean.newBoolean(runtime, false));
                }
            }
@@ -345,17 +330,28 @@ public class OCSPRequest extends RubyObject {
         
         return RubyBoolean.newBoolean(getRuntime(), true);
     }
-    
-    private boolean verifyImpl(Ruby runtime, org.bouncycastle.asn1.ocsp.OCSPRequest req, PKey signerPubKey) throws 
-    NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException {
-        Signature bcSig = req.getOptionalSignature();
-        java.security.Signature sig = java.security.Signature.getInstance(ASN1.oid2Sym(runtime, bcSig.getSignatureAlgorithm().getAlgorithm()));
-        sig.initVerify(signerPubKey.getPublicKey());
-        sig.update(req.getTbsRequest().getEncoded(ASN1Encoding.DER));
-        
-        return sig.verify(bcSig.getSignature().getEncoded(ASN1Encoding.DER));
-    }
 
+    @JRubyMethod(name = "to_der")
+    public IRubyObject to_der() {
+        Ruby runtime = getRuntime();
+        try {
+            return RubyString.newString(runtime, this.asn1bcReq.getEncoded(ASN1Encoding.DER));
+        }
+        catch (IOException e) {
+            throw newOCSPError(runtime, e);
+        }
+    }
+    
+    @Override
+    @JRubyMethod(visibility = Visibility.PRIVATE)
+    public IRubyObject initialize_copy(IRubyObject obj) {
+        if ( this == obj ) return this;
+
+        checkFrozen();
+        this.asn1bcReq = ((OCSPRequest)obj).getBCRequest();
+        return this;
+    }
+    
     private Map<Integer, IRubyObject> findCertByName(ASN1Encodable genX500Name, IRubyObject certificates, IRubyObject flags) throws CertificateException, IOException {
         Ruby runtime = getRuntime();
         Map<Integer, IRubyObject> ret = new HashMap<Integer, IRubyObject>();
@@ -437,10 +433,12 @@ public class OCSPRequest extends RubyObject {
             vector.add(req);
         }
         
-        return DERSequence.getInstance(vector);
+        return new DERSequence(vector);
     }
 
-
+    public org.bouncycastle.asn1.ocsp.OCSPRequest getBCRequest() {
+        return asn1bcReq;
+    }
     private static RaiseException newOCSPError(Ruby runtime, Exception e) {
         return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), e);
     }

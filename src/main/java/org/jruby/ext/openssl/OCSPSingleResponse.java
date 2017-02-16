@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1GeneralizedTime;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.ocsp.CertID;
@@ -103,7 +104,7 @@ public class OCSPSingleResponse extends RubyObject {
             nsec = 0;
             maxsec = -1;
         }
-        else if ( Arity.checkArgumentCount(runtime, args, 0, 2) == 0 ) {
+        else if ( Arity.checkArgumentCount(runtime, args, 0, 2) == 1 ) {
             RubyFixnum rNsec = (RubyFixnum) args[0];
             nsec = (int)rNsec.getLongValue();
             maxsec = -1;
@@ -116,8 +117,20 @@ public class OCSPSingleResponse extends RubyObject {
         }
 
         try {
-            thisUpdate = bcSingleResponse.getThisUpdate().getDate();
-            nextUpdate = bcSingleResponse.getNextUpdate().getDate();
+            ASN1GeneralizedTime bcThisUpdate = bcSingleResponse.getThisUpdate();
+            if (bcThisUpdate == null) {
+                thisUpdate = null;
+            }
+            else {
+                thisUpdate = bcThisUpdate.getDate();
+            }
+            ASN1GeneralizedTime bcNextUpdate = bcSingleResponse.getNextUpdate();
+            if (bcNextUpdate == null) {
+                nextUpdate = null;
+            }
+            else {
+                nextUpdate = bcNextUpdate.getDate();
+            }
         }
         catch (ParseException e) {
             throw newOCSPError(runtime, e);
@@ -129,8 +142,9 @@ public class OCSPSingleResponse extends RubyObject {
     @JRubyMethod(name = "extensions")
     public IRubyObject extensions() {
         Ruby runtime = getRuntime();
-        List<X509Extension> retExts = new ArrayList<X509Extension>();
         Extensions exts = bcSingleResponse.getSingleExtensions();
+        if (exts == null) return RubyArray.newEmptyArray(runtime);
+        List<X509Extension> retExts = new ArrayList<X509Extension>();
         List<ASN1ObjectIdentifier> extOids = Arrays.asList(exts.getExtensionOIDs());
         for (ASN1ObjectIdentifier extOid : extOids) {
             Extension ext = exts.getExtension(extOid);
@@ -145,6 +159,7 @@ public class OCSPSingleResponse extends RubyObject {
     @JRubyMethod(name = "next_update")
     public IRubyObject next_update() {
         Ruby runtime = getRuntime();
+        if (bcSingleResponse.getNextUpdate() == null) return runtime.getCurrentContext().nil;
         Date nextUpdate;
         try {
             nextUpdate = bcSingleResponse.getNextUpdate().getDate();
@@ -163,6 +178,7 @@ public class OCSPSingleResponse extends RubyObject {
     @JRubyMethod(name = "this_update")
     public IRubyObject this_update() {
         Ruby runtime = getRuntime();
+        if (bcSingleResponse.getThisUpdate() == null) return runtime.getCurrentContext().nil;
         Date thisUpdate;
         try {
             thisUpdate = bcSingleResponse.getThisUpdate().getDate();
@@ -219,6 +235,10 @@ public class OCSPSingleResponse extends RubyObject {
         catch (IOException e) {
             throw newOCSPError(runtime, e);
         }
+    }
+    
+    public SingleResponse getBCSingleResp() {
+        return bcSingleResponse;
     }
     
     // see OCSP_check_validity in ocsp_cl.c
