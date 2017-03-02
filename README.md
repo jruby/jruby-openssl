@@ -62,7 +62,7 @@ NOTE: you can pick any jruby version which is on [central][4] or on [ci.jruby][5
 
 ## License
 
-(c) 2009-2016 JRuby distributed under EPL 1.0/GPL 2.0/LGPL 2.1
+(c) 2009-2017 JRuby distributed under EPL 1.0/GPL 2.0/LGPL 2.1
 
 [0]: https://secure.travis-ci.org/jruby/jruby-openssl.png
 [1]: http://xircles.codehaus.org/projects/jruby/lists
