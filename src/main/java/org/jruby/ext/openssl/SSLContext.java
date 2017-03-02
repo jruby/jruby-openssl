@@ -175,6 +175,7 @@ public class SSLContext extends RubyObject {
         SSLContext.addReadWriteAttribute(context, "session_id_context");
         SSLContext.addReadWriteAttribute(context, "tmp_dh_callback");
         SSLContext.addReadWriteAttribute(context, "servername_cb");
+        SSLContext.addReadWriteAttribute(context, "renegotiation_cb");
 
         SSLContext.defineAlias("ssl_timeout", "timeout");
         SSLContext.defineAlias("ssl_timeout=", "timeout=");
