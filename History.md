@@ -1,3 +1,7 @@
+## 0.9.21.dev
+
+* add support for renegotiation_cb on SSLContext (#121)
+
 ## 0.9.20
 
 * upgrade Bouncy-Castle to 1.56 http://bouncycastle.org/releasenotes.html
