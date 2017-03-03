@@ -1,10 +1,29 @@
+## 0.9.20
+
+* upgrade Bouncy-Castle to 1.56 http://bouncycastle.org/releasenotes.html
+  (additional security and robustness with 10 CVEs submitted as a result)
+* add a dummy SSLContext#security_level= implementation
+* no dup-ing for SSLContext/SSLSocket and X509 Store/StoreContext
+* implement PKey initialize_copy (dup-ing)
+* digest can be passed in as a String on PKey#sign/verify
+* DSA+SHA1 is actually a supported algorithm
+* reset signed-request -> sub-sequent req.verify will work correctly
+* allow for digest name to be passed into Cert#sign
+* be less fatal on Java 9
+  won't attempt reflective SPIs when accessibility checks fail!
+* remove obsolete (deprecated) renamed classes
+* verify correct WaitReadable is raised on connect_nonblock (jruby/jruby#1716)
+* non-connected ssl socket raises EPIPE on connect_nonblock (MRI compat)
+* fine to close a SSLSocket which is not-yet-connected (like in MRI)
+* fix NPE when reading private keys (with passwd) (jruby/jruby#1784)
+
 ## 0.9.19
 
 * re-use secure random from thread-context on SSL context initialization
 * preliminary OpenSSL 1.1 (Ruby 2.4) compatibility bits (#112)
 * try using thread-shared secure random gen (in PKey-s) where possible
 * implement PKeyDSA#syssign and PKeyDSA#sysverify methods
-* avoid (unnecessary) byte[] copies in PKey#sign/verify 
+* avoid (unnecessary) byte[] copies in PKey#sign/verify
 * fix ClassCastException error in X509Store.verify (#113)
 * align BH#hash with eql? (+ equals/hashCode on Java)
 
