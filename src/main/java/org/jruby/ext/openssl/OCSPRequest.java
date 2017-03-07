@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,7 +39,13 @@ import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
 import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.ocsp.CertificateID;
+import org.bouncycastle.cert.ocsp.OCSPException;
 import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
@@ -98,8 +105,25 @@ public class OCSPRequest extends RubyObject {
     
     @JRubyMethod(name = "add_certid")
     public IRubyObject add_certid(IRubyObject certId) {
+        Ruby runtime = getRuntime();
         OCSPCertificateId rubyCertId = (OCSPCertificateId) certId;
         certificateIds.add(rubyCertId);
+        
+        OCSPReqBuilder builder = new OCSPReqBuilder();
+        for (OCSPCertificateId certificateId : certificateIds) {
+            builder.addRequest(new CertificateID(certificateId.getCertID()));
+        }
+        
+        try {
+            asn1bcReq = org.bouncycastle.asn1.ocsp.OCSPRequest.getInstance(builder.build().getEncoded());
+        }
+        catch (Exception e) {
+            throw newOCSPError(runtime, e);
+        }
+        
+        if (nonce != null) {
+            addNonceImpl();
+        }
         return this;
     }
 
@@ -109,13 +133,18 @@ public class OCSPRequest extends RubyObject {
         
         byte[] tmpNonce;
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) {
-            tmpNonce = generateNonce();
+            nonce = generateNonce();
         }
         else {
             RubyString input = (RubyString)args[0];
-            tmpNonce = input.getBytes();
+            nonce = input.getBytes();
         }
         
+        addNonceImpl();
+        return this;
+    }
+    
+    private void addNonceImpl() {
         GeneralName requestorName = null;
         ASN1Sequence requestList = new DERSequence();
         Extensions extensions = null;
@@ -132,15 +161,12 @@ public class OCSPRequest extends RubyObject {
             }
         }
         
-        tmpExtensions.add(new Extension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce, false, tmpNonce));
+        tmpExtensions.add(new Extension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce, false, nonce));
         Extension[] exts = new Extension[tmpExtensions.size()];
         Extensions newExtensions = new Extensions(tmpExtensions.toArray(exts));
         TBSRequest newTbsReq = new TBSRequest(requestorName, requestList, newExtensions);
 
         asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(newTbsReq, sig);
-        nonce = tmpNonce;
-        
-        return this;
     }
     
     @JRubyMethod(name = "certid")
@@ -200,52 +226,55 @@ public class OCSPRequest extends RubyObject {
                 
         X509Cert signer = (X509Cert) args[0];
         PKey signerKey = (PKey) args[1];
-        TBSRequest tbsReq = asn1bcReq.getTbsRequest();
-        TBSRequest newTbsReq = new TBSRequest(new GeneralName(signer.getSubject().getX500Name()), tbsReq.getRequestList(), tbsReq.getRequestExtensions());
-        DERBitString sigBytes = null;
+        
+        String keyAlg = signerKey.getAlgorithm();
+        String digAlg = ((Digest) digest).getShortAlgorithm();
+        
+        JcaContentSignerBuilder signerBuilder = new JcaContentSignerBuilder(digAlg + "with" + keyAlg);
+        signerBuilder.setProvider("BC");
+        ContentSigner contentSigner = null;
         try {
-            RubyString signed = (RubyString)signerKey.sign(digest, RubyString.newString(runtime, newTbsReq.getEncoded()));
-            sigBytes = new DERBitString(signed.getBytes());            
+            contentSigner = signerBuilder.build(signerKey.getPrivateKey());
         }
-        catch (Exception e) {
+        catch (OperatorCreationException e) {
             throw newOCSPError(runtime, e);
         }
+
+        OCSPReqBuilder builder = new OCSPReqBuilder();
+        builder.setRequestorName(signer.getSubject().getX500Name());
+        for (OCSPCertificateId certId : certificateIds) {
+            builder.addRequest(new CertificateID(certId.getCertID()));
+        }
         
-        ASN1Sequence sigCerts = null;
-        ASN1EncodableVector vector = new ASN1EncodableVector();
-        
-        if (!(flag == RubyFixnum.fix2int(nocerts))) {
+        List<X509CertificateHolder> certChain = new ArrayList<X509CertificateHolder>();
+        if (flag != RubyFixnum.fix2int(nocerts)) {
             try {
-                vector.add(ASN1Primitive.fromByteArray(((RubyString)signer.to_der()).getBytes()));
-            
+                certChain.add(new X509CertificateHolder(signer.getAuxCert().getEncoded()));
                 if (!additionalCerts.isNil()) {
-                    @SuppressWarnings("unchecked")
-                    Iterator<java.security.cert.Certificate> it = ((RubyArray) additionalCerts).listIterator();
-                    while (it.hasNext()) {
-                        java.security.cert.Certificate addlCert = it.next();
-                        X509Cert rubyCert = X509Cert.wrap(context, addlCert);
-                        vector.add(ASN1Primitive.fromByteArray(((RubyString)rubyCert.to_der()).getBytes()));
+                    Iterator<java.security.cert.Certificate> certIt = ((RubyArray)additionalCerts).iterator();
+                    while (certIt.hasNext()) {
+                        certChain.add(new X509CertificateHolder(certIt.next().getEncoded()));
                     }
                 }
             }
             catch (Exception e) {
                 throw newOCSPError(runtime, e);
             }
-            sigCerts = new DERSequence(vector);
         }
         
-        Signature asn1Sig = null;
-        String digAlg = signerKey.getAlgorithm() + "-" + ((Digest) digest).getName();
-        ASN1ObjectIdentifier oid = ASN1.sym2Oid(runtime, digAlg.toLowerCase());
-        if (oid == null) throw newOCSPError(runtime, new NullPointerException("Signature Algorithm OID is null"));
-        if (sigCerts == null) {
-            asn1Sig = new Signature(new AlgorithmIdentifier(oid), sigBytes);
-        }
-        else {
-            asn1Sig = new Signature(new AlgorithmIdentifier(oid), sigBytes, sigCerts);
-        }
+        X509CertificateHolder[] chain = new X509CertificateHolder[certChain.size()];
+        certChain.toArray(chain);
         
-        this.asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(newTbsReq, asn1Sig);
+        try {
+            asn1bcReq = org.bouncycastle.asn1.ocsp.OCSPRequest.getInstance(builder.build(contentSigner, chain).getEncoded());
+        }
+        catch (Exception e) {
+            throw newOCSPError(runtime, e);
+        }
+
+        if (nonce != null) {
+            addNonceImpl();
+        }
                 
         return this;
     }

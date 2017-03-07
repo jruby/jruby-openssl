@@ -39,9 +39,9 @@ import org.bouncycastle.asn1.ocsp.BasicOCSPResponse;
 import org.bouncycastle.asn1.ocsp.CertID;
 import org.bouncycastle.asn1.ocsp.CertStatus;
 import org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers;
+import org.bouncycastle.asn1.ocsp.ResponderID;
 import org.bouncycastle.asn1.ocsp.RevokedInfo;
 import org.bouncycastle.asn1.ocsp.SingleResponse;
-import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.CRLReason;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
@@ -111,6 +111,7 @@ public class OCSPBasicResponse extends RubyObject {
     private static final String OCSP_NOTIME = "NOTIME";
     private static final String OCSP_NOSIGS = "NOSIGS";
     private static final String OCSP_NOVERIFY = "NOVERIFY";
+    private static final String OCSP_NOINTERN = "NOINTERN";
     private static final String OCSP_RESPID_KEY = "RESPID_KEY";
     private static final String OCSP_TRUSTOTHER = "TRUSTOTHER";
     
@@ -267,7 +268,6 @@ public class OCSPBasicResponse extends RubyObject {
         IRubyObject flags = context.nil;
         IRubyObject digest = context.nil;
         Digest digestInstance = new Digest(runtime, _Digest(runtime));
-        IRubyObject nocerts = (RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCERTS);
         List<X509CertificateHolder> addlCerts = new ArrayList<X509CertificateHolder>();
         
         switch (Arity.checkArgumentCount(runtime, args, 2, 5)) {
@@ -288,14 +288,14 @@ public class OCSPBasicResponse extends RubyObject {
         }
                         
         if (digest.isNil()) digest = digestInstance.initialize(context, new IRubyObject[] { RubyString.newString(runtime, "SHA1") });
-        if (additionalCerts.isNil()) flag |= RubyFixnum.fix2int(nocerts);
         if (!flags.isNil()) flag = RubyFixnum.fix2int(flags);
+        if (additionalCerts.isNil()) flag |= RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCERTS));
                         
         X509Cert signer = (X509Cert) args[0];
         PKey signerKey = (PKey) args[1];
         
-        final String keyAlg = signerKey.getAlgorithm();
-        final String digAlg = ((Digest) digest).getShortAlgorithm();
+        String keyAlg = signerKey.getAlgorithm();
+        String digAlg = ((Digest) digest).getShortAlgorithm();
 
         JcaContentSignerBuilder signerBuilder = new JcaContentSignerBuilder(digAlg + "with" + keyAlg);
         signerBuilder.setProvider("BC");
@@ -326,7 +326,7 @@ public class OCSPBasicResponse extends RubyObject {
         
         X509CertificateHolder[] chain = null;
         try {
-            if ((flag & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_RESPID_KEY))) == 0) {
+            if ((flag & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCERTS))) == 0) {
                 addlCerts.add(new X509CertificateHolder(signer.getAuxCert().getEncoded()));
                 if (!additionalCerts.isNil()) {
                     Iterator<java.security.cert.Certificate> rubyAddlCerts = ((RubyArray)additionalCerts).iterator();
@@ -387,8 +387,8 @@ public class OCSPBasicResponse extends RubyObject {
         
         java.security.cert.Certificate signer = findSignerCert(asn1BCBasicOCSPResp, convertRubyCerts(certificates), flags);
         if ( signer == null ) return RubyBoolean.newBoolean(runtime, false);
-        if ( signer instanceof X509AuxCertificate && 
-                (flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_TRUSTOTHER))) > 0 ) {
+        if ( (flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOINTERN))) == 0 && 
+                (flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_TRUSTOTHER))) != 0 ) {
             flags |= RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOVERIFY));
         }
         if ( (flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOSIGS))) == 0 ) {
@@ -404,7 +404,7 @@ public class OCSPBasicResponse extends RubyObject {
         }
         if ((flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOVERIFY))) == 0) {
             List<X509Cert> untrustedCerts = null;
-            if ((flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCHAIN))) == 0) {                
+            if ((flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCHAIN))) != 0) {                
             }
             else if (basicOCSPResp.getCerts() != null && (certificates != null && !((RubyArray)certificates).isEmpty())) {
                 untrustedCerts = getCertsFromResp();
@@ -457,7 +457,15 @@ public class OCSPBasicResponse extends RubyObject {
             }
             else {
                 X509Cert rootCA = (X509Cert)((RubyArray)chain).last();
-                ret = rootCA.getAuxCert().isValid();
+                PublicKey rootKey = rootCA.getAuxCert().getPublicKey();
+                try {
+                    // check if self-signed and valid (trusts itself)
+                    rootCA.getAuxCert().verify(rootKey);
+                    ret = true;
+                }
+                catch (Exception e) {
+                    ret = false;
+                }
             }
         }
         
@@ -630,32 +638,54 @@ public class OCSPBasicResponse extends RubyObject {
     private java.security.cert.Certificate findSignerCert(BasicOCSPResponse basicResp, List<java.security.cert.Certificate> certificates, int flags) {
         Ruby runtime = getRuntime();
         ThreadContext context = runtime.getCurrentContext();
-        X500Name respName = basicResp.getTbsResponseData().getResponderID().getName();
-        for (java.security.cert.Certificate cert : certificates) {
-            try {
-                X509Cert rubyCert = X509Cert.wrap(context, cert);
-                if (rubyCert.getSubject().getX500Name().equals(respName)) return cert;
+        ResponderID respID = basicResp.getTbsResponseData().getResponderID();
+        java.security.cert.Certificate ret = null;
+        ret = findSignerByRespId(context, certificates, respID);
+        
+        if (ret == null && (flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOINTERN))) == 0) {
+            List<X509AuxCertificate> javaCerts = new ArrayList<X509AuxCertificate>();
+            for (X509CertificateHolder cert : getBasicOCSPResp().getCerts()) {
+                try {
+                    javaCerts.add(X509Cert.wrap(context, cert.getEncoded()).getAuxCert());
+                }
+                catch (IOException e) {
+                    throw newOCSPError(runtime, e);
+                }
             }
-            catch (CertificateEncodingException e) {
-                throw newOCSPError(runtime, e);
-            }
-        }
-        if ((flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_RESPID_KEY))) == 0) {
-            List<X509CertificateHolder> certs = Arrays.asList(getBasicOCSPResp().getCerts());
-            for (X509CertificateHolder cert : certs) {
-                if (cert.getSubject().equals(respName))
-                    try {
-                        return X509Cert.wrap(context, cert.getEncoded()).getAuxCert();
-                    }
-                    catch (IOException e) {
-                        throw newOCSPError(runtime, e);
-                    }
-            }
+            ret = findSignerByRespId(context, javaCerts, respID);
         }
         
-        return null;
+        return ret;
     }
     
+    private java.security.cert.Certificate findSignerByRespId(final ThreadContext context, List<? extends java.security.cert.Certificate> certificates, ResponderID respID) {
+        if (respID.getName() != null) {
+            for (java.security.cert.Certificate cert : certificates) {
+                try {
+                    X509Cert rubyCert = X509Cert.wrap(context, cert);
+                    if (rubyCert.getSubject().getX500Name().equals(respID.getName())) return cert;
+                }
+                catch (CertificateEncodingException e) {
+                    throw newOCSPError(context.runtime, e);
+                }
+            }
+        }
+        else {
+            // Ignore anything that's not SHA1 (weirdly) SHA_DIGEST_LENGTH == 20
+            if (respID.getKeyHash().length != 20) return null;
+            for (java.security.cert.Certificate cert : certificates) {
+                byte[] pubKeyDigest = Digest.digest(
+                        context,
+                        this,
+                        RubyString.newString(context.runtime, "SHA1"),
+                        RubyString.newString(context.runtime, cert.getPublicKey().getEncoded())
+                        ).getBytes();
+                if (respID.getKeyHash().equals(pubKeyDigest)) return cert;
+            }
+        }
+        return null;
+    }
+
     private List<X509Cert> getCertsFromResp() {
         Ruby runtime = getRuntime();
         ThreadContext context = runtime.getCurrentContext();
