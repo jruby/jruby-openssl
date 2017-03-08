@@ -8,6 +8,7 @@ import static org.jruby.ext.openssl.X509._X509;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
@@ -40,12 +41,17 @@ import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.ocsp.BasicOCSPResp;
 import org.bouncycastle.cert.ocsp.CertificateID;
 import org.bouncycastle.cert.ocsp.OCSPException;
+import org.bouncycastle.cert.ocsp.OCSPReq;
 import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
+import org.bouncycastle.jce.provider.X509CertificateObject;
 import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
@@ -131,7 +137,6 @@ public class OCSPRequest extends RubyObject {
     public IRubyObject add_nonce(IRubyObject[] args) {
         Ruby runtime = getRuntime();
         
-        byte[] tmpNonce;
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) {
             nonce = generateNonce();
         }
@@ -144,6 +149,7 @@ public class OCSPRequest extends RubyObject {
         return this;
     }
     
+    // BC doesn't have support for nonces... gotta do things manually
     private void addNonceImpl() {
         GeneralName requestorName = null;
         ASN1Sequence requestList = new DERSequence();
@@ -283,81 +289,80 @@ public class OCSPRequest extends RubyObject {
     public IRubyObject verify(IRubyObject[] args) {
         Ruby runtime = getRuntime();
         ThreadContext context = runtime.getCurrentContext();
-        IRubyObject flags;
-        Digest digestInstance = new Digest(runtime, _Digest(runtime));
+        int flags = 0;
+        boolean ret = false;
         
-        if (Arity.checkArgumentCount(runtime, args, 2, 3) == 2) {
-            flags = RubyFixnum.zero(runtime);
-        }
-        else {
-            flags = (RubyFixnum)args[2];
+        if (Arity.checkArgumentCount(runtime, args, 2, 3) == 3) {
+            flags = RubyFixnum.fix2int((RubyFixnum)args[2]);
         }
         
         IRubyObject certificates = args[0];
         IRubyObject store = args[1];
-
         
-        if (asn1bcReq == null) {
-            throw newOCSPError(runtime, new NullPointerException("No certificate IDs added"));
+        OCSPReq bcOCSPReq = getBCOCSPReq();  
+        if (bcOCSPReq == null) {
+            throw newOCSPError(runtime, new NullPointerException("Missing BC asn1bcReq. Missing certIDs or signature?"));
         }
         
-        if (asn1bcReq.getOptionalSignature() == null) {
-            throw newOCSPError(runtime, Utils.newRuntimeError(runtime, "Request not signed"));
+        if (!bcOCSPReq.isSigned()) {
+            return RubyBoolean.newBoolean(runtime, ret);
         }
               
-        GeneralName genName = asn1bcReq.getTbsRequest().getRequestorName();
+        GeneralName genName = bcOCSPReq.getRequestorName();
         if (genName.getTagNo() != 4) {
-            throw newOCSPError(runtime, Utils.newRuntimeError(runtime, "Unsupported Requestor Name Type"));
+            return RubyBoolean.newBoolean(runtime, ret);
         }
         
         X500Name genX500Name = X500Name.getInstance(genName.getName());
-        X509Cert signer = null;
         X509StoreContext storeContext = null;
+        JcaContentVerifierProviderBuilder jcacvpb = new JcaContentVerifierProviderBuilder();
+        jcacvpb.setProvider("BC");
         
         try {
-           Map.Entry<Integer, IRubyObject> resAndCert = findCertByName(genX500Name, certificates, flags).entrySet().iterator().next();
+           java.security.cert.Certificate signer = findCertByName(genX500Name, certificates, flags);
            
-           if (resAndCert.getKey() == 0) throw newOCSPError(runtime, Utils.newRuntimeError(runtime, "Signer certificate not found."));
-           signer = (X509Cert)resAndCert.getValue();
-           if (resAndCert.getKey() == 2 && ((RubyFixnum.fix2int(flags) & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_TRUSTOTHER))) == 1))
-               flags = RubyFixnum.newFixnum(runtime, (RubyFixnum.fix2int(flags) | RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOVERIFY))));
-           if ((RubyFixnum.fix2int(flags) & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOSIGS))) == 0) {
-               PKey signerPubKey = (PKey)signer.public_key(context);
-               List<String> splitAlg = Arrays.asList(ASN1.oid2Sym(runtime, asn1bcReq.getOptionalSignature().getSignatureAlgorithm().getAlgorithm()).split("-"));
-               Digest digest = (Digest)digestInstance.initialize(context, new IRubyObject[] { RubyString.newString(runtime, splitAlg.get(splitAlg.size() - 1)) });
-               RubyBoolean verified = (RubyBoolean)signerPubKey.verify(digest,
-                       RubyString.newString(runtime, asn1bcReq.getOptionalSignature().getSignature().getEncoded()),
-                       RubyString.newString(runtime, asn1bcReq.getTbsRequest().getEncoded()));
-               if (verified.isFalse()) {
-                   return (RubyBoolean.newBoolean(runtime, false));
+           if (signer == null) return RubyBoolean.newBoolean(runtime, ret);
+           if ((flags & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOINTERN))) > 0 &&
+                   ((flags & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_TRUSTOTHER))) > 0))
+               flags |= RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOVERIFY));
+           if ((flags & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOSIGS))) == 0) {
+               PublicKey signerPubKey = signer.getPublicKey();
+               ContentVerifierProvider cvp = jcacvpb.build(signerPubKey);
+               ret = bcOCSPReq.isSignatureValid(cvp);
+               if (!ret) {
+                   return RubyBoolean.newBoolean(runtime, ret);
                }
            }
-           if ((RubyFixnum.fix2int(flags) & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOVERIFY))) == 0) {
-               if ((RubyFixnum.fix2int(flags) & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOCHAIN))) == 1) {
-                   storeContext = X509StoreContext.newStoreContext(context, (X509Store)store, signer, context.nil); 
+           if ((flags & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOVERIFY))) == 0) {
+               if ((flags & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOCHAIN))) > 0) {
+                   storeContext = X509StoreContext.newStoreContext(context, (X509Store)store, X509Cert.wrap(runtime, signer), context.nil); 
                }
                else {
-                   Iterator<ASN1Encodable> it = asn1bcReq.getOptionalSignature().getCerts().iterator();
                    RubyArray certs = RubyArray.newEmptyArray(runtime);
-                   while (it.hasNext()) {
-                       Certificate cert = Certificate.getInstance(it.next());
-                       certs.add(X509Cert.wrap(runtime, new X509AuxCertificate(cert)));
-                   }
 
-                   storeContext = X509StoreContext.newStoreContext(context, (X509Store)store, signer, certs); 
+                   ASN1Sequence bcCerts = asn1bcReq.getOptionalSignature().getCerts();
+                   if (bcCerts != null) {
+                       Iterator<ASN1Encodable> it = bcCerts.iterator();
+                       while (it.hasNext()) {
+                           Certificate cert = Certificate.getInstance(it.next());
+                           certs.add(X509Cert.wrap(runtime, new X509AuxCertificate(cert)));
+                       }
+                   }
+                   storeContext = X509StoreContext.newStoreContext(context, (X509Store)store, X509Cert.wrap(runtime, signer), certs); 
                }
                
                storeContext.set_purpose(context, _X509(runtime).getConstant("PURPOSE_OCSP_HELPER"));
                storeContext.set_trust(context, _X509(runtime).getConstant("TRUST_OCSP_REQUEST"));
-               RubyBoolean verified = (RubyBoolean)storeContext.verify(context);
-               if (verified.isFalse()) return RubyBoolean.newBoolean(runtime, false);
+               ret = storeContext.verify(context).isTrue();
+               if (!ret) return RubyBoolean.newBoolean(runtime, false);
            }
         }
         catch ( Exception e ) {
+            e.printStackTrace();
             throw newOCSPError(runtime, e);
         }
         
-        return RubyBoolean.newBoolean(getRuntime(), true);
+        return RubyBoolean.newBoolean(getRuntime(), ret);
     }
 
     @JRubyMethod(name = "to_der")
@@ -381,33 +386,26 @@ public class OCSPRequest extends RubyObject {
         return this;
     }
     
-    private Map<Integer, IRubyObject> findCertByName(ASN1Encodable genX500Name, IRubyObject certificates, IRubyObject flags) throws CertificateException, IOException {
+    private java.security.cert.Certificate findCertByName(ASN1Encodable genX500Name, IRubyObject certificates, int flags) throws CertificateException, IOException {
         Ruby runtime = getRuntime();
-        Map<Integer, IRubyObject> ret = new HashMap<Integer, IRubyObject>();
-        ThreadContext context = runtime.getCurrentContext();
-        if ((RubyFixnum.fix2int(flags) & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOINTERN))) != 1) {
-            Iterator<ASN1Encodable> it = asn1bcReq.getOptionalSignature().getCerts().iterator();
-            while (it.hasNext()) {
-                Certificate cert = Certificate.getInstance(it.next());
-                if (genX500Name.equals(cert.getSubject())) {
-                    ret.put(1, X509Cert.wrap(context, new X509AuxCertificate(cert)));
-                    return ret;
+        if ((flags & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOINTERN))) == 0) {
+            ASN1Sequence certs = asn1bcReq.getOptionalSignature().getCerts();
+            if (certs != null) {
+                Iterator<ASN1Encodable> it = certs.iterator();
+                while (it.hasNext()) {
+                    Certificate cert = Certificate.getInstance(it.next());
+                    if (genX500Name.equals(cert.getSubject())) return new X509AuxCertificate(cert);
                 }
             }
         }
         
         @SuppressWarnings("unchecked")
-        Iterator<X509Cert> it = ((RubyArray) certificates).iterator();
-        while (it.hasNext()) {
-            X509Cert cert = it.next();
-            if (genX500Name.equals(cert.getSubject().getX500Name())) {
-                ret.put(2, cert);
-                return ret;
-            }
+        List<X509CertificateObject> certList = (RubyArray)certificates;
+        for (X509CertificateObject cert : certList) {
+            if (genX500Name.equals(X500Name.getInstance(cert.getSubjectX500Principal().getEncoded()))) return new X509AuxCertificate(cert);
         }
         
-        ret.put(0, null);
-        return ret;
+        return null;
     }
 
     public byte[] getNonce() {
@@ -444,29 +442,13 @@ public class OCSPRequest extends RubyObject {
         return bytes;
     }
     
-    private List<Request> asn1ToRequestList(ASN1Sequence requestList) {
-        List<Request> ret = new ArrayList<Request>();
-        Iterator<ASN1Encodable> it = requestList.iterator();
-        
-        while (it.hasNext()) {
-            ASN1Encodable req = it.next();
-            ret.add(Request.getInstance(req));
-        }
-        
-        return ret;
-    }
-    
-    private ASN1Sequence listToAsn1(List<Request> currentRequestList) {
-        ASN1EncodableVector vector = new ASN1EncodableVector();
-        for(Request req : currentRequestList) {
-            vector.add(req);
-        }
-        
-        return new DERSequence(vector);
-    }
-
     public org.bouncycastle.asn1.ocsp.OCSPRequest getBCRequest() {
         return asn1bcReq;
+    }
+    
+    public OCSPReq getBCOCSPReq() {
+        if (asn1bcReq == null) return null;
+        return new OCSPReq(asn1bcReq);
     }
     private static RaiseException newOCSPError(Ruby runtime, Exception e) {
         return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), e);

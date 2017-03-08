@@ -2,13 +2,21 @@ package org.jruby.ext.openssl;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.cert.CertificateEncodingException;
 
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.ocsp.CertID;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.ocsp.CertificateID;
+import org.bouncycastle.cert.ocsp.OCSPException;
+import org.bouncycastle.operator.DigestCalculator;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.bc.BcDigestCalculatorProvider;
 import org.jruby.Ruby;
 import org.jruby.RubyBignum;
 import org.jruby.RubyClass;
@@ -41,6 +49,7 @@ public class OCSPCertificateId extends RubyObject {
     }
     
     private CertID bcCertId;
+    private X509Cert originalIssuer;
 
     public OCSPCertificateId(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
@@ -57,10 +66,10 @@ public class OCSPCertificateId extends RubyObject {
         }
         
         X509Cert subjectCert = (X509Cert) subject;
-        X509Cert issuerCert = (X509Cert) issuer;
+        originalIssuer = (X509Cert) issuer;
         BigInteger serial = subjectCert.getSerial();        
         
-        return initializeImpl(context, serial, issuerCert.getSubject(), issuerCert.public_key(context), digest);
+        return initializeImpl(context, serial, originalIssuer, digest);
     }
     
     @JRubyMethod(name = "initialize", visibility = Visibility.PRIVATE)
@@ -68,13 +77,13 @@ public class OCSPCertificateId extends RubyObject {
         Ruby runtime = context.getRuntime();
         
         X509Cert subjectCert = (X509Cert) subject;
-        X509Cert issuerCert = (X509Cert) issuer;
+        originalIssuer = (X509Cert) issuer;
         BigInteger serial = subjectCert.getSerial();
 
         Digest digestInstance = new Digest(runtime, _Digest(runtime));
         IRubyObject digest = digestInstance.initialize(context, new IRubyObject[] { RubyString.newString(runtime, "SHA1") });
         
-        return initializeImpl(context, serial, issuerCert.getSubject(), issuerCert.public_key(context), digest);
+        return initializeImpl(context, serial, originalIssuer, digest);
     }
     
     @JRubyMethod(name = "initialize", visibility = Visibility.PRIVATE)
@@ -91,24 +100,29 @@ public class OCSPCertificateId extends RubyObject {
     }
     
     private IRubyObject initializeImpl(final ThreadContext context, BigInteger serial,
-            IRubyObject issuerName, IRubyObject issuerKey, IRubyObject digest) {
+            IRubyObject issuerCert, IRubyObject digest) {
         Ruby runtime = context.getRuntime();
-        
-        ASN1Integer bcSerial = new ASN1Integer(serial);
         
         Digest rubyDigest = (Digest) digest;
         ASN1ObjectIdentifier oid = ASN1.sym2Oid(runtime, rubyDigest.getName().toLowerCase());
         AlgorithmIdentifier bcAlgId = new AlgorithmIdentifier(oid);
+        BcDigestCalculatorProvider calculatorProvider = new BcDigestCalculatorProvider();
+        DigestCalculator calc;
+        try {
+            calc = calculatorProvider.get(bcAlgId);
+        }
+        catch (OperatorCreationException e) {
+            throw newOCSPError(runtime, e);
+        }
 
-        X509Name rubyIName = (X509Name) issuerName;
-        RubyString iNameHash = Digest.hexdigest(context, this, rubyDigest.name(), rubyIName.to_der(context));
-        DEROctetString bcINameHash = new DEROctetString(iNameHash.decodeString().getBytes());
+        X509Cert rubyCert = (X509Cert) issuerCert;
         
-        PKey iKey = (PKey) issuerKey;
-        RubyString iKeyHash = Digest.hexdigest(context, this, rubyDigest.name(), iKey.to_der());
-        DEROctetString bcIKeyHash = new DEROctetString(iKeyHash.decodeString().getBytes());
-        
-        this.bcCertId = new CertID(bcAlgId, bcINameHash, bcIKeyHash, bcSerial);
+        try {
+            this.bcCertId = new CertificateID(calc, new X509CertificateHolder(rubyCert.getAuxCert().getEncoded()), serial).toASN1Primitive();
+        }
+        catch (Exception e) {
+            throw newOCSPError(runtime, e);
+        }
         
         return this;
     }
@@ -127,13 +141,53 @@ public class OCSPCertificateId extends RubyObject {
     @JRubyMethod(name = "issuer_name_hash")
     public IRubyObject issuer_name_hash() {
         Ruby runtime = getRuntime();
-        return StringHelper.newString(runtime, bcCertId.getIssuerNameHash().getOctets());
+        String oidSym = ASN1.oid2Sym(runtime, getBCCertificateID().getHashAlgOID());
+        RubyString digestName = RubyString.newString(runtime, oidSym);
+
+        // For whatever reason, the MRI Ruby tests appear to suggest that they compute the hexdigest hash
+        // of the issuer name over the original name instead of the hash computed in the created CertID.
+        // I'm not sure how it's supposed to work with a passed in DER string since presumably the hash
+        // is already computed and can't be reversed to get to the original name and thus we just compute
+        // a hash of a hash if we don't have the original issuer around.
+        if (originalIssuer == null) {
+            try {
+                return Digest.hexdigest(runtime.getCurrentContext(), this, digestName,
+                        RubyString.newString(runtime, bcCertId.getIssuerNameHash().getEncoded("DER")));
+            }
+            catch (IOException e) {
+                throw newOCSPError(runtime, e);
+            }
+        }
+        else {
+            return Digest.hexdigest(runtime.getCurrentContext(), this, digestName,
+                    originalIssuer.getSubject().to_der(runtime.getCurrentContext()));
+        }
     }
     
+    // For whatever reason, the MRI Ruby tests appear to suggest that they compute the hexdigest hash 
+    // of the issuer key over the original key instead of the hash computed in the created CertID.
+    // I'm not sure how it's supposed to work with a passed in DER string since presumably the hash
+    // is already computed and can't be reversed to get to the original key, so we just compute 
+    // a hash of a hash if we don't have the original issuer around.
     @JRubyMethod(name = "issuer_key_hash")
     public IRubyObject issuer_key_hash() {
         Ruby runtime = getRuntime();
-        return StringHelper.newString(runtime, bcCertId.getIssuerKeyHash().getOctets());
+        String oidSym = ASN1.oid2Sym(runtime, getBCCertificateID().getHashAlgOID());
+        RubyString digestName = RubyString.newString(runtime, oidSym);
+
+        if (originalIssuer == null) {
+            try {
+                return Digest.hexdigest(runtime.getCurrentContext(), this, RubyString.newString(runtime, oidSym),
+                        RubyString.newString(runtime, bcCertId.getIssuerKeyHash().getEncoded("DER")));
+            }
+            catch (IOException e) {
+                throw newOCSPError(runtime, e);
+            }
+        }
+        else {
+            PKey key = (PKey)originalIssuer.public_key(runtime.getCurrentContext());
+            return Digest.hexdigest(runtime.getCurrentContext(), this, digestName, key.to_der()); 
+        }
     }
     
     @JRubyMethod(name = "hash_algorithm")
@@ -220,6 +274,11 @@ public class OCSPCertificateId extends RubyObject {
     
     public CertID getCertID() {
         return bcCertId;
+    }
+    
+    public CertificateID getBCCertificateID() {
+        if (bcCertId == null) return null;
+        return new CertificateID(bcCertId);
     }
 
     private static RaiseException newOCSPError(Ruby runtime, Exception e) {
