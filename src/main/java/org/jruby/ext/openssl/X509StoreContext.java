@@ -35,6 +35,7 @@ import java.util.List;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
@@ -255,20 +256,20 @@ public class X509StoreContext extends RubyObject {
 
     @JRubyMethod(name = "flags=")
     public IRubyObject set_flags(final ThreadContext context, final IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#flags=");
-        return context.runtime.getNil();
+        storeContext.setFlags(RubyFixnum.fix2long((RubyFixnum)arg));
+        return arg;
     }
 
     @JRubyMethod(name = "purpose=")
     public IRubyObject set_purpose(final ThreadContext context, final IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#purpose=");
-        return context.runtime.getNil();
+        storeContext.setPurpose(RubyFixnum.fix2int((RubyFixnum)arg));
+        return arg;
     }
 
     @JRubyMethod(name = "trust=")
     public IRubyObject set_trust(final ThreadContext context, final IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: StoreContext#trust=");
-        return context.runtime.getNil();
+        storeContext.setTrust(RubyFixnum.fix2int((RubyFixnum)arg));
+        return arg;
     }
 
     @JRubyMethod(name = "time=")

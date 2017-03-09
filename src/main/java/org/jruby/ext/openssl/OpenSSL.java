@@ -84,6 +84,7 @@ public final class OpenSSL {
         SSL.createSSL(runtime, _OpenSSL);
         PKCS7.createPKCS7(runtime, _OpenSSL);
         PKCS5.createPKCS5(runtime, _OpenSSL);
+        OCSP.createOCSP(runtime, _OpenSSL);
 
         runtime.getLoadService().require("jopenssl/version");
 

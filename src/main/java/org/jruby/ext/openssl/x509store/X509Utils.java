@@ -602,5 +602,15 @@ public abstract class X509Utils {
 
     public static final int EXFLAG_INVALID_POLICY=0x400;
 
+    public static final int XKU_SSL_SERVER=0x1;
+    public static final int XKU_SSL_CLIENT=0x2;
+    public static final int XKU_SMIME=0x4;
+    public static final int XKU_CODE_SIGN=0x8;
+    public static final int XKU_SGC=0x8;
+    public static final int XKU_OCSP_SIGN=0x20;
+    public static final int XKU_TIMESTAMP=0x40;
+    public static final int XKU_DVCS=0x80;
+    public static final int XKU_ANYEKU=0x100;
+
     public static final int POLICY_FLAG_ANY_POLICY = 0x2;
 }// X509
