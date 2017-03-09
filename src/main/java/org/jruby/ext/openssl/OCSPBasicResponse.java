@@ -11,8 +11,8 @@
 * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 * DEALINGS IN THE SOFTWARE.
 *
-*  Copyright (C) 2007-2009 Ola Bini <ola.bini@gmail.com>
-*  Copyright (C) 2009-2016 The JRuby Team
+*  Copyright (C) 2017 Donovan Lampa <donovan.lampa@gmail.com>
+*  Copyright (C) 2009-2017 The JRuby Team
 *
 * Alternatively, the contents of this file may be used under the terms of
 * either of the GNU General Public License Version 2 or later (the "GPL"),
