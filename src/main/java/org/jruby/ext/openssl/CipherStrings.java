@@ -1755,6 +1755,12 @@ public class CipherStrings {
             SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384", name = "ECDHE-ECDSA-AES256-SHA384");
+	    CipherNames.put(name, new Def(name,
+            SSL_kECDHE|SSL_aECDSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+            SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
         SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", name = "ECDHE-RSA-AES128-SHA");
 	    CipherNames.put(name, new Def(name,
             SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
@@ -1771,6 +1777,12 @@ public class CipherStrings {
 	    CipherNames.put(name, new Def(name,
             SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
             SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",   name = "ECDHE-RSA-AES256-SHA384");
+	    CipherNames.put(name, new Def(name,
+            SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+            SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
         SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA", name = "ECDH-ECDSA-AES128-SHA");
@@ -1791,6 +1803,12 @@ public class CipherStrings {
             SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384",  name = "ECDH-ECDSA-AES256-SHA384");
+	    CipherNames.put(name, new Def(name,
+            SSL_kECDH|SSL_aECDSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+            SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
         SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_128_CBC_SHA", name = "ECDH-RSA-AES128-SHA");
 	    CipherNames.put(name, new Def(name,
             SSL_kECDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
@@ -1807,6 +1825,12 @@ public class CipherStrings {
 	    CipherNames.put(name, new Def(name,
             SSL_kECDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
             SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384",    name = "ECDH-RSA-AES256-SHA384");
+	    CipherNames.put(name, new Def(name,
+            SSL_kECDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+            SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
         SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA", "ECDHE-ECDSA-DES-CBC3-SHA");
@@ -1847,6 +1871,71 @@ public class CipherStrings {
         SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_NULL_SHA", "ECDH-ECDSA-NULL-SHA");
         SuiteToOSSL.put("TLS_ECDH_RSA_WITH_NULL_SHA", "ECDH-RSA-NULL-SHA");
         SuiteToOSSL.put("TLS_ECDH_anon_WITH_NULL_SHA", "AECDH-NULL-SHA");
+
+        /* For IBM JRE: suite names start with "SSL_". On Oracle JRE, the suite names start with "TLS_" */
+        SuiteToOSSL.put("SSL_DH_anon_WITH_AES_128_CBC_SHA",        "ADH-AES128-SHA");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_AES_128_CBC_SHA256",     "ADH-AES128-SHA256");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_AES_128_GCM_SHA256",     "ADH-AES128-GCM-SHA256");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_AES_256_CBC_SHA",        "ADH-AES256-SHA");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_AES_256_CBC_SHA256",     "ADH-AES256-SHA256");
+        SuiteToOSSL.put("SSL_DH_anon_WITH_AES_256_GCM_SHA384",     "ADH-AES256-GCM-SHA384");
+
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_AES_128_CBC_SHA",        "DHE-DSS-AES128-SHA");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_AES_128_CBC_SHA256",     "DHE-DSS-AES128-SHA256");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_AES_128_GCM_SHA256",     "DHE-DSS-AES128-GCM-SHA256");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_AES_256_CBC_SHA",        "DHE-DSS-AES256-SHA");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_AES_256_CBC_SHA256",     "DHE-DSS-AES256-SHA256");
+        SuiteToOSSL.put("SSL_DHE_DSS_WITH_AES_256_GCM_SHA384",     "DHE-DSS-AES256-GCM-SHA384");
+
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_AES_128_CBC_SHA",        "DHE-RSA-AES128-SHA");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_AES_128_CBC_SHA256",     "DHE-RSA-AES128-SHA256");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_AES_128_GCM_SHA256",     "DHE-RSA-AES128-GCM-SHA256");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_AES_256_CBC_SHA",        "DHE-RSA-AES256-SHA");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_AES_256_CBC_SHA256",     "DHE-RSA-AES256-SHA256");
+        SuiteToOSSL.put("SSL_DHE_RSA_WITH_AES_256_GCM_SHA384",     "DHE-RSA-AES256-GCM-SHA384");
+
+        SuiteToOSSL.put("SSL_ECDH_anon_WITH_AES_128_CBC_SHA",      "AECDH-AES128-SHA");
+        SuiteToOSSL.put("SSL_ECDH_anon_WITH_AES_256_CBC_SHA",      "AECDH-AES256-SHA");
+        SuiteToOSSL.put("SSL_ECDH_anon_WITH_NULL_SHA",             "AECDH-NULL-SHA");
+
+        SuiteToOSSL.put("SSL_ECDH_ECDSA_WITH_AES_128_CBC_SHA",     "ECDH-ECDSA-AES128-SHA");
+        SuiteToOSSL.put("SSL_ECDH_ECDSA_WITH_AES_128_CBC_SHA256",  "ECDH-ECDSA-AES128-SHA256");
+        SuiteToOSSL.put("SSL_ECDH_ECDSA_WITH_AES_128_GCM_SHA256",  "ECDH-ECDSA-AES128-GCM-SHA256");
+        SuiteToOSSL.put("SSL_ECDH_ECDSA_WITH_AES_256_CBC_SHA",     "ECDH-ECDSA-AES256-SHA");
+        SuiteToOSSL.put("SSL_ECDH_ECDSA_WITH_AES_256_CBC_SHA384",  "ECDH-ECDSA-AES256-SHA384");
+        SuiteToOSSL.put("SSL_ECDH_ECDSA_WITH_AES_256_GCM_SHA384",  "ECDH-ECDSA-AES256-GCM-SHA384");
+        SuiteToOSSL.put("SSL_ECDH_ECDSA_WITH_NULL_SHA",            "ECDH-ECDSA-NULL-SHA");
+
+        SuiteToOSSL.put("SSL_ECDH_RSA_WITH_AES_128_CBC_SHA",       "ECDH-RSA-AES128-SHA");
+        SuiteToOSSL.put("SSL_ECDH_RSA_WITH_AES_128_CBC_SHA256",    "ECDH-RSA-AES128-SHA256");
+        SuiteToOSSL.put("SSL_ECDH_RSA_WITH_AES_128_GCM_SHA256",    "ECDH-RSA-AES128-GCM-SHA256");
+        SuiteToOSSL.put("SSL_ECDH_RSA_WITH_AES_256_CBC_SHA",       "ECDH-RSA-AES256-SHA");
+        SuiteToOSSL.put("SSL_ECDH_RSA_WITH_AES_256_CBC_SHA384",    "ECDH-RSA-AES256-SHA384");
+        SuiteToOSSL.put("SSL_ECDH_RSA_WITH_AES_256_GCM_SHA384",    "ECDH-RSA-AES256-GCM-SHA384");
+        SuiteToOSSL.put("SSL_ECDH_RSA_WITH_NULL_SHA",              "ECDH-RSA-NULL-SHA");
+
+        SuiteToOSSL.put("SSL_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",    "ECDHE-ECDSA-AES128-SHA");
+        SuiteToOSSL.put("SSL_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256", "ECDHE-ECDSA-AES128-SHA256");
+        SuiteToOSSL.put("SSL_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "ECDHE-ECDSA-AES128-GCM-SHA256");
+        SuiteToOSSL.put("SSL_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",    "ECDHE-ECDSA-AES256-SHA");
+        SuiteToOSSL.put("SSL_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384", "ECDHE-ECDSA-AES256-SHA384");
+        SuiteToOSSL.put("SSL_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "ECDHE-ECDSA-AES256-GCM-SHA384");
+        SuiteToOSSL.put("SSL_ECDHE_ECDSA_WITH_NULL_SHA",           "ECDHE-ECDSA-NULL-SHA");
+
+        SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_128_CBC_SHA",      "ECDHE-RSA-AES128-SHA");
+        SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_128_CBC_SHA256",   "ECDHE-RSA-AES128-SHA256");
+        SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_256_CBC_SHA",      "ECDHE-RSA-AES256-SHA");
+        SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_256_CBC_SHA384",   "ECDHE-RSA-AES128-SHA384");
+        SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_256_GCM_SHA384",   "ECDHE-RSA-AES256-GCM-SHA384");
+        SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_NULL_SHA",             "ECDHE-RSA-NULL-SHA");
+
+        SuiteToOSSL.put("SSL_RSA_WITH_AES_128_CBC_SHA",            "AES128-SHA");
+        SuiteToOSSL.put("SSL_RSA_WITH_AES_128_CBC_SHA256",         "AES128-SHA256");
+        SuiteToOSSL.put("SSL_RSA_WITH_AES_128_GCM_SHA256",         "AES128-GCM-SHA256");
+        SuiteToOSSL.put("SSL_RSA_WITH_AES_256_CBC_SHA",            "AES256-SHA");
+        SuiteToOSSL.put("SSL_RSA_WITH_AES_256_CBC_SHA256",         "AES256-SHA256");
+        SuiteToOSSL.put("SSL_RSA_WITH_AES_256_GCM_SHA384",         "AES256-GCM-SHA384");
+        SuiteToOSSL.put("SSL_RSA_WITH_NULL_SHA256",                "NULL-SHA256");
 
         // left overs supported by Java 7's SSLv3 / TLS v1.2 :
 
