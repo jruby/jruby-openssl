@@ -83,6 +83,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 
 import static org.jruby.ext.openssl.Digest._Digest;
 import static org.jruby.ext.openssl.OCSP._OCSP;
+import static org.jruby.ext.openssl.OCSP.newOCSPError;
 import static org.jruby.ext.openssl.X509._X509;
 
 import java.io.IOException;
@@ -105,6 +106,7 @@ import java.util.List;
  */
 public class OCSPBasicResponse extends RubyObject {
     private static final long serialVersionUID = 8755480816625884227L;
+
     private static final String OCSP_NOCERTS = "NOCERTS";
     private static final String OCSP_NOCHAIN = "NOCHAIN";
     private static final String OCSP_NOCHECKS = "NOCHECKS";
@@ -121,9 +123,9 @@ public class OCSPBasicResponse extends RubyObject {
         }
     };
     
-    public static void createBasicResponse(final Ruby runtime, final RubyModule _OCSP) {
-        RubyClass _BasicResponse = _OCSP.defineClassUnder("BasicResponse", runtime.getObject(), BASICRESPONSE_ALLOCATOR);
-        _BasicResponse.defineAnnotatedMethods(OCSPBasicResponse.class);
+    public static void createBasicResponse(final Ruby runtime, final RubyModule OCSP) {
+        RubyClass BasicResponse = OCSP.defineClassUnder("BasicResponse", runtime.getObject(), BASICRESPONSE_ALLOCATOR);
+        BasicResponse.defineAnnotatedMethods(OCSPBasicResponse.class);
     }
     
     private byte[] nonce;
@@ -371,7 +373,7 @@ public class OCSPBasicResponse extends RubyObject {
     
     @JRubyMethod(name = "verify", rest = true)
     public IRubyObject verify(final ThreadContext context, IRubyObject[] args) {
-        Ruby runtime = getRuntime();
+        Ruby runtime = context.runtime;
         int flags = 0;
         IRubyObject certificates = args[0];
         IRubyObject store = args[1];
@@ -385,7 +387,7 @@ public class OCSPBasicResponse extends RubyObject {
         jcacvpb.setProvider("BC");
         BasicOCSPResp basicOCSPResp = getBasicOCSPResp();
         
-        java.security.cert.Certificate signer = findSignerCert(asn1BCBasicOCSPResp, convertRubyCerts(certificates), flags);
+        java.security.cert.Certificate signer = findSignerCert(context, asn1BCBasicOCSPResp, convertRubyCerts(certificates), flags);
         if ( signer == null ) return RubyBoolean.newBoolean(runtime, false);
         if ( (flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOINTERN))) == 0 && 
                 (flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_TRUSTOTHER))) != 0 ) {
@@ -426,10 +428,9 @@ public class OCSPBasicResponse extends RubyObject {
             RubyArray rUntrustedCerts = RubyArray.newEmptyArray(runtime);
             if (untrustedCerts != null) {
                 X509Cert[] rubyCerts = new X509Cert[untrustedCerts.size()];
-                untrustedCerts.toArray(rubyCerts);
-                rUntrustedCerts = RubyArray.newArray(runtime, rubyCerts);
+                rUntrustedCerts = RubyArray.newArray(runtime, untrustedCerts.toArray(rubyCerts));
             }
-            X509StoreContext ctx = null;
+            X509StoreContext ctx;
             try {
                 ctx = X509StoreContext.newStoreContext(context, (X509Store)store, X509Cert.wrap(runtime, signer), rUntrustedCerts);
             }
@@ -438,7 +439,7 @@ public class OCSPBasicResponse extends RubyObject {
             }
             
             ctx.set_purpose(context, _X509(runtime).getConstant("PURPOSE_OCSP_HELPER"));
-            ret = ((RubyBoolean)ctx.verify(context)).isTrue();
+            ret = ctx.verify(context).isTrue();
             IRubyObject chain = ctx.chain(context);
             
             if ((flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCHECKS))) > 0) {
@@ -473,20 +474,21 @@ public class OCSPBasicResponse extends RubyObject {
     }
     
     @JRubyMethod(name = "status")
-    public IRubyObject status() {
-        Ruby runtime = getRuntime();
-        RubyArray ret = RubyArray.newEmptyArray(runtime);
+    public IRubyObject status(ThreadContext context) {
+        final Ruby runtime = context.runtime;
+        RubyArray ret = RubyArray.newArray(runtime, singleResponses.size());
         
         for (OCSPSingleResponse resp : singleResponses) {
-            RubyArray respAry = RubyArray.newEmptyArray(runtime);
+            RubyArray respAry = RubyArray.newArray(runtime, 7);
             
-            respAry.add(resp.certid());
-            respAry.add(resp.cert_status());
-            respAry.add(resp.revocation_reason());
-            respAry.add(resp.revocation_time());
-            respAry.add(resp.this_update());
-            respAry.add(resp.next_update());
-            respAry.add(resp.extensions());
+            respAry.append(resp.certid(context));
+            respAry.append(resp.cert_status());
+            respAry.append(resp.revocation_reason());
+            respAry.append(resp.revocation_time());
+            respAry.append(resp.this_update());
+            respAry.append(resp.next_update());
+            respAry.append(resp.extensions());
+
             ret.add(respAry);
         }
         
@@ -496,7 +498,7 @@ public class OCSPBasicResponse extends RubyObject {
     @JRubyMethod(name = "to_der")
     public IRubyObject to_der() {
         Ruby runtime = getRuntime();
-        IRubyObject ret = null;
+        IRubyObject ret;
         try {
            ret = RubyString.newString(runtime, asn1BCBasicOCSPResp.getEncoded());
         }
@@ -630,16 +632,12 @@ public class OCSPBasicResponse extends RubyObject {
         
         return ret;
     }
-
-    private static RaiseException newOCSPError(Ruby runtime, Exception e) {
-        return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), e);
-    }    
     
-    private java.security.cert.Certificate findSignerCert(BasicOCSPResponse basicResp, List<java.security.cert.Certificate> certificates, int flags) {
-        Ruby runtime = getRuntime();
-        ThreadContext context = runtime.getCurrentContext();
+    private java.security.cert.Certificate findSignerCert(final ThreadContext context,
+        BasicOCSPResponse basicResp, List<java.security.cert.Certificate> certificates, int flags) {
+        final Ruby runtime = context.runtime;
         ResponderID respID = basicResp.getTbsResponseData().getResponderID();
-        java.security.cert.Certificate ret = null;
+        java.security.cert.Certificate ret;
         ret = findSignerByRespId(context, certificates, respID);
         
         if (ret == null && (flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOINTERN))) == 0) {

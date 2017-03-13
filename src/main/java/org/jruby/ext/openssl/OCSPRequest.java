@@ -34,6 +34,8 @@ package org.jruby.ext.openssl;
 
 import static org.jruby.ext.openssl.Digest._Digest;
 import static org.jruby.ext.openssl.OCSP._OCSP;
+import static org.jruby.ext.openssl.OCSP.newOCSPError;
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 import static org.jruby.ext.openssl.X509._X509;
 
 import java.io.IOException;
@@ -205,15 +207,15 @@ public class OCSPRequest extends RubyObject {
     }
     
     @JRubyMethod(name = "check_nonce")
-    public IRubyObject check_nonce(IRubyObject response) {
-        Ruby runtime = getRuntime();
+    public IRubyObject check_nonce(ThreadContext context, IRubyObject response) {
+        final Ruby runtime = context.runtime;
         if (response instanceof OCSPBasicResponse) {
             OCSPBasicResponse rubyBasicRes = (OCSPBasicResponse) response;
             return checkNonceImpl(runtime, this.nonce, rubyBasicRes.getNonce());
         }
         else if (response instanceof OCSPResponse) {
             OCSPResponse rubyResp = (OCSPResponse) response;
-            return checkNonceImpl(runtime, this.nonce, ((OCSPBasicResponse)rubyResp.basic()).getNonce());
+            return checkNonceImpl(runtime, this.nonce, ((OCSPBasicResponse)rubyResp.basic(context)).getNonce());
         }
         else {
             return checkNonceImpl(runtime, this.nonce, null);
@@ -222,7 +224,7 @@ public class OCSPRequest extends RubyObject {
     
     @JRubyMethod(name = "sign", rest = true)
     public IRubyObject sign(final ThreadContext context, IRubyObject[] args) {
-        Ruby runtime = context.getRuntime();
+        final Ruby runtime = context.runtime;
                 
         int flag = 0;
         IRubyObject additionalCerts = context.nil;
@@ -380,8 +382,8 @@ public class OCSPRequest extends RubyObject {
                if (!ret) return RubyBoolean.newBoolean(runtime, false);
            }
         }
-        catch ( Exception e ) {
-            e.printStackTrace();
+        catch (Exception e) {
+            debugStackTrace(e);
             throw newOCSPError(runtime, e);
         }
         
@@ -472,9 +474,6 @@ public class OCSPRequest extends RubyObject {
     public OCSPReq getBCOCSPReq() {
         if (asn1bcReq == null) return null;
         return new OCSPReq(asn1bcReq);
-    }
-    private static RaiseException newOCSPError(Ruby runtime, Exception e) {
-        return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), e);
     }
 
 }

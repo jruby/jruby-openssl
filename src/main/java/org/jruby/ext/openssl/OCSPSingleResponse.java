@@ -33,6 +33,7 @@
 package org.jruby.ext.openssl;
 
 import static org.jruby.ext.openssl.OCSP._OCSP;
+import static org.jruby.ext.openssl.OCSP.newOCSPError;
 
 import java.io.IOException;
 import java.text.ParseException;
@@ -117,9 +118,8 @@ public class OCSPSingleResponse extends RubyObject {
     }
     
     @JRubyMethod(name = "certid")
-    public IRubyObject certid() {
-        Ruby runtime = getRuntime();
-        ThreadContext context = runtime.getCurrentContext();
+    public IRubyObject certid(ThreadContext context) {
+        Ruby runtime = context.runtime;
         CertID bcCertId = bcSingleResponse.getCertID();
         OCSPCertificateId rubyCertId = new OCSPCertificateId(runtime); 
         try {
@@ -182,22 +182,21 @@ public class OCSPSingleResponse extends RubyObject {
         Ruby runtime = getRuntime();
         Extensions exts = bcSingleResponse.getSingleExtensions();
         if (exts == null) return RubyArray.newEmptyArray(runtime);
-        List<X509Extension> retExts = new ArrayList<X509Extension>();
-        List<ASN1ObjectIdentifier> extOids = Arrays.asList(exts.getExtensionOIDs());
-        for (ASN1ObjectIdentifier extOid : extOids) {
-            Extension ext = exts.getExtension(extOid);
+        ASN1ObjectIdentifier[] extOIDs = exts.getExtensionOIDs();
+        RubyArray retExts = runtime.newArray(extOIDs.length);
+        for (ASN1ObjectIdentifier extOID : extOIDs) {
+            Extension ext = exts.getExtension(extOID);
             ASN1Encodable extAsn1 = ext.getParsedValue();
-            X509Extension retExt = X509Extension.newExtension(runtime, extOid, extAsn1, ext.isCritical());
-            retExts.add(retExt);
+            X509Extension retExt = X509Extension.newExtension(runtime, extOID, extAsn1, ext.isCritical());
+            retExts.append(retExt);
         }
-        
-        return RubyArray.newArray(runtime, retExts);
+        return retExts;
     }
     
     @JRubyMethod(name = "next_update")
     public IRubyObject next_update() {
         Ruby runtime = getRuntime();
-        if (bcSingleResponse.getNextUpdate() == null) return runtime.getCurrentContext().nil;
+        if (bcSingleResponse.getNextUpdate() == null) return runtime.getNil();
         Date nextUpdate;
         try {
             nextUpdate = bcSingleResponse.getNextUpdate().getDate();
@@ -207,7 +206,7 @@ public class OCSPSingleResponse extends RubyObject {
         }
         
         if (nextUpdate == null) {
-            return runtime.getCurrentContext().nil;
+            return runtime.getNil();
         }
         
         return RubyTime.newTime(runtime, nextUpdate.getTime());
@@ -216,7 +215,7 @@ public class OCSPSingleResponse extends RubyObject {
     @JRubyMethod(name = "this_update")
     public IRubyObject this_update() {
         Ruby runtime = getRuntime();
-        if (bcSingleResponse.getThisUpdate() == null) return runtime.getCurrentContext().nil;
+        if (bcSingleResponse.getThisUpdate() == null) return runtime.getNil();
         Date thisUpdate;
         try {
             thisUpdate = bcSingleResponse.getThisUpdate().getDate();
@@ -232,18 +231,18 @@ public class OCSPSingleResponse extends RubyObject {
     public IRubyObject revocation_reason() {
         Ruby runtime = getRuntime();
         RubyFixnum revoked = (RubyFixnum) _OCSP(runtime).getConstant("V_CERTSTATUS_REVOKED");
-        if (bcSingleResponse.getCertStatus().getTagNo() == (int)revoked.getLongValue()) {
+        if (bcSingleResponse.getCertStatus().getTagNo() == (int) revoked.getLongValue()) {
             try {
                 RevokedInfo revokedInfo = RevokedInfo.getInstance(
-                        DERTaggedObject.fromByteArray(bcSingleResponse.getCertStatus().getStatus().toASN1Primitive().getEncoded())
-                        );
+                    DERTaggedObject.fromByteArray(bcSingleResponse.getCertStatus().getStatus().toASN1Primitive().getEncoded())
+                );
                 return RubyFixnum.newFixnum(runtime, revokedInfo.getRevocationReason().getValue().intValue());
             }
             catch (IOException e) {
                 throw newOCSPError(runtime, e);
             }
         }
-        return runtime.getCurrentContext().nil;
+        return runtime.getNil();
     }
     
     @JRubyMethod(name = "revocation_time")
@@ -261,7 +260,7 @@ public class OCSPSingleResponse extends RubyObject {
                 throw newOCSPError(runtime, e);
             }
         }
-        return runtime.getCurrentContext().nil;
+        return runtime.getNil();
     }
     
     @JRubyMethod(name = "to_der")
@@ -312,8 +311,5 @@ public class OCSPSingleResponse extends RubyObject {
         
         return ret;
     }
-    
-    private static RaiseException newOCSPError(Ruby runtime, Exception e) {
-        return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), e);
-    }
+
 }

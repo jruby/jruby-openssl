@@ -33,6 +33,7 @@
 package org.jruby.ext.openssl;
 
 import static org.jruby.ext.openssl.OCSP._OCSP;
+import static org.jruby.ext.openssl.OCSP.newOCSPError;
 
 import java.io.IOException;
 
@@ -77,9 +78,9 @@ public class OCSPResponse extends RubyObject {
         this(runtime, (RubyClass) _OCSP(runtime).getConstantAt("Response"));
     }
     
-    public static void createResponse(final Ruby runtime, final RubyModule _OCSP) {
-        RubyClass _request = _OCSP.defineClassUnder("Response", runtime.getObject(), RESPONSE_ALLOCATOR);
-        _request.defineAnnotatedMethods(OCSPResponse.class);
+    public static void createResponse(final Ruby runtime, final RubyModule OCSP) {
+        RubyClass Response = OCSP.defineClassUnder("Response", runtime.getObject(), RESPONSE_ALLOCATOR);
+        Response.defineAnnotatedMethods(OCSPResponse.class);
     }
     
     private org.bouncycastle.asn1.ocsp.OCSPResponse bcResp;
@@ -151,11 +152,10 @@ public class OCSPResponse extends RubyObject {
     }
     
     @JRubyMethod(name = "basic")
-    public IRubyObject basic() {
-        Ruby runtime = getRuntime();
-        ThreadContext context = runtime.getCurrentContext();
+    public IRubyObject basic(ThreadContext context) {
+        Ruby runtime = context.runtime;
         if (bcResp == null || bcResp.getResponseBytes() == null || bcResp.getResponseBytes().getResponse() == null) {
-            return getRuntime().getCurrentContext().nil;
+            return context.nil;
         }
         else {
             OCSPBasicResponse ret = new OCSPBasicResponse(runtime);
@@ -187,10 +187,6 @@ public class OCSPResponse extends RubyObject {
     
     public org.bouncycastle.asn1.ocsp.OCSPResponse getBCResp() {
         return bcResp;
-    }
-            
-    private static RaiseException newOCSPError(Ruby runtime, Exception e) {
-        return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), e);
     }
 
 }

@@ -60,6 +60,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 
 import static org.jruby.ext.openssl.OCSP._OCSP;
 import static org.jruby.ext.openssl.Digest._Digest;
+import static org.jruby.ext.openssl.OCSP.newOCSPError;
 
 /**
  * An OpenSSL::OCSP::CertificateId identifies a certificate to the
@@ -312,10 +313,6 @@ public class OCSPCertificateId extends RubyObject {
     public CertificateID getBCCertificateID() {
         if (bcCertId == null) return null;
         return new CertificateID(bcCertId);
-    }
-
-    private static RaiseException newOCSPError(Ruby runtime, Exception e) {
-        return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), e);
     }
 
 }

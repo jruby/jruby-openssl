@@ -204,7 +204,7 @@ public class OCSP {
         return responseMap.get((int)rubyFixnum.getLongValue());
     }
     
-    public static RaiseException newOCSPError(Ruby runtime, Exception ex) {
+    static RaiseException newOCSPError(Ruby runtime, Exception ex) {
         return Utils.newError(runtime, _OCSP(runtime).getClass("OCSPError"), ex);
     }
     
