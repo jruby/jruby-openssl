@@ -393,13 +393,13 @@ public class Lookup {
             }
             catch (FileExistsException ex) {
                 // should not happen because ModeFlag does not contain CREAT.
-                ex.printStackTrace(System.err);
-                throw new IllegalStateException(ex.getMessage(), ex);
+                OpenSSL.debugStackTrace(ex);
+                throw new IllegalStateException(ex);
             }
             catch (InvalidValueException ex) {
                 // should not happen because ModeFlasg does not contain APPEND.
-                ex.printStackTrace(System.err);
-                throw new IllegalStateException(ex.getMessage(), ex);
+                OpenSSL.debugStackTrace(ex);
+                throw new IllegalStateException(ex);
             }
         }
     }
