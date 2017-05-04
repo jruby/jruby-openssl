@@ -190,6 +190,8 @@ public class PKCS7 extends RubyObject {
             default: pkcs7 = (PKCS7) args[0];
         }
 
+        if (data.isNil()) data = pkcs7.getData();
+
         final int flg = flags.isNil() ? 0 : RubyNumeric.fix2int(flags);
 
         String smime = "";
