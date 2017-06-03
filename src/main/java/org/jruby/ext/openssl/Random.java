@@ -47,11 +47,7 @@ public class Random {
         private volatile java.util.Random plainRandom;
         private volatile java.security.SecureRandom secureRandom;
 
-        //RandomHolder(java.util.Random plainRandom, java.security.SecureRandom secureRandom) {
-        //    this.plainRandom = plainRandom; this.secureRandom = secureRandom;
-        //}
-
-        final java.util.Random getPlainRandom() {
+        java.util.Random getPlainRandom() {
             if (plainRandom == null) {
                 synchronized(this) {
                     if (plainRandom == null) {
@@ -62,7 +58,7 @@ public class Random {
             return plainRandom;
         }
 
-        final java.security.SecureRandom getSecureRandom() {
+        java.security.SecureRandom getSecureRandom() {
             if (secureRandom == null) {
                 synchronized(this) {
                     if (secureRandom == null) {
@@ -120,50 +116,53 @@ public class Random {
 
     private static RubyString generate(final Ruby runtime,
         final IRubyObject self, final int len, final boolean secure) {
-        final Holder holder = unwrapStruct(self);
+        final Holder holder = retrieveHolder((RubyModule) self);
         final byte[] bytes = new byte[len];
         ( secure ? holder.getSecureRandom() : holder.getPlainRandom() ).nextBytes(bytes);
         return RubyString.newString(runtime, new ByteList(bytes, false));
     }
 
-    private static Holder unwrapStruct(final IRubyObject Random) {
-        return (Holder) ((RubyModule) Random).dataGetStruct();
+    private static Holder retrieveHolder(final RubyModule Random) {
+        return (Holder) Random.dataGetStruct();
     }
 
     @JRubyMethod(meta = true) // seed(str) -> str
     public static IRubyObject seed(final ThreadContext context,
         final IRubyObject self, IRubyObject str) {
-        final byte[] seed = str.asString().getBytes();
-        final Holder holder = unwrapStruct(self);
+        seedImpl((RubyModule) self, str);
+        return str;
+    }
 
-        holder.getSecureRandom().setSeed(seed); // seed supplements existing
+    private static void seedImpl(final RubyModule Random, final IRubyObject str) {
+        final byte[] seed = str.asString().getBytes();
+        final Holder holder = retrieveHolder(Random);
+
+        holder.getSecureRandom().setSeed(seed); // seed supplements existing (secure) seeding mechanism
 
         long s; int l = seed.length;
         if ( l >= 4 ) {
             s = (seed[0] << 24) | (seed[1] << 16) | (seed[2] << 8) | seed[3];
+            if ( l >= 8 ) {
+                s = s ^ (seed[l-4] << 24) | (seed[l-3] << 16) | (seed[l-2] << 8) | seed[l-1];
+            }
             holder.getPlainRandom().setSeed(s);
         }
-        return str;
     }
 
     // true if the PRNG has been seeded with enough data, false otherwise
     @JRubyMethod(meta = true, name = "status?") // status? => true | false
-    public static IRubyObject status_p(final ThreadContext context,
-        final IRubyObject self) {
-        //final Holder holder = unwrapStruct(self);
-        //if ( holder.secureRandom == null ) {
-        //    return context.runtime.newBoolean(false); // just a HINT
-        //}
+    public static IRubyObject status_p(final ThreadContext context, final IRubyObject self) {
         return context.runtime.newBoolean(true);
     }
 
-    // C-Ruby OpenSSL::Random API stubs :
-
-    @JRubyMethod(meta = true) // random_add(str, entropy) -> self
+    @JRubyMethod(meta = true, name = { "random_add", "add" }) // random_add(str, entropy) -> self
     public static IRubyObject random_add(final ThreadContext context,
         final IRubyObject self, IRubyObject str, IRubyObject entropy) {
+        seedImpl((RubyModule) self, str); // simply ignoring _entropy_ hint
         return self;
     }
+
+    // C-Ruby OpenSSL::Random API stubs :
 
     @JRubyMethod(meta = true) // load_random_file(filename)
     public static IRubyObject load_random_file(final ThreadContext context,
@@ -180,13 +179,15 @@ public class Random {
     @JRubyMethod(meta = true) // egd(filename) -> true
     public static IRubyObject egd(final ThreadContext context,
         final IRubyObject self, IRubyObject fname) {
-        return context.runtime.getNil();
+        // no-op let the JVM security infrastructure to its internal seeding
+        return context.runtime.getTrue();
     }
 
     @JRubyMethod(meta = true) // egd_bytes(filename, length) -> true
     public static IRubyObject egd_bytes(final ThreadContext context,
         final IRubyObject self, IRubyObject fname, IRubyObject len) {
-        return context.runtime.getNil();
+        // no-op let the JVM security infrastructure to its internal seeding
+        return context.runtime.getTrue();
     }
 
 }
