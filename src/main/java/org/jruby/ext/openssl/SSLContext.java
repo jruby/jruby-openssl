@@ -499,9 +499,6 @@ public class SSLContext extends RubyObject {
         }
         else {
             this.ciphers = ciphers.asString().toString();
-            if ( "DEFAULT".equals( this.ciphers ) ) {
-                this.ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
-            }
         }
         if ( matchedCiphers(context).isEmpty() ) {
             throw newSSLError(context.runtime, "no cipher match");

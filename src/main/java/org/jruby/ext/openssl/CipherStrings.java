@@ -488,7 +488,22 @@ public class CipherStrings {
         final List<Def> matchedList = new LinkedList<Def>();
         Set<Def> removed = null;
 
-        for ( final String part : cipherString.split("[:, ]+") ) {
+        /*
+         * If the rule_string begins with DEFAULT, apply the default rule
+         * before using the (possibly available) additional rules.
+         * (Matching OpenSSL behaviour)
+         */
+        int offset = 0;
+        final String[] parts = cipherString.split("[:, ]+");
+        if ( parts.length >= 1 && "DEFAULT".equals(parts[0]) ) {
+            final Collection<Def> matching = matchingCiphers(SSL_DEFAULT_CIPHER_LIST, all, setSuite);
+            matchedList.addAll(matching);
+            offset = offset + 1;
+        }
+
+        for ( int i = offset; i < parts.length; i++ ) {
+            final String part = parts[i];
+
             if ( part.equals("@STRENGTH") ) {
                 Collections.sort(matchedList); continue;
             }

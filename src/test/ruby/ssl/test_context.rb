@@ -47,6 +47,11 @@ class TestSSLContext < TestCase
     assert ex.message =~ /\u{ff33 ff33 ff2c}/
   end
 
+  def test_default_handling # GH-2193 JRuby
+    ctx = OpenSSL::SSL::SSLContext.new
+    assert_nothing_raised { ctx.ciphers = "DEFAULT:!aNULL" }
+  end
+
   def test_verify_mode
     context = OpenSSL::SSL::SSLContext.new
     assert_nil context.verify_mode
