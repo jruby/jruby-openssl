@@ -36,13 +36,58 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
+import org.jruby.util.SafePropertyAccessor;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class Random {
 
-    private static class Holder {
+    // thread-local (default), shared, strong
+    static final String HOLDER_TYPE = SafePropertyAccessor.getProperty("jruby.openssl.random", "");
+
+    private static Holder createHolderImpl() {
+        if (HOLDER_TYPE.equals("default") || HOLDER_TYPE.equals("thread-local")) {
+            return new ThreadLocalHolder();
+        }
+        if (HOLDER_TYPE.equals("")) {
+            // NOTE: fine to remove when support for running on Java 6 is gone ...
+            if (OpenSSL.javaVersion6(false)) {
+                return new SharedHolder(); // can not-use ThreadLocalRandom.current()
+            }
+        }
+        if (HOLDER_TYPE.equals("shared")) {
+            return new SharedHolder();
+        }
+        if (HOLDER_TYPE.equals("strong")) {
+            return new StrongHolder();
+        }
+        return new ThreadLocalHolder();
+    }
+
+    static abstract class Holder {
+
+        abstract java.util.Random getPlainRandom() ;
+
+        abstract java.security.SecureRandom getSecureRandom(ThreadContext context) ;
+
+        void seedSecureRandom(ThreadContext context, byte[] seed) {
+            getSecureRandom(context).setSeed(seed);
+        }
+
+        void seedPlainRandom(long seed) {
+            getPlainRandom().setSeed(seed);
+        }
+
+    }
+
+    private static class SharedHolder extends Holder {
 
         private volatile java.util.Random plainRandom;
         private volatile java.security.SecureRandom secureRandom;
@@ -58,7 +103,7 @@ public class Random {
             return plainRandom;
         }
 
-        java.security.SecureRandom getSecureRandom() {
+        java.security.SecureRandom getSecureRandom(ThreadContext context) {
             if (secureRandom == null) {
                 synchronized(this) {
                     if (secureRandom == null) {
@@ -71,6 +116,131 @@ public class Random {
 
     }
 
+    private static class ThreadLocalHolder extends Holder {
+
+        @Override
+        java.util.Random getPlainRandom() {
+            return ThreadLocalRandom.current();
+        }
+
+        @Override
+        void seedPlainRandom(long seed) {
+            return; // NO-OP - UnsupportedOperationException
+        }
+
+        @Override
+        java.security.SecureRandom getSecureRandom(ThreadContext context) {
+            java.security.SecureRandom secureRandom = context.secureRandom;
+            if (secureRandom == null) {
+                secureRandom = getSecureRandomImpl();
+                setSecureRandom(context, secureRandom); // context.secureRandom = ...
+            }
+            return secureRandom;
+        }
+
+        private static final Field secureRandomField;
+
+        private static void setSecureRandom(ThreadContext context, java.security.SecureRandom secureRandom) {
+            if (secureRandomField != null) {
+                try {
+                    secureRandomField.set(context, secureRandom);
+                }
+                catch (Exception ex) { /* IllegalAccessException should not happen */ }
+            }
+        }
+
+        private static final String PREFERRED_PRNG;
+        static {
+            PREFERRED_PRNG = SafePropertyAccessor.getProperty("jruby.preferred.prng", "NativePRNGNonBlocking");
+
+            Field secureRandom = null;
+            try {
+                secureRandom = ThreadContext.class.getField("secureRandom");
+                if ( ! secureRandom.isAccessible() || Modifier.isFinal(secureRandom.getModifiers()) ) {
+                    secureRandom = null;
+                }
+            }
+            catch (Exception ex) { /* ignore NoSuchFieldException */ }
+            secureRandomField = secureRandom;
+        }
+
+        private static boolean tryPreferredPRNG = true;
+        private static boolean trySHA1PRNG = true;
+
+        // copied from JRuby (not available in all 1.7.x) :
+        public java.security.SecureRandom getSecureRandomImpl() {
+            java.security.SecureRandom secureRandom = null;
+            // Try preferred PRNG, which defaults to NativePRNGNonBlocking
+            if (tryPreferredPRNG) {
+                try {
+                    secureRandom = java.security.SecureRandom.getInstance(PREFERRED_PRNG);
+                }
+                catch (Exception e) { tryPreferredPRNG = false; }
+            }
+
+            // Try SHA1PRNG
+            if (secureRandom == null && trySHA1PRNG) {
+                try {
+                    secureRandom = java.security.SecureRandom.getInstance("SHA1PRNG");
+                }
+                catch (Exception e) { trySHA1PRNG = false; }
+            }
+
+            // Just let JDK do whatever it does
+            if (secureRandom == null) {
+                secureRandom = new java.security.SecureRandom();
+            }
+
+            return secureRandom;
+        }
+
+    }
+
+    private static class StrongHolder extends Holder {
+
+        static {
+            Method method = null;
+            if (OpenSSL.javaVersion8(true)) {
+                try {
+                    method = java.security.SecureRandom.class.getMethod("getInstanceStrong");
+                }
+                catch (NoSuchMethodException ex) { OpenSSL.debugStackTrace(ex); }
+            }
+            getInstanceStrong = method;
+        }
+
+        private static final Method getInstanceStrong;
+
+        @Override
+        java.util.Random getPlainRandom() {
+            return new java.util.Random();
+        }
+
+        @Override
+        java.security.SecureRandom getSecureRandom(ThreadContext context) {
+            // return java.security.SecureRandom.getInstanceStrong(); (on Java 8)
+            if (getInstanceStrong == null) return SecurityHelper.getSecureRandom();
+            try {
+                return (java.security.SecureRandom) getInstanceStrong.invoke(null);
+            }
+            catch (IllegalAccessException ex) {
+                Utils.throwException(ex); return null; // won't happen
+            }
+            catch (InvocationTargetException ex) {
+                Utils.throwException(ex.getTargetException()); return null;
+            }
+        }
+
+        void seedSecureRandom(ThreadContext context, byte[] seed) {
+            // NOOP - new instance returned for getSecureRandom
+        }
+
+        void seedPlainRandom(long seed) {
+            // NOOP - new instance returned for getPlainRandom
+        }
+
+    }
+
     public static void createRandom(final Ruby runtime, final RubyModule OpenSSL) {
         final RubyModule Random = OpenSSL.defineModuleUnder("Random");
 
@@ -79,31 +249,29 @@ public class Random {
 
         Random.defineAnnotatedMethods(Random.class);
 
-        Random.dataWrapStruct(new Holder());
+        Random.dataWrapStruct(createHolderImpl());
     }
 
     @JRubyMethod(meta = true)
     public static RubyString random_bytes(final ThreadContext context,
         final IRubyObject self, final IRubyObject arg) {
-        final Ruby runtime = context.runtime;
-        return random_bytes(runtime, self, toInt(runtime, arg));
+        return random_bytes(context, self, toInt(context.runtime, arg));
     }
 
-    static RubyString random_bytes(final Ruby runtime, final int len) {
-        final RubyModule Random = (RubyModule) runtime.getModule("OpenSSL").getConstantAt("Random");
-        return generate(runtime, Random, len, true); // secure-random
+    static RubyString random_bytes(final ThreadContext context, final int len) {
+        final RubyModule Random = (RubyModule) context.runtime.getModule("OpenSSL").getConstantAt("Random");
+        return generate(context, Random, len, true); // secure-random
     }
 
-    private static RubyString random_bytes(final Ruby runtime,
+    private static RubyString random_bytes(final ThreadContext context,
         final IRubyObject self, final int len) {
-        return generate(runtime, self, len, true); // secure-random
+        return generate(context, self, len, true); // secure-random
     }
 
     @JRubyMethod(meta = true)
     public static RubyString pseudo_bytes(final ThreadContext context,
         final IRubyObject self, final IRubyObject len) {
-        final Ruby runtime = context.runtime;
-        return generate(runtime, self, toInt(runtime, len), false); // plain-random
+        return generate(context, self, toInt(context.runtime, len), false); // plain-random
     }
 
     private static int toInt(final Ruby runtime, final IRubyObject arg) {
@@ -114,12 +282,16 @@ public class Random {
         return (int) len;
     }
 
-    private static RubyString generate(final Ruby runtime,
+    private static RubyString generate(final ThreadContext context,
         final IRubyObject self, final int len, final boolean secure) {
         final Holder holder = retrieveHolder((RubyModule) self);
         final byte[] bytes = new byte[len];
-        ( secure ? holder.getSecureRandom() : holder.getPlainRandom() ).nextBytes(bytes);
-        return RubyString.newString(runtime, new ByteList(bytes, false));
+        ( secure ? holder.getSecureRandom(context) : holder.getPlainRandom() ).nextBytes(bytes);
+        return RubyString.newString(context.runtime, new ByteList(bytes, false));
+    }
+
+    static Holder getHolder(final Ruby runtime) {
+        return retrieveHolder((RubyModule) runtime.getModule("OpenSSL").getConstantAt("Random"));
     }
 
     private static Holder retrieveHolder(final RubyModule Random) {
@@ -129,15 +301,15 @@ public class Random {
     @JRubyMethod(meta = true) // seed(str) -> str
     public static IRubyObject seed(final ThreadContext context,
         final IRubyObject self, IRubyObject str) {
-        seedImpl((RubyModule) self, str);
+        seedImpl(context, (RubyModule) self, str);
         return str;
     }
 
-    private static void seedImpl(final RubyModule Random, final IRubyObject str) {
+    private static void seedImpl(ThreadContext context, final RubyModule Random, final IRubyObject str) {
         final byte[] seed = str.asString().getBytes();
         final Holder holder = retrieveHolder(Random);
 
-        holder.getSecureRandom().setSeed(seed); // seed supplements existing (secure) seeding mechanism
+        holder.seedSecureRandom(context, seed); // seed supplements existing (secure) seeding mechanism
 
         long s; int l = seed.length;
         if ( l >= 4 ) {
@@ -145,7 +317,7 @@ public class Random {
             if ( l >= 8 ) {
                 s = s ^ (seed[l-4] << 24) | (seed[l-3] << 16) | (seed[l-2] << 8) | seed[l-1];
             }
-            holder.getPlainRandom().setSeed(s);
+            holder.seedPlainRandom(s);
         }
     }
 
@@ -158,7 +330,7 @@ public class Random {
     @JRubyMethod(meta = true, name = { "random_add", "add" }) // random_add(str, entropy) -> self
     public static IRubyObject random_add(final ThreadContext context,
         final IRubyObject self, IRubyObject str, IRubyObject entropy) {
-        seedImpl((RubyModule) self, str); // simply ignoring _entropy_ hint
+        seedImpl(context, (RubyModule) self, str); // simply ignoring _entropy_ hint
         return self;
     }
 

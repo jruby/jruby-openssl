@@ -259,6 +259,11 @@ public final class OpenSSL {
         return javaVersionProperty;
     }
 
+    static boolean javaVersion6(final boolean atLeast) {
+        final int gt = "1.6".compareTo( javaVersion("0.0").substring(0, 3) );
+        return atLeast ? gt <= 0 : gt == 0;
+    }
+
     static boolean javaVersion7(final boolean atLeast) {
         final int gt = "1.7".compareTo( javaVersion("0.0").substring(0, 3) );
         return atLeast ? gt <= 0 : gt == 0;

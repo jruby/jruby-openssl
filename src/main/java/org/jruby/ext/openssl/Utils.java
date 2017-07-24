@@ -140,4 +140,13 @@ final class Utils {
         }
     }
 
+
+    static void throwException(final Throwable e) {
+        Utils.<RuntimeException>throwsUnchecked(e);
+    }
+
+    private static <T extends Throwable> void throwsUnchecked(Throwable t) throws T {
+        throw (T) t;
+    }
+
 }// Utils
