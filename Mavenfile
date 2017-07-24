@@ -49,7 +49,7 @@ plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '1.9' ) do
 end
 
 plugin( :compiler, '3.1',
-        :source => java_target, :target => java_target,
+        :source => '1.6', :target => java_target,
         :encoding => 'UTF-8', :debug => true,
         :showWarnings => true, :showDeprecation => true,
 
@@ -158,7 +158,7 @@ profile :id => 'test-1.7.4' do
 end
 
 jruby_1_7_versions = %w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.20 1.7.22 1.7.23 }
-jruby_1_7_versions += %w{ 1.7.24 1.7.25 1.7.26 }
+jruby_1_7_versions += %w{ 1.7.24 1.7.25 1.7.26 1.7.27 }
 
 jruby_1_7_versions.each { |version|
 
@@ -172,7 +172,7 @@ end
 
 }
 
-jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.0.0 9.1.1.0 9.1.2.0 9.1.5.0 }
+jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.2.0 9.1.5.0 9.1.8.0 9.1.12.0 }
 
 jruby_9_K_versions.each { |version|
 profile :id => "test-#{version}" do
