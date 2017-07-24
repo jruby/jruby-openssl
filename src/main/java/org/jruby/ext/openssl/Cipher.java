@@ -1321,7 +1321,7 @@ public class Cipher extends RubyObject {
         // str = OpenSSL::Random.random_bytes(self.key_len)
         // self.key = str
         // return str
-        RubyString str = Random.random_bytes(context.runtime, this.keyLength);
+        RubyString str = Random.random_bytes(context, this.keyLength);
         this.set_key(context, str); return str;
     }
 
@@ -1330,7 +1330,7 @@ public class Cipher extends RubyObject {
         // str = OpenSSL::Random.random_bytes(self.iv_len)
         // self.iv = str
         // return str
-        RubyString str = Random.random_bytes(context.runtime, this.ivLength);
+        RubyString str = Random.random_bytes(context, this.ivLength);
         this.set_iv(context, str); return str;
     }
 
