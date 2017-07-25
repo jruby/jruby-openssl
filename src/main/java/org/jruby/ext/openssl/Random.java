@@ -68,6 +68,9 @@ public class Random {
         if (HOLDER_TYPE.equals("strong")) {
             return new StrongHolder();
         }
+        if (ThreadLocalHolder.secureRandomField == null) {
+            return new SharedHolder(); // fall-back on (older) JRuby <= 1.7.4
+        }
         return new ThreadLocalHolder();
     }
 
