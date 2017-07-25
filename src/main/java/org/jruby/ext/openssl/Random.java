@@ -65,7 +65,7 @@ public class Random {
         if (HOLDER_TYPE.equals("shared")) {
             return new SharedHolder();
         }
-        if (HOLDER_TYPE.equals("strong")) {
+        if (HOLDER_TYPE.equals("strong")) { // TODO strong (thread-local) makes sense
             return new StrongHolder();
         }
         if (ThreadLocalHolder.secureRandomField == null) {
@@ -148,13 +148,28 @@ public class Random {
                 try {
                     secureRandomField.set(context, secureRandom);
                 }
-                catch (Exception ex) { /* IllegalAccessException should not happen */ }
+                catch (IllegalAccessException ex) { Utils.throwException(ex); /* should not happen */ }
             }
         }
 
         private static final String PREFERRED_PRNG;
         static {
-            PREFERRED_PRNG = SafePropertyAccessor.getProperty("jruby.preferred.prng", "NativePRNGNonBlocking");
+            String prng = SafePropertyAccessor.getProperty("jruby.preferred.prng", null);
+
+            if (prng == null) { // make sure the default experience is non-blocking for users
+                prng = "NativePRNGNonBlocking";
+                if (SafePropertyAccessor.getProperty("os.name") != null) {
+                    if (jnr.posix.util.Platform.IS_WINDOWS) { // System.getProperty("os.name") won't fail
+                        prng = "Windows-PRNG";
+                    }
+                }
+            }
+            // setting it to "" (empty) or "default" should just use new SecureRandom() :
+            if (prng.isEmpty() || prng.equalsIgnoreCase("default")) {
+                prng = null; tryPreferredPRNG = false; trySHA1PRNG = false;
+            }
+
+            PREFERRED_PRNG = prng;
 
             Field secureRandom = null;
             try {
@@ -169,6 +184,7 @@ public class Random {
 
         private static boolean tryPreferredPRNG = true;
         private static boolean trySHA1PRNG = true;
+        private static boolean tryStrongPRNG = false; // NOT-YET-IMPLEMENTED
 
         // copied from JRuby (not available in all 1.7.x) :
         public java.security.SecureRandom getSecureRandomImpl() {
@@ -178,7 +194,10 @@ public class Random {
                 try {
                     secureRandom = java.security.SecureRandom.getInstance(PREFERRED_PRNG);
                 }
-                catch (Exception e) { tryPreferredPRNG = false; }
+                catch (Exception e) {
+                    tryPreferredPRNG = false;
+                    OpenSSL.debug("SecureRandom '"+ PREFERRED_PRNG +"' failed:", e);
+                }
             }
 
             // Try SHA1PRNG
@@ -186,7 +205,10 @@ public class Random {
                 try {
                     secureRandom = java.security.SecureRandom.getInstance("SHA1PRNG");
                 }
-                catch (Exception e) { trySHA1PRNG = false; }
+                catch (Exception e) {
+                    trySHA1PRNG = false;
+                    OpenSSL.debug("SecureRandom SHA1PRNG failed:", e);
+                }
             }
 
             // Just let JDK do whatever it does
