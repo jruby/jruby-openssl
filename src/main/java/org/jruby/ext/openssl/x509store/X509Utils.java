@@ -231,10 +231,7 @@ public abstract class X509Utils {
             if ( sakid.getKeyIdentifier() != null ) {
                 if ( issuer.getExtensionValue("2.5.29.14") != null ) {
                     DEROctetString der = (DEROctetString) get(issuer.getExtensionValue("2.5.29.14"));
-                    if ( der.getOctets().length > 20 ) {
-                        der = (DEROctetString) get(der.getOctets());
-                    }
-                    SubjectKeyIdentifier iskid = SubjectKeyIdentifier.getInstance(der);
+                    SubjectKeyIdentifier iskid = SubjectKeyIdentifier.getInstance(get(der.getOctets()));
                     if ( iskid.getKeyIdentifier() != null ) {
                         if ( ! Arrays.equals( sakid.getKeyIdentifier(), iskid.getKeyIdentifier() ) ) {
                             return V_ERR_AKID_SKID_MISMATCH;
