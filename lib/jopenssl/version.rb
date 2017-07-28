@@ -1,5 +1,5 @@
 module Jopenssl
-  VERSION = '0.9.21.dev'
+  VERSION = '0.9.21'
   BOUNCY_CASTLE_VERSION = '1.56'
   # @deprecated
   module Version

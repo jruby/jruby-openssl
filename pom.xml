@@ -11,7 +11,7 @@ DO NOT MODIFIY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.9.21.dev-SNAPSHOT</version>
+  <version>0.9.21</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -58,6 +58,7 @@ DO NOT MODIFIY - GENERATED CODE
   </distributionManagement>
   <properties>
     <bc.versions></bc.versions>
+    <mavengem.wagon.version>0.2.0</mavengem.wagon.version>
     <jruby.plugins.version>1.0.10</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <jruby.version>1.7.18</jruby.version>
@@ -116,8 +117,8 @@ DO NOT MODIFIY - GENERATED CODE
   </dependencies>
   <repositories>
     <repository>
-      <id>rubygems-releases</id>
-      <url>http://rubygems-proxy.torquebox.org/releases</url>
+      <id>mavengems</id>
+      <url>mavengem:https://rubygems.org</url>
     </repository>
     <repository>
       <releases>
@@ -132,6 +133,11 @@ DO NOT MODIFIY - GENERATED CODE
   </repositories>
   <build>
     <extensions>
+      <extension>
+        <groupId>org.torquebox.mojo</groupId>
+        <artifactId>mavengem-wagon</artifactId>
+        <version>${mavengem.wagon.version}</version>
+      </extension>
       <extension>
         <groupId>de.saumya.mojo</groupId>
         <artifactId>gem-with-jar-extension</artifactId>
