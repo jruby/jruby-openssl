@@ -1,4 +1,5 @@
-warn 'Loading jruby-openssl in a non-JRuby interpreter' unless defined? JRUBY_VERSION
+warn 'Loading jruby-openssl gem in a non-JRuby interpreter' unless defined? JRUBY_VERSION
+warn "JRuby #{JRUBY_VERSION} is not supported by jruby-openssl #{Jopenssl::VERSION}" if JRUBY_VERSION <= '1.7.20'
 
 require 'java'
 require 'jopenssl/version'
@@ -14,6 +15,7 @@ unless ENV_JAVA['jruby.openssl.load.jars'].eql?('false')
     require_jar( 'org.bouncycastle', 'bcprov-jdk15on', version )
     bc_jars = true
   rescue LoadError
+    bc_jars = false
   end
   unless bc_jars
     load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
