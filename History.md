@@ -1,6 +1,18 @@
-## 0.9.21.dev
+## 0.9.21
 
-* add support for renegotiation_cb on SSLContext (#121)
+* adjust X.509 value handling to parse subjectAltName recursively (#134)
+* SKI expected to be always octet wrapped - do not check for length (#131)
+* respect jruby.preferred.prng and use/tune its SecureRandom defaults
+  trying to avoid BC generator's constant attempts for seeding itself
+  as an attempt to 'fix' low-entropy systems wating for */dev/random*
+* Random#add; Random#egd shall return true on JVM
+* move "DEFAULT" special case handling to match OpenSSL behaviour (#136)
+  (jruby/jruby#2193)
+* If data is not provided, extract it from the PKCS7 instance (#132)
+* Add cipher suite strings for IBM JRE (#126) - thanks @ysohda
+* use the helper to printStackTrace (no System.err printing by default)
+* add OCSP support (#124) - thanks so very much @lampad
+* add support for renegotiation_cb on SSLContext (#121) - thanks @lampad
 
 ## 0.9.20
 
