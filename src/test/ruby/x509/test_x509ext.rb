@@ -150,6 +150,15 @@ class TestX509Extension < TestCase
     assert dns =~ /test.example.com.*?test2.example.com.*?example.com.*?www.example.com/
   end
 
+  def test_subject_alt_name_sequence
+    extensions = OpenSSL::X509::ExtensionFactory.new
+    ext = extensions.create_extension("subjectAltName", "email:foo@bar.com,DNS:a.b.com,email:baz@bar.com")
+    assert_equal 'subjectAltName', ext.oid
+    assert_equal 'email:foo@bar.com, DNS:a.b.com, email:baz@bar.com', ext.value
+    mri_der = "0,\x06\x03U\x1D\x11\x04%0#\x81\vfoo@bar.com\x82\aa.b.com\x81\vbaz@bar.com"
+    assert_equal mri_der, ext.to_der
+  end
+
   def subject_alt_name(domains)
     ef = OpenSSL::X509::ExtensionFactory.new
     ef.create_extension("subjectAltName", domains.split(',').map { |d| "DNS: #{d}" }.join(','))

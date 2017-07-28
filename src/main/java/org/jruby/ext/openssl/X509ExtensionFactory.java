@@ -209,6 +209,7 @@ public class X509ExtensionFactory extends RubyObject {
             }
         }
         catch (IOException e) {
+            OpenSSL.debugStackTrace(e);
             throw newExtensionError(runtime, "Unable to create extension: " + e.getMessage());
         }
         return newExtension(runtime, objectId, value, critical.isNil() ? null : critical.isTrue());
@@ -518,8 +519,19 @@ public class X509ExtensionFactory extends RubyObject {
             return new GeneralName(GeneralName.registeredID, rid);
         }
         if ( valuex.startsWith(email_) ) {
-            final String mail = valuex.substring(email_.length());
-            return new GeneralName(GeneralName.rfc822Name, mail);
+            final String[] vals = valuex.split(",");
+            final GeneralName[] names = new GeneralName[vals.length];
+            for ( int i = 0; i < vals.length; i++ ) {
+                if (vals[i].startsWith(email_)) {
+                    String mail = vals[i].substring(email_.length());
+                    names[i] = new GeneralName(GeneralName.rfc822Name, mail);
+                }
+                else {
+                    ASN1Encodable name = parseSubjectAltName(vals[i]);
+                    names[i] = name instanceof GeneralNames ? ((GeneralNames) name).getNames()[0] : (GeneralName) name;
+                }
+            }
+            return new GeneralNames(names);
         }
         if ( valuex.startsWith("IP:") || valuex.startsWith("IP Address:") ) {
             final int idx = valuex.charAt(2) == ':' ? 3 : 11;

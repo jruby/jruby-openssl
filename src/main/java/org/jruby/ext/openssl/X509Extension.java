@@ -207,7 +207,7 @@ public class X509Extension extends RubyObject {
         if ( value instanceof byte[] ) return (byte[]) value;
         if ( value instanceof RubyString ) return ((RubyString) value).getBytes();
         if ( value instanceof String ) return ByteList.plain((String) value);
-
+        
         if ( value instanceof ASN1OctetString ) { // initialize
             return ((ASN1OctetString) value).getOctets();
         }
@@ -536,7 +536,7 @@ public class X509Extension extends RubyObject {
                     for ( int i = 0; i < names.length; i++ ) {
                         boolean other = formatGeneralName(names[i], val, false);
                         if ( i < names.length - 1 ) {
-                            if ( other ) val.append(';'); else val.append(',');
+                            if ( other ) val.append(';'); else val.append(',').append(' ');
                         }
                     }
                     return runtime.newString( val );
