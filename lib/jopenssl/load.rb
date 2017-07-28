@@ -5,7 +5,7 @@ require 'jopenssl/version'
 
 # NOTE: assuming user does pull in BC .jars from somewhere else on the CP
 unless ENV_JAVA['jruby.openssl.load.jars'].eql?('false')
-  version = Jopenssl::Version::BOUNCY_CASTLE_VERSION
+  version = Jopenssl::BOUNCY_CASTLE_VERSION
   bc_jars = nil
   begin
     require 'jar-dependencies'
