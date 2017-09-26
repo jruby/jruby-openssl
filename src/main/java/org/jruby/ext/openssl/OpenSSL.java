@@ -106,8 +106,7 @@ public final class OpenSSL {
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
         final RubyModule _Jopenssl = runtime.getModule("Jopenssl");
-        final RubyModule _Version = (RubyModule) _Jopenssl.getConstantAt("Version");
-        final RubyString jVERSION = _Version.getConstantAt("VERSION").asString();
+        final RubyString jVERSION = _Jopenssl.getConstantAt("VERSION").asString();
 
         final byte[] JRuby_OpenSSL_ = { 'J','R','u','b','y','-','O','p','e','n','S','S','L',' ' };
         final int OPENSSL_VERSION_NUMBER = 999999999; // NOTE: smt more useful?
