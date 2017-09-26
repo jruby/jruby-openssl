@@ -1,7 +1,7 @@
 language: ruby
 sudo: false
 jdk:
-  - oraclejdk7
+  - openjdk7
   - oraclejdk8
 env:
   - TEST_PROFILE=test-1.7.20
@@ -22,13 +22,13 @@ matrix:
     - env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-1.7.20
   include:
-    - jdk: oraclejdk7
+    - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-1.7.24
-    - jdk: oraclejdk7
+    - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-1.7.25
-    - jdk: oraclejdk7
+    - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-1.7.26
     #
@@ -42,13 +42,13 @@ matrix:
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-1.7.26
-    - jdk: oraclejdk7
+    - jdk: openjdk7
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-1.7.18
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.0.5.0
-    - jdk: oraclejdk7
+    - jdk: openjdk7
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.1.2.0
     - jdk: oraclejdk8
