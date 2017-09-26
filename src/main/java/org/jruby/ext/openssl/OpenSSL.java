@@ -35,6 +35,7 @@ import org.jruby.RubyModule;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
+import org.jruby.ext.openssl.util.Version;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -254,27 +255,27 @@ public final class OpenSSL {
     public static String javaVersion(final String def) {
         final String javaVersionProperty =
                 SafePropertyAccessor.getProperty("java.version", def);
-        if ( javaVersionProperty == "0" ) return "1.7.0"; // Android
+        if (javaVersionProperty.equals("0")) return "1.7.0"; // Android
         return javaVersionProperty;
     }
 
     static boolean javaVersion6(final boolean atLeast) {
-        final int gt = "1.6".compareTo( javaVersion("0.0").substring(0, 3) );
+        final int gt = new Version("1.6").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
     }
 
     static boolean javaVersion7(final boolean atLeast) {
-        final int gt = "1.7".compareTo( javaVersion("0.0").substring(0, 3) );
+        final int gt = new Version("1.7").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
     }
 
     static boolean javaVersion8(final boolean atLeast) {
-        final int gt = "1.8".compareTo( javaVersion("0.0").substring(0, 3) );
+        final int gt = new Version("1.8").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
     }
 
     static boolean javaVersion9(final boolean atLeast) {
-        final int gt = "9".compareTo( javaVersion("0").substring(0, 1) );
+        final int gt = new Version("9").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
     }
 

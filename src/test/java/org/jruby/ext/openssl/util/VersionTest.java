@@ -1,0 +1,75 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2017 Ketan Padegaonkar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+package org.jruby.ext.openssl.util;
+
+import org.junit.Test;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+
+public class VersionTest {
+	@Test
+	public void newInstance_withTwoDotRelease_isParsedCorrectly() {
+		final Version version = new Version("1.8.1");
+		assertThat(version.numbers, is(new int[] { 1, 8, 1 }));
+	}
+
+	@Test
+	public void newInstance_withTwoDotReleaseAndPreReleaseName_isParsedCorrectly() {
+		assertThat(new Version("1.8.1-EA").numbers, is(new int[] { 1, 8, 1 }));
+		assertThat(new Version("1.7.0_79").numbers, is(new int[] { 1, 7, 0 }));
+	}
+
+	@Test
+	public void compareTo_withEarlierVersion_isGreaterThan() {
+		assertThat(new Version("1.8").compareTo(new Version("1.7")), is(1));
+	}
+
+	@Test
+	public void compareTo_withSameVersion_isEqual() {
+		assertThat(new Version("1.8").compareTo(new Version("1.8")), is(0));
+	}
+
+	@Test
+	public void compareTo_withLaterVersion_isLessThan() {
+		assertThat(new Version("1.7").compareTo(new Version("1.8")), is(-1));
+	}
+
+	@Test
+	public void compareTo_withMorePreciseSameVersion_isFalse() {
+		assertThat(new Version("9").compareTo(new Version("9.0")), is(0));
+	}
+
+	@Test
+	public void compareTo_withMorePreciseEarlierVersion_isFalse() {
+		assertThat(new Version("9").compareTo(new Version("1.7")), is(1));
+	}
+
+	@Test
+	public void compareTo_withMorePreciseLaterVersion_isLessThan() {
+		assertThat(new Version("1").compareTo(new Version("1.0.1")), is(-1));
+	}
+
+}
