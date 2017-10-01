@@ -2,6 +2,7 @@
  * The MIT License
  *
  * Copyright (c) 2014 Karol Bucek LTD.
+ * Copyright (c) 2017 Ketan Padegaonkar
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,16 +24,7 @@
  */
 package org.jruby.ext.openssl;
 
-import java.security.NoSuchProviderException;
-import java.security.SecureRandom;
-import java.util.Map;
-
-import org.jruby.CompatVersion;
-import org.jruby.Ruby;
-import org.jruby.RubyArray;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.RubyString;
+import org.jruby.*;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
 import org.jruby.runtime.ThreadContext;
@@ -40,6 +32,10 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.util.SafePropertyAccessor;
+
+import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
+import java.util.Map;
 
 /**
  * OpenSSL (methods as well as an entry point)
@@ -106,8 +102,7 @@ public final class OpenSSL {
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
         final RubyModule _Jopenssl = runtime.getModule("Jopenssl");
-        final RubyModule _Version = (RubyModule) _Jopenssl.getConstantAt("Version");
-        final RubyString jVERSION = _Version.getConstantAt("VERSION").asString();
+        final RubyString jVERSION = _Jopenssl.getConstantAt("VERSION").asString();
 
         final byte[] JRuby_OpenSSL_ = { 'J','R','u','b','y','-','O','p','e','n','S','S','L',' ' };
         final int OPENSSL_VERSION_NUMBER = 999999999; // NOTE: smt more useful?
@@ -255,27 +250,27 @@ public final class OpenSSL {
     public static String javaVersion(final String def) {
         final String javaVersionProperty =
                 SafePropertyAccessor.getProperty("java.version", def);
-        if ( javaVersionProperty == "0" ) return "1.7.0"; // Android
+        if ("0".equals(javaVersionProperty)) return "1.7.0"; // Android
         return javaVersionProperty;
     }
 
     static boolean javaVersion6(final boolean atLeast) {
-        final int gt = "1.6".compareTo( javaVersion("0.0").substring(0, 3) );
+        final int gt = new Version("1.6").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
     }
 
     static boolean javaVersion7(final boolean atLeast) {
-        final int gt = "1.7".compareTo( javaVersion("0.0").substring(0, 3) );
+        final int gt = new Version("1.7").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
     }
 
     static boolean javaVersion8(final boolean atLeast) {
-        final int gt = "1.8".compareTo( javaVersion("0.0").substring(0, 3) );
+        final int gt = new Version("1.8").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
     }
 
     static boolean javaVersion9(final boolean atLeast) {
-        final int gt = "9".compareTo( javaVersion("0").substring(0, 1) );
+        final int gt = new Version("9").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
     }
 
@@ -344,6 +339,31 @@ public final class OpenSSL {
 
     static String bcExceptionMessage(NoClassDefFoundError ex) {
         return "You need to configure JVM/classpath to enable BouncyCastle Security Provider: " + ex;
+    }
+
+    static class Version implements Comparable<Version> {
+        public final int[] numbers;
+
+        public Version(String version) {
+            final String split[] = version.split("[-_]")[0].split("\\.");
+            numbers = new int[split.length];
+            for (int i = 0; i < split.length; i++) {
+                numbers[i] = Integer.valueOf(split[i]);
+            }
+        }
+
+        @Override
+        public int compareTo(Version another) {
+            final int maxLength = Math.max(numbers.length, another.numbers.length);
+            for (int i = 0; i < maxLength; i++) {
+                final int left = i < numbers.length ? numbers[i] : 0;
+                final int right = i < another.numbers.length ? another.numbers[i] : 0;
+                if (left != right) {
+                    return left < right ? -1 : 1;
+                }
+            }
+            return 0;
+        }
     }
 
 }
