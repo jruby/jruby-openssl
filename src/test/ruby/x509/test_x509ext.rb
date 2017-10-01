@@ -151,12 +151,38 @@ class TestX509Extension < TestCase
   end
 
   def test_subject_alt_name_sequence
+    tests = [
+        {
+            :input => "email:foo@bar.com,DNS:a.b.com,email:baz@bar.com",
+            :output => "email:foo@bar.com, DNS:a.b.com, email:baz@bar.com",
+            :der => "0,\x06\x03U\x1D\x11\x04%0#\x81\vfoo@bar.com\x82\aa.b.com\x81\vbaz@bar.com",
+        },
+        {
+            :input => "DNS:a.b.com, email:foo@bar.com",
+            :der => "0\x1f\x06\x03U\x1d\x11\x04\x180\x16\x82\x07a.b.com\x81\x0bfoo@bar.com",
+        },
+        {
+            :input => "URI:https://a.b.com/, DNS:a.b.com",
+            :der => "0$\x06\x03U\x1d\x11\x04\x1d0\x1b\x86\x10https://a.b.com/\x82\x07a.b.com",
+        },
+        {
+            :input => "IP:1.2.3.4,IP: fe80::12:345:5678, email:foo@bar.com, dirName: CN=John Doe+CN=Doe\\\\\\, John\\,O=Acme",
+            :output => "IP:1.2.3.4, IP:fe80:0:0:0:0:12:345:5678, email:foo@bar.com, DirName:CN=John Doe+CN=Doe\\, John,O=Acme",
+            :der => "0f\x06\x03U\x1d\x11\x04_0]\x87\x04\x01\x02\x03\x04\x87\x10\xfe\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x12\x03EVx\x81\x0bfoo@bar.com\xa46041#0\x0f\x06\x03U\x04\x03\x0c\x08John Doe0\x10\x06\x03U\x04\x03\x0c\x09Doe, John1\x0d0\x0b\x06\x03U\x04\x0a\x0c\x04Acme"
+        },
+        {
+            :input => "RID:1.3.6.1.3.100.200",
+            :der => "0\x12\x06\x03U\x1d\x11\x04\x0b0\x09\x88\x07+\x06\x01\x03d\x81H",
+        },
+    ]
+
     extensions = OpenSSL::X509::ExtensionFactory.new
-    ext = extensions.create_extension("subjectAltName", "email:foo@bar.com,DNS:a.b.com,email:baz@bar.com")
-    assert_equal 'subjectAltName', ext.oid
-    assert_equal 'email:foo@bar.com, DNS:a.b.com, email:baz@bar.com', ext.value
-    mri_der = "0,\x06\x03U\x1D\x11\x04%0#\x81\vfoo@bar.com\x82\aa.b.com\x81\vbaz@bar.com"
-    assert_equal mri_der, ext.to_der
+    tests.each { |test|
+        ext = extensions.create_extension("subjectAltName", test[:input])
+        assert_equal 'subjectAltName', ext.oid
+        assert_equal (test[:output] || test[:input]), ext.value
+        assert_equal test[:der], ext.to_der
+    }
   end
 
   def subject_alt_name(domains)
