@@ -255,7 +255,7 @@ public final class OpenSSL {
     public static String javaVersion(final String def) {
         final String javaVersionProperty =
                 SafePropertyAccessor.getProperty("java.version", def);
-        if (javaVersionProperty.equals("0")) return "1.7.0"; // Android
+        if ("0".equals(javaVersionProperty)) return "1.7.0"; // Android
         return javaVersionProperty;
     }
 
