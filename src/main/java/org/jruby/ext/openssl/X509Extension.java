@@ -661,11 +661,16 @@ public class X509Extension extends RubyObject {
                 append(':');
             final byte[] ip = ((ASN1OctetString) name.getName()).getOctets();
             int len = ip.length; boolean ip4 = len == 4;
-            for ( int i = 0; i < ip.length; i++ ) {
-                out.append( ConvertBytes.intToCharBytes( ((int) ip[i]) & 0xff ) );
-                if ( i != len - 1 ) {
-                    if ( ip4 ) out.append('.');
-                    else out.append(':').append(':');
+            if ( ip4 ) {
+                for ( int i = 0; i < ip.length; i++ ) {
+                    out.append( ConvertBytes.intToCharBytes( ((int) ip[i]) & 0xff ) );
+                    if ( i != len - 1 ) out.append('.');
+                }
+            }
+            else {
+                for ( int i = 0; i < ip.length; i += 2 ) {
+                    out.append( ConvertBytes.intToHexBytes( ((ip[i] & 0xff) << 8 | (ip[i+1] & 0xff)) ) );
+                    if ( i != len - 2 ) out.append(':');
                 }
             }
             break;

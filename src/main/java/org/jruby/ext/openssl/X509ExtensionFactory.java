@@ -490,69 +490,62 @@ public class X509ExtensionFactory extends RubyObject {
 
     private static final String DNS_ = "DNS:";
     private static final String DNS_Name_ = "DNS Name:";
+    private static final String IP_ = "IP:";
+    private static final String IP_Address_ = "IP Address:";
     private static final String URI_ = "URI:";
     private static final String RID_ = "RID:";
     private static final String email_ = "email:";
     private static final String dirName_ = "dirName:";
     private static final String otherName_ = "otherName:";
 
-    private static ASN1Encodable parseSubjectAltName(final String valuex) throws IOException {
+    private static GeneralNames parseSubjectAltName(final String valuex) throws IOException {
+        final String[] vals = valuex.split("(?<!(^|[^\\\\])((\\\\\\\\)?\\\\\\\\)?\\\\),");   // allow up to three levels of escaping of ','
+        final GeneralName[] names = new GeneralName[vals.length];
+        for ( int i = 0; i < vals.length; i++ ) {
+            names[i] = parseGeneralName(vals[i].replaceAll("\\\\([,\\\\])", "$1").trim());
+        }
+        return new GeneralNames(names);
+    }
+
+    private static GeneralName parseGeneralName(final String valuex) throws IOException {
         if ( valuex.startsWith(DNS_) ) {
-            final String[] vals = valuex.split(",");
-            final GeneralName[] names = new GeneralName[vals.length];
-            for ( int i = 0; i < vals.length; i++ ) {
-                final String dns = vals[i].substring(DNS_.length());
-                names[i] = new GeneralName(GeneralName.dNSName, dns);
-            }
-            return new GeneralNames(names);
+            final String dns = valuex.substring(DNS_.length()).trim();
+            return new GeneralName(GeneralName.dNSName, dns);
         }
         if ( valuex.startsWith(DNS_Name_) ) {
-            final String dns = valuex.substring(DNS_Name_.length());
+            final String dns = valuex.substring(DNS_Name_.length()).trim();
             return new GeneralName(GeneralName.dNSName, dns);
         }
         if ( valuex.startsWith(URI_) ) {
-            final String uri = valuex.substring(URI_.length());
+            final String uri = valuex.substring(URI_.length()).trim();
             return new GeneralName(GeneralName.uniformResourceIdentifier, uri);
         }
         if ( valuex.startsWith(RID_) ) {
-            final String rid = valuex.substring(RID_.length());
+            final String rid = valuex.substring(RID_.length()).trim();
             return new GeneralName(GeneralName.registeredID, rid);
         }
         if ( valuex.startsWith(email_) ) {
-            final String[] vals = valuex.split(",");
-            final GeneralName[] names = new GeneralName[vals.length];
-            for ( int i = 0; i < vals.length; i++ ) {
-                if (vals[i].startsWith(email_)) {
-                    String mail = vals[i].substring(email_.length());
-                    names[i] = new GeneralName(GeneralName.rfc822Name, mail);
-                }
-                else {
-                    ASN1Encodable name = parseSubjectAltName(vals[i]);
-                    names[i] = name instanceof GeneralNames ? ((GeneralNames) name).getNames()[0] : (GeneralName) name;
-                }
-            }
-            return new GeneralNames(names);
+            String mail = valuex.substring(email_.length()).trim();
+            return new GeneralName(GeneralName.rfc822Name, mail);
         }
-        if ( valuex.startsWith("IP:") || valuex.startsWith("IP Address:") ) {
-            final int idx = valuex.charAt(2) == ':' ? 3 : 11;
-            String[] vals = valuex.substring(idx).split("\\.|::");
-            final byte[] ip = new byte[vals.length];
-            for ( int i = 0; i < vals.length; i++ ) {
-                ip[i] = (byte) (Integer.parseInt(vals[i]) & 0xff);
-            }
-            return new GeneralName(GeneralName.iPAddress, new DEROctetString(ip));
+        if ( valuex.startsWith(IP_) ) {
+            final String ip = valuex.substring(IP_.length()).trim();
+            return new GeneralName(GeneralName.iPAddress, ip);
+        }
+        if ( valuex.startsWith(IP_Address_) ) {
+            final String ip = valuex.substring(IP_Address_.length()).trim();
+            return new GeneralName(GeneralName.iPAddress, ip);
         }
         if ( valuex.startsWith("other") ) { // otherName || othername
-            final String other = valuex.substring(otherName_.length());
+            final String other = valuex.substring(otherName_.length()).trim();
             return new GeneralName(GeneralName.otherName, other);
         }
         if ( valuex.startsWith("dir") ) { // dirName || dirname
-            final String dir = valuex.substring(dirName_.length());
+            final String dir = valuex.substring(dirName_.length()).trim();
             return new GeneralName(GeneralName.directoryName, dir);
         }
 
-        throw new IOException("could not parse SubjectAltName: " + valuex);
-
+        throw new IOException("could not parse SubjectAltName part: " + valuex);
     }
 
     private DEROctetString parseSubjectKeyIdentifier(final ThreadContext context, final String oid, final String valuex) {
