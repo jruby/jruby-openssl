@@ -141,21 +141,21 @@ invoker_run_options = {
       'runit.dir' => '${runit.dir}' }
 }
 
-profile :id => 'test-1.6.8' do
-  plugin :invoker, '1.8' do
-    execute_goals( :install, :run, invoker_run_options )
-  end
-  properties 'jruby.versions' => '1.6.8', 'jruby.modes' => '1.8,1.9',
-             'bc.versions' => supported_bc_versions.join(',')
-end
-
-profile :id => 'test-1.7.4' do
-  plugin :invoker, '1.8' do
-    execute_goals( :install, :run, invoker_run_options )
-  end
-  properties 'jruby.versions' => '1.7.4', 'jruby.modes' => '1.8,1.9',
-             'bc.versions' => supported_bc_versions.join(',')
-end
+# profile :id => 'test-1.6.8' do
+#   plugin :invoker, '1.8' do
+#     execute_goals( :install, :run, invoker_run_options )
+#   end
+#   properties 'jruby.versions' => '1.6.8', 'jruby.modes' => '1.8,1.9',
+#              'bc.versions' => supported_bc_versions.join(',')
+# end
+#
+# profile :id => 'test-1.7.4' do
+#   plugin :invoker, '1.8' do
+#     execute_goals( :install, :run, invoker_run_options )
+#   end
+#   properties 'jruby.versions' => '1.7.4', 'jruby.modes' => '1.8,1.9',
+#              'bc.versions' => supported_bc_versions.join(',')
+# end
 
 jruby_1_7_versions = %w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.20 1.7.22 1.7.23 }
 jruby_1_7_versions += %w{ 1.7.24 1.7.25 1.7.26 1.7.27 }
@@ -166,13 +166,13 @@ profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
   end
-  properties 'jruby.versions' => version, 'jruby.modes' => '1.8,1.9,2.0',
+  properties 'jruby.versions' => version, 'jruby.modes' => '1.9,2.0',
              'bc.versions' => supported_bc_versions.join(',')
 end
 
 }
 
-jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.2.0 9.1.5.0 9.1.8.0 9.1.12.0 }
+jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.2.0 9.1.5.0 9.1.8.0 9.1.12.0 9.1.13.0 }
 
 jruby_9_K_versions.each { |version|
 profile :id => "test-#{version}" do
