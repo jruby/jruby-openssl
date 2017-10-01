@@ -2,6 +2,7 @@
  * The MIT License
  *
  * Copyright (c) 2014 Karol Bucek LTD.
+ * Copyright (c) 2017 Ketan Padegaonkar
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,24 +24,18 @@
  */
 package org.jruby.ext.openssl;
 
-import java.security.NoSuchProviderException;
-import java.security.SecureRandom;
-import java.util.Map;
-
-import org.jruby.CompatVersion;
-import org.jruby.Ruby;
-import org.jruby.RubyArray;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.RubyString;
+import org.jruby.*;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
-import org.jruby.ext.openssl.util.Version;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.util.SafePropertyAccessor;
+
+import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
+import java.util.Map;
 
 /**
  * OpenSSL (methods as well as an entry point)
@@ -344,6 +339,31 @@ public final class OpenSSL {
 
     static String bcExceptionMessage(NoClassDefFoundError ex) {
         return "You need to configure JVM/classpath to enable BouncyCastle Security Provider: " + ex;
+    }
+
+    static class Version implements Comparable<Version> {
+        public final int[] numbers;
+
+        public Version(String version) {
+            final String split[] = version.split("[-_]")[0].split("\\.");
+            numbers = new int[split.length];
+            for (int i = 0; i < split.length; i++) {
+                numbers[i] = Integer.valueOf(split[i]);
+            }
+        }
+
+        @Override
+        public int compareTo(Version another) {
+            final int maxLength = Math.max(numbers.length, another.numbers.length);
+            for (int i = 0; i < maxLength; i++) {
+                final int left = i < numbers.length ? numbers[i] : 0;
+                final int right = i < another.numbers.length ? another.numbers[i] : 0;
+                if (left != right) {
+                    return left < right ? -1 : 1;
+                }
+            }
+            return 0;
+        }
     }
 
 }

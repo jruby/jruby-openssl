@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-package org.jruby.ext.openssl.util;
+package org.jruby.ext.openssl;
 
 import org.junit.Test;
 
@@ -32,44 +32,44 @@ import static org.junit.Assert.assertThat;
 public class VersionTest {
 	@Test
 	public void newInstance_withTwoDotRelease_isParsedCorrectly() {
-		final Version version = new Version("1.8.1");
+		final OpenSSL.Version version = new OpenSSL.Version("1.8.1");
 		assertThat(version.numbers, is(new int[] { 1, 8, 1 }));
 	}
 
 	@Test
 	public void newInstance_withTwoDotReleaseAndPreReleaseName_isParsedCorrectly() {
-		assertThat(new Version("1.8.1-EA").numbers, is(new int[] { 1, 8, 1 }));
-		assertThat(new Version("1.7.0_79").numbers, is(new int[] { 1, 7, 0 }));
+		assertThat(new OpenSSL.Version("1.8.1-EA").numbers, is(new int[] { 1, 8, 1 }));
+		assertThat(new OpenSSL.Version("1.7.0_79").numbers, is(new int[] { 1, 7, 0 }));
 	}
 
 	@Test
 	public void compareTo_withEarlierVersion_isGreaterThan() {
-		assertThat(new Version("1.8").compareTo(new Version("1.7")), is(1));
+		assertThat(new OpenSSL.Version("1.8").compareTo(new OpenSSL.Version("1.7")), is(1));
 	}
 
 	@Test
 	public void compareTo_withSameVersion_isEqual() {
-		assertThat(new Version("1.8").compareTo(new Version("1.8")), is(0));
+		assertThat(new OpenSSL.Version("1.8").compareTo(new OpenSSL.Version("1.8")), is(0));
 	}
 
 	@Test
 	public void compareTo_withLaterVersion_isLessThan() {
-		assertThat(new Version("1.7").compareTo(new Version("1.8")), is(-1));
+		assertThat(new OpenSSL.Version("1.7").compareTo(new OpenSSL.Version("1.8")), is(-1));
 	}
 
 	@Test
 	public void compareTo_withMorePreciseSameVersion_isFalse() {
-		assertThat(new Version("9").compareTo(new Version("9.0")), is(0));
+		assertThat(new OpenSSL.Version("9").compareTo(new OpenSSL.Version("9.0")), is(0));
 	}
 
 	@Test
 	public void compareTo_withMorePreciseEarlierVersion_isFalse() {
-		assertThat(new Version("9").compareTo(new Version("1.7")), is(1));
+		assertThat(new OpenSSL.Version("9").compareTo(new OpenSSL.Version("1.7")), is(1));
 	}
 
 	@Test
 	public void compareTo_withMorePreciseLaterVersion_isLessThan() {
-		assertThat(new Version("1").compareTo(new Version("1.0.1")), is(-1));
+		assertThat(new OpenSSL.Version("1").compareTo(new OpenSSL.Version("1.0.1")), is(-1));
 	}
 
 }
