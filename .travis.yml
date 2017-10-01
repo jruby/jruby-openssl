@@ -8,7 +8,7 @@ env:
   - TEST_PROFILE=test-1.7.26
   - TEST_PROFILE=test-9.0.5.0
   - TEST_PROFILE=test-9.1.8.0
-  - TEST_PROFILE=test-9.1.12.0
+  - TEST_PROFILE=test-9.1.13.0
 
 install: if [[ -v BUNDLE_INSTALL ]]; then jruby -S bundle install; else echo ""; fi
 
@@ -20,7 +20,7 @@ matrix:
     - env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-1.7.24
     - env: TEST_COMMAND="jruby -S rake integration:install integration:test"
-      rvm: jruby-1.7.20
+      rvm: jruby-1.7.21
   include:
     - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
@@ -44,16 +44,16 @@ matrix:
       rvm: jruby-1.7.26
     - jdk: openjdk7
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
-      rvm: jruby-1.7.18
+      rvm: jruby-1.7.21
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.0.5.0
-    - jdk: openjdk7
-      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
-      rvm: jruby-9.1.2.0
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.1.5.0
+    - jdk: openjdk7
+      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+      rvm: jruby-9.1.8.0
 notifications:
   irc:
     channels:
