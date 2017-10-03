@@ -82,25 +82,23 @@ END
       [ "keyUsage", "keyCertSign, cRLSign", true ],
       [ "subjectKeyIdentifier", "hash", false ],
       [ "authorityKeyIdentifier", "keyid:always", false ],
-      [ "subjectAltName", "email:self@jruby.org", false ],
-      [ "subjectAltName", "DNS:jruby.org", false ],
+      [ "subjectAltName", "email:self@jruby.org, DNS:jruby.org", false ],
     ]
 
     now = Time.now
     ca_cert = issue_cert(ca, rsa2048, 1, now, now + 3600, ca_exts,
                          nil, nil, OpenSSL::Digest::SHA1.new)
 
-    assert_equal 6, ca_cert.extensions.size
+    assert_equal 5, ca_cert.extensions.size
 
     cert = OpenSSL::X509::Certificate.new ca_cert.to_der
-    assert_equal 6, cert.extensions.size
+    assert_equal 5, cert.extensions.size
 
     # Java 6/7 seems to maintain same order but Java 8 does definitely not :
     # TODO there must be something going on under - maybe not BC parsing ?!?
     if self.class.java6? || self.class.java7?
       assert_equal '97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB', cert.extensions[2].value
-      assert_equal 'email:self@jruby.org', cert.extensions[4].value
-      assert_equal 'DNS:jruby.org', cert.extensions[5].value
+      assert_equal 'email:self@jruby.org, DNS:jruby.org', cert.extensions[4].value
     end
 
     exts = cert.extensions.dup
@@ -118,10 +116,7 @@ END
     assert ! ext.critical?
 
     assert ext = exts.find { |e| e.oid == 'subjectAltName' }, "missing 'subjectAltName' among: #{exts.join(', ')}"
-    assert_equal 'email:self@jruby.org', ext.value
-    exts.delete(ext)
-    assert ext = exts.find { |e| e.oid == 'subjectAltName' }, "missing 'subjectAltName' among: #{exts.join(', ')}"
-    assert_equal 'DNS:jruby.org', ext.value
+    assert_equal 'email:self@jruby.org, DNS:jruby.org', ext.value
   end
 
   def test_extensions
