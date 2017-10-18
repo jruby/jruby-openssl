@@ -36,6 +36,7 @@ import org.bouncycastle.asn1.ASN1Boolean;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
@@ -456,7 +457,12 @@ public class X509Extension extends RubyObject {
                                     break;
                                 case 2 : // serial
                                     val.append(new byte[] { 's','e','r','i','a','l',':' });
-                                    hexBytes( ((ASN1OctetString) obj).getOctets(), val );
+                                    if (obj instanceof ASN1Integer) {
+                                        hexBytes( obj.getEncoded(), val);
+                                    }
+                                    else {
+                                        hexBytes( ((ASN1OctetString) obj ).getOctets(), val );                                        
+                                    }
                                     break;
                             }
                         }
