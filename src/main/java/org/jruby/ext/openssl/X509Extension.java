@@ -458,7 +458,7 @@ public class X509Extension extends RubyObject {
                                 case 2 : // serial
                                     val.append(new byte[] { 's','e','r','i','a','l',':' });
                                     if (obj instanceof ASN1Integer) {
-                                        hexBytes( obj.getEncoded(), val);
+                                        hexBytes( ((ASN1Integer) obj).getValue().toByteArray(), val);
                                     }
                                     else {
                                         hexBytes( ((ASN1OctetString) obj ).getOctets(), val );                                        
