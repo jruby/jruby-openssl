@@ -73,6 +73,31 @@ END
     end
   end
 
+  def test_aki_extension_to_text
+    # Cert generation ripped from WEBrick
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    cert = OpenSSL::X509::Certificate.new
+    cert.version = 2
+    cert.serial = 1
+    name = OpenSSL::X509::Name.new([ %w[CN localhost] ])
+    cert.subject = name
+    cert.issuer = name
+    cert.not_before = Time.now
+    cert.not_after = Time.now + (365*24*60*60)
+    cert.public_key = rsa2048.public_key
+
+    ef = OpenSSL::X509::ExtensionFactory.new(nil,cert)
+    ef.issuer_certificate = cert
+
+    aki = ef.create_extension("authorityKeyIdentifier",
+                              "keyid:always,issuer:always")
+    cert.add_extension(aki)
+
+    assert_equal 1, cert.extensions.size
+    assert_equal "keyid:97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB\n\nserial:01\n",
+                 cert.extensions.first.value
+  end
+
   def test_resolve_extensions
     rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
     ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
