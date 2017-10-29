@@ -41,12 +41,12 @@ public class OpenSSLReal {
     private OpenSSLReal() { /* no instances */ }
 
     @Deprecated
-    public static interface Runnable {
-        public void run() throws GeneralSecurityException;
+    public interface Runnable {
+        void run() throws GeneralSecurityException;
     }
 
-    public static interface Callable<T> {
-        public T call() throws GeneralSecurityException;
+    public interface Callable<T> {
+        T call() throws GeneralSecurityException;
     }
 
     /**
