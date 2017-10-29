@@ -3,6 +3,12 @@ sudo: false
 jdk:
   - openjdk7
   - oraclejdk8
+
+addons:
+  apt:
+    packages:
+      - oracle-java9-installer
+
 env:
   - TEST_PROFILE=test-1.7.20
   - TEST_PROFILE=test-1.7.26
@@ -16,11 +22,7 @@ script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_P
 
 matrix:
   allow_failures:
-    #- env: TEST_PROFILE=test-1.7.22 # seems as an embed loading bug (same with 1.7.23)
-    - env: TEST_COMMAND="jruby -S rake integration:install integration:test"
-      rvm: jruby-1.7.24
-    - env: TEST_COMMAND="jruby -S rake integration:install integration:test"
-      rvm: jruby-1.7.21
+    - jdk: oraclejdk9
   include:
     - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
@@ -38,6 +40,12 @@ matrix:
     - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn verify -P test-1.7.26" BUNDLE_INSTALL=true RUBY_MAVEN_VERSION=3.3.8
       rvm: jruby-1.7.26
+    - jdk: oraclejdk9
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
+      rvm: jruby-9.1.13.0
+    - jdk: oraclejdk9
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
+      rvm: jruby-head
     #
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
