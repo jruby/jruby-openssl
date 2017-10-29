@@ -62,14 +62,8 @@ abstract class StringHelper {
     }
 
     static ByteList setByteListShared(final RubyString str) {
-        try {
-            str.setByteListShared();
-            return str.getByteList();
-        }
-        catch (NoSuchMethodError err) { // JRuby 1.6
-            RubyString dup = (RubyString) str.dup();
-            return dup.getByteList();
-        }
+        str.setByteListShared();
+        return str.getByteList();
     }
 
     static RubyString newUTF8String(final Ruby runtime, final ByteList bytes) {
