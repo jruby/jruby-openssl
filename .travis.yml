@@ -23,6 +23,8 @@ script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_P
 matrix:
   allow_failures:
     - jdk: oraclejdk9
+      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+    - rvm: jruby-head
   include:
     - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
@@ -62,6 +64,9 @@ matrix:
     - jdk: openjdk7
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.1.8.0
+    - jdk: oraclejdk9
+      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+      rvm: jruby-9.1.13.0
 notifications:
   irc:
     channels:
