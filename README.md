@@ -21,7 +21,8 @@ the JRuby [mailing list][1] or the [bug tracker][2].
 |        0.9.13 |   1.6.8-9.1.2 |   Java 6-8 |    1.49-1.52 |
 |        0.9.14 |   1.6.8-9.1.5 |   Java 6-8 |    1.49-1.54 |
 |        0.9.17 |   1.6.8-9.1.5 |   Java 6-8 |    1.50-1.54 |
-|        0.9.18 |   1.6.8-9.1.7 |   Java 6-8 |    1.50-1.55 |
+|      ~>0.9.18 |   1.6.8-9.1.x |   Java 6-8 |    1.50-1.55 |
+|        0.10.0 |  1.7.20-9.2.x |   Java 7-9 |    1.54-1.56? |
 
 NOTE: backwards JRuby compatibility was not handled for versions <= **0.9.6** 
 
