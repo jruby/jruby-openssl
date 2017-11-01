@@ -12,15 +12,17 @@ unless ENV_JAVA['jruby.openssl.load.jars'].eql?('false')
   begin
     require 'jar-dependencies'
     # if we have jar-dependencies we let it track the jars
-    require_jar( 'org.bouncycastle', 'bcpkix-jdk15on', version )
     require_jar( 'org.bouncycastle', 'bcprov-jdk15on', version )
+    require_jar( 'org.bouncycastle', 'bcpkix-jdk15on', version )
+    require_jar( 'org.bouncycastle', 'bctls-jdk15on',  version )
     bc_jars = true
   rescue LoadError
     bc_jars = false
   end
   unless bc_jars
-    load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
     load "org/bouncycastle/bcprov-jdk15on/#{version}/bcprov-jdk15on-#{version}.jar"
+    load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
+    load "org/bouncycastle/bctls-jdk15on/#{version}/bctls-jdk15on-#{version}.jar"
   end
 end
 

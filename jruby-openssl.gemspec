@@ -26,8 +26,9 @@ Gem::Specification.new do |s|
   bc_version = version_rb.match( /.*\sBOUNCY_CASTLE_VERSION\s*=\s*['"](.*)['"]/ )[1]
   raise 'BOUNCY_CASTLE_VERSION not matched' if (bc_version || '').empty?
 
-  s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{bc_version}"
-  s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{bc_version}"
+  s.requirements << "jar org.bouncycastle:bcprov-jdk15on, #{bc_version}" # Provider
+  s.requirements << "jar org.bouncycastle:bcpkix-jdk15on, #{bc_version}" # PKIX/CMS/EAC/PKCSOCSP/TSP/OPENSSL
+  s.requirements << "jar org.bouncycastle:bctls-jdk15on,  #{bc_version}" # DTLS/TLS API/JSSE Provider
 
   s.required_ruby_version     = '>= 1.9.3'
   s.required_rubygems_version = '>= 2.4.8'

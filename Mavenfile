@@ -100,20 +100,20 @@ plugin :deploy, '2.8.1' do
   execute_goals( :deploy, :skip => false )
 end
 
-supported_bc_versions = %w{ 1.51 1.52 1.53 1.54 } # due EC support dropped <= 1.50
+supported_bc_versions = %w{ 1.54 1.55 1.56 1.57 1.58 } # due EC support dropped <= 1.50
 
 default_bc_version = File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
 properties( 'jruby.plugins.version' => '1.0.10',
-            'jruby.versions' => '1.7.18',
+            'jruby.versions' => '1.7.20',
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
             # use this version of jruby for ALL the jruby-maven-plugins
-            'jruby.version' => '1.7.18',
+            'jruby.version' => '1.7.20',
             # dump pom.xml as readonly when running 'rmvn'
             'polyglot.dump.pom' => 'pom.xml',
             'polyglot.dump.readonly' => true,
