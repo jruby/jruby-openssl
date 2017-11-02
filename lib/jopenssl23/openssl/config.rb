@@ -71,7 +71,7 @@ module OpenSSL
         end
       end
 
-    private
+      private
 
       def parse_config_lines(io)
         section = 'default'
@@ -110,10 +110,10 @@ module OpenSSL
       QUOTE_REGEXP_DQ = /\A([^"\\]*(?:""[^"\\]*|\\.[^"\\]*)*)"/
       # escaped char map
       ESCAPE_MAP = {
-        "r" => "\r",
-        "n" => "\n",
-        "b" => "\b",
-        "t" => "\t",
+          "r" => "\r",
+          "n" => "\n",
+          "b" => "\b",
+          "t" => "\t",
       }
 
       def unescape_value(data, section, value)
@@ -123,36 +123,36 @@ module OpenSSL
           c = m[0]
           value = m.post_match
           case c
-          when "'"
-            if m = value.match(QUOTE_REGEXP_SQ)
-              scanned << m[1].gsub(/\\(.)/, '\\1')
-              value = m.post_match
+            when "'"
+              if m = value.match(QUOTE_REGEXP_SQ)
+                scanned << m[1].gsub(/\\(.)/, '\\1')
+                value = m.post_match
+              else
+                break
+              end
+            when '"'
+              if m = value.match(QUOTE_REGEXP_DQ)
+                scanned << m[1].gsub(/""/, '').gsub(/\\(.)/, '\\1')
+                value = m.post_match
+              else
+                break
+              end
+            when "\\"
+              c = value.slice!(0, 1)
+              scanned << (ESCAPE_MAP[c] || c)
+            when "$"
+              ref, value = extract_reference(value)
+              refsec = section
+              if ref.index('::')
+                refsec, ref = ref.split('::', 2)
+              end
+              if v = get_key_string(data, refsec, ref)
+                scanned << v
+              else
+                raise ConfigError, "variable has no value"
+              end
             else
-              break
-            end
-          when '"'
-            if m = value.match(QUOTE_REGEXP_DQ)
-              scanned << m[1].gsub(/""/, '').gsub(/\\(.)/, '\\1')
-              value = m.post_match
-            else
-              break
-            end
-          when "\\"
-            c = value.slice!(0, 1)
-            scanned << (ESCAPE_MAP[c] || c)
-          when "$"
-            ref, value = extract_reference(value)
-            refsec = section
-            if ref.index('::')
-              refsec, ref = ref.split('::', 2)
-            end
-            if v = get_key_string(data, refsec, ref)
-              scanned << v
-            else
-              raise ConfigError, "variable has no value"
-            end
-          else
-            raise 'must not reaced'
+              raise 'must not reaced'
           end
         end
         scanned << value
@@ -186,25 +186,25 @@ module OpenSSL
           c = m[0]
           line = m.post_match
           case c
-          when '#'
-            line = nil
-            break
-          when "'", '"'
-            regexp = (c == "'") ? QUOTE_REGEXP_SQ : QUOTE_REGEXP_DQ
-            scanned << c
-            if m = line.match(regexp)
-              scanned << m[0]
-              line = m.post_match
-            else
-              scanned << line
+            when '#'
               line = nil
               break
-            end
-          when "\\"
-            scanned << c
-            scanned << line.slice!(0, 1)
-          else
-            raise 'must not reaced'
+            when "'", '"'
+              regexp = (c == "'") ? QUOTE_REGEXP_SQ : QUOTE_REGEXP_DQ
+              scanned << c
+              if m = line.match(regexp)
+                scanned << m[0]
+                line = m.post_match
+              else
+                scanned << line
+                line = nil
+                break
+              end
+            when "\\"
+              scanned << c
+              scanned << line.slice!(0, 1)
+            else
+              raise 'must not reaced'
           end
         end
         scanned << line
@@ -450,13 +450,13 @@ module OpenSSL
       "#<#{self.class.name} sections=#{sections.inspect}>"
     end
 
-  protected
+    protected
 
     def data # :nodoc:
       @data
     end
 
-  private
+    private
 
     def initialize_copy(other)
       @data = other.data.dup
