@@ -67,13 +67,14 @@ public final class OpenSSL {
         final String warn = SafePropertyAccessor.getProperty("jruby.openssl.warn");
         if ( warn != null ) OpenSSL.warn = Boolean.parseBoolean(warn);
 
+        Config.createConfig(runtime, _OpenSSL);
+        ExtConfig.create(runtime, _OpenSSL);
         PKey.createPKey(runtime, _OpenSSL);
         BN.createBN(runtime, _OpenSSL);
         Digest.createDigest(runtime, _OpenSSL);
         Cipher.createCipher(runtime, _OpenSSL);
         Random.createRandom(runtime, _OpenSSL);
         HMAC.createHMAC(runtime, _OpenSSL);
-        Config.createConfig(runtime, _OpenSSL);
         ASN1.createASN1(runtime, _OpenSSL);
         X509.createX509(runtime, _OpenSSL);
         NetscapeSPKI.createNetscapeSPKI(runtime, _OpenSSL);
@@ -96,8 +97,6 @@ public final class OpenSSL {
         // OpenSSL::FIPS: false
 
         final byte[] version = { '1','.','1','.','0' };
-        final boolean ruby18 = runtime.getInstanceConfig().getCompatVersion() == CompatVersion.RUBY1_8;
-        if ( ruby18 ) version[2] = '0'; // 1.0.0 compatible on 1.8
 
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
@@ -115,11 +114,9 @@ public final class OpenSSL {
         final RubyString VERSION;
         _OpenSSL.setConstant("OPENSSL_VERSION", VERSION = runtime.newString(OPENSSL_VERSION));
         _OpenSSL.setConstant("OPENSSL_VERSION_NUMBER", runtime.newFixnum(OPENSSL_VERSION_NUMBER));
-        if ( ! ruby18 ) {
-            // MRI 2.3 tests do: /\AOpenSSL +0\./ !~ OpenSSL::OPENSSL_LIBRARY_VERSION
-            _OpenSSL.setConstant("OPENSSL_LIBRARY_VERSION", VERSION);
-            _OpenSSL.setConstant("OPENSSL_FIPS", runtime.getFalse());
-        }
+        // MRI 2.3 tests do: /\AOpenSSL +0\./ !~ OpenSSL::OPENSSL_LIBRARY_VERSION
+        _OpenSSL.setConstant("OPENSSL_LIBRARY_VERSION", VERSION);
+        _OpenSSL.setConstant("OPENSSL_FIPS", runtime.getFalse());
     }
 
     static RubyClass _OpenSSLError(final Ruby runtime) {
