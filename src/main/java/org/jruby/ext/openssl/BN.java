@@ -115,8 +115,7 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name="initialize", required=1, optional=1, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context,
-        final IRubyObject[] args) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
         if (this.value != BigInteger.ZERO) { // already initialized
             throw newBNError(runtime, "illegal initialization");
@@ -126,14 +125,7 @@ public class BN extends RubyObject {
         final RubyString str = args[0].asString();
         switch (base) {
         case 0:
-            final byte[] bytes = str.getBytes(); final int signum;
-            if ( ( bytes[0] & 0x80 ) != 0 ) {
-                bytes[0] &= 0x7f; signum = -1;
-            }
-            else {
-                signum = 1;
-            }
-            this.value = new BigInteger(signum, bytes);
+            this.value = initBigIntegerMPI(runtime, str);
             break;
         case 2:
             // this seems wrong to me, but is the behavior of the
@@ -147,16 +139,42 @@ public class BN extends RubyObject {
         case 10:
         case 16:
             // here, the ASCII-encoded decimal or hex string is used
-            try {
-                this.value = new BigInteger(str.toString(), base);
-                break;
-            } catch (NumberFormatException e) {
-                throw runtime.newArgumentError("value " + str + " is not legal for radix " + base);
-            }
+            this.value = initBigIntegerBase(runtime, str, base);
+            break;
         default:
             throw runtime.newArgumentError("illegal radix: " + base);
         }
         return this;
+    }
+
+    private static BigInteger initBigIntegerMPI(final Ruby runtime, RubyString str) {
+        final ByteList byteList = str.getByteList();
+        final int off = byteList.getBegin();
+        final byte[] b = byteList.getUnsafeBytes();
+
+        long len = ((b[off] & 0xFFl) << 24) | ((b[off+1] & 0xFF) << 16) | ((b[off+2] & 0xFF) << 8) | (b[off+3] & 0xFF);
+        final byte[] bytes = new byte[(int) len];
+        System.arraycopy(b, off + 4, bytes, 0, bytes.length);
+
+        final int signum;
+        if ( (bytes[0] & 0x80) == 0x80 ) {
+            signum = -1; bytes[0] &= 0x7f;
+        }
+        else {
+            signum = +1;
+        }
+        return new BigInteger(signum, bytes);
+
+    }
+
+    private static BigInteger initBigIntegerBase(final Ruby runtime, RubyString str, final int base) {
+        // here, the ASCII-encoded decimal or hex string is used
+        try {
+            return new BigInteger(str.toString(), base);
+        }
+        catch (NumberFormatException e) {
+            throw runtime.newArgumentError("value " + str + " is not legal for radix " + base);
+        }
     }
 
     @Override
