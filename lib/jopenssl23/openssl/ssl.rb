@@ -17,9 +17,9 @@ module OpenSSL
   module SSL
     class SSLContext
       DEFAULT_PARAMS = {
-        :ssl_version => "SSLv23",
-        :verify_mode => OpenSSL::SSL::VERIFY_PEER,
-        :ciphers => %w{
+          :ssl_version => "SSLv23",
+          :verify_mode => OpenSSL::SSL::VERIFY_PEER,
+          :ciphers => %w{
           ECDHE-ECDSA-AES128-GCM-SHA256
           ECDHE-RSA-AES128-GCM-SHA256
           ECDHE-ECDSA-AES256-GCM-SHA384
@@ -54,32 +54,32 @@ module OpenSSL
           ECDHE-RSA-RC4-SHA
           RC4-SHA
         }.join(":"),
-        :options => -> {
-          opts = OpenSSL::SSL::OP_ALL
-          opts &= ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS if defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS)
-          opts |= OpenSSL::SSL::OP_NO_COMPRESSION if defined?(OpenSSL::SSL::OP_NO_COMPRESSION)
-          opts |= OpenSSL::SSL::OP_NO_SSLv2 if defined?(OpenSSL::SSL::OP_NO_SSLv2)
-          opts |= OpenSSL::SSL::OP_NO_SSLv3 if defined?(OpenSSL::SSL::OP_NO_SSLv3)
-          opts
-        }.call
-      } unless const_defined? :DEFAULT_PARAMS # JRuby does it in Java
+          :options => -> {
+            opts = OpenSSL::SSL::OP_ALL
+            opts &= ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS if defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS)
+            opts |= OpenSSL::SSL::OP_NO_COMPRESSION if defined?(OpenSSL::SSL::OP_NO_COMPRESSION)
+            opts |= OpenSSL::SSL::OP_NO_SSLv2 if defined?(OpenSSL::SSL::OP_NO_SSLv2)
+            opts |= OpenSSL::SSL::OP_NO_SSLv3 if defined?(OpenSSL::SSL::OP_NO_SSLv3)
+            opts
+          }.call
+      } unless const_defined? :DEFAULT_PARAMS # JRuby
 
-      unless const_defined? :DEFAULT_CERT_STORE # JRuby specific
-      DEFAULT_CERT_STORE = OpenSSL::X509::Store.new
-      DEFAULT_CERT_STORE.set_default_paths
-      if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
-        DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
-      end
-      end
+      begin
+        DEFAULT_CERT_STORE = OpenSSL::X509::Store.new
+        DEFAULT_CERT_STORE.set_default_paths
+        if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
+          DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
+        end
+      end unless const_defined? :DEFAULT_CERT_STORE # JRuby
 
       INIT_VARS = ["cert", "key", "client_ca", "ca_file", "ca_path",
-        "timeout", "verify_mode", "verify_depth", "renegotiation_cb",
-        "verify_callback", "cert_store", "extra_chain_cert",
-        "client_cert_cb", "session_id_context", "tmp_dh_callback",
-        "session_get_cb", "session_new_cb", "session_remove_cb",
-        "tmp_ecdh_callback", "servername_cb", "npn_protocols",
-        "alpn_protocols", "alpn_select_cb",
-        "npn_select_cb"].map { |x| "@#{x}" }
+                   "timeout", "verify_mode", "verify_depth", "renegotiation_cb",
+                   "verify_callback", "cert_store", "extra_chain_cert",
+                   "client_cert_cb", "session_id_context", "tmp_dh_callback",
+                   "session_get_cb", "session_new_cb", "session_remove_cb",
+                   "tmp_ecdh_callback", "servername_cb", "npn_protocols",
+                   "alpn_protocols", "alpn_select_cb",
+                   "npn_select_cb"].map { |x| "@#{x}" }
 
       # A callback invoked when DH parameters are required.
       #
@@ -92,14 +92,14 @@ module OpenSSL
 
       attr_accessor :tmp_dh_callback
 
-      #if ExtConfig::HAVE_TLSEXT_HOST_NAME
+      if ExtConfig::HAVE_TLSEXT_HOST_NAME
         # A callback invoked at connect time to distinguish between multiple
         # server names.
         #
         # The callback is invoked with an SSLSocket and a server name.  The
         # callback must return an SSLContext for the server name or nil.
         attr_accessor :servername_cb
-      #end
+      end
 
       # call-seq:
       #    SSLContext.new => ctx
@@ -108,9 +108,10 @@ module OpenSSL
       #
       # You can get a list of valid methods with OpenSSL::SSL::SSLContext::METHODS
       def initialize(version = nil)
-        self.options |= OpenSSL::SSL::OP_ALL
+        INIT_VARS.each { |v| instance_variable_set v, nil }
+        self.options = self.options | OpenSSL::SSL::OP_ALL
         self.ssl_version = version if version
-      end unless defined? JRUBY_VERSION # JRuby: handled in "native" Java
+      end unless defined? JRUBY_VERSION # JRuby
 
       ##
       # Sets the parameters for this SSL context to the values in +params+.
@@ -129,7 +130,7 @@ module OpenSSL
           end
         end
         return params
-      end unless method_defined? :set_params # JRuby: hooked up in "native" Java
+      end unless method_defined? :set_params # JRuby
     end
 
     module SocketForwarder
@@ -245,8 +246,8 @@ module OpenSSL
       return false if domain_component.start_with?("xn--") && san_component != "*"
 
       parts[0].length + parts[1].length < domain_component.length &&
-      domain_component.start_with?(parts[0]) &&
-      domain_component.end_with?(parts[1])
+          domain_component.start_with?(parts[0]) &&
+          domain_component.end_with?(parts[1])
     end
     module_function :verify_wildcard
 
@@ -254,52 +255,55 @@ module OpenSSL
       include Buffering
       include SocketForwarder
 
-      if ExtConfig::OPENSSL_NO_SOCK
-        def initialize(io, ctx = nil); raise NotImplementedError; end
-      else
-        if ExtConfig::HAVE_TLSEXT_HOST_NAME
-          attr_accessor :hostname
-        end
-
-        attr_reader :io, :context
-        attr_accessor :sync_close
-        alias :to_io :io
-
-        # call-seq:
-        #    SSLSocket.new(io) => aSSLSocket
-        #    SSLSocket.new(io, ctx) => aSSLSocket
-        #
-        # Creates a new SSL socket from +io+ which must be a real ruby object (not an
-        # IO-like object that responds to read/write).
-        #
-        # If +ctx+ is provided the SSL Sockets initial params will be taken from
-        # the context.
-        #
-        # The OpenSSL::Buffering module provides additional IO methods.
-        #
-        # This method will freeze the SSLContext if one is provided;
-        # however, session management is still allowed in the frozen SSLContext.
-
-        def initialize(io, context = OpenSSL::SSL::SSLContext.new)
-          @io         = io
-          @context    = context
-          @sync_close = false
-          @hostname   = nil
-          @io.nonblock = true if @io.respond_to?(:nonblock=)
-          context.setup
-          super()
-        end
-      end unless defined? JRUBY_VERSION # JRuby: handled in "native" Java
+      # if ExtConfig::OPENSSL_NO_SOCK
+      #   def initialize(io, ctx = nil); raise NotImplementedError; end
+      # else
+      #   if ExtConfig::HAVE_TLSEXT_HOST_NAME
+      #     attr_accessor :hostname
+      #   end
+      #
+      #   attr_reader :io, :context
+      #   attr_accessor :sync_close
+      #   alias :to_io :io
+      #
+      #   # call-seq:
+      #   #    SSLSocket.new(io) => aSSLSocket
+      #   #    SSLSocket.new(io, ctx) => aSSLSocket
+      #   #
+      #   # Creates a new SSL socket from +io+ which must be a real ruby object (not an
+      #   # IO-like object that responds to read/write).
+      #   #
+      #   # If +ctx+ is provided the SSL Sockets initial params will be taken from
+      #   # the context.
+      #   #
+      #   # The OpenSSL::Buffering module provides additional IO methods.
+      #   #
+      #   # This method will freeze the SSLContext if one is provided;
+      #   # however, session management is still allowed in the frozen SSLContext.
+      #
+      #   def initialize(io, context = OpenSSL::SSL::SSLContext.new)
+      #     @io         = io
+      #     @context    = context
+      #     @sync_close = false
+      #     @hostname   = nil
+      #     @io.nonblock = true if @io.respond_to?(:nonblock=)
+      #     context.setup
+      #     super()
+      #   end
+      # end
 
       # call-seq:
       #    ssl.sysclose => nil
       #
-      # Shuts down the SSL connection and prepares it for another connection.
+      # Sends "close notify" to the peer and tries to shut down the SSL
+      # connection gracefully.
+      #
+      # If sync_close is set to +true+, the underlying IO is also closed.
       def sysclose
         return if closed?
         stop
         io.close if sync_close
-      end unless defined? JRUBY_VERSION # JRuby: handled in "native" Java
+      end unless method_defined? :sysclose # JRuby
 
       ##
       # Perform hostname verification after an SSL connection is established
@@ -321,11 +325,11 @@ module OpenSSL
         return true
       end
 
-      #def session
-      #  SSL::Session.new(self)
-      #rescue SSL::Session::SessionError
-      #  nil
-      #end
+      def session
+        SSL::Session.new(self)
+      rescue SSL::Session::SessionError
+        nil
+      end unless method_defined? :session # JRuby
 
       private
 
