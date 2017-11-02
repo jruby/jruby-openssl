@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl.x509store;
 
 import java.security.GeneralSecurityException;
+import java.security.Principal;
 import java.security.PublicKey;
 import java.security.cert.X509CRL;
 import java.security.cert.X509Certificate;
@@ -38,12 +39,15 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.jruby.ext.openssl.SecurityHelper;
+
+import javax.security.auth.x500.X500Principal;
 
 /**
  * c: X509_STORE_CTX
@@ -661,6 +665,22 @@ public class StoreContext {
         List<X509AuxCertificate> sktmp = null;
         if ( untrusted != null ) {
             sktmp = new ArrayList<X509AuxCertificate>(untrusted);
+
+            // replace certs in untrusted with trusted versions if found
+            X509Object[] objTmp = {null};
+            for (ListIterator<X509AuxCertificate> iter = sktmp.listIterator(); iter.hasNext();) {
+                X509AuxCertificate skCert = iter.next();
+                X500Principal principal = skCert.cert.getSubjectX500Principal();
+                int ok = getBySubject(X509Utils.X509_LU_X509, new Name(principal), objTmp);
+                if (ok == X509Utils.X509_LU_X509) {
+                    // replace old with new and clear rest of untrusted
+                    iter.set(((Certificate) objTmp[0]).x509);
+                    while (iter.hasNext()) {
+                        iter.next();
+                        iter.remove();
+                    }
+                }
+            }
         }
         num = chain.size();
         x = chain.get(num - 1);
