@@ -674,10 +674,14 @@ public class StoreContext {
                 int ok = getBySubject(X509Utils.X509_LU_X509, new Name(principal), objTmp);
                 if (ok == X509Utils.X509_LU_X509) {
                     // replace old with new and clear rest of untrusted
-                    iter.set(((Certificate) objTmp[0]).x509);
-                    while (iter.hasNext()) {
-                        iter.next();
-                        iter.remove();
+                    Certificate certificate = (Certificate) objTmp[0];
+                    if (certificate.x509.equals(skCert)) {
+                        iter.set(certificate.x509);
+                        while (iter.hasNext()) {
+                            iter.next();
+                            iter.remove();
+                        }
+                        break;
                     }
                 }
             }
