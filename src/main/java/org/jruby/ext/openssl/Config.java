@@ -32,18 +32,20 @@ import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 
 /**
+ * OpenSSL::Config (native parts)
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class Config {
     // TODO: we cannot detect OS's default config file. ignore?
-    public static final String DEFAULT_CONFIG_FILE = "./openssl.cnf";
+    // public static final String DEFAULT_CONFIG_FILE = "./openssl.cnf";
     
-    public static void createConfig(Ruby runtime, RubyModule mOSSL) {
-        RubyClass cConfig = mOSSL.defineClassUnder("Config", runtime.getObject(), runtime.getObject().getAllocator());
-        cConfig.defineAnnotatedMethods(Config.class);
-        RubyClass openSSLError = mOSSL.getClass("OpenSSLError");
-        mOSSL.defineClassUnder("ConfigError", openSSLError, openSSLError.getAllocator());
+    public static void createConfig(Ruby runtime, RubyModule OpenSSL) {
+        RubyClass Config = OpenSSL.defineClassUnder("Config", runtime.getObject(), runtime.getObject().getAllocator());
+        Config.defineAnnotatedMethods(Config.class);
+        RubyClass openSSLError = OpenSSL.getClass("OpenSSLError");
+        OpenSSL.defineClassUnder("ConfigError", openSSLError, openSSLError.getAllocator());
         // TODO: we should define this constant with proper path. (see above)
-        //cConfig.setConstant("DEFAULT_CONFIG_FILE", runtime.newString(DEFAULT_CONFIG_FILE));
+        Config.setConstant("DEFAULT_CONFIG_FILE", runtime.getNil()); // runtime.newString(DEFAULT_CONFIG_FILE)
     }
-}// Config
+
+}
