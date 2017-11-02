@@ -29,9 +29,40 @@ module SSLTestHelper
     @server = nil
   end
 
-  def start_server(port0, verify_mode, start_immediately, args = {}, &block)
-    require 'socket'
+  private
 
+  # threads should respond to shift method.
+  # Array can be used.
+  def assert_join_threads(threads, message = nil)
+    errs = []; values = []
+    while th = threads.shift
+      begin
+        values << th.value
+      rescue Exception
+        errs << [th, $!]
+      end
+    end
+    unless errs.empty?
+      msg = "exceptions on #{errs.length} threads:\n" +
+          errs.map {|t, err|
+            "#{t.inspect}:\n" +
+                err.backtrace.map.with_index {|line, i|
+                  if i == 0
+                    "#{line}: #{err.message} (#{err.class})"
+                  else
+                    "\tfrom #{line}"
+                  end
+                }.join("\n")
+          }.join("\n---\n")
+      msg = "#{message}\n#{msg}" if message
+      fail msg # raise MiniTest::Assertion, msg
+    end
+    values
+  end
+
+  protected
+
+  def start_server0(port0, verify_mode, start_immediately, args = {}, &block); require 'socket'
     ctx_proc = args[:ctx_proc]
     server_proc = args[:server_proc]
     server_proc ||= method(:readwrite_loop)
@@ -64,7 +95,7 @@ module SSLTestHelper
     begin
       server = Thread.new do
         Thread.current.abort_on_exception = true
-        server_loop(context, ssls, server_proc)
+        server_loop0(context, ssls, server_proc)
       end
 
       $stderr.printf("%s started: pid=%d port=%d\n", SSL_SERVER, $$, port) #if $DEBUG
@@ -72,6 +103,63 @@ module SSLTestHelper
       block.call(server, port.to_i)
     ensure
       tcp_server_close(server, tcp_server)
+    end
+  end
+
+  def start_server(verify_mode, start_immediately, args = {}, &block); require 'socket'
+    IO.pipe do |stop_pipe_r, stop_pipe_w|
+      ctx_proc = args[:ctx_proc]
+      server_proc = args[:server_proc]
+      ignore_listener_error = args.fetch(:ignore_listener_error, false)
+      use_anon_cipher = args.fetch(:use_anon_cipher, false)
+      server_proc ||= method(:readwrite_loop)
+
+      store = OpenSSL::X509::Store.new
+      store.add_cert(@ca_cert)
+      store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
+      ctx = OpenSSL::SSL::SSLContext.new
+      ctx.ciphers = "ADH-AES256-GCM-SHA384" if use_anon_cipher
+      ctx.cert_store = store
+      #ctx.extra_chain_cert = [ ca_cert ]
+      ctx.cert = @svr_cert
+      ctx.key = @svr_key
+      ctx.tmp_dh_callback = proc { OpenSSL::TestUtils::TEST_KEY_DH1024 }
+      ctx.verify_mode = verify_mode
+      ctx_proc.call(ctx) if ctx_proc
+
+      Socket.do_not_reverse_lookup = true
+
+      tcps = TCPServer.new("127.0.0.1", 0)
+      port = tcps.connect_address.ip_port
+
+      ssls = OpenSSL::SSL::SSLServer.new(tcps, ctx)
+      ssls.start_immediately = start_immediately
+
+      threads = []
+      begin
+        server = Thread.new do
+          # Thread.current.abort_on_exception = true
+          begin
+            server_loop(ctx, ssls, stop_pipe_r, ignore_listener_error, server_proc, threads)
+          ensure
+            tcps.close
+          end
+        end
+        threads.unshift server
+
+        $stderr.printf("SSL server started: pid=%d port=%d\n", $$, port) if $DEBUG
+
+        client = Thread.new do
+          begin
+            block.call(server, port.to_i)
+          ensure
+            stop_pipe_w.close
+          end
+        end
+        threads.unshift client
+      ensure
+        assert_join_threads(threads)
+      end
     end
   end
 
@@ -110,7 +198,7 @@ module SSLTestHelper
   ( defined? JRUBY_VERSION && JRUBY_VERSION < '1.7.0' )
   private :tcp_server_close
 
-  def server_loop(context, server, server_proc)
+  def server_loop0(context, server, server_proc)
     loop do
       ssl = nil
       begin
@@ -125,6 +213,31 @@ module SSLTestHelper
       end
     end
   rescue Errno::EBADF, IOError, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET
+  end
+
+  def server_loop(ctx, ssls, stop_pipe_r, ignore_listener_error, server_proc, threads)
+    loop do
+      ssl = nil
+      begin
+        readable, = IO.select([ssls, stop_pipe_r])
+        return if readable.include? stop_pipe_r
+        ssl = ssls.accept
+      rescue OpenSSL::SSL::SSLError
+        if ignore_listener_error
+          retry
+        else
+          raise
+        end
+      end
+
+      threads << Thread.start do
+        # Thread.current.abort_on_exception = true
+        server_proc.call(ctx, ssl)
+      end
+    end
+  rescue Errno::EBADF, IOError, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET => ex
+    raise(ex) unless ignore_listener_error
+    puts ex.inspect if $VERBOSE
   end
 
   def server_connect(port, ctx = nil)

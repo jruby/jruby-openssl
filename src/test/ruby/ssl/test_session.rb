@@ -5,7 +5,7 @@ class TestSSLSession < TestCase
   include SSLTestHelper
 
   def test_session
-    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
+    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
       sock = TCPSocket.new("127.0.0.1", port)
       ctx = OpenSSL::SSL::SSLContext.new("TLSv1")
       ssl = OpenSSL::SSL::SSLSocket.new(sock, ctx)

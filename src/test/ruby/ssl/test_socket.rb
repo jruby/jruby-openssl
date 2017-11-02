@@ -72,7 +72,7 @@ class TestSSLSocket < TestCase
   include SSLTestHelper
 
   def test_ssl_sysread_blocking_error
-    start_server(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
+    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
       server_connect(port) do |ssl|
         ssl.write("abc\n")
         # assert_raise(TypeError) { eval 'ssl.sysread(4, exception: false)' }
