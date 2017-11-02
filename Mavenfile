@@ -157,8 +157,7 @@ invoker_run_options = {
 #              'bc.versions' => supported_bc_versions.join(',')
 # end
 
-jruby_1_7_versions = %w{ 1.7.13 1.7.15 1.7.16 1.7.18 1.7.20 1.7.22 1.7.23 }
-jruby_1_7_versions += %w{ 1.7.24 1.7.25 1.7.26 1.7.27 }
+jruby_1_7_versions = %w{ 1.7.18 1.7.20 1.7.22 1.7.23 1.7.24 1.7.25 1.7.26 1.7.27 }
 
 jruby_1_7_versions.each { |version|
 
