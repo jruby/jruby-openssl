@@ -434,7 +434,7 @@ public class X509CRL extends RubyObject {
     }
 
     private RubyString signature_algorithm(final Ruby runtime) {
-        return RubyString.newString(runtime, getSignatureAlgorithm(runtime, "itu-t"));
+        return RubyString.newString(runtime, getSignatureAlgorithm(runtime, "NULL"));
     }
 
     private String getSignatureAlgorithm(final Ruby runtime, final String def) {

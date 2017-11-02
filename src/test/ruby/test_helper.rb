@@ -137,6 +137,8 @@ TestCase.class_eval do
 
   private
 
+  def debug(msg); puts msg if $VERBOSE end
+
   def issue_cert(dn, key, serial, not_before, not_after, extensions, issuer, issuer_key, digest)
     cert = OpenSSL::X509::Certificate.new
     issuer = cert unless issuer
@@ -184,6 +186,15 @@ TestCase.class_eval do
     end
     crl.sign(issuer_key, digest)
     crl
+  end
+
+  def get_subject_key_id(cert)
+    asn1_cert = OpenSSL::ASN1.decode(cert)
+    tbscert   = asn1_cert.value[0]
+    pkinfo    = tbscert.value[6]
+    publickey = pkinfo.value[1]
+    pkvalue   = publickey.value
+    OpenSSL::Digest::SHA1.hexdigest(pkvalue).scan(/../).join(":").upcase
   end
 
 end

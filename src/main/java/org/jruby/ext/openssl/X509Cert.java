@@ -225,8 +225,8 @@ public class X509Cert extends RubyObject {
         if ( sigAlgorithm == null ) sigAlgorithm = cert.getSigAlgName(); // e.g. SHA256withRSA
         else {
             sigAlgorithm = ASN1.oid2name(runtime, new ASN1ObjectIdentifier(sigAlgorithm), true);
-            if ( sigAlgorithm == null ) {
-                sigAlgorithm = "itu-t"; // MRI compability ... the "crazy" parts
+            if (sigAlgorithm == null) {
+                sigAlgorithm = "0.0"; // "NULL";
                 // for some certificates that MRI parses,
                 // we get getSigAlgOID() == getSigAlgName() == "0.0"
 
