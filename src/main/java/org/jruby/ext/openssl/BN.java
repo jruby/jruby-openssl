@@ -89,10 +89,6 @@ public class BN extends RubyObject {
         return new BN(runtime, value != null ? value : BigInteger.ZERO);
     }
 
-    //static BN newInstance(final Ruby runtime, long value) {
-    //    return new BN(runtime, BigInteger.valueOf(value));
-    //}
-
     public static void createBN(final Ruby runtime, final RubyModule OpenSSL) {
         final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         OpenSSL.defineClassUnder("BNError", OpenSSLError, OpenSSLError.getAllocator());
@@ -164,7 +160,7 @@ public class BN extends RubyObject {
     }
 
     @Override
-    public synchronized IRubyObject initialize_copy(final IRubyObject that) {
+    public IRubyObject initialize_copy(final IRubyObject that) {
         super.initialize_copy(that);
         if ( this != that ) this.value = ((BN) that).value;
         return this;
@@ -342,8 +338,18 @@ public class BN extends RubyObject {
         return context.runtime.newFixnum( value.abs().compareTo( asBigInteger(other).abs() ) );
     }
 
-    @JRubyMethod(name={"eql?", "==", "==="})
-    public RubyBoolean eql_p(final ThreadContext context, IRubyObject other) {
+    @JRubyMethod(name = "eql?")
+    public IRubyObject eql_p(ThreadContext context, IRubyObject other) {
+        return context.runtime.newBoolean(eql(other));
+    }
+
+    @Override
+    public boolean eql(IRubyObject other) {
+        return equals(other);
+    }
+
+    @JRubyMethod(name = "==")
+    public IRubyObject op_equal(ThreadContext context, IRubyObject other) {
         return context.runtime.newBoolean( value.equals( asBigInteger(other) ) );
     }
 

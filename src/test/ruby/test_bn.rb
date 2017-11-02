@@ -52,6 +52,25 @@ class TestBN < TestCase
     assert_equal bn, 1234567890123456789012345678901234567890.to_bn
   end
 
+  def test_comparison
+    e1 = OpenSSL::BN.new(999.to_s(16), 16)
+    e3 = OpenSSL::BN.new((2**107-1).to_s(16), 16)
+    assert_equal(false, e1 == nil)
+    assert_equal(false, e1 == -999)
+    assert_equal(true, e1 == 999)
+    assert_equal(true, e1 == 999.to_bn)
+    assert_equal(false, e1.eql?(nil))
+    assert_equal(false, e1.eql?(999))
+    assert_equal(true, e1.eql?(999.to_bn))
+    assert_equal(e1.hash, 999.to_bn.hash)
+    assert_not_equal(e1.hash, e3.hash)
+    assert_equal(0, e1.cmp(999))
+    assert_equal(1, e1.cmp(-999))
+    assert_equal(0, e1.ucmp(999))
+    assert_equal(0, e1.ucmp(-999))
+    assert_instance_of(String, e1.hash.to_s)
+  end
+
   def test_to_java
     assert_equal java.lang.Integer.new(42), OpenSSL::BN.new('42').to_java(:int)
     assert_equal java.math.BigInteger.valueOf(24), OpenSSL::BN.new('24').to_java
