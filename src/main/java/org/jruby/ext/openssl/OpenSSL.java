@@ -324,6 +324,7 @@ public final class OpenSSL {
     // internals
 
     static IRubyObject to_der_if_possible(final ThreadContext context, IRubyObject obj) {
+        if ( obj instanceof RubyString || obj instanceof RubyIO ) return obj;
         if ( ! obj.respondsTo("to_der"))  return obj;
         return obj.callMethod(context, "to_der");
     }
