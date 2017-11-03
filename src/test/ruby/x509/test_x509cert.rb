@@ -10,8 +10,8 @@ class TestX509Certificate < TestCase
     assert_equal empty_name, cert.subject
     bn = OpenSSL::BN.new('0') unless defined? JRUBY_VERSION
     assert_equal bn || OpenSSL::BN.new(0), cert.serial
-    assert_equal nil, cert.not_before
-    assert_equal nil, cert.not_after
+    assert_nil cert.not_before
+    assert_nil cert.not_after
     assert_raise(OpenSSL::X509::CertificateError) { cert.public_key }
   end
 
@@ -74,28 +74,42 @@ END
   end
 
   def test_aki_extension_to_text
-    # Cert generation ripped from WEBrick
-    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    cert = create_self_signed_cert [ %w[CN localhost] ], __method__
+    keyid = "97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB"
+
+    assert cert.extensions.size > 0
+    value = cert.extensions.last.value
+    # assert_equal "keyid:#{keyid}\nDirName:/CN=localhost\nserial:01\n", value
+    assert value.start_with?("keyid:#{keyid}\n")
+    assert value.end_with?("\nserial:01\n")
+  end
+
+  def create_self_signed_cert(cn, comment) # cert generation ripped from WEBrick
+    rsa = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
     cert = OpenSSL::X509::Certificate.new
     cert.version = 2
     cert.serial = 1
-    name = OpenSSL::X509::Name.new([ %w[CN localhost] ])
+    name = (cn.kind_of? String) ? OpenSSL::X509::Name.parse(cn) : OpenSSL::X509::Name.new(cn)
     cert.subject = name
     cert.issuer = name
     cert.not_before = Time.now
     cert.not_after = Time.now + (365*24*60*60)
-    cert.public_key = rsa2048.public_key
+    cert.public_key = rsa.public_key
 
     ef = OpenSSL::X509::ExtensionFactory.new(nil,cert)
     ef.issuer_certificate = cert
-
-    aki = ef.create_extension("authorityKeyIdentifier",
-                              "keyid:always,issuer:always")
+    cert.extensions = [
+        ef.create_extension("basicConstraints","CA:FALSE"),
+        ef.create_extension("keyUsage", "keyEncipherment"),
+        ef.create_extension("subjectKeyIdentifier", "hash"),
+        ef.create_extension("extendedKeyUsage", "serverAuth"),
+        # ef.create_extension("nsComment", comment),
+    ]
+    aki = ef.create_extension("authorityKeyIdentifier", "keyid:always,issuer:always")
     cert.add_extension(aki)
+    cert.sign(rsa, OpenSSL::Digest::SHA1.new)
 
-    assert_equal 1, cert.extensions.size
-    assert_equal "keyid:97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB\n\nserial:01\n",
-                 cert.extensions.first.value
+    cert
   end
 
   def test_resolve_extensions
