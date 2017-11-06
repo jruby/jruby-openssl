@@ -50,6 +50,11 @@ class TestBN < TestCase
 
     bn = OpenSSL::BN.new('1234567890123456789012345678901234567890')
     assert_equal bn, 1234567890123456789012345678901234567890.to_bn
+
+    e1 = OpenSSL::BN.new(999.to_s(16), 16)
+    e2 = OpenSSL::BN.new((2**107-1).to_s(16), 16)
+    assert_equal(e1, 999.to_bn)
+    assert_equal(e2, (2**107-1).to_bn)
   end
 
   def test_comparison
@@ -101,13 +106,6 @@ class TestBN < TestCase
     assert_equal((2 ** 107 - 1).to_bn, OpenSSL::BN.new(2 ** 107 - 1))
     assert_equal(-999.to_bn, OpenSSL::BN.new(-999))
     assert_equal((-(2 ** 107 - 1)).to_bn, OpenSSL::BN.new(-(2 ** 107 - 1)))
-  end
-
-  def test_to_bn
-    e1 = OpenSSL::BN.new(999.to_s(16), 16)
-    e2 = OpenSSL::BN.new((2**107-1).to_s(16), 16)
-    assert_equal(e1, 999.to_bn)
-    assert_equal(e2, (2**107-1).to_bn)
   end
 
   def test_prime_p
