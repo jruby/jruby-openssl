@@ -1,4 +1,3 @@
-
 package org.jruby.ext.openssl;
 
 import org.junit.*;
@@ -97,13 +96,13 @@ public class CipherTest {
         assertEquals("DES", alg.base);
         assertEquals("EDE3", alg.version);
         assertEquals("CFB", alg.mode);
-        assertEquals("DESede/CFB/PKCS5Padding", alg.getRealName());
+        assertEquals("DESede/CFB/NoPadding", alg.getRealName());
 
         alg = Cipher.Algorithm.osslToJava("DES-CFB");
         assertEquals("DES", alg.base);
         assertEquals(null, alg.version);
         assertEquals("CFB", alg.mode);
-        assertEquals("DES/CFB/PKCS5Padding", alg.getRealName());
+        assertEquals("DES/CFB/NoPadding", alg.getRealName());
 
         alg = Cipher.Algorithm.osslToJava("DES3");
         assertEquals("DES", alg.base);
@@ -128,6 +127,18 @@ public class CipherTest {
         assertEquals("CBC", alg.mode);
         assertEquals("PKCS5Padding", alg.getPadding());
         assertEquals("AES/CBC/PKCS5Padding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("AES-256-OFB");
+        assertEquals("AES", alg.base);
+        assertEquals("256", alg.version);
+        assertEquals("OFB", alg.mode);
+        assertEquals("AES/OFB/NoPadding", alg.getRealName());
+
+        alg = Cipher.Algorithm.osslToJava("AES-256-CTR");
+        assertEquals("AES", alg.base);
+        assertEquals("256", alg.version);
+        assertEquals("CTR", alg.mode);
+        assertEquals("AES/CTR/NoPadding", alg.getRealName());
 
         alg = Cipher.Algorithm.osslToJava("AES-256-CBC-HMAC-SHA1");
         assertEquals("AES", alg.base);
