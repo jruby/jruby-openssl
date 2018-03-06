@@ -261,6 +261,10 @@ public class Cipher extends RubyObject {
             KNOWN_BLOCK_MODES.add("NONE"); // valid to pass into JCE
         }
 
+        // Subset of KNOWN_BLOCK_MODES that do not require padding (and shouldn't have it by default).
+        private static final List<String> NO_PADDING_BLOCK_MODES = Arrays.asList(
+            "CFB", "CFB8", "OFB", "CTR", "GCM");
+
         // Ruby to Java name String (or FALSE)
         static final HashMap<String, String[]> supportedCiphers = new LinkedHashMap<String, String[]>(120, 1);
         // we're _marking_ unsupported keys with a Boolean.FALSE mapping
@@ -557,12 +561,10 @@ public class Cipher extends RubyObject {
         }
 
         private static String getPaddingType(final String padding, final String cryptoMode) {
-            //if ( "ECB".equals(cryptoMode) ) return "NoPadding";
-            // TODO check cryptoMode CFB/OFB
             final String defaultPadding = "PKCS5Padding";
 
             if ( padding == null ) {
-                if ( "GCM".equalsIgnoreCase(cryptoMode) ) {
+                if ( NO_PADDING_BLOCK_MODES.contains(cryptoMode) ) {
                     return "NoPadding";
                 }
                 return defaultPadding;
