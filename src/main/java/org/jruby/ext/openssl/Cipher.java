@@ -834,7 +834,7 @@ public class Cipher extends RubyObject {
             debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
-        if ( keyBytes.length() < keyLength ) {
+        if ( keyBytes.getRealSize() < keyLength ) {
             throw newCipherError(context.runtime, "key length too short");
         }
 
@@ -856,7 +856,7 @@ public class Cipher extends RubyObject {
             debugStackTrace(runtime, e);
             throw newCipherError(runtime, e);
         }
-        if ( ivBytes.length() < ivLength ) {
+        if ( ivBytes.getRealSize() < ivLength ) {
             throw newCipherError(context.runtime, "iv length too short");
         }
         // EVP_CipherInit_ex uses leading IV length of given sequence.
@@ -1102,7 +1102,7 @@ public class Cipher extends RubyObject {
         checkAuthTag(runtime);
 
         final ByteList data = arg.asString().getByteList();
-        final int length = data.length();
+        final int length = data.getRealSize();
         if ( length == 0 ) {
             throw runtime.newArgumentError("data must not be empty");
         }
@@ -1221,7 +1221,7 @@ public class Cipher extends RubyObject {
             final byte[] out;
             if ( auth_tag != null ) {
                 final byte[] tag = auth_tag.getUnsafeBytes();
-                out = cipher.doFinal(tag, auth_tag.begin(), auth_tag.length());
+                out = cipher.doFinal(tag, auth_tag.getBegin(), auth_tag.getRealSize());
             }
             else {
                 out = cipher.doFinal();
@@ -1303,7 +1303,7 @@ public class Cipher extends RubyObject {
         if ( auth_data == null ) return false; // only to be set if auth-mode
         //try {
             final byte[] data = auth_data.getUnsafeBytes();
-            cipher.updateAAD(data, auth_data.begin(), auth_data.length());
+            cipher.updateAAD(data, auth_data.getBegin(), auth_data.getRealSize());
         //}
         //catch (RuntimeException e) {
         //    debugStackTrace( runtime, e );

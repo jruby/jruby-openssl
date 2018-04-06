@@ -573,7 +573,7 @@ public class X509ExtensionFactory extends RubyObject {
                 i++;
             }
         }
-        final byte[] hexBytes = new byte[hex.length()];
+        final byte[] hexBytes = new byte[hex.getRealSize()];
         System.arraycopy(hex.getUnsafeBytes(), hex.getBegin(), hexBytes, 0, hexBytes.length);
         return new DEROctetString(hexBytes);
     }

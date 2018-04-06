@@ -106,7 +106,7 @@ public final class OpenSSL {
         final byte[] JRuby_OpenSSL_ = { 'J','R','u','b','y','-','O','p','e','n','S','S','L',' ' };
         final int OPENSSL_VERSION_NUMBER = 999999999; // NOTE: smt more useful?
 
-        ByteList OPENSSL_VERSION = new ByteList( jVERSION.getByteList().length() + JRuby_OpenSSL_.length );
+        ByteList OPENSSL_VERSION = new ByteList( jVERSION.getByteList().getRealSize() + JRuby_OpenSSL_.length );
         OPENSSL_VERSION.setEncoding( jVERSION.getEncoding() );
         OPENSSL_VERSION.append( JRuby_OpenSSL_ );
         OPENSSL_VERSION.append( jVERSION.getByteList() );
