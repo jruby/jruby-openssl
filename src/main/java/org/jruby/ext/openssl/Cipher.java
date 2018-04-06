@@ -253,7 +253,7 @@ public class Cipher extends RubyObject {
         };
 
         static {
-            KNOWN_BLOCK_MODES = new HashSet<String>();
+            KNOWN_BLOCK_MODES = new HashSet<>(10, 1);
             for ( String mode : OPENSSL_BLOCK_MODES ) KNOWN_BLOCK_MODES.add(mode);
             KNOWN_BLOCK_MODES.add("CTR");
             KNOWN_BLOCK_MODES.add("CTS"); // not supported by OpenSSL
@@ -262,8 +262,15 @@ public class Cipher extends RubyObject {
         }
 
         // Subset of KNOWN_BLOCK_MODES that do not require padding (and shouldn't have it by default).
-        private static final List<String> NO_PADDING_BLOCK_MODES = Arrays.asList(
-            "CFB", "CFB8", "OFB", "CTR", "GCM");
+        private static final Set<String> NO_PADDING_BLOCK_MODES;
+        static {
+            NO_PADDING_BLOCK_MODES = new HashSet<>(6, 1);
+            NO_PADDING_BLOCK_MODES.add("CFB");
+            NO_PADDING_BLOCK_MODES.add("CFB8");
+            NO_PADDING_BLOCK_MODES.add("OFB");
+            NO_PADDING_BLOCK_MODES.add("CTR");
+            NO_PADDING_BLOCK_MODES.add("GCM");
+        }
 
         // Ruby to Java name String (or FALSE)
         static final HashMap<String, String[]> supportedCiphers = new LinkedHashMap<String, String[]>(120, 1);
