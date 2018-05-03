@@ -791,7 +791,7 @@ public abstract class SecurityHelper {
         final Constructor<T> constructor;
         try {
             constructor = klass.getDeclaredConstructor(paramTypes);
-            constructor.setAccessible(true);
+            //constructor.setAccessible(true);
             return constructor.newInstance(params);
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException(e.getMessage(), e);
