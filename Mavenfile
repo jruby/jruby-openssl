@@ -75,6 +75,7 @@ plugin :clean do
                  'filesets' => [
                     { :directory => 'lib', :includes => [ 'jopenssl.jar' ] },
                     { :directory => 'lib/org' },
+                    { :directory => 'lib/com' },
                     { :directory => 'target', :includes => [ '*' ] }
                  ],
                  'failOnError' =>  'false' )

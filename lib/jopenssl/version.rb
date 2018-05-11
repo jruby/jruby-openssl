@@ -1,4 +1,5 @@
 module Jopenssl
   VERSION = '0.10.0.dev'
   BOUNCY_CASTLE_VERSION = '1.57'
+  GILECODE_YAGSON_VERSION = '1.0'
 end

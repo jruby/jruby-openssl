@@ -91,6 +91,8 @@ import org.bouncycastle.operator.OperatorException;
 import org.bouncycastle.operator.bc.BcDSAContentVerifierProviderBuilder;
 import org.bouncycastle.operator.bc.BcRSAContentVerifierProviderBuilder;
 
+import com.gilecode.reflection.*;
+
 /**
  * Java Security (and JCE) helpers.
  *
@@ -724,7 +726,8 @@ public abstract class SecurityHelper {
     private static Object getCertificateList(final Object crl) { // X509CRLObject
         try { // private CertificateList c;
             final Field cField = X509CRLObject.class.getDeclaredField("c");
-            cField.setAccessible(true);
+            ReflectionAccessor accessor = ReflectionAccessUtils.getReflectionAccessor();
+            accessor.makeAccessible(cField);
             return cField.get(crl);
         }
         catch (NoSuchFieldException e) {
@@ -790,8 +793,9 @@ public abstract class SecurityHelper {
     private static <T> T newInstance(Class<T> klass, Class<?>[] paramTypes, Object... params) {
         final Constructor<T> constructor;
         try {
+            ReflectionAccessor accessor = ReflectionAccessUtils.getReflectionAccessor();
             constructor = klass.getDeclaredConstructor(paramTypes);
-            //constructor.setAccessible(true);
+            accessor.makeAccessible(constructor);
             return constructor.newInstance(params);
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException(e.getMessage(), e);
@@ -808,8 +812,9 @@ public abstract class SecurityHelper {
     private static <T> T invoke(Object object, Class<?> klass, String methodName, Class<?>[] paramTypes, Object... params) {
         final Method method;
         try {
+            ReflectionAccessor accessor = ReflectionAccessUtils.getReflectionAccessor();
             method = klass.getDeclaredMethod(methodName, paramTypes);
-            method.setAccessible(true);
+            accessor.makeAccessible(method);
             return (T) method.invoke(object, params);
         } catch (NoSuchMethodException e) {
             throw new IllegalStateException(e.getMessage(), e);
@@ -823,8 +828,9 @@ public abstract class SecurityHelper {
     private static void setField(Object obj, Class<?> fieldOwner, String fieldName, Object value) {
         final Field field;
         try {
+            ReflectionAccessor accessor = ReflectionAccessUtils.getReflectionAccessor();
             field = fieldOwner.getDeclaredField(fieldName);
-            field.setAccessible(true);
+            accessor.makeAccessible(field);
             field.set(obj, value);
         } catch (NoSuchFieldException e) {
             throw new IllegalStateException("no field '" + fieldName + "' declared in " + fieldOwner + "", e);

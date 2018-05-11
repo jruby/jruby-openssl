@@ -84,6 +84,11 @@
             <version>${bc.version}</version>
           </dependency>
           <dependency>
+            <groupId>com.gilecode.yagson</groupId>
+            <artifactId>j9-reflection-utils</artifactId>
+            <version>${bc.version}</version>
+          </dependency>
+          <dependency>
             <groupId>rubygems</groupId>
             <artifactId>jruby-openssl</artifactId>
             <version>${jruby.openssl.version}</version>
