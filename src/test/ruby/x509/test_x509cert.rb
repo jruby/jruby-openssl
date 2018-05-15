@@ -219,8 +219,17 @@ END
     cert = issue_cert(subj, key, s, now, now + 3600, exts, nil, nil, dgst)
 
     assert cert.inspect.start_with?('#<OpenSSL::X509::Certificate:')
-    assert cert.inspect.index('subject=/DC=org/DC=ruby-lang/CN=TestCA, issuer=/DC=org/DC=ruby-lang/CN=TestCA')
-    assert cert.inspect.index('serial=295990750012446699619010157040970350255')
+    if defined? JRUBY_VERSION
+      assert cert.inspect.index('subject=/DC=org/DC=ruby-lang/CN=TestCA, issuer=/DC=org/DC=ruby-lang/CN=TestCA')
+      assert cert.inspect.index('serial=295990750012446699619010157040970350255')
+      # TODO this isn't MRI compatible, which gives :
+      # #<OpenSSL::X509::Certificate:
+      #   subject=#<OpenSSL::X509::Name CN=TestCA,DC=ruby-lang,DC=org>,
+      #   issuer=#<OpenSSL::X509::Name CN=TestCA,DC=ruby-lang,DC=org>,
+      #   serial=#<OpenSSL::BN:0x00005627d4602938>,
+      #   not_before=2014-10-09 07:34:20 UTC,
+      #   not_after=2014-10-09 08:34:20 UTC>
+    end
     #assert cert.inspect.index('not_before=2014-10-09 07:34:20 UTC, not_after=2014-10-09 08:34:20 UTC')
 
     text_without_signature = <<-TEXT
@@ -313,7 +322,7 @@ EOF
     crt = File.expand_path('ca.crt', File.dirname(__FILE__))
     cert = OpenSSL::X509::Certificate.new File.read(crt)
     assert cert.to_text.index('X509v3 Authority Key Identifier:')
-    assert cert.to_text.match /X509v3 Authority Key Identifier:\s*keyid:BA:5E:E9:90:3B:5B:F6:79:A2:D3:65:09:C5:39:6A:E7:43:6B:F8:3D/m
+    assert cert.to_text.match /X509v3 Authority Key Identifier:\s*keyid:C6:17:42:6B:7F:B6:44:30:67:01:3D:44:83:9D:0F:B4:52:A1:D7:B7/m
   end
 
   def test_to_text_npe_regression
