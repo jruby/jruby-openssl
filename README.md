@@ -16,13 +16,13 @@ the JRuby [mailing list][1] or the [bug tracker][2].
 
 | JRuby-OpenSSL | JRuby compat  | JVM compat | supported BC |
 | ------------- |:-------------:| ----------:| ------------:|
-|         0.9.6 |   1.6.8-9.0.2 |   Java 6-8 |    1.47-1.50 |
-|        0.9.12 |   1.6.8-9.0.5 |   Java 6-8 |    1.47-1.52 |
-|        0.9.13 |   1.6.8-9.1.2 |   Java 6-8 |    1.49-1.52 |
-|        0.9.14 |   1.6.8-9.1.5 |   Java 6-8 |    1.49-1.54 |
-|        0.9.17 |   1.6.8-9.1.5 |   Java 6-8 |    1.50-1.54 |
-|      ~>0.9.18 |   1.6.8-9.1.x |   Java 6-8 |    1.50-1.55 |
-|        0.10.0 |  1.7.20-9.2.x |   Java 7-9 |    1.54-1.58 |
+|         0.9.6 |   1.6.8-9.0.2 |  Java 6-8  |    1.47-1.50 |
+|        0.9.12 |   1.6.8-9.0.5 |  Java 6-8  |    1.47-1.52 |
+|        0.9.13 |   1.6.8-9.1.2 |  Java 6-8  |    1.49-1.52 |
+|        0.9.14 |   1.6.8-9.1.5 |  Java 6-8  |    1.49-1.54 |
+|        0.9.17 |   1.6.8-9.1.5 |  Java 6-8  |    1.50-1.54 |
+|      ~>0.9.18 |   1.6.8-9.1.x |  Java 6-8  |    1.50-1.55 |
+|        0.10.0 |  1.7.20-9.2.x |  Java 7-10 |    1.54-1.59 |
 
 NOTE: backwards JRuby compatibility was not handled for versions <= **0.9.6** 
 
@@ -63,7 +63,7 @@ NOTE: you can pick any jruby version which is on [central][4] or on [ci.jruby][5
 
 ## License
 
-(c) 2009-2017 JRuby distributed under EPL 1.0/GPL 2.0/LGPL 2.1
+(c) 2009-2018 JRuby distributed under EPL 1.0/GPL 2.0/LGPL 2.1
 
 [0]: https://secure.travis-ci.org/jruby/jruby-openssl.svg
 [1]: http://xircles.codehaus.org/projects/jruby/lists
