@@ -56,12 +56,6 @@ public class Random {
         if (HOLDER_TYPE.equals("default") || HOLDER_TYPE.equals("thread-local")) {
             return new ThreadLocalHolder();
         }
-        if (HOLDER_TYPE.equals("")) {
-            // NOTE: fine to remove when support for running on Java 6 is gone ...
-            if (OpenSSL.javaVersion6(false)) {
-                return new SharedHolder(); // can not-use ThreadLocalRandom.current()
-            }
-        }
         if (HOLDER_TYPE.equals("shared")) {
             return new SharedHolder();
         }

@@ -251,11 +251,6 @@ public final class OpenSSL {
         return javaVersionProperty;
     }
 
-    static boolean javaVersion6(final boolean atLeast) {
-        final int gt = new Version("1.6").compareTo(new Version(javaVersion("0.0")));
-        return atLeast ? gt <= 0 : gt == 0;
-    }
-
     static boolean javaVersion7(final boolean atLeast) {
         final int gt = new Version("1.7").compareTo(new Version(javaVersion("0.0")));
         return atLeast ? gt <= 0 : gt == 0;
@@ -272,7 +267,7 @@ public final class OpenSSL {
     }
 
     private static String javaName(final String def) {
-        // Sun Java 6 or Oracle Java 7/8
+        // Sun Java 6 or Oracle Java 7/8/9/10
         // "Java HotSpot(TM) Server VM" or "Java HotSpot(TM) 64-Bit Server VM"
         // OpenJDK :
         // "OpenJDK 64-Bit Server VM"

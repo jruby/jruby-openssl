@@ -29,7 +29,7 @@ class TestX509Store < TestCase
     assert ! store.verify(@cert)
     store.set_default_paths
 
-    #puts @cert.inspect
+    puts @cert.inspect if $VERBOSE
     #puts @cert.to_java java.security.cert.X509Certificate
 
     verified = store.verify(@cert)
@@ -37,12 +37,13 @@ class TestX509Store < TestCase
   end
 
   def test_store_location_with_java_truststore
+    skip unless defined? JRUBY_VERSION
     ENV['SSL_CERT_FILE'] = @javastore
     store = OpenSSL::X509::Store.new
     assert ! store.verify(@cert)
     store.set_default_paths
 
-    #puts @cert.inspect
+    puts @cert.inspect if $VERBOSE
     #puts @cert.to_java java.security.cert.X509Certificate
 
     verified = store.verify(@cert)
