@@ -18,12 +18,12 @@ class TestSSLSocket < TestCase
 
     assert socket.io
     assert_equal socket.io, socket.to_io
-    assert ! socket.respond_to?(:'io=')
+    assert ! socket.respond_to?('io=')
     # due compatibility :
     assert_equal socket.io, socket.instance_variable_get(:@io)
 
     assert socket.context
-    assert ! socket.respond_to?(:'context=')
+    assert ! socket.respond_to?('context=')
     # due compatibility :
     assert_equal socket.context, socket.instance_variable_get(:@context)
 
