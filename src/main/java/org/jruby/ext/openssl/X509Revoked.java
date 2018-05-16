@@ -172,7 +172,7 @@ public class X509Revoked extends RubyObject {
 
     @JRubyMethod
     public IRubyObject add_extension(final ThreadContext context, final IRubyObject ext) {
-        return extensions().callMethod(context, "<<", ext);
+        return extensions().append(ext);
     }
 
     @Override

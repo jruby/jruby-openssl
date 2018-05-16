@@ -43,11 +43,8 @@ import org.jruby.RubyString;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
-import org.jruby.runtime.Arity;
-import org.jruby.runtime.ObjectAllocator;
-import org.jruby.runtime.ThreadContext;
+import org.jruby.runtime.*;
 import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.StoreContext;
@@ -183,7 +180,7 @@ public class X509StoreContext extends RubyObject {
         try {
             for (X509AuxCertificate x509 : chain) {
                 RubyString encoded = StringHelper.newString(runtime, x509.getEncoded());
-                result.append( _Certificate.callMethod( context, "new", encoded ) );
+                result.append( _Certificate.newInstance( context, encoded, Block.NULL_BLOCK ) );
             }
         }
         catch (CertificateEncodingException e) {
@@ -232,7 +229,7 @@ public class X509StoreContext extends RubyObject {
         final RubyClass _CRL = _CRL(runtime);
         try {
             final java.security.cert.X509CRL crl = storeContext.getCurrentCRL();
-            return _CRL.callMethod(context, "new", StringHelper.newString(runtime, crl.getEncoded()));
+            return _CRL.newInstance(context, StringHelper.newString(runtime, crl.getEncoded()), Block.NULL_BLOCK);
         }
         catch (CRLException e) {
             throw newStoreError(runtime, e.getMessage());
