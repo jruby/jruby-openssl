@@ -101,9 +101,13 @@ public abstract class SecurityHelper {
     private static String BC_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
     private static String BC_PROVIDER_NAME = "BC";
     static boolean setBouncyCastleProvider = true; // (package access for tests)
-    static Provider securityProvider; // 'BC' provider (package access for tests)
+    static volatile Provider securityProvider; // 'BC' provider (package access for tests)
     private static volatile Boolean registerProvider = null;
     static final Map<String, Class> implEngines = new ConcurrentHashMap<String, Class>(16, 0.75f, 1);
+
+    private static String BCJSSE_PROVIDER_CLASS = "org.bouncycastle.jsse.provider.BouncyCastleJsseProvider";
+    static boolean setJsseBouncyCastleProvider = true;
+    static volatile Provider jsseProvider;
 
     /**
      * inject under a given name a cipher. also ensures that the registered
@@ -128,15 +132,32 @@ public abstract class SecurityHelper {
     }
 
     public static Provider getSecurityProvider() {
-        if ( setBouncyCastleProvider && securityProvider == null ) {
+        Provider provider = securityProvider;
+        if ( setBouncyCastleProvider && provider == null ) {
             synchronized(SecurityHelper.class) {
-                if ( setBouncyCastleProvider && securityProvider == null ) {
-                    setBouncyCastleProvider(); setBouncyCastleProvider = false;
+                provider = securityProvider;
+                if ( setBouncyCastleProvider && provider == null ) {
+                    provider = setBouncyCastleProvider();
+                    setBouncyCastleProvider = false;
                 }
             }
         }
-        doRegisterProvider();
-        return securityProvider;
+        doRegisterProvider(provider);
+        return provider;
+    }
+
+    static Provider getJsseProvider() {
+        Provider provider = jsseProvider;
+        if ( setJsseBouncyCastleProvider && provider == null ) {
+            synchronized(SecurityHelper.class) {
+                provider = jsseProvider;
+                if ( setJsseBouncyCastleProvider && provider == null ) {
+                    provider = jsseProvider = newBouncyCastleProvider(BCJSSE_PROVIDER_CLASS);
+                    setJsseBouncyCastleProvider = false;
+                }
+            }
+        }
+        return provider;
     }
 
     static final boolean SPI_ACCESSIBLE;
@@ -170,20 +191,22 @@ public abstract class SecurityHelper {
     }
 
     public static synchronized void setSecurityProvider(final Provider provider) {
-        if ( provider != null ) OpenSSL.debug("using provider: " + provider);
+        if ( provider != null ) OpenSSL.debug("using (security) provider: " + provider);
         securityProvider = provider;
     }
 
-    static synchronized void setBouncyCastleProvider() {
-        setSecurityProvider( newBouncyCastleProvider() );
+    static synchronized Provider setBouncyCastleProvider() {
+        Provider provider = newBouncyCastleProvider(BC_PROVIDER_CLASS);
+        setSecurityProvider(provider);
+        return provider;
     }
 
-    private static Provider newBouncyCastleProvider() {
+    private static Provider newBouncyCastleProvider(final String klass) {
         try {
-            return (Provider) Class.forName(BC_PROVIDER_CLASS).newInstance();
+            return (Provider) Class.forName(klass).newInstance();
         }
         catch (Throwable ignored) {
-            OpenSSL.debug("can not instantiate bouncy-castle provider:", ignored);
+            OpenSSL.debug("can not instantiate bouncy-castle provider (" + klass  + ")", ignored);
         }
         return null;
     }
@@ -203,7 +226,7 @@ public abstract class SecurityHelper {
         return Security.getProvider(securityProvider.getName()) != null;
     }
 
-    private static void doRegisterProvider() {
+    private static void doRegisterProvider(final Provider securityProvider) {
         if ( registerProvider != null ) {
             synchronized(SecurityHelper.class) {
                 final Boolean register = registerProvider;
@@ -640,20 +663,20 @@ public abstract class SecurityHelper {
         );
     }
 
-    private static boolean providerSSLContext = false; // BC does not implement + JDK default is fine
+    private static boolean providerSSLContext = false; // NOTE: disabled for now due issues
 
     public static SSLContext getSSLContext(final String protocol)
         throws NoSuchAlgorithmException {
         try {
-            if ( providerSSLContext ) {
-                final Provider provider = getSecurityProviderIfAccessible();
+            if ( providerSSLContext && ! "SSL".equals(protocol) ) { // only TLS versions with BC JSSE
+                final Provider provider = getJsseProvider();
                 if ( provider != null ) {
                     return getSSLContext(protocol, provider);
                 }
             }
         }
         catch (NoSuchAlgorithmException e) { }
-        return SSLContext.getInstance(protocol);
+        return SSLContext.getInstance(protocol); // built-in SunJSSE provider on HotSpot
     }
 
     private static SSLContext getSSLContext(final String protocol, final Provider provider)

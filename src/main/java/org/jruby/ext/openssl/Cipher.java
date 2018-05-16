@@ -186,8 +186,9 @@ public class Cipher extends RubyObject {
     }
 
     private static Provider.Service providerCipherService(final String alg) {
-        if ( SecurityHelper.securityProvider != null ) {
-            return SecurityHelper.securityProvider.getService("Cipher", alg);
+        Provider securityProvider = SecurityHelper.securityProvider;
+        if ( securityProvider != null ) {
+            return securityProvider.getService("Cipher", alg);
         }
         return null;
     }
