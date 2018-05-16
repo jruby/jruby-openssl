@@ -90,6 +90,7 @@ import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.OperatorException;
 import org.bouncycastle.operator.bc.BcDSAContentVerifierProviderBuilder;
 import org.bouncycastle.operator.bc.BcRSAContentVerifierProviderBuilder;
+import org.jruby.util.SafePropertyAccessor;
 
 /**
  * Java Security (and JCE) helpers.
@@ -663,12 +664,15 @@ public abstract class SecurityHelper {
         );
     }
 
-    private static boolean providerSSLContext = false; // NOTE: disabled for now due issues
+    private static final boolean providerSSLContext; // NOTE: experimental support for using BCJSSE
+    static {
+        providerSSLContext = SafePropertyAccessor.getBoolean("jruby.openssl.ssl.provider");
+    }
 
     public static SSLContext getSSLContext(final String protocol)
         throws NoSuchAlgorithmException {
         try {
-            if ( providerSSLContext && ! "SSL".equals(protocol) ) { // only TLS versions with BC JSSE
+            if ( providerSSLContext && ! "SSL".equals(protocol) ) { // only TLS supported in BCJSSE
                 final Provider provider = getJsseProvider();
                 if ( provider != null ) {
                     return getSSLContext(protocol, provider);
