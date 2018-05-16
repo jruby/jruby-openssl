@@ -867,7 +867,7 @@ public class SSLContext extends RubyObject {
             final List<X509AuxCertificate> clientCert,
             final List<X509AuxCertificate> extraChainCert,
             final int verifyMode,
-            final int timeout) throws NoSuchAlgorithmException, KeyManagementException {
+            final int timeout) throws NoSuchAlgorithmException {
 
             if ( pKey != null && xCert != null ) {
                 this.privateKey = pKey.getPrivateKey();
@@ -884,30 +884,16 @@ public class SSLContext extends RubyObject {
             this.clientCert = clientCert;
             this.extraChainCert = extraChainCert;
             this.verifyMode = verifyMode;
-            //this.timeout = timeout;
+            this.timeout = timeout;
 
             // initialize SSL context :
 
             final javax.net.ssl.SSLContext sslContext = SecurityHelper.getSSLContext(protocol);
 
-            if ( protocolForClient ) {
-                final SSLSessionContext clientContext = sslContext.getClientSessionContext();
-                clientContext.setSessionTimeout(timeout);
-                if ( sessionCacheSize >= 0 ) {
-                    clientContext.setSessionCacheSize(sessionCacheSize);
-                }
-            }
-            if ( protocolForServer ) {
-                final SSLSessionContext serverContext = sslContext.getClientSessionContext();
-                serverContext.setSessionTimeout(timeout);
-                if ( sessionCacheSize >= 0 ) {
-                    serverContext.setSessionCacheSize(sessionCacheSize);
-                }
-            }
             this.sslContext = sslContext;
         }
 
-        protected void initSSLContext(final ThreadContext context) throws KeyManagementException {
+        void initSSLContext(final ThreadContext context) throws KeyManagementException {
             final KeyManager[] keyManager = new KeyManager[] { new KeyManagerImpl(this) };
             final TrustManager[] trustManager = new TrustManager[] { new TrustManagerImpl(this) };
             // SSLContext (internals) on Sun JDK :
@@ -917,6 +903,21 @@ public class SSLContext extends RubyObject {
             // if secureRandom == null JSSE will try :
             // - new SecureRandom();
             // - SecureRandom.getInstance("PKCS11", cryptoProvider);
+
+            if ( protocolForClient ) {
+                final SSLSessionContext clientContext = sslContext.getClientSessionContext();
+                clientContext.setSessionTimeout(timeout);
+                if ( sessionCacheSize >= 0 ) {
+                    clientContext.setSessionCacheSize(sessionCacheSize);
+                }
+            }
+            if ( protocolForServer ) {
+                final SSLSessionContext serverContext = sslContext.getServerSessionContext();
+                serverContext.setSessionTimeout(timeout);
+                if ( sessionCacheSize >= 0 ) {
+                    serverContext.setSessionCacheSize(sessionCacheSize);
+                }
+            }
         }
 
         final Store store;
@@ -929,7 +930,7 @@ public class SSLContext extends RubyObject {
         final List<X509AuxCertificate> clientCert; // assumed always != null
         final List<X509AuxCertificate> extraChainCert; // empty assumed == null
 
-        //final int timeout;
+        private final int timeout;
 
         private final javax.net.ssl.SSLContext sslContext;
 
