@@ -182,7 +182,9 @@ public abstract class SecurityHelper {
         try {
             return (Provider) Class.forName(BC_PROVIDER_CLASS).newInstance();
         }
-        catch (Throwable ignored) { /* no bouncy castle available */ }
+        catch (Throwable ignored) {
+            OpenSSL.debug("can not instantiate bouncy-castle provider:", ignored);
+        }
         return null;
     }
 
