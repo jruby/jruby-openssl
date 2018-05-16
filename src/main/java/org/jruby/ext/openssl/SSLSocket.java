@@ -139,12 +139,6 @@ public class SSLSocket extends RubyObject {
 
     int verifyResult = X509Utils.V_OK;
 
-    @Deprecated
-    public IRubyObject _initialize(final ThreadContext context,
-        final IRubyObject[] args, final Block unused) {
-        return initialize(context, args);
-    }
-
     @JRubyMethod(name = "initialize", rest = true, frame = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
@@ -174,7 +168,7 @@ public class SSLSocket extends RubyObject {
     }
 
     private SSLEngine ossl_ssl_setup(final ThreadContext context)
-        throws NoSuchAlgorithmException, KeyManagementException, IOException {
+        throws NoSuchAlgorithmException, KeyManagementException {
         SSLEngine engine = this.engine;
         if ( engine != null ) return engine;
 
