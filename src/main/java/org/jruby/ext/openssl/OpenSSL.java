@@ -2,7 +2,6 @@
  * The MIT License
  *
  * Copyright (c) 2014 Karol Bucek LTD.
- * Copyright (c) 2017 Ketan Padegaonkar
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +23,10 @@
  */
 package org.jruby.ext.openssl;
 
+import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
+import java.util.Map;
+
 import org.jruby.*;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
@@ -32,10 +35,6 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.util.SafePropertyAccessor;
-
-import java.security.NoSuchProviderException;
-import java.security.SecureRandom;
-import java.util.Map;
 
 /**
  * OpenSSL (methods as well as an entry point)
@@ -244,26 +243,40 @@ public final class OpenSSL {
         if ( warn ) context.runtime.getModule("OpenSSL").callMethod(context, "warn", msg);
     }
 
-    public static String javaVersion(final String def) {
-        final String javaVersionProperty =
-                SafePropertyAccessor.getProperty("java.version", def);
-        if ("0".equals(javaVersionProperty)) return "1.7.0"; // Android
-        return javaVersionProperty;
+    private static String javaVersion(final String def, final int len) {
+        String javaVersion = SafePropertyAccessor.getProperty("java.version", def);
+        if ( "0".equals(javaVersion) ) javaVersion = "1.7.0"; // Android
+        return javaVersion.length() > len && len > -1 ? javaVersion.substring(0, len) : javaVersion;
     }
 
     static boolean javaVersion7(final boolean atLeast) {
-        final int gt = new Version("1.7").compareTo(new Version(javaVersion("0.0")));
+        final int gt = "1.7".compareTo( javaVersion("0.0", 3) );
         return atLeast ? gt <= 0 : gt == 0;
     }
 
     static boolean javaVersion8(final boolean atLeast) {
-        final int gt = new Version("1.8").compareTo(new Version(javaVersion("0.0")));
+        final int gt = "1.8".compareTo( javaVersion("0.0", 3) );
         return atLeast ? gt <= 0 : gt == 0;
     }
 
-    static boolean javaVersion9(final boolean atLeast) {
-        final int gt = new Version("9").compareTo(new Version(javaVersion("0.0")));
-        return atLeast ? gt <= 0 : gt == 0;
+    public static boolean javaVersion9(final boolean atLeast) {
+        final int major = parseIntDot( javaVersion("0", -1) );
+        return atLeast ? major >= 9 : major == 9;
+    }
+
+    static boolean javaVersion10(final boolean atLeast) {
+        final int major = parseIntDot( javaVersion("0", -1) );
+        return atLeast ? major >= 10 : major == 10;
+    }
+
+    private static int parseIntDot(String version) {
+        String[] parts = version.split("[-_]")[0].split("\\.");
+        try {
+            return Integer.parseInt(parts[0]);
+        }
+        catch (NumberFormatException ex) {
+            return -1;
+        }
     }
 
     private static String javaName(final String def) {
@@ -332,31 +345,6 @@ public final class OpenSSL {
 
     static String bcExceptionMessage(NoClassDefFoundError ex) {
         return "You need to configure JVM/classpath to enable BouncyCastle Security Provider: " + ex;
-    }
-
-    static class Version implements Comparable<Version> {
-        public final int[] numbers;
-
-        public Version(String version) {
-            final String split[] = version.split("[-_]")[0].split("\\.");
-            numbers = new int[split.length];
-            for (int i = 0; i < split.length; i++) {
-                numbers[i] = Integer.valueOf(split[i]);
-            }
-        }
-
-        @Override
-        public int compareTo(Version another) {
-            final int maxLength = Math.max(numbers.length, another.numbers.length);
-            for (int i = 0; i < maxLength; i++) {
-                final int left = i < numbers.length ? numbers[i] : 0;
-                final int right = i < another.numbers.length ? another.numbers[i] : 0;
-                if (left != right) {
-                    return left < right ? -1 : 1;
-                }
-            }
-            return 0;
-        }
     }
 
 }

@@ -25,51 +25,197 @@
 package org.jruby.ext.openssl;
 
 import org.junit.Test;
+import org.junit.After;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import static org.jruby.ext.openssl.OpenSSL.*;
 
 public class VersionTest {
-	@Test
-	public void newInstance_withTwoDotRelease_isParsedCorrectly() {
-		final OpenSSL.Version version = new OpenSSL.Version("1.8.1");
-		assertThat(version.numbers, is(new int[] { 1, 8, 1 }));
-	}
+
+    private final String javaVersion = System.getProperty("java.version");
+
+    @After
+    public void restoreJavaVersion() {
+        System.setProperty("java.version", javaVersion);
+    }
+
+    @Test
+    public void testAndroid0() {
+        System.setProperty("java.version", "0");
+
+        assertTrue(javaVersion7(true));
+        assertTrue(javaVersion7(false));
+
+        assertFalse(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertFalse(javaVersion9(false));
+        assertFalse(javaVersion9(true));
+    }
+
+    @Test
+    public void testInvalid() {
+        System.setProperty("java.version", "");
+
+        //assertTrue(javaVersion7(true));
+        //assertTrue(javaVersion7(false));
+
+        assertFalse(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertFalse(javaVersion9(false));
+        assertFalse(javaVersion9(true));
+    }
+
+    @Test
+    public void testJava7() {
+        System.setProperty("java.version", "1.7.0");
+
+        assertTrue(javaVersion7(true));
+        assertTrue(javaVersion7(false));
+
+        assertFalse(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertFalse(javaVersion9(false));
+        assertFalse(javaVersion9(true));
+    }
 
 	@Test
-	public void newInstance_withTwoDotReleaseAndPreReleaseName_isParsedCorrectly() {
-		assertThat(new OpenSSL.Version("1.8.1-EA").numbers, is(new int[] { 1, 8, 1 }));
-		assertThat(new OpenSSL.Version("1.7.0_79").numbers, is(new int[] { 1, 7, 0 }));
+	public void testJava8() {
+        System.setProperty("java.version", "1.8.1");
+
+		assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
+
+        assertTrue(javaVersion8(true));
+        assertTrue(javaVersion8(false));
+
+        assertFalse(javaVersion9(false));
+        assertFalse(javaVersion9(true));
 	}
 
-	@Test
-	public void compareTo_withEarlierVersion_isGreaterThan() {
-		assertThat(new OpenSSL.Version("1.8").compareTo(new OpenSSL.Version("1.7")), is(1));
-	}
+    @Test
+    public void testJava8Crap() {
+        System.setProperty("java.version", "1.8.PRE");
 
-	@Test
-	public void compareTo_withSameVersion_isEqual() {
-		assertThat(new OpenSSL.Version("1.8").compareTo(new OpenSSL.Version("1.8")), is(0));
-	}
+        assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
 
-	@Test
-	public void compareTo_withLaterVersion_isLessThan() {
-		assertThat(new OpenSSL.Version("1.7").compareTo(new OpenSSL.Version("1.8")), is(-1));
-	}
+        assertTrue(javaVersion8(true));
+        assertTrue(javaVersion8(false));
 
-	@Test
-	public void compareTo_withMorePreciseSameVersion_isFalse() {
-		assertThat(new OpenSSL.Version("9").compareTo(new OpenSSL.Version("9.0")), is(0));
-	}
+        assertFalse(javaVersion9(false));
+        assertFalse(javaVersion9(true));
+    }
 
-	@Test
-	public void compareTo_withMorePreciseEarlierVersion_isFalse() {
-		assertThat(new OpenSSL.Version("9").compareTo(new OpenSSL.Version("1.7")), is(1));
-	}
+    @Test
+    public void testJava9Pre() {
+        System.setProperty("java.version", "9");
 
-	@Test
-	public void compareTo_withMorePreciseLaterVersion_isLessThan() {
-		assertThat(new OpenSSL.Version("1").compareTo(new OpenSSL.Version("1.0.1")), is(-1));
-	}
+        assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
+
+        assertTrue(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertTrue(javaVersion9(false));
+        assertTrue(javaVersion9(true));
+    }
+
+    @Test
+    public void testJava9Noiz() {
+        System.setProperty("java.version", "9-alfa");
+
+        assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
+
+        assertTrue(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertTrue(javaVersion9(false));
+        assertTrue(javaVersion9(true));
+    }
+
+    @Test
+    public void testJava9Bleh() {
+        System.setProperty("java.version", "9.X");
+
+        assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
+
+        assertTrue(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertTrue(javaVersion9(false));
+        assertTrue(javaVersion9(true));
+    }
+
+    @Test
+    public void testJava9() {
+        System.setProperty("java.version", "9.0.4");
+
+        assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
+
+        assertTrue(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertTrue(javaVersion9(false));
+        assertTrue(javaVersion9(true));
+    }
+
+    @Test
+    public void testJava10Pre() {
+        System.setProperty("java.version", "10");
+
+        assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
+
+        assertTrue(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertFalse(javaVersion9(false));
+        assertTrue(javaVersion9(true));
+
+        assertTrue(javaVersion10(false));
+        assertTrue(javaVersion10(true));
+    }
+
+    @Test
+    public void testJava10Noiz() {
+        System.setProperty("java.version", "10-RC");
+
+        assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
+
+        assertTrue(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertFalse(javaVersion9(false));
+        assertTrue(javaVersion9(true));
+
+        assertTrue(javaVersion10(false));
+        assertTrue(javaVersion10(true));
+    }
+
+    @Test
+    public void testJava10() {
+        System.setProperty("java.version", "10.0");
+
+        assertTrue(javaVersion7(true));
+        assertFalse(javaVersion7(false));
+
+        assertTrue(javaVersion8(true));
+        assertFalse(javaVersion8(false));
+
+        assertFalse(javaVersion9(false));
+        assertTrue(javaVersion9(true));
+
+        assertTrue(javaVersion10(false));
+        assertTrue(javaVersion10(true));
+    }
 
 }

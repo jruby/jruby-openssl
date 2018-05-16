@@ -98,7 +98,7 @@ public final class CryptoSecurity {
 
     public static Boolean unrestrictSecurity() {
         if ( ! OpenSSL.javaHotSpot() ) return false;
-        if ( javaVersion9() ) {
+        if ( OpenSSL.javaVersion9(true) ) {
             return unrestrictJceSecurity9();
         }
         return unrestrictJceSecurity8();
@@ -146,11 +146,6 @@ public final class CryptoSecurity {
             OpenSSL.debugStackTrace(e);
             return null;
         }
-    }
-
-    private static boolean javaVersion9() {
-        final int gt = "1.8".compareTo( OpenSSL.javaVersion("0.0").substring(0, 3) );
-        return gt <= 0;
     }
 
 }
