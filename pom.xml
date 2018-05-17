@@ -417,7 +417,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
         <jruby.versions>1.7.18</jruby.versions>
       </properties>
@@ -455,7 +455,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
         <jruby.versions>1.7.20</jruby.versions>
       </properties>
@@ -493,7 +493,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
         <jruby.versions>1.7.22</jruby.versions>
       </properties>
@@ -531,7 +531,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
         <jruby.versions>1.7.23</jruby.versions>
       </properties>
@@ -569,7 +569,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
         <jruby.versions>1.7.24</jruby.versions>
       </properties>
@@ -607,7 +607,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
         <jruby.versions>1.7.25</jruby.versions>
       </properties>
@@ -645,7 +645,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
         <jruby.versions>1.7.26</jruby.versions>
       </properties>
@@ -683,7 +683,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
         <jruby.versions>1.7.27</jruby.versions>
       </properties>
@@ -721,7 +721,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.0.1.0</jruby.version>
         <jruby.versions>9.0.1.0</jruby.versions>
       </properties>
@@ -759,7 +759,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.0.5.0</jruby.version>
         <jruby.versions>9.0.5.0</jruby.versions>
       </properties>
@@ -797,7 +797,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.1.2.0</jruby.version>
         <jruby.versions>9.1.2.0</jruby.versions>
       </properties>
@@ -835,7 +835,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.1.5.0</jruby.version>
         <jruby.versions>9.1.5.0</jruby.versions>
       </properties>
@@ -873,7 +873,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.1.8.0</jruby.version>
         <jruby.versions>9.1.8.0</jruby.versions>
       </properties>
@@ -911,7 +911,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.1.12.0</jruby.version>
         <jruby.versions>9.1.12.0</jruby.versions>
       </properties>
@@ -949,7 +949,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.1.13.0</jruby.version>
         <jruby.versions>9.1.13.0</jruby.versions>
       </properties>
@@ -987,7 +987,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.1.16.0</jruby.version>
         <jruby.versions>9.1.16.0</jruby.versions>
       </properties>
@@ -1025,7 +1025,7 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.54,1.55,1.56,1.57,1.58,1.59</bc.versions>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.version>9.1.17.0</jruby.version>
         <jruby.versions>9.1.17.0</jruby.versions>
       </properties>

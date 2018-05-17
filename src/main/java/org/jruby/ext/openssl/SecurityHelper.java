@@ -100,7 +100,6 @@ import org.jruby.util.SafePropertyAccessor;
 public abstract class SecurityHelper {
 
     private static String BC_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
-    private static String BC_PROVIDER_NAME = "BC";
     static boolean setBouncyCastleProvider = true; // (package access for tests)
     static volatile Provider securityProvider; // 'BC' provider (package access for tests)
     private static volatile Boolean registerProvider = null;
@@ -256,21 +255,7 @@ public abstract class SecurityHelper {
 
     static CertificateFactory getCertificateFactory(final String type, final Provider provider)
         throws CertificateException {
-        final CertificateFactorySpi spi;
-        boolean addedBC = false;
-        synchronized(SecurityHelper.class) {
-            try { // TODO fixed since BC 1.55 (only needed on 1.54) and should be removed eventually ...
-                if (provider.getName().equals(BC_PROVIDER_NAME) && Security.getProvider(BC_PROVIDER_NAME) == null) {
-                    Security.addProvider(provider);
-                    addedBC = true;
-                }
-                spi = (CertificateFactorySpi) getImplEngine("CertificateFactory", type);
-            } finally {
-                if (addedBC) {
-                    Security.removeProvider(BC_PROVIDER_NAME);
-                }
-            }
-        }
+        final CertificateFactorySpi spi = (CertificateFactorySpi) getImplEngine("CertificateFactory", type);
         if ( spi == null ) throw new CertificateException(type + " not found");
         return newInstance(CertificateFactory.class,
                 new Class[]{ CertificateFactorySpi.class, Provider.class, String.class },
