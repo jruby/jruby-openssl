@@ -1,3 +1,27 @@
+## 0.10.0
+
+**NOTE:** dropped support for anything below ~ JRuby 1.7.20
+
+* drop support for Java 1.6 and compile using Java 7
+* improve java.version detection for Java 9/10 (pre-releases)
+* subject alt name parsing fixes (#140) - thanks @roadrunner2
+* fix loading of Subject/Issuer-Alt-Name extensions. (#144)
+* normalize all constants in CipherStrings as public (#146)
+* upgrade BC to **1.59** and dropped support for BC < 1.55
+* include BC's JSSE provider as we're planning on using it, eventually
+* setup OpenSSL::ExtConfig emulation - mostly (conservative) guesses
+* at last, do BN comparison `==` vs `eql?` properly - just like MRI
+* get `BN.new("...", 0)` working as OpenSSL does - using MPI format
+* allow for SSLContext#dup to work (copy-ing Ruby level i-vars only)
+* fix signature-alg to default to NULL and report it as 0.0 (like MRI)
+* account for ASN1Integers when transforming issuer serial numbers 
+  to_text in AuthorityKeyIdentifier extensions (#147) - thanks @lampad
+* copy bytes since it might be a shared (unsafe) buffer (#150)
+* don't use padding for streaming cipher modes (#155) - thanks @dgolombek
+* avoid ByteList#length() usage for forward (JRuby 9.2) compatibility
+* prepare for using BC's JSSE implementation as an SSL support backend
+  allow to set SSL provider name (-Djruby.openssl.ssl.provider=...)
+
 ## 0.9.21
 
 * adjust X.509 value handling to parse subjectAltName recursively (#134)
