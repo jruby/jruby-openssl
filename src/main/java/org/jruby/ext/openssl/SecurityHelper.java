@@ -23,6 +23,7 @@
  */
 package org.jruby.ext.openssl;
 
+import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 
 import java.io.IOException;
@@ -103,10 +104,10 @@ public abstract class SecurityHelper {
     static boolean setBouncyCastleProvider = true; // (package access for tests)
     static volatile Provider securityProvider; // 'BC' provider (package access for tests)
     private static volatile Boolean registerProvider = null;
-    static final Map<String, Class> implEngines = new ConcurrentHashMap<String, Class>(16, 0.75f, 1);
+    static final Map<String, Class> implEngines = new ConcurrentHashMap<>(16, 0.75f, 1);
 
     private static String BCJSSE_PROVIDER_CLASS = "org.bouncycastle.jsse.provider.BouncyCastleJsseProvider";
-    static boolean setJsseBouncyCastleProvider = true;
+    static boolean setJsseProvider = true;
     static volatile Provider jsseProvider;
 
     /**
@@ -146,14 +147,22 @@ public abstract class SecurityHelper {
         return provider;
     }
 
-    static Provider getJsseProvider() {
+    private static Provider getJsseProvider(final String name) {
         Provider provider = jsseProvider;
-        if ( setJsseBouncyCastleProvider && provider == null ) {
+        if ( setJsseProvider && provider == null ) {
             synchronized(SecurityHelper.class) {
                 provider = jsseProvider;
-                if ( setJsseBouncyCastleProvider && provider == null ) {
-                    provider = jsseProvider = newBouncyCastleProvider(BCJSSE_PROVIDER_CLASS);
-                    setJsseBouncyCastleProvider = false;
+                if ( setJsseProvider && provider == null ) {
+                    try {
+                        provider = Security.getProvider(name);
+                    }
+                    catch (Exception ex) {
+                        debug("failed to get provider: " + name, ex);
+                    }
+                    if (provider == null && "BCJSSE".equals(name)) {
+                        provider = newBouncyCastleProvider(BCJSSE_PROVIDER_CLASS);
+                    }
+                    jsseProvider = provider; setJsseProvider = false;
                 }
             }
         }
@@ -649,16 +658,23 @@ public abstract class SecurityHelper {
         );
     }
 
-    private static final boolean providerSSLContext; // NOTE: experimental support for using BCJSSE
+    private static final String providerSSLContext; // NOTE: experimental support for using BCJSSE
     static {
-        providerSSLContext = SafePropertyAccessor.getBoolean("jruby.openssl.ssl.provider");
+        String providerSSL = SafePropertyAccessor.getProperty("jruby.openssl.ssl.provider", "");
+        switch (providerSSL.trim()) {
+            case "BC": case "true":
+                providerSSL = "BCJSSE"; break;
+            case "":  case "false":
+                providerSSL = null; break;
+        }
+        providerSSLContext = providerSSL;
     }
 
     public static SSLContext getSSLContext(final String protocol)
         throws NoSuchAlgorithmException {
         try {
-            if ( providerSSLContext && ! "SSL".equals(protocol) ) { // only TLS supported in BCJSSE
-                final Provider provider = getJsseProvider();
+            if ( providerSSLContext != null && ! "SSL".equals(protocol) ) { // only TLS supported in BCJSSE
+                final Provider provider = getJsseProvider(providerSSLContext);
                 if ( provider != null ) {
                     return getSSLContext(protocol, provider);
                 }
