@@ -1000,14 +1000,17 @@ public class Cipher extends RubyObject {
         byte[] pass = args[0].asString().getBytes();
         byte[] salt = null;
         int iter = 2048;
-        IRubyObject vdigest = runtime.getNil();
+        IRubyObject vdigest = context.nil;
         if ( args.length > 1 ) {
-            if ( ! args[1].isNil() ) {
+            if ( args[1] != context.nil ) {
                 salt = args[1].asString().getBytes();
             }
             if ( args.length > 2 ) {
-                if ( ! args[2].isNil() ) {
-                    iter = RubyNumeric.fix2int(args[2]);
+                if ( args[2] != context.nil ) {
+                    iter = RubyNumeric.num2int(args[2]);
+                    if (iter <= 0) {
+                        throw runtime.newArgumentError("iterations must be a positive integer");
+                    }
                 }
                 if ( args.length > 3 ) {
                     vdigest = args[3];
