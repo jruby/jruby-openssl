@@ -46,10 +46,8 @@ public class MemBIO extends BIO {
     }
 
     @Override
-    public int gets(byte[] in, int len) throws IOException {
-        if(rpointer == slen) {
-            return 0;
-        }
+    public int gets(byte[] in, int len) {
+        if (rpointer == slen) return 0;
 
         int i=0;
         for(;i<len && rpointer<slen; i++, rpointer++) {
@@ -90,11 +88,7 @@ public class MemBIO extends BIO {
 
     @Override
     public String toString() {
-        try {
-            return "<MemBIO w:" + wpointer + " r:" + rpointer + " buf:\"" + new String(buffer,rpointer,slen-rpointer) + "\" next=" + next() + ">";
-        } catch(Exception e) {}
-
-        return null;
+        return "<MemBIO w:" + wpointer + " r:" + rpointer + " buf:\"" + new String(buffer,rpointer,slen-rpointer) + "\" next=" + next() + ">";
     }
 
     @Override
@@ -105,10 +99,23 @@ public class MemBIO extends BIO {
         return TYPE_MEM;
     }
 
-    public byte[] getMemCopy() {
+    @Override
+    public byte[] toBytes() {
         byte[] nbuf = new byte[slen];
         System.arraycopy(buffer, 0, nbuf, 0, slen);
         return nbuf;
+    }
+
+    public byte[] getMemCopy() {
+        return toBytes();
+    }
+
+    public byte[] getBuffer() {
+        return buffer;
+    }
+
+    public int length() {
+        return slen;
     }
 
     public void reset() {
