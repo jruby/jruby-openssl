@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
@@ -141,14 +142,16 @@ public class X509Attribute extends RubyObject {
 
     @JRubyMethod
     public IRubyObject to_der(final ThreadContext context) {
-        final byte[] bytes;
         try { // NOTE: likely won't work due Constructive !
-            bytes = toASN1(context).getEncoded(ASN1Encoding.DER);
+            return StringHelper.newString(context.runtime, toDER(context));
         }
         catch (IOException e) {
             throw newIOError(context.runtime, e);
         }
-        return StringHelper.newString(context.runtime, bytes);
+    }
+
+    final byte[] toDER(ThreadContext context) throws IOException {
+        return toASN1(context).getEncoded(ASN1Encoding.DER);
     }
 
     @JRubyMethod
@@ -184,6 +187,23 @@ public class X509Attribute extends RubyObject {
         catch (IllegalArgumentException e) {
             throw newArgumentError(context.runtime, e);
         }
+    }
+
+    @Override
+    @JRubyMethod(name = "==")
+    public IRubyObject op_equal(ThreadContext context, IRubyObject obj) {
+        if (this == obj) return context.runtime.getTrue();
+        if (obj instanceof X509Attribute) {
+            boolean equal;
+            try {
+                equal = Arrays.equals(toDER(context), ((X509Attribute) obj).toDER(context));
+            }
+            catch (IOException e) {
+                throw newIOError(context.runtime, e);
+            }
+            return context.runtime.newBoolean(equal);
+        }
+        return context.runtime.getFalse();
     }
 
 }// X509Attribute

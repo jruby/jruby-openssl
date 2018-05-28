@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -213,19 +214,48 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod
     public RubyString to_der() {
-        final ASN1Sequence seq = getRequest().toASN1Structure();
         try {
-            return StringHelper.newString(getRuntime(), seq.getEncoded(ASN1Encoding.DER));
+            return StringHelper.newString(getRuntime(), toDER());
         }
         catch (IOException ex) {
             throw getRuntime().newIOErrorFromException(ex);
         }
     }
 
+    final byte[] toDER() throws IOException {
+        return getRequest().toASN1Structure().getEncoded(ASN1Encoding.DER);
+    }
+
+    @Override
+    @JRubyMethod(name = "==")
+    public IRubyObject op_equal(ThreadContext context, IRubyObject obj) {
+        return equalImpl(context.runtime, obj);
+    }
+
+    private IRubyObject equalImpl(final Ruby runtime, IRubyObject obj) {
+        if (this == obj) return runtime.getTrue();
+        if (obj instanceof X509Request) {
+            boolean equal;
+            try {
+                equal = Arrays.equals(toDER(), ((X509Request) obj).toDER());
+            }
+            catch (IOException e) {
+                throw getRuntime().newIOErrorFromException(e);
+            }
+            return runtime.newBoolean(equal);
+        }
+        return runtime.getFalse();
+    }
+
+    @Override
+    public IRubyObject eql_p(IRubyObject obj) {
+        return equalImpl(getRuntime(), obj);
+    }
+
     @JRubyMethod
     public IRubyObject to_text(final ThreadContext context) {
         warn(context, "WARNING: unimplemented method called: X509::Request#to_text");
-        return context.runtime.getNil();
+        return context.nil;
     }
 
     @JRubyMethod
@@ -373,10 +403,6 @@ public class X509Request extends RubyObject {
 
     private static RaiseException newRequestError(Ruby runtime, Exception e) {
         return Utils.newError(runtime, _X509(runtime).getClass("RequestError"), e);
-    }
-
-    private static RaiseException newRequestError(Ruby runtime, String message) {
-        return Utils.newError(runtime, _X509(runtime).getClass("RequestError"), message);
     }
 
     private static RaiseException newRequestError(Ruby runtime, String message, Exception cause) {

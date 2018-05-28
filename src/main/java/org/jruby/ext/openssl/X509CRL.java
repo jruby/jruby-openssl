@@ -321,10 +321,7 @@ public class X509CRL extends RubyObject {
         try {
             return StringHelper.newString(context.runtime, getEncoded());
         }
-        catch (IOException e) {
-            throw newCRLError(context.runtime, e);
-        }
-        catch (CRLException e) {
+        catch (IOException|CRLException e) {
             throw newCRLError(context.runtime, e);
         }
     }
@@ -663,10 +660,6 @@ public class X509CRL extends RubyObject {
         return digAlg + "WITH" + keyAlg;
     }
 
-    private boolean isDSA(final PKey key) {
-        return "DSA".equalsIgnoreCase( key.getAlgorithm() );
-    }
-
     private ASN1Primitive getCRLValue(final Ruby runtime) {
         if ( this.crlValue != null ) return this.crlValue;
         return this.crlValue = readCRL( runtime );
@@ -692,6 +685,23 @@ public class X509CRL extends RubyObject {
             debug("CRL#verify() failed:", e);
             return context.runtime.getFalse();
         }
+    }
+
+    @Override
+    @JRubyMethod(name = "==")
+    public IRubyObject op_equal(ThreadContext context, IRubyObject obj) {
+        if (this == obj) return context.runtime.getTrue();
+        if (obj instanceof X509CRL) {
+            boolean equal;
+            try {
+                equal = Arrays.equals(getEncoded(), ((X509CRL) obj).getEncoded());
+            }
+            catch (IOException|CRLException e) {
+                throw newCRLError(context.runtime, e);
+            }
+            return context.runtime.newBoolean(equal);
+        }
+        return context.runtime.getFalse();
     }
 
     private static RubyClass _CRLError(final Ruby runtime) {

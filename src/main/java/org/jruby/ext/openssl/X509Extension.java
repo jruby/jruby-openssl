@@ -29,6 +29,7 @@ package org.jruby.ext.openssl;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.Map;
 
@@ -809,12 +810,15 @@ public class X509Extension extends RubyObject {
     @JRubyMethod
     public IRubyObject to_der() {
         try {
-            final byte[] enc = toASN1Sequence().getEncoded(ASN1Encoding.DER);
-            return StringHelper.newString(getRuntime(), enc);
+            return StringHelper.newString(getRuntime(), toDER());
         }
         catch (IOException e) {
             throw newExtensionError(getRuntime(), e);
         }
+    }
+
+    final byte[] toDER() throws IOException {
+        return toASN1Sequence().getEncoded(ASN1Encoding.DER);
     }
 
     ASN1Sequence toASN1Sequence() throws IOException {
@@ -823,6 +827,32 @@ public class X509Extension extends RubyObject {
         if ( critical ) vec.add( DERBoolean.TRUE );
         vec.add( new DEROctetString( getRealValueEncoded() ) );
         return new DLSequence(vec);
+    }
+
+    @Override
+    @JRubyMethod(name = "==")
+    public IRubyObject op_equal(ThreadContext context, IRubyObject obj) {
+        return equalImpl(context.runtime, obj);
+    }
+
+    private IRubyObject equalImpl(final Ruby runtime, IRubyObject obj) {
+        if (this == obj) return runtime.getTrue();
+        if (obj instanceof X509Extension) {
+            boolean equal;
+            try {
+                equal = Arrays.equals(toDER(), ((X509Extension) obj).toDER());
+            }
+            catch (IOException e) {
+                throw newExtensionError(getRuntime(), e);
+            }
+            return runtime.newBoolean(equal);
+        }
+        return runtime.getFalse();
+    }
+
+    @Override
+    public IRubyObject eql_p(IRubyObject obj) {
+        return equalImpl(getRuntime(), obj);
     }
 
     // [ self.oid, self.value, self.critical? ]
