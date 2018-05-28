@@ -136,10 +136,21 @@ class TestSSLSocket < TestCase
     end
   end if RUBY_VERSION > '2.2'
 
+  def test_inherited_socket; require 'socket'
+    inheritedSSLSocket = Class.new(OpenSSL::SSL::SSLSocket)
+
+    io_stub = STDERR.dup
+    ctx = OpenSSL::SSL::SSLContext.new
+
+    assert socket = inheritedSSLSocket.new(io_stub, ctx) # does not raise
+    assert socket.io.nonblock? if STDERR.respond_to?(:nonblock=) # >= 2.3
+    socket.sync = true
+    assert_equal true, socket.sync
+  end
+
   private
 
-  def server
-    require 'socket'
+  def server; require 'socket'
     host = "127.0.0.1"; port = 0
     ctx = OpenSSL::SSL::SSLContext.new()
     ctx.ciphers = "ADH"
@@ -147,8 +158,7 @@ class TestSSLSocket < TestCase
     OpenSSL::SSL::SSLServer.new(server, ctx)
   end
 
-  def client(port)
-    require 'socket'
+  def client(port); require 'socket'
     host = "127.0.0.1"
     ctx = OpenSSL::SSL::SSLContext.new()
     ctx.ciphers = "ADH"

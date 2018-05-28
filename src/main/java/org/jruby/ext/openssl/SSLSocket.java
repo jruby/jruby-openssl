@@ -78,7 +78,7 @@ public class SSLSocket extends RubyObject {
     private enum CallSiteIndex {
 
         // self
-        hostname("hostname"),
+        //hostname("hostname"),
         //sync_close("sync_close"),
         //sync_close_w("sync_close="),
         // io
@@ -87,8 +87,8 @@ public class SSLSocket extends RubyObject {
         sync("sync"),
         sync_w("sync="),
         flush("flush"),
-        close("close"),
-        closed_p("closed?"),
+        //close("close"),
+        //closed_p("closed?"),
         // ssl_context
         verify_mode("verify_mode");
 
@@ -145,8 +145,8 @@ public class SSLSocket extends RubyObject {
         return SSL.newSSLError(runtime, cause);
     }
 
-    private CallSite callSite(final CallSiteIndex index) {
-        return getMetaClass().getExtraCallSites()[ index.ordinal() ];
+    private static CallSite callSite(final CallSite[] sites, final CallSiteIndex index) {
+        return sites[ index.ordinal() ];
     }
 
     private SSLContext sslContext;
@@ -192,9 +192,18 @@ public class SSLSocket extends RubyObject {
 
     private IRubyObject set_io_nonblock_checked(final ThreadContext context, RubyBoolean value) {
         // @io.nonblock = true if @io.respond_to?(:nonblock=)
-        IRubyObject respond = callSite(CallSiteIndex._respond_to_nonblock_w).call(context, io, io, context.runtime.newSymbol("nonblock="));
+        final CallSite[] sites = getMetaClass().getExtraCallSites();
+        if (sites == null) return fallback_set_io_nonblock_checked(context, value);
+        IRubyObject respond = callSite(sites, CallSiteIndex._respond_to_nonblock_w).call(context, io, io, context.runtime.newSymbol("nonblock="));
         if (respond.isTrue()) {
-            return callSite(CallSiteIndex.nonblock_w).call(context, io, io, value);
+            return callSite(sites, CallSiteIndex.nonblock_w).call(context, io, io, value);
+        }
+        return context.nil;
+    }
+
+    private IRubyObject fallback_set_io_nonblock_checked(ThreadContext context, RubyBoolean value) {
+        if (io.respondsTo("nonblock=")) {
+            return io.callMethod(context, "nonblock=", value);
         }
         return context.nil;
     }
@@ -206,8 +215,8 @@ public class SSLSocket extends RubyObject {
 
         // Server Name Indication (SNI) RFC 3546
         // SNI support will not be attempted unless hostname is explicitly set by the caller
-        IRubyObject hostname = callSite(CallSiteIndex.hostname).call(context, this, this); // self.hostname
-        String peerHost = hostname.toString();
+        IRubyObject hostname = getInstanceVariable("@hostname");
+        String peerHost = hostname == null ? null : hostname.toString();
         final int peerPort = socketChannelImpl().getRemotePort();
         engine = sslContext.createSSLEngine(peerHost, peerPort);
 
@@ -220,7 +229,7 @@ public class SSLSocket extends RubyObject {
         netData.limit(0);
         dummy = ByteBuffer.allocate(0);
         this.engine = engine;
-        copySessionSetupIfSet();
+        copySessionSetupIfSet(context);
         return engine;
     }
 
@@ -232,12 +241,24 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod(name = "sync")
     public IRubyObject sync(final ThreadContext context) {
-        return callSite(CallSiteIndex.sync).call(context, io, io); // io.sync
+        final CallSite[] sites = getMetaClass().getExtraCallSites();
+        if (sites == null) return fallback_sync(context);
+        return callSite(sites, CallSiteIndex.sync).call(context, io, io); // io.sync
+    }
+
+    private IRubyObject fallback_sync(final ThreadContext context) {
+        return io.callMethod(context, "sync");
     }
 
     @JRubyMethod(name = "sync=")
     public IRubyObject set_sync(final ThreadContext context, final IRubyObject sync) {
-        return callSite(CallSiteIndex.sync_w).call(context, io, io, sync); // io.sync = sync
+        final CallSite[] sites = getMetaClass().getExtraCallSites();
+        if (sites == null) return fallback_set_sync(context, sync);
+        return callSite(sites, CallSiteIndex.sync_w).call(context, io, io, sync); // io.sync = sync
+    }
+
+    private IRubyObject fallback_set_sync(final ThreadContext context, final IRubyObject sync) {
+        return io.callMethod(context, "sync=", sync);
     }
 
     @JRubyMethod
@@ -335,7 +356,7 @@ public class SSLSocket extends RubyObject {
             if ( ! initialHandshake ) {
                 final SSLEngine engine = ossl_ssl_setup(context);
                 engine.setUseClientMode(false);
-                final IRubyObject verify_mode = callSite(CallSiteIndex.verify_mode).call(context, sslContext, sslContext);
+                final IRubyObject verify_mode = verify_mode(context);
                 if ( verify_mode != context.nil ) {
                     final int verify = RubyNumeric.fix2int(verify_mode);
                     if ( verify == 0 ) { // VERIFY_NONE
@@ -393,6 +414,16 @@ public class SSLSocket extends RubyObject {
             throw newSSLError(context.runtime, e);
         }
         return this;
+    }
+
+    final IRubyObject verify_mode(final ThreadContext context) {
+        final CallSite[] sites = getMetaClass().getExtraCallSites();
+        if (sites == null) return fallback_verify_mode(context);
+        return callSite(sites, CallSiteIndex.verify_mode).call(context, sslContext, sslContext);
+    }
+
+    private IRubyObject fallback_verify_mode(final ThreadContext context) {
+        return sslContext.callMethod(context, "verify_mode");
     }
 
     @JRubyMethod
@@ -896,13 +927,23 @@ public class SSLSocket extends RubyObject {
                 written = write(buff, blocking);
             }
 
-            callSite(CallSiteIndex.flush).call(context, io, io); // io.flush
+            io_flush(context); // io.flush
 
             return runtime.newFixnum(written);
         }
         catch (IOException ioe) {
             throw runtime.newIOError(ioe.getMessage());
         }
+    }
+
+    private IRubyObject io_flush(final ThreadContext context) {
+        final CallSite[] sites = getMetaClass().getExtraCallSites();
+        if (sites == null) return fallback_io_flush(context);
+        return callSite(sites, CallSiteIndex.flush).call(context, io, io);
+    }
+
+    private IRubyObject fallback_io_flush(final ThreadContext context) {
+        return io.callMethod(context, "flush");
     }
 
     @JRubyMethod
@@ -963,29 +1004,15 @@ public class SSLSocket extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject sysclose(final ThreadContext context) {
-        if ( io_closed_p(context).isTrue() ) return context.nil;
-
+    public IRubyObject stop(final ThreadContext context) {
         // no need to try shutdown when it's a server
         close( sslContext.isProtocolForClient() );
-
-        if ( getInstanceVariable("@sync_close").isTrue() ) return io_close(context);
-
         return context.nil;
-    }
-
-    private IRubyObject io_closed_p(final ThreadContext context) { // io.closed?
-        return callSite(CallSiteIndex.closed_p).call(context, io, io);
-    }
-
-    private IRubyObject io_close(final ThreadContext context) { // io.close
-        return callSite(CallSiteIndex.close).call(context, io, io);
     }
 
     @JRubyMethod
     public IRubyObject cert(final ThreadContext context) {
-        final Ruby runtime = context.runtime;
-        if ( engine == null ) return runtime.getNil();
+        if ( engine == null ) return context.nil;
 
         try {
             Certificate[] cert = engine.getSession().getLocalCertificates();
@@ -994,20 +1021,19 @@ public class SSLSocket extends RubyObject {
             }
         }
         catch (CertificateEncodingException e) {
-            throw X509Cert.newCertificateError(runtime, e);
+            throw X509Cert.newCertificateError(context.runtime, e);
         }
-        return runtime.getNil();
+        return context.nil;
     }
 
-    // @Deprecated
+    @Deprecated
     public final IRubyObject cert() {
         return cert(getRuntime().getCurrentContext());
     }
 
     @JRubyMethod
     public IRubyObject peer_cert(final ThreadContext context) {
-        final Ruby runtime = context.runtime;
-        if ( engine == null ) return runtime.getNil();
+        if ( engine == null ) return context.nil;
 
         try {
             Certificate[] cert = engine.getSession().getPeerCertificates();
@@ -1016,17 +1042,17 @@ public class SSLSocket extends RubyObject {
             }
         }
         catch (CertificateEncodingException e) {
-            throw X509Cert.newCertificateError(runtime, e);
+            throw X509Cert.newCertificateError(context.runtime, e);
         }
         catch (SSLPeerUnverifiedException e) {
-            if (OpenSSL.isDebug(runtime)) {
-                runtime.getWarnings().warning(String.format("%s: %s", e.getClass().getName(), e.getMessage()));
+            if (OpenSSL.isDebug(context.runtime)) {
+                context.runtime.getWarnings().warning(String.format("%s: %s", e.getClass().getName(), e.getMessage()));
             }
         }
-        return runtime.getNil();
+        return context.nil;
     }
 
-    // @Deprecated
+    @Deprecated
     public final IRubyObject peer_cert() {
         return peer_cert(getRuntime().getCurrentContext());
     }
@@ -1055,7 +1081,7 @@ public class SSLSocket extends RubyObject {
         return runtime.getNil();
     }
 
-    // @Deprecated
+    @Deprecated
     public final IRubyObject peer_cert_chain() {
         return peer_cert_chain(getRuntime().getCurrentContext());
     }
@@ -1134,22 +1160,26 @@ public class SSLSocket extends RubyObject {
     private transient SSLSession setSession = null;
 
     @JRubyMethod(name = "session=")
-    public IRubyObject set_session(IRubyObject session) {
+    public IRubyObject set_session(final ThreadContext context, IRubyObject session) {
         // NOTE: we can not fully support this without the SSL provider internals
         // but we can assume setting a session= is meant as a forced session re-use
         if ( session instanceof SSLSession ) {
             setSession = (SSLSession) session;
-            if ( engine != null ) copySessionSetupIfSet();
+            if ( engine != null ) copySessionSetupIfSet(context);
         }
         //warn(context, "WARNING: SSLSocket#session= has not effect");
-        return getRuntime().getNil();
+        return context.nil;
     }
 
-    private void copySessionSetupIfSet() {
+    @Deprecated
+    public IRubyObject set_session(IRubyObject session) {
+        return set_session(getRuntime().getCurrentContext(), session);
+    }
+
+    private void copySessionSetupIfSet(final ThreadContext context) {
         if ( setSession != null ) {
             if ( reusableSSLEngine() ) {
                 engine.setEnableSessionCreation(false);
-                final ThreadContext context = getRuntime().getCurrentContext();
                 if ( ! setSession.equals( getSession(context.runtime) ) ) {
                     getSession(context.runtime).set_timeout(context, setSession.timeout(context));
                 }
@@ -1158,9 +1188,9 @@ public class SSLSocket extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject ssl_version() {
-        if ( engine == null ) return getRuntime().getNil();
-        return getRuntime().newString( engine.getSession().getProtocol() );
+    public IRubyObject ssl_version(ThreadContext context) {
+        if ( engine == null ) return context.nil;
+        return context.runtime.newString( engine.getSession().getProtocol() );
     }
 
     private transient SocketChannelImpl socketChannel;
