@@ -68,13 +68,13 @@ module OpenSSL
         }.call
       } unless const_defined? :DEFAULT_PARAMS # JRuby does it in Java
 
-      unless const_defined? :DEFAULT_CERT_STORE # JRuby specific
-      DEFAULT_CERT_STORE = OpenSSL::X509::Store.new
-      DEFAULT_CERT_STORE.set_default_paths
-      if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
-        DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
-      end
-      end
+      begin
+        DEFAULT_CERT_STORE = OpenSSL::X509::Store.new
+        DEFAULT_CERT_STORE.set_default_paths
+        if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
+          DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
+        end
+      end unless const_defined? :DEFAULT_CERT_STORE
 
       ##
       # Sets the parameters for this SSL context to the values in +params+.
@@ -86,14 +86,14 @@ module OpenSSL
       
       def set_params(params={})
         params = DEFAULT_PARAMS.merge(params)
-        params.each{|name, value| self.__send__("#{name}=", value) }
+        params.each { |name, value| self.__send__("#{name}=", value) }
         if self.verify_mode != OpenSSL::SSL::VERIFY_NONE
           unless self.ca_file or self.ca_path or self.cert_store
             self.cert_store = DEFAULT_CERT_STORE
           end
         end
         return params
-      end unless method_defined? :set_params # JRuby: hooked up in "native" Java
+      end unless method_defined? :set_params
     end
 
     module SocketForwarder
@@ -124,7 +124,7 @@ module OpenSSL
       def do_not_reverse_lookup=(flag)
         to_io.do_not_reverse_lookup = flag
       end
-    end unless const_defined? :SocketForwarder # JRuby: hooked up in "native" Java
+    end
 
     module Nonblock
       def initialize(*args)
@@ -228,6 +228,12 @@ module OpenSSL
       include SocketForwarder
       include Nonblock
 
+      def sysclose
+        return if closed?
+        stop
+        io.close if sync_close
+      end unless method_defined? :sysclose
+
       ##
       # Perform hostname verification after an SSL connection is established
       #
@@ -247,12 +253,6 @@ module OpenSSL
         end
         return true
       end
-
-      #def session
-      #  SSL::Session.new(self)
-      #rescue SSL::Session::SessionError
-      #  nil
-      #end
 
       private
 

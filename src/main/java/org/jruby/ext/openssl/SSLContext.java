@@ -530,54 +530,6 @@ public class SSLContext extends RubyObject {
 
     final String getProtocol() { return this.protocol; }
 
-    // ##
-    // # Sets the parameters for this SSL context to the values in +params+.
-    // # The keys in +params+ must be assignment methods on SSLContext.
-    // #
-    // # If the verify_mode is not VERIFY_NONE and ca_file, ca_path and
-    // # cert_store are not set then the system default certificate store is
-    // # used.
-    //
-    //  def set_params(params={})
-    //    params = DEFAULT_PARAMS.merge(params)
-    //    params.each{|name, value| self.__send__("#{name}=", value) }
-    //    if self.verify_mode != OpenSSL::SSL::VERIFY_NONE
-    //      unless self.ca_file or self.ca_path or self.cert_store
-    //        self.cert_store = DEFAULT_CERT_STORE
-    //      end
-    //    end
-    //    return params
-    //  end
-
-    @JRubyMethod(optional = 1)
-    public IRubyObject set_params(final ThreadContext context, final IRubyObject[] args) {
-        final RubyHash params;
-        final RubyClass SSLContext = _SSLContext(context.runtime);
-        RubyHash DEFAULT_PARAMS = (RubyHash) SSLContext.getConstantAt("DEFAULT_PARAMS");
-        if ( args.length == 0 ) params = DEFAULT_PARAMS;
-        else {
-            params = (RubyHash) DEFAULT_PARAMS.merge(context, args[0], Block.NULL_BLOCK);
-        }
-        final SSLContext self = this;
-        params.visitAll(new RubyHash.Visitor() {
-            @Override
-            public void visit(IRubyObject name, IRubyObject value) {
-                self.callMethod(context, name.toString() + '=', value);
-            }
-        });
-        IRubyObject verify_mode = self.getInstanceVariable("@verify_mode");
-        if ( verify_mode != null && ! verify_mode.isNil()
-          && RubyNumeric.fix2int(verify_mode) != SSL.VERIFY_NONE ) {
-          if ( ! hasNonNilInstanceVariable(self, "@ca_file")
-            && ! hasNonNilInstanceVariable(self, "@ca_path")
-            && ! hasNonNilInstanceVariable(self, "@cert_store") ) {
-            IRubyObject DEFAULT_CERT_STORE = SSLContext.getConstantAt("DEFAULT_CERT_STORE");
-            self.setInstanceVariable("@cert_store", DEFAULT_CERT_STORE);
-          }
-        }
-        return params;
-    }
-
     @JRubyMethod(name = "session_cache_mode")
     public IRubyObject session_cache_mode() {
         return getRuntime().getNil();
