@@ -88,10 +88,10 @@ public class PKCS7 extends RubyObject {
         }
     };
 
-    public static void createPKCS7(final Ruby runtime, final RubyModule _OpenSSL) {
-        RubyClass _PKCS7 = _OpenSSL.defineClassUnder("PKCS7", runtime.getObject(), PKCS7_ALLOCATOR);
-        RubyClass _OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        _PKCS7.defineClassUnder("PKCS7Error", _OpenSSLError, _OpenSSLError.getAllocator());
+    public static void createPKCS7(final Ruby runtime, final RubyModule OpenSSL) {
+        RubyClass _PKCS7 = OpenSSL.defineClassUnder("PKCS7", runtime.getObject(), PKCS7_ALLOCATOR);
+        RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
+        _PKCS7.defineClassUnder("PKCS7Error", OpenSSLError, OpenSSLError.getAllocator());
         _PKCS7.addReadWriteAttribute(runtime.getCurrentContext(), "data");
         _PKCS7.addReadWriteAttribute(runtime.getCurrentContext(), "error_string");
         _PKCS7.defineAnnotatedMethods(PKCS7.class);
