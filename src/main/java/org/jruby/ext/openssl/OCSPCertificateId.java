@@ -52,15 +52,13 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import static org.jruby.ext.openssl.OCSP._OCSP;
 import static org.jruby.ext.openssl.Digest._Digest;
-import static org.jruby.ext.openssl.OCSP.newOCSPError;
+import static org.jruby.ext.openssl.OCSP.*;
 
 /**
  * An OpenSSL::OCSP::CertificateId identifies a certificate to the

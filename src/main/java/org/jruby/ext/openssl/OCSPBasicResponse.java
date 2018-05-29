@@ -32,6 +32,18 @@
 */
 package org.jruby.ext.openssl;
 
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.PublicKey;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateParsingException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+
 import org.bouncycastle.asn1.ASN1GeneralizedTime;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERNull;
@@ -60,6 +72,7 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
@@ -71,7 +84,6 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.impl.ASN1Registry;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.X509Utils;
@@ -82,20 +94,8 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
 import static org.jruby.ext.openssl.Digest._Digest;
-import static org.jruby.ext.openssl.OCSP._OCSP;
-import static org.jruby.ext.openssl.OCSP.newOCSPError;
+import static org.jruby.ext.openssl.OCSP.*;
 import static org.jruby.ext.openssl.X509._X509;
-
-import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.PublicKey;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateParsingException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
 
 /*
  * An OpenSSL::OCSP::BasicResponse contains the status of a certificate
@@ -171,10 +171,10 @@ public class OCSPBasicResponse extends RubyObject {
                 
         byte[] tmpNonce;
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) {
-            tmpNonce = generateNonce();
+            tmpNonce = generateNonce(runtime);
         }
         else {
-            RubyString input = (RubyString)args[0];
+            RubyString input = (RubyString) args[0];
             tmpNonce = input.getBytes();
         }
                 
@@ -270,7 +270,7 @@ public class OCSPBasicResponse extends RubyObject {
         IRubyObject flags = context.nil;
         IRubyObject digest = context.nil;
         Digest digestInstance = new Digest(runtime, _Digest(runtime));
-        List<X509CertificateHolder> addlCerts = new ArrayList<X509CertificateHolder>();
+        List<X509CertificateHolder> addlCerts = new ArrayList<>();
         
         switch (Arity.checkArgumentCount(runtime, args, 2, 5)) {
             case 3 :
@@ -289,7 +289,7 @@ public class OCSPBasicResponse extends RubyObject {
                 break;       
         }
                         
-        if (digest.isNil()) digest = digestInstance.initialize(context, new IRubyObject[] { RubyString.newString(runtime, "SHA1") });
+        if (digest.isNil()) digest = digestInstance.initialize(context, RubyString.newString(runtime, "SHA1"));
         if (!flags.isNil()) flag = RubyFixnum.fix2int(flags);
         if (additionalCerts.isNil()) flag |= RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCERTS));
                         
@@ -299,9 +299,8 @@ public class OCSPBasicResponse extends RubyObject {
         String keyAlg = signerKey.getAlgorithm();
         String digAlg = ((Digest) digest).getShortAlgorithm();
 
-        JcaContentSignerBuilder signerBuilder = new JcaContentSignerBuilder(digAlg + "with" + keyAlg);
-        signerBuilder.setProvider("BC");
-        ContentSigner contentSigner = null;
+        JcaContentSignerBuilder signerBuilder = newJcaContentSignerBuilder(digAlg + "with" + keyAlg);
+        ContentSigner contentSigner;
         try {
             contentSigner = signerBuilder.build(signerKey.getPrivateKey());
         }
@@ -309,12 +308,10 @@ public class OCSPBasicResponse extends RubyObject {
             throw newOCSPError(runtime, e);
         }
         
-        BasicOCSPRespBuilder respBuilder = null;
+        final BasicOCSPRespBuilder respBuilder;
         try {
             if ((flag & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_RESPID_KEY))) != 0) {
-                JcaDigestCalculatorProviderBuilder dcpb = new JcaDigestCalculatorProviderBuilder();
-                dcpb.setProvider("BC");
-                DigestCalculatorProvider dcp = dcpb.build();
+                DigestCalculatorProvider dcp = newJcaDigestCalculatorProviderBuilder().build();
                 DigestCalculator calculator = dcp.get(contentSigner.getAlgorithmIdentifier());
                 respBuilder = new BasicOCSPRespBuilder(SubjectPublicKeyInfo.getInstance(signerKey.getPublicKey().getEncoded()), calculator);
             }
@@ -383,8 +380,7 @@ public class OCSPBasicResponse extends RubyObject {
             flags = RubyFixnum.fix2int(args[2]);
         }
         
-        JcaContentVerifierProviderBuilder jcacvpb = new JcaContentVerifierProviderBuilder();
-        jcacvpb.setProvider("BC");
+        JcaContentVerifierProviderBuilder jcacvpb = newJcaContentVerifierProviderBuilder();
         BasicOCSPResp basicOCSPResp = getBasicOCSPResp();
         
         java.security.cert.Certificate signer = findSignerCert(context, asn1BCBasicOCSPResp, convertRubyCerts(certificates), flags);
@@ -405,11 +401,12 @@ public class OCSPBasicResponse extends RubyObject {
             }
         }
         if ((flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOVERIFY))) == 0) {
-            List<X509Cert> untrustedCerts = null;
-            if ((flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCHAIN))) != 0) {                
+            List<X509Cert> untrustedCerts;
+            if ((flags & RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCHAIN))) != 0) {
+                untrustedCerts = Collections.EMPTY_LIST;
             }
             else if (basicOCSPResp.getCerts() != null && (certificates != null && !((RubyArray)certificates).isEmpty())) {
-                untrustedCerts = getCertsFromResp();
+                untrustedCerts = getCertsFromResp(context);
                 
                 Iterator<java.security.cert.Certificate> certIt = ((RubyArray)certificates).iterator();
                 while (certIt.hasNext()) {
@@ -422,14 +419,10 @@ public class OCSPBasicResponse extends RubyObject {
                 }
             }
             else {
-                untrustedCerts = getCertsFromResp();
+                untrustedCerts = getCertsFromResp(context);
             }
             
-            RubyArray rUntrustedCerts = RubyArray.newEmptyArray(runtime);
-            if (untrustedCerts != null) {
-                X509Cert[] rubyCerts = new X509Cert[untrustedCerts.size()];
-                rUntrustedCerts = RubyArray.newArray(runtime, untrustedCerts.toArray(rubyCerts));
-            }
+            RubyArray rUntrustedCerts = RubyArray.newArray(runtime, untrustedCerts);
             X509StoreContext ctx;
             try {
                 ctx = X509StoreContext.newStoreContext(context, (X509Store)store, X509Cert.wrap(runtime, signer), rUntrustedCerts);
@@ -563,7 +556,7 @@ public class OCSPBasicResponse extends RubyObject {
     }
 
     private CertificateID checkCertIds(List<SingleResp> singleResponses) {
-        ArrayList<SingleResp> ary = new ArrayList<SingleResp>(singleResponses);
+        ArrayList<SingleResp> ary = new ArrayList<>(singleResponses);
         CertificateID cid = ary.remove(0).getCertID();
         
         for (SingleResp singleResp : ary) {
@@ -580,30 +573,18 @@ public class OCSPBasicResponse extends RubyObject {
     public byte[] getNonce() {
         return this.nonce;
     }
-        
-    private byte[] generateNonce() {
-        // OSSL currently generates 16 byte nonce by default
-        return generateNonce(new byte[16]);
-    }
-    
-    private byte[] generateNonce(byte[] bytes) {
-        OpenSSL.getSecureRandom(getRuntime()).nextBytes(bytes);
-        return bytes;
-    }
     
     private ASN1GeneralizedTime rubyIntOrTimeToGenTime(IRubyObject intOrTime) {
         if (intOrTime.isNil()) return null;
-        Date retTime = new Date();
+        Date retTime;
         if (intOrTime instanceof RubyInteger) {
-            retTime.setTime(retTime.getTime() + RubyFixnum.fix2int((RubyFixnum)intOrTime)*1000);
+            retTime = new Date(System.currentTimeMillis() + RubyFixnum.fix2int(intOrTime)*1000);
         }
         else if (intOrTime instanceof RubyTime) {
-            retTime = ((RubyTime)intOrTime).getJavaDate();
+            retTime = ((RubyTime) intOrTime).getJavaDate();
         }
         else {
-            throw Utils.newArgumentError(
-                    getRuntime(), new IllegalArgumentException("Unknown Revocation Time class: " + intOrTime.getClass().getName())
-                    );
+            throw getRuntime().newArgumentError("Unknown Revocation Time class: " + intOrTime.getMetaClass());
         }
         
         return new ASN1GeneralizedTime(retTime);
@@ -684,20 +665,17 @@ public class OCSPBasicResponse extends RubyObject {
         return null;
     }
 
-    private List<X509Cert> getCertsFromResp() {
-        Ruby runtime = getRuntime();
-        ThreadContext context = runtime.getCurrentContext();
-        List<X509Cert> retCerts = new ArrayList<X509Cert>();
-        List<X509CertificateHolder> respCerts = Arrays.asList(getBasicOCSPResp().getCerts());
-        for (X509CertificateHolder cert : respCerts) {        
+    private List<X509Cert> getCertsFromResp(ThreadContext context) {
+        X509CertificateHolder[] certs = getBasicOCSPResp().getCerts();
+        List<X509Cert> retCerts = new ArrayList<>(certs.length);
+        for (X509CertificateHolder cert : certs) {
             try {
                 retCerts.add(X509Cert.wrap(context, cert.getEncoded()));
             }
             catch (IOException e) {
-                throw newOCSPError(runtime, e);
+                throw newOCSPError(context.runtime, e);
             }                    
         }
-        
         return retCerts;
     }
 
@@ -705,4 +683,5 @@ public class OCSPBasicResponse extends RubyObject {
     private BasicOCSPResp getBasicOCSPResp() {
         return new BasicOCSPResp(asn1BCBasicOCSPResp);
     }
+
 }

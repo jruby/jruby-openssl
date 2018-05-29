@@ -32,15 +32,13 @@
 */
 package org.jruby.ext.openssl;
 
-import static org.jruby.ext.openssl.OCSP._OCSP;
-import static org.jruby.ext.openssl.OCSP.newOCSPError;
-
 import java.io.IOException;
 
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.cert.ocsp.BasicOCSPResp;
 import org.bouncycastle.cert.ocsp.OCSPResp;
 import org.bouncycastle.cert.ocsp.OCSPRespBuilder;
+
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
@@ -48,12 +46,13 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
+
+import static org.jruby.ext.openssl.OCSP.*;
 
 /*
  * An OpenSSL::OCSP::Response contains the status of a certificate check which 
@@ -147,7 +146,7 @@ public class OCSPResponse extends RubyObject {
         if ( this == obj ) return this;
 
         checkFrozen();
-        this.bcResp = ((OCSPResponse)obj).getBCResp();
+        this.bcResp = ((OCSPResponse)obj).bcResp;
         return this;
     }
     
@@ -183,10 +182,6 @@ public class OCSPResponse extends RubyObject {
         catch (IOException e) {
             throw newOCSPError(runtime, e);
         }
-    }
-    
-    public org.bouncycastle.asn1.ocsp.OCSPResponse getBCResp() {
-        return bcResp;
     }
 
 }

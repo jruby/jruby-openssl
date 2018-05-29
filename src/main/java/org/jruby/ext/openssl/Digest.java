@@ -155,7 +155,7 @@ public class Digest extends RubyObject {
     }
 
     @JRubyMethod(required = 1, optional = 1, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject... args) {
         IRubyObject data = context.nil;
         if ( args.length > 1 ) data = args[1];
         initializeImpl(context.runtime, args[0].asString(), data);

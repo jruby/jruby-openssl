@@ -70,6 +70,7 @@ import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
+
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
@@ -79,13 +80,14 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
+
+import static org.jruby.ext.openssl.OCSP.*;
 
 /*
  * An OpenSSL::OCSP::Request contains the certificate information for determining 
@@ -163,10 +165,10 @@ public class OCSPRequest extends RubyObject {
         Ruby runtime = getRuntime();
         
         if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) {
-            nonce = generateNonce();
+            nonce = generateNonce(runtime);
         }
         else {
-            RubyString input = (RubyString)args[0];
+            RubyString input = (RubyString) args[0];
             nonce = input.getBytes();
         }
         
@@ -178,7 +180,7 @@ public class OCSPRequest extends RubyObject {
     private void addNonceImpl() {
         GeneralName requestorName = null;
         ASN1Sequence requestList = new DERSequence();
-        Extensions extensions = null;
+        Extensions extensions;
         Signature sig = null;
         List<Extension> tmpExtensions = new ArrayList<Extension>();
         
@@ -261,9 +263,8 @@ public class OCSPRequest extends RubyObject {
         String keyAlg = signerKey.getAlgorithm();
         String digAlg = ((Digest) digest).getShortAlgorithm();
         
-        JcaContentSignerBuilder signerBuilder = new JcaContentSignerBuilder(digAlg + "with" + keyAlg);
-        signerBuilder.setProvider("BC");
-        ContentSigner contentSigner = null;
+        JcaContentSignerBuilder signerBuilder = newJcaContentSignerBuilder(digAlg + "with" + keyAlg);
+        ContentSigner contentSigner;
         try {
             contentSigner = signerBuilder.build(signerKey.getPrivateKey());
         }
@@ -311,9 +312,8 @@ public class OCSPRequest extends RubyObject {
     }
         
     @JRubyMethod(name = "verify", rest = true)
-    public IRubyObject verify(IRubyObject[] args) {
-        Ruby runtime = getRuntime();
-        ThreadContext context = runtime.getCurrentContext();
+    public IRubyObject verify(ThreadContext context, IRubyObject[] args) {
+        Ruby runtime = context.runtime;
         int flags = 0;
         boolean ret = false;
         
@@ -339,9 +339,7 @@ public class OCSPRequest extends RubyObject {
         }
         
         X500Name genX500Name = X500Name.getInstance(genName.getName());
-        X509StoreContext storeContext = null;
-        JcaContentVerifierProviderBuilder jcacvpb = new JcaContentVerifierProviderBuilder();
-        jcacvpb.setProvider("BC");
+        X509StoreContext storeContext;
         
         try {
            java.security.cert.Certificate signer = findCertByName(genX500Name, certificates, flags);
@@ -352,7 +350,7 @@ public class OCSPRequest extends RubyObject {
                flags |= RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOVERIFY));
            if ((flags & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOSIGS))) == 0) {
                PublicKey signerPubKey = signer.getPublicKey();
-               ContentVerifierProvider cvp = jcacvpb.build(signerPubKey);
+               ContentVerifierProvider cvp = newJcaContentVerifierProviderBuilder().build(signerPubKey);
                ret = bcOCSPReq.isSignatureValid(cvp);
                if (!ret) {
                    return RubyBoolean.newBoolean(runtime, ret);
@@ -407,7 +405,7 @@ public class OCSPRequest extends RubyObject {
         if ( this == obj ) return this;
 
         checkFrozen();
-        this.asn1bcReq = ((OCSPRequest)obj).getBCRequest();
+        this.asn1bcReq = ((OCSPRequest)obj).asn1bcReq;
         return this;
     }
     
@@ -456,22 +454,8 @@ public class OCSPRequest extends RubyObject {
             return RubyFixnum.three(runtime);
         }
     }
-
-    private byte[] generateNonce() {
-        // OSSL currently generates 16 byte nonce by default
-        return generateNonce(new byte[16]);
-    }
     
-    private byte[] generateNonce(byte[] bytes) {
-        OpenSSL.getSecureRandom(getRuntime()).nextBytes(bytes);
-        return bytes;
-    }
-    
-    public org.bouncycastle.asn1.ocsp.OCSPRequest getBCRequest() {
-        return asn1bcReq;
-    }
-    
-    public OCSPReq getBCOCSPReq() {
+    private OCSPReq getBCOCSPReq() {
         if (asn1bcReq == null) return null;
         return new OCSPReq(asn1bcReq);
     }
