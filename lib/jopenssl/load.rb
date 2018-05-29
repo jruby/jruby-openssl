@@ -3,11 +3,11 @@ warn 'Loading jruby-openssl gem in a non-JRuby interpreter' unless defined? JRUB
 require 'java'
 require 'jopenssl/version'
 
-warn "JRuby #{JRUBY_VERSION} is not supported by jruby-openssl #{Jopenssl::VERSION}" if JRUBY_VERSION < '1.7.20'
+warn "JRuby #{JRUBY_VERSION} is not supported by jruby-openssl #{JOpenSSL::VERSION}" if JRUBY_VERSION < '1.7.20'
 
 # NOTE: assuming user does pull in BC .jars from somewhere else on the CP
 unless ENV_JAVA['jruby.openssl.load.jars'].eql?('false')
-  version = Jopenssl::BOUNCY_CASTLE_VERSION
+  version = JOpenSSL::BOUNCY_CASTLE_VERSION
   bc_jars = nil
   begin
     require 'jar-dependencies'
