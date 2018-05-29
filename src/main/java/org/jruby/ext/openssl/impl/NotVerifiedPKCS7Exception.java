@@ -37,4 +37,8 @@ public class NotVerifiedPKCS7Exception extends PKCS7Exception {
     public NotVerifiedPKCS7Exception() {
         super(-1, -1);
     }
+
+    public NotVerifiedPKCS7Exception(Exception cause) {
+        super(-1, -1, cause);
+    }
 }// NotVerifiedPKCS7Exception
