@@ -41,4 +41,6 @@ else
   load 'jopenssl19/openssl.rb'
 end
 
-require 'openssl/pkcs12'
+module OpenSSL
+  autoload :PKCS12, 'openssl/pkcs12'
+end
