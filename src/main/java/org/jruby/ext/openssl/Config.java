@@ -35,6 +35,7 @@ import org.jruby.RubyModule;
  * OpenSSL::Config (native parts)
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
+@Deprecated // move to .rb (for now) as its now lazy loaded ...
 public class Config {
     // TODO: we cannot detect OS's default config file. ignore?
     // public static final String DEFAULT_CONFIG_FILE = "./openssl.cnf";

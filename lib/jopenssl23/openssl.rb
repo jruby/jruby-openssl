@@ -13,7 +13,7 @@
 require 'openssl/bn'
 require 'openssl/pkey'
 require 'openssl/cipher'
-require 'openssl/config'
+require 'openssl/config' if OpenSSL.const_defined?(:Config, false)
 require 'openssl/digest'
 require 'openssl/x509'
 require 'openssl/ssl'

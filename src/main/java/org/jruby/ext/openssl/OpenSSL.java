@@ -66,7 +66,7 @@ public final class OpenSSL {
         final String warn = SafePropertyAccessor.getProperty("jruby.openssl.warn");
         if ( warn != null ) OpenSSL.warn = Boolean.parseBoolean(warn);
 
-        Config.createConfig(runtime, _OpenSSL);
+        // Config.createConfig(runtime, _OpenSSL);
         ExtConfig.create(runtime, _OpenSSL);
         PKey.createPKey(runtime, _OpenSSL);
         BN.createBN(runtime, _OpenSSL);
