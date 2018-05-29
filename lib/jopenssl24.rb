@@ -4,14 +4,6 @@
 
 module OpenSSL
 
-  module SSL
-    class SSLContext
-      # OpenSSL 1.1.0 introduced "security level"
-      def security_level; 0 end
-      def security_level=(level); raise NotImplementedError end
-    end
-  end
-
   module PKey
 
     class DH

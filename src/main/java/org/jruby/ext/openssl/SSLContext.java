@@ -567,6 +567,11 @@ public class SSLContext extends RubyObject {
         return RubyHash.newHash(context.runtime);
     }
 
+    @JRubyMethod(name = "security_level")
+    public IRubyObject security_level(ThreadContext context) {
+        return context.runtime.newFixnum(0);
+    }
+
     @JRubyMethod(name = "security_level=")
     public IRubyObject set_security_level(ThreadContext context, IRubyObject level) {
         warn(context, "WARNING: SSLContext#security_level= has no effect under JRuby");
