@@ -139,8 +139,15 @@ public class PKCS7 extends RubyObject {
         return wrapped;
     }
 
-    public static IRubyObject membio2str(Ruby runtime, BIO bio) {
-        return runtime.newString( new ByteList(((MemBIO) bio).getMemCopy(), false) );
+    static RubyString membio2str(Ruby runtime, BIO bio, boolean mem) {
+        final ByteList bytes;
+        if (mem) {
+            bytes = new ByteList(((MemBIO) bio).getBuffer(), 0, ((MemBIO) bio).length(), false);
+        }
+        else {
+            bytes = new ByteList(bio.toBytes(), false);
+        }
+        return runtime.newString(bytes);
     }
 
     private static List<X509AuxCertificate> getAuxCerts(final IRubyObject arg) {
@@ -156,8 +163,8 @@ public class PKCS7 extends RubyObject {
     public static IRubyObject read_smime(IRubyObject self, IRubyObject arg) {
         final Ruby runtime = self.getRuntime();
         final BIO in = obj2bio(arg);
-        final BIO[] out = new BIO[]{ null };
-        org.jruby.ext.openssl.impl.PKCS7 pkcs7Impl = null;
+        final BIO[] out = new BIO[] { null };
+        org.jruby.ext.openssl.impl.PKCS7 pkcs7Impl;
         try {
             pkcs7Impl = new SMIME(Mime.DEFAULT).readPKCS7(in, out);
         }
@@ -170,7 +177,7 @@ public class PKCS7 extends RubyObject {
         if ( pkcs7Impl == null ) {
             throw newPKCS7Error(runtime, (String) null);
         }
-        IRubyObject data = out[0] != null ? membio2str(runtime, out[0]) : runtime.getNil();
+        IRubyObject data = out[0] != null ? membio2str(runtime, out[0], false) : runtime.getNil();
         final PKCS7 pkcs7 = wrap(runtime, pkcs7Impl);
         pkcs7.setData(data);
         return pkcs7;
@@ -608,44 +615,40 @@ public class PKCS7 extends RubyObject {
         catch (NotVerifiedPKCS7Exception e) {
             // result = false;
         }
-        catch (PKCS7Exception pkcs7e) {
-            if ( isDebug(runtime) ) {
-                // runtime.getOut().println(pkcs7e);
-                pkcs7e.printStackTrace(runtime.getOut());
-            }
-            // result = false;
+        catch (PKCS7Exception ex) {
+            OpenSSL.debugStackTrace(ex);
         }
 
-        IRubyObject data = membio2str(getRuntime(), out);
+        IRubyObject data = membio2str(runtime, out, true);
         setData(data);
 
         return result ? runtime.getTrue() : runtime.getFalse();
     }
 
     @JRubyMethod(rest=true)
-    public IRubyObject decrypt(IRubyObject[] args) {
+    public IRubyObject decrypt(ThreadContext context, IRubyObject... args) {
         IRubyObject dflags;
-        if ( Arity.checkArgumentCount(getRuntime(), args, 2, 3) == 3 ) {
+        if ( Arity.checkArgumentCount(context.runtime, args, 1, 3) == 3 ) {
             dflags = args[2];
         }
         else {
-            dflags = getRuntime().getNil();
+            dflags = context.nil;
         }
         PKey pkey = (PKey) args[0];
-        X509Cert cert = (X509Cert) args[1];
 
         final PrivateKey privKey = pkey.getPrivateKey();
-        final X509AuxCertificate auxCert = cert.getAuxCert();
-        final int flg = dflags.isNil() ? 0 : RubyNumeric.fix2int(dflags);
+        final X509AuxCertificate auxCert = args.length > 1 ? ((X509Cert) args[1]).getAuxCert() : null;
+        final int flg = dflags == context.nil ? 0 : RubyNumeric.fix2int(dflags);
 
         final BIO out = BIO.mem();
         try {
             p7.decrypt(privKey, auxCert, out, flg);
         }
-        catch (PKCS7Exception pkcs7e) {
-            throw newPKCS7Error(getRuntime(), pkcs7e);
+        catch (PKCS7Exception ex) {
+            OpenSSL.debugStackTrace(ex);
+            throw newPKCS7Error(context.runtime, ex);
         }
-        return membio2str(getRuntime(), out);
+        return membio2str(context.runtime, out, true);
     }
 
     @JRubyMethod(name = {"to_pem", "to_s"})
@@ -653,17 +656,18 @@ public class PKCS7 extends RubyObject {
         StringWriter writer = new StringWriter();
         try {
             PEMInputOutput.writePKCS7(writer, p7.toASN1());
-            return getRuntime().newString( writer.toString() );
         }
-        catch (IOException e) {
-            throw getRuntime().newIOErrorFromException(e);
+        catch (IOException ex) {
+            OpenSSL.debugStackTrace(ex);
+            throw getRuntime().newIOErrorFromException(ex);
         }
+        return StringHelper.newUTF8String(getRuntime(), writer.getBuffer());
     }
 
     @JRubyMethod
     public IRubyObject to_der() {
         try {
-            return getRuntime().newString(new ByteList(p7.toASN1(), false));
+            return StringHelper.newString(getRuntime(), p7.toASN1());
         }
         catch (IOException e) {
             throw newPKCS7Error(getRuntime(), e.getMessage());

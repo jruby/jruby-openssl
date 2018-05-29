@@ -108,7 +108,14 @@ public class EVP {
                                                                                     NoSuchPaddingException,
                                                                                     IllegalBlockSizeException,
                                                                                     BadPaddingException {
-        Cipher cipher = SecurityHelper.getCipher(key.getAlgorithm());
+        String algorithm = key.getAlgorithm();
+        if ("RSA".equals(algorithm)) {
+            // with BC we need to get explicit, since:
+            // RSA is not a regular block cipher, its operation is based on big integer arithmetic.
+            // As this is the case leading zero bytes will be lost since they are not meaningful
+            algorithm = "RSA/NONE/PKCS1Padding";
+        }
+        Cipher cipher = SecurityHelper.getCipher(algorithm);
         cipher.init(Cipher.DECRYPT_MODE, key);
         return cipher.doFinal(input, offset, len);
     }
@@ -126,10 +133,7 @@ public class EVP {
 
     private static String getAlgorithmName(ASN1ObjectIdentifier oid) {
         String algorithm = ASN1Registry.o2a(oid);
-        if (algorithm != null) {
-            return algorithm.toUpperCase();
-        } else {
-            return oid.getId();
-        }
+        return (algorithm != null) ? algorithm.toUpperCase() : oid.getId();
     }
+
 }// EVP

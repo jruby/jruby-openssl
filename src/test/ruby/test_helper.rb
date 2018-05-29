@@ -139,7 +139,17 @@ TestCase.class_eval do
 
   def debug(msg); puts msg if $VERBOSE end
 
-  def issue_cert(dn, key, serial, not_before, not_after, extensions, issuer, issuer_key, digest)
+  def issue_cert(*args)
+  # def issue_cert(dn, key, serial, not_before, not_after, extensions, issuer, issuer_key, digest)
+  # def issue_cert(dn, key, serial, extensions, issuer, issuer_key,
+  #                not_before: nil, not_after: nil, digest: "sha256")
+    if args.length == 9
+      dn, key, serial, not_before, not_after, extensions, issuer, issuer_key, digest = *args
+    else
+      dn, key, serial, extensions, issuer, issuer_key, opts = *args
+      opts ||= {}
+      not_before, not_after, digest = opts[:not_before], opts[:not_after], opts[:digest] || "sha256"
+    end
     cert = OpenSSL::X509::Certificate.new
     issuer = cert unless issuer
     issuer_key = key unless issuer_key
@@ -147,9 +157,10 @@ TestCase.class_eval do
     cert.serial = serial
     cert.subject = dn
     cert.issuer = issuer.subject
-    cert.public_key = key.public_key
-    cert.not_before = not_before
-    cert.not_after = not_after
+    cert.public_key = key
+    now = Time.now
+    cert.not_before = not_before || now - 3600
+    cert.not_after = not_after || now + 3600
     ef = OpenSSL::X509::ExtensionFactory.new
     ef.subject_certificate = cert
     ef.issuer_certificate = issuer
