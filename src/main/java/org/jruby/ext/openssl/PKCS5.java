@@ -34,10 +34,13 @@ import org.bouncycastle.crypto.params.KeyParameter;
 
 import org.jruby.Ruby;
 import org.jruby.RubyModule;
+import org.jruby.RubyNumeric;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
 import org.jruby.runtime.builtin.IRubyObject;
+
+import static org.jruby.ext.openssl.KDF.newKDFError;
 
 /**
  * OpenSSL::PKCS5
@@ -53,7 +56,7 @@ public class PKCS5 {
     }
 
     // def pbkdf2_hmac_sha1(pass, salt, iter, keylen)
-    @JRubyMethod(meta = true, required = 4)
+    @JRubyMethod(module = true, required = 4)
     public static IRubyObject pbkdf2_hmac_sha1(final IRubyObject self, final IRubyObject[] args) {
         //final byte[] pass = args[0].asString().getBytes();
         final char[] pass = args[0].asString().toString().toCharArray();
@@ -65,12 +68,26 @@ public class PKCS5 {
     }
 
     // def pbkdf2_hmac_sha1(pass, salt, iter, keylen, digest)
-    @JRubyMethod(meta = true, required = 5)
+    @JRubyMethod(module = true, required = 5)
     public static IRubyObject pbkdf2_hmac(final IRubyObject self, final IRubyObject[] args) {
-        final byte[] pass = args[0].asString().getBytes();
-        final byte[] salt = args[1].asString().getBytes();
-        final int iter = (int) args[2].convertToInteger().getLongValue();
-        final int keylen = (int) args[3].convertToInteger().getLongValue();
+        final Ruby runtime = self.getRuntime();
+        try {
+            return pbkdf2Hmac(runtime, args);
+        }
+        catch (NoSuchAlgorithmException ex) {
+            throw Utils.newRuntimeError(runtime, ex); // should no happen
+        }
+        catch (InvalidKeyException ex) {
+            throw newKDFError(runtime, ex.getMessage()); // in MRI PKCS5 delegates to KDF impl
+        }
+    }
+
+    static RubyString pbkdf2Hmac(final Ruby runtime, final IRubyObject[] args)
+        throws NoSuchAlgorithmException, InvalidKeyException {
+        final byte[] pass = args[0].convertToString().getBytes();
+        final byte[] salt = args[1].convertToString().getBytes();
+        final int iter = RubyNumeric.num2int(args[2]);
+        final int keylen = RubyNumeric.num2int(args[3]);
 
         final String digestAlg;
         final IRubyObject digest = args[4];
@@ -83,20 +100,15 @@ public class PKCS5 {
 
         // NOTE: on our own since e.g. "PBKDF2WithHmacMD5" not supported by Java
 
+        // key = SecurityHelper.getSecretKeyFactory("PBKDF2WithHmac" + hash).generateSecret(spec);
+        // return StringHelper.newString(runtime, key.getEncoded());
+
         final String macAlg = "Hmac" + digestAlg;
-        final Ruby runtime = self.getRuntime();
-        try {
-            final Mac mac = SecurityHelper.getMac( macAlg );
-            mac.init( new SimpleSecretKey(macAlg, pass) );
-            final byte[] key = deriveKey(mac, salt, iter, keylen);
-            return StringHelper.newString(runtime, key);
-        }
-        catch (NoSuchAlgorithmException ex) {
-            throw Utils.newRuntimeError(runtime, ex); // should no happen
-        }
-        catch (InvalidKeyException ex) {
-            throw Utils.newRuntimeError(runtime, ex); // TODO
-        }
+
+        final Mac mac = SecurityHelper.getMac( macAlg );
+        mac.init( new SimpleSecretKey(macAlg, pass) );
+        final byte[] key = deriveKey(mac, salt, iter, keylen);
+        return StringHelper.newString(runtime, key);
     }
 
     private static String mapDigestName(final String name) {
@@ -107,7 +119,7 @@ public class PKCS5 {
         return mapped;
     }
 
-    private static RubyString generatePBEKey(final Ruby runtime,
+    static RubyString generatePBEKey(final Ruby runtime,
         final char[] pass, final byte[] salt, final int iter, final int keySize) {
         PBEParametersGenerator generator = new PKCS5S2ParametersGenerator();
         generator.init(PBEParametersGenerator.PKCS5PasswordToBytes(pass), salt, iter);
@@ -115,10 +127,7 @@ public class PKCS5 {
         return StringHelper.newString(runtime, ((KeyParameter) params).getKey());
     }
 
-    // http://stackoverflow.com/questions/9147463/java-pbkdf2-with-hmacsha256-as-the-prf
-
-    public static byte[] deriveKey( final Mac prf, byte[] salt, int iterationCount, int dkLen )
-        throws NoSuchAlgorithmException, InvalidKeyException {
+    public static byte[] deriveKey( final Mac prf, byte[] salt, int iterationCount, int dkLen ) {
 
         // Note: hLen, dkLen, l, r, T, F, etc. are horrible names for
         //       variables and functions in this day and age, but they
