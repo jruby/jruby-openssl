@@ -147,9 +147,8 @@ public class OCSP {
         responseMap = resMap;
     }
     
-    public static void createOCSP(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createOCSP(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         final RubyModule OCSP = OpenSSL.defineModuleUnder("OCSP");
-        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         Security.addProvider(new BouncyCastleProvider());
         OCSP.defineClassUnder("OCSPError", OpenSSLError, OpenSSLError.getAllocator());
         

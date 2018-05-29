@@ -41,10 +41,8 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 
-import static org.jruby.ext.openssl.OpenSSL._OpenSSLError;
 import static org.jruby.ext.openssl.OpenSSL.warn;
 import static org.jruby.ext.openssl.SSL._SSL;
-import static org.jruby.ext.openssl.OpenSSL.warn;
 
 /**
  * OpenSSL::SSL::Session
@@ -59,12 +57,11 @@ public class SSLSession extends RubyObject {
         }
     };
 
-    public static void createSession(final Ruby runtime, final RubyModule SSL) { // OpenSSL::SSL
+    static void createSession(final Ruby runtime, final RubyModule SSL, final RubyClass OpenSSLError) { // OpenSSL::SSL
         RubyClass Session = SSL.defineClassUnder("Session", runtime.getObject(), SESSION_ALLOCATOR);
-        Session.defineAnnotatedMethods(SSLSession.class);
         // OpenSSL::SSL::Session::SessionError
-        RubyClass OpenSSLError = _OpenSSLError(runtime);
         Session.defineClassUnder("SessionError", OpenSSLError, OpenSSLError.getAllocator());
+        Session.defineAnnotatedMethods(SSLSession.class);
     }
 
     private javax.net.ssl.SSLSession sslSession;

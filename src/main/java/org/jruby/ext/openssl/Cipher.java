@@ -81,11 +81,10 @@ public class Cipher extends RubyObject {
         public Cipher allocate(Ruby runtime, RubyClass klass) { return new Cipher(runtime, klass); }
     };
 
-    public static void createCipher(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createCipher(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         final RubyClass Cipher = OpenSSL.defineClassUnder("Cipher", runtime.getObject(), ALLOCATOR);
-        Cipher.defineAnnotatedMethods(Cipher.class);
-        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         Cipher.defineClassUnder("CipherError", OpenSSLError, OpenSSLError.getAllocator());
+        Cipher.defineAnnotatedMethods(Cipher.class);
 
         String cipherName;
 

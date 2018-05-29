@@ -94,14 +94,13 @@ public class X509Extension extends RubyObject {
         }
     };
 
-    public static void createX509Extension(final Ruby runtime, final RubyModule _X509) { // OpenSSL::X509
-        final RubyClass _OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        _X509.defineClassUnder("ExtensionError", _OpenSSLError, _OpenSSLError.getAllocator());
+    static void createX509Extension(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) { // OpenSSL::X509
+        X509.defineClassUnder("ExtensionError", OpenSSLError, OpenSSLError.getAllocator());
 
-        RubyClass _Extension = _X509.defineClassUnder("Extension", runtime.getObject(), X509Extension.ALLOCATOR);
+        RubyClass _Extension = X509.defineClassUnder("Extension", runtime.getObject(), X509Extension.ALLOCATOR);
         _Extension.defineAnnotatedMethods(X509Extension.class);
 
-        X509ExtensionFactory.createX509ExtensionFactory(runtime, _X509);
+        X509ExtensionFactory.createX509ExtensionFactory(runtime, X509);
     }
 
     private ASN1ObjectIdentifier objectID;

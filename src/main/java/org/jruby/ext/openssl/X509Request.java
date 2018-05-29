@@ -79,10 +79,9 @@ public class X509Request extends RubyObject {
         }
     };
 
-    public static void createRequest(final Ruby runtime, final RubyModule _X509) {
-        RubyClass _Request = _X509.defineClassUnder("Request", runtime.getObject(), REQUEST_ALLOCATOR);
-        RubyClass _OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        _X509.defineClassUnder("RequestError", _OpenSSLError, _OpenSSLError.getAllocator());
+    public static void createRequest(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
+        RubyClass _Request = X509.defineClassUnder("Request", runtime.getObject(), REQUEST_ALLOCATOR);
+        X509.defineClassUnder("RequestError", OpenSSLError, OpenSSLError.getAllocator());
         _Request.defineAnnotatedMethods(X509Request.class);
     }
 

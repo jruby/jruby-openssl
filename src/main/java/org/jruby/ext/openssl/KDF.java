@@ -43,9 +43,8 @@ import static org.jruby.ext.openssl.Utils.extractKeywordArgs;
 @JRubyModule(name = "OpenSSL::KDF")
 public class KDF {
 
-    static void createKDF(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createKDF(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         RubyModule KDF = OpenSSL.defineModuleUnder("KDF");
-        RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         KDF.defineClassUnder("KDFError", OpenSSLError, OpenSSLError.getAllocator());
         KDF.defineAnnotatedMethods(KDF.class);
     }

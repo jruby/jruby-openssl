@@ -119,18 +119,17 @@ public class SSL {
         return newSSLError(runtime, message, ex);
     }
 
-    public static void createSSL(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createSSL(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         final RubyModule SSL = OpenSSL.defineModuleUnder("SSL");
-        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         final RubyClass SSLError = SSL.defineClassUnder("SSLError", OpenSSLError, OpenSSLError.getAllocator());
 
         final IRubyObject WaitReadable = runtime.getIO().getConstantAt("WaitReadable");
-        if ( WaitReadable != null ) { // since 2.0 (do not exist in 1.8 / 1.9)
+        if ( WaitReadable != null ) { // since 2.0 (do not exist in 1.9)
             SSL.defineClassUnder("SSLErrorWaitReadable", SSLError, OpenSSLError.getAllocator()).
                 include(new IRubyObject[]{ WaitReadable });
         }
         final IRubyObject WaitWritable = runtime.getIO().getConstantAt("WaitWritable");
-        if ( WaitWritable != null ) { // since 2.0 (do not exist in 1.8 / 1.9)
+        if ( WaitWritable != null ) { // since 2.0 (do not exist in 1.9)
             SSL.defineClassUnder("SSLErrorWaitWritable", SSLError, OpenSSLError.getAllocator()).
                 include(new IRubyObject[]{ WaitWritable });
         }
@@ -164,7 +163,7 @@ public class SSL {
 
         SSLContext.createSSLContext(runtime, SSL);
         SSLSocket.createSSLSocket(runtime, SSL);
-        SSLSession.createSession(runtime, SSL);
+        SSLSession.createSession(runtime, SSL, OpenSSLError);
 
         createNonblock(SSL);
     }

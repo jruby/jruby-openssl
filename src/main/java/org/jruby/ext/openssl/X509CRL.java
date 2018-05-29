@@ -99,11 +99,10 @@ public class X509CRL extends RubyObject {
         }
     };
 
-    public static void createX509CRL(final Ruby runtime, final RubyModule _X509) {
-        RubyClass _CRL = _X509.defineClassUnder("CRL", runtime.getObject(), X509CRL_ALLOCATOR);
-        RubyClass _OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        _X509.defineClassUnder("CRLError", _OpenSSLError, _OpenSSLError.getAllocator());
-        _CRL.defineAnnotatedMethods(X509CRL.class);
+    static void createX509CRL(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
+        RubyClass CRL = X509.defineClassUnder("CRL", runtime.getObject(), X509CRL_ALLOCATOR);
+        X509.defineClassUnder("CRLError", OpenSSLError, OpenSSLError.getAllocator());
+        CRL.defineAnnotatedMethods(X509CRL.class);
     }
 
     private RubyInteger version;

@@ -65,13 +65,12 @@ public class X509Attribute extends RubyObject {
         }
     };
 
-    public static void createAttribute(Ruby runtime, RubyModule _X509) {
-        RubyClass _Attribute = _X509.defineClassUnder("Attribute", runtime.getObject(), ATTRIBUTE_ALLOCATOR);
+    static void createAttribute(Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
+        RubyClass Attribute = X509.defineClassUnder("Attribute", runtime.getObject(), ATTRIBUTE_ALLOCATOR);
 
-        RubyClass openSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        _X509.defineClassUnder("AttributeError", openSSLError, openSSLError.getAllocator());
+        X509.defineClassUnder("AttributeError", OpenSSLError, OpenSSLError.getAllocator());
 
-        _Attribute.defineAnnotatedMethods(X509Attribute.class);
+        Attribute.defineAnnotatedMethods(X509Attribute.class);
     }
 
 

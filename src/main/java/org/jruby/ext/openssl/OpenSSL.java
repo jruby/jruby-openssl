@@ -56,8 +56,10 @@ public final class OpenSSL {
         SecurityHelper.setRegisterProvider( SafePropertyAccessor.getBoolean("jruby.openssl.provider.register") );
 
         final RubyModule _OpenSSL = runtime.getOrCreateModule("OpenSSL");
-        RubyClass _StandardError = runtime.getClass("StandardError");
-        _OpenSSL.defineClassUnder("OpenSSLError", _StandardError, _StandardError.getAllocator());
+
+        RubyClass StandardError = runtime.getStandardError();
+        final RubyClass OpenSSLError = _OpenSSL.defineClassUnder("OpenSSLError", StandardError, StandardError.getAllocator());
+
         _OpenSSL.defineAnnotatedMethods(OpenSSL.class);
 
         // set OpenSSL debug internal flag early on so it can print traces even while loading extension
@@ -68,20 +70,20 @@ public final class OpenSSL {
 
         // Config.createConfig(runtime, _OpenSSL);
         ExtConfig.create(runtime, _OpenSSL);
-        PKey.createPKey(runtime, _OpenSSL);
-        BN.createBN(runtime, _OpenSSL);
-        Digest.createDigest(runtime, _OpenSSL);
-        Cipher.createCipher(runtime, _OpenSSL);
-        Random.createRandom(runtime, _OpenSSL);
-        HMAC.createHMAC(runtime, _OpenSSL);
-        ASN1.createASN1(runtime, _OpenSSL);
-        X509.createX509(runtime, _OpenSSL);
-        NetscapeSPKI.createNetscapeSPKI(runtime, _OpenSSL);
-        SSL.createSSL(runtime, _OpenSSL);
-        PKCS7.createPKCS7(runtime, _OpenSSL);
+        PKey.createPKey(runtime, _OpenSSL, OpenSSLError);
+        BN.createBN(runtime, _OpenSSL, OpenSSLError);
+        Digest.createDigest(runtime, _OpenSSL, OpenSSLError);
+        Cipher.createCipher(runtime, _OpenSSL, OpenSSLError);
+        Random.createRandom(runtime, _OpenSSL, OpenSSLError);
+        HMAC.createHMAC(runtime, _OpenSSL, OpenSSLError);
+        ASN1.createASN1(runtime, _OpenSSL, OpenSSLError);
+        X509.createX509(runtime, _OpenSSL, OpenSSLError);
+        NetscapeSPKI.createNetscapeSPKI(runtime, _OpenSSL, OpenSSLError);
+        SSL.createSSL(runtime, _OpenSSL, OpenSSLError);
+        PKCS7.createPKCS7(runtime, _OpenSSL, OpenSSLError);
         PKCS5.createPKCS5(runtime, _OpenSSL);
-        OCSP.createOCSP(runtime, _OpenSSL);
-        KDF.createKDF(runtime, _OpenSSL);
+        OCSP.createOCSP(runtime, _OpenSSL, OpenSSLError);
+        KDF.createKDF(runtime, _OpenSSL, OpenSSLError);
 
         runtime.getLoadService().require("jopenssl/version");
 
@@ -100,8 +102,8 @@ public final class OpenSSL {
 
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
-        final RubyModule _Jopenssl = runtime.getModule("Jopenssl");
-        final RubyString jVERSION = _Jopenssl.getConstantAt("VERSION").asString();
+        final RubyModule JOpenSSL = runtime.getModule("JOpenSSL");
+        final RubyString jVERSION = JOpenSSL.getConstantAt("VERSION").asString();
 
         final byte[] JRuby_OpenSSL_ = { 'J','R','u','b','y','-','O','p','e','n','S','S','L',' ' };
         final int OPENSSL_VERSION_NUMBER = 999999999; // NOTE: smt more useful?
@@ -120,7 +122,7 @@ public final class OpenSSL {
     }
 
     static RubyClass _OpenSSLError(final Ruby runtime) {
-        return runtime.getModule("OpenSSL").getClass("OpenSSLError");
+        return (RubyClass) runtime.getModule("OpenSSL").getConstantAt("OpenSSLError");
     }
 
     // OpenSSL module methods :

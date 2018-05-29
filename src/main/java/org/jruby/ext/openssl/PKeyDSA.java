@@ -74,9 +74,8 @@ public class PKeyDSA extends PKey {
         public PKeyDSA allocate(Ruby runtime, RubyClass klass) { return new PKeyDSA(runtime, klass); }
     };
 
-    public static void createPKeyDSA(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey) {
+    static void createPKeyDSA(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey, final RubyClass PKeyError) {
         RubyClass DSA = PKey.defineClassUnder("DSA", PKeyPKey, ALLOCATOR);
-        RubyClass PKeyError = PKey.getClass("PKeyError");
         PKey.defineClassUnder("DSAError", PKeyError, PKeyError.getAllocator());
 
         DSA.defineAnnotatedMethods(PKeyDSA.class);

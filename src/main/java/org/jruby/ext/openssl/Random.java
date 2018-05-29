@@ -260,10 +260,9 @@ public class Random {
 
     }
 
-    public static void createRandom(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createRandom(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         final RubyModule Random = OpenSSL.defineModuleUnder("Random");
 
-        RubyClass OpenSSLError = (RubyClass) OpenSSL.getConstant("OpenSSLError");
         Random.defineClassUnder("RandomError", OpenSSLError, OpenSSLError.getAllocator());
 
         Random.defineAnnotatedMethods(Random.class);

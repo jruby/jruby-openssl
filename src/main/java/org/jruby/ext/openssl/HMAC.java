@@ -54,10 +54,9 @@ public class HMAC extends RubyObject {
         public HMAC allocate(Ruby runtime, RubyClass klass) { return new HMAC(runtime, klass); }
     };
 
-    public static void createHMAC(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createHMAC(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         RubyClass HMAC = OpenSSL.defineClassUnder("HMAC", runtime.getObject(), ALLOCATOR);
-        RubyClass openSSLError = OpenSSL.getClass("OpenSSLError");
-        OpenSSL.defineClassUnder("HMACError",openSSLError,openSSLError.getAllocator());
+        OpenSSL.defineClassUnder("HMACError", OpenSSLError, OpenSSLError.getAllocator());
         HMAC.defineAnnotatedMethods(HMAC.class);
     }
 
