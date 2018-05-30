@@ -28,10 +28,8 @@ module OpenSSL
         @der = str
       end
 
-      p12_input_stream = java.io.StringBufferInputStream.new(@der)
-
       store = SecurityHelper.getKeyStore("PKCS12")
-      store.load(p12_input_stream, password.to_java.to_char_array)
+      store.load(java.io.ByteArrayInputStream.new(@der.to_java_bytes), password.to_java.to_char_array)
 
       aliases = store.aliases
       aliases.each do |alias_name|
