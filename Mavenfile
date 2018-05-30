@@ -171,7 +171,7 @@ end
 
 }
 
-jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.2.0 9.1.5.0 9.1.8.0 9.1.12.0 9.1.13.0 9.1.16.0 9.1.17.0 }
+jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.2.0 9.1.8.0 9.1.12.0 9.1.16.0 9.1.17.0 9.2.0.0 }
 
 jruby_9_K_versions.each { |version|
 profile :id => "test-#{version}" do
