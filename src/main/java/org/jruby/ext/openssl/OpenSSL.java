@@ -158,7 +158,7 @@ public final class OpenSSL {
         // OpenSSL::Digest("MD5") -> OpenSSL::Digest::MD5
         final Ruby runtime = self.getRuntime();
         final RubyClass Digest = runtime.getModule("OpenSSL").getClass("Digest");
-        return Digest.getConstantAt( name.asString().toString() );
+        return Digest.getConstantAt( name.asJavaString() );
     }
 
     // API "stubs" in JRuby-OpenSSL :
