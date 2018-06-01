@@ -74,13 +74,11 @@ public class NetscapeSPKI extends RubyObject {
         }
     };
 
-    public static void createNetscapeSPKI(Ruby runtime, RubyModule ossl) {
-        RubyModule mNetscape = ossl.defineModuleUnder("Netscape");
-        RubyClass cSPKI = mNetscape.defineClassUnder("SPKI",runtime.getObject(),NETSCAPESPKI_ALLOCATOR);
-        RubyClass openSSLError = ossl.getClass("OpenSSLError");
-        mNetscape.defineClassUnder("SPKIError",openSSLError,openSSLError.getAllocator());
-
-        cSPKI.defineAnnotatedMethods(NetscapeSPKI.class);
+    static void createNetscapeSPKI(Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
+        RubyModule Netscape = OpenSSL.defineModuleUnder("Netscape");
+        RubyClass SPKI = Netscape.defineClassUnder("SPKI",runtime.getObject(),NETSCAPESPKI_ALLOCATOR);
+        Netscape.defineClassUnder("SPKIError", OpenSSLError, OpenSSLError.getAllocator());
+        SPKI.defineAnnotatedMethods(NetscapeSPKI.class);
     }
 
     private static RubyModule _Netscape(final Ruby runtime) {

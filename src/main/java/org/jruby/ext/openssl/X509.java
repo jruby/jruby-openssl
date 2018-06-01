@@ -29,6 +29,7 @@ package org.jruby.ext.openssl;
 
 import java.util.Map;
 import org.jruby.Ruby;
+import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.ext.openssl.x509store.X509Error;
@@ -39,17 +40,17 @@ import org.jruby.ext.openssl.x509store.X509Utils;
  */
 public class X509 {
 
-    public static void createX509(final Ruby runtime, final RubyModule _OpenSSL) {
+    static void createX509(final Ruby runtime, final RubyModule _OpenSSL, final RubyClass OpenSSLError) {
         final RubyModule _X509 = _OpenSSL.defineModuleUnder("X509");
 
-        X509Name.createX509Name(runtime, _X509);
-        X509Cert.createX509Cert(runtime, _X509);
-        X509Extension.createX509Extension(runtime, _X509);
-        X509CRL.createX509CRL(runtime, _X509);
-        X509Revoked.createX509Revoked(runtime, _X509);
-        X509Store.createX509Store(runtime, _X509);
-        X509Request.createRequest(runtime, _X509);
-        X509Attribute.createAttribute(runtime, _X509);
+        X509Name.createX509Name(runtime, _X509, OpenSSLError);
+        X509Cert.createX509Cert(runtime, _X509, OpenSSLError);
+        X509Extension.createX509Extension(runtime, _X509, OpenSSLError);
+        X509CRL.createX509CRL(runtime, _X509, OpenSSLError);
+        X509Revoked.createX509Revoked(runtime, _X509, OpenSSLError);
+        X509Store.createX509Store(runtime, _X509, OpenSSLError);
+        X509Request.createRequest(runtime, _X509, OpenSSLError);
+        X509Attribute.createAttribute(runtime, _X509, OpenSSLError);
 
         final RubyFixnum _1 = runtime.newFixnum(1);
         final RubyFixnum _2 = runtime.newFixnum(2);

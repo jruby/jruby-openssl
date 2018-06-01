@@ -85,9 +85,8 @@ public class PKeyRSA extends PKey {
         public PKeyRSA allocate(Ruby runtime, RubyClass klass) { return new PKeyRSA(runtime, klass); }
     };
 
-    public static void createPKeyRSA(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey) {
+    static void createPKeyRSA(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey, final RubyClass PKeyError) {
         RubyClass RSA = PKey.defineClassUnder("RSA", PKeyPKey, ALLOCATOR);
-        RubyClass PKeyError = PKey.getClass("PKeyError");
         PKey.defineClassUnder("RSAError", PKeyError, PKeyError.getAllocator());
 
         RSA.defineAnnotatedMethods(PKeyRSA.class);

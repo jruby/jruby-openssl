@@ -30,6 +30,7 @@ package org.jruby.ext.openssl.impl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import javax.crypto.Cipher;
 
@@ -202,13 +203,12 @@ public class BIO {
 
     private final static byte[] CONTENT_TEXT;
     static {
-        byte[] val = null;
         try {
-            val = "Content-Type: text/plain\r\n\r\n".getBytes("ISO8859-1");
-        } catch(Exception e) {
-            val = null;
+            CONTENT_TEXT = "Content-Type: text/plain\r\n\r\n".getBytes("ISO8859-1");
         }
-        CONTENT_TEXT = val;
+        catch (UnsupportedEncodingException ex) {
+            throw new AssertionError(ex);
+        }
     }
 
     /** c: SMIME_crlf_copy
@@ -342,4 +342,9 @@ public class BIO {
         String[] names = getClass().getName().split("\\.");
         return "#<BIO:" + names[names.length-1] + " next=" + next() + ">";
     }
+
+    public byte[] toBytes() {
+        throw new UnsupportedOperationException("toBytes() for " + getClass().getName());
+    }
+
 }// BIO

@@ -87,7 +87,7 @@ public final class PKeyEC extends PKey {
         public PKeyEC allocate(Ruby runtime, RubyClass klass) { return new PKeyEC(runtime, klass); }
     };
 
-    public static void createPKeyEC(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey) {
+    static void createPKeyEC(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey, final RubyClass OpenSSLError) {
         RubyClass EC = PKey.defineClassUnder("EC", PKeyPKey, ALLOCATOR);
 
         RubyClass PKeyError = PKey.getClass("PKeyError");
@@ -96,8 +96,8 @@ public final class PKeyEC extends PKey {
         EC.defineAnnotatedMethods(PKeyEC.class);
         EC.setConstant("NAMED_CURVE", runtime.newFixnum(1));
 
-        Point.createPoint(runtime, EC);
-        Group.createGroup(runtime, EC);
+        Point.createPoint(runtime, EC, OpenSSLError);
+        Group.createGroup(runtime, EC, OpenSSLError);
     }
 
     static RubyClass _EC(final Ruby runtime) {
@@ -628,11 +628,10 @@ public final class PKeyEC extends PKey {
             public Group allocate(Ruby runtime, RubyClass klass) { return new Group(runtime, klass); }
         };
 
-        static void createGroup(final Ruby runtime, final RubyClass EC) {
+        static void createGroup(final Ruby runtime, final RubyClass EC, final RubyClass OpenSSLError) {
             RubyClass Group = EC.defineClassUnder("Group", runtime.getObject(), ALLOCATOR);
 
             // OpenSSL::PKey::EC::Group::Error
-            RubyClass OpenSSLError = OpenSSL._OpenSSLError(runtime);
             Group.defineClassUnder("Error", OpenSSLError, OpenSSLError.getAllocator());
 
             Group.defineAnnotatedMethods(Group.class);
@@ -786,11 +785,10 @@ public final class PKeyEC extends PKey {
             public Point allocate(Ruby runtime, RubyClass klass) { return new Point(runtime, klass); }
         };
 
-        static void createPoint(final Ruby runtime, final RubyClass EC) {
+        static void createPoint(final Ruby runtime, final RubyClass EC, final RubyClass OpenSSLError) {
             RubyClass Point = EC.defineClassUnder("Point", runtime.getObject(), ALLOCATOR);
 
             // OpenSSL::PKey::EC::Point::Error
-            RubyClass OpenSSLError = OpenSSL._OpenSSLError(runtime);
             Point.defineClassUnder("Error", OpenSSLError, OpenSSLError.getAllocator());
 
             Point.defineAnnotatedMethods(Point.class);

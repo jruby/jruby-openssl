@@ -29,6 +29,7 @@ package org.jruby.ext.openssl.impl;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -36,15 +37,9 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
-import java.security.MessageDigest;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Signature;
 import java.security.cert.X509CRL;
 
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
+import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.RC2ParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -142,7 +137,7 @@ public class PKCS7 {
             else {
                 final int nid = ASN1Registry.oid2nid(contentType);
 
-                ASN1Encodable content = size == 1 ? (ASN1Encodable) null : ((ASN1Sequence) obj).getObjectAt(1);
+                ASN1Encodable content = size == 1 ? null : ((ASN1Sequence) obj).getObjectAt(1);
 
                 if (content != null && content instanceof ASN1TaggedObject && ((ASN1TaggedObject) content).getTagNo() == 0) {
                     content = ((ASN1TaggedObject) content).getObject();
@@ -152,7 +147,7 @@ public class PKCS7 {
         }
         // somewhere the object does not obey to be PKCS7 object
         catch (ClassCastException e) {
-            throw new IllegalArgumentException("not a PKCS7 Object");
+            throw new IllegalArgumentException("not a PKCS7 Object", e);
         }
 
         return p7;
@@ -232,9 +227,6 @@ public class PKCS7 {
         for ( final SignerInfoWithPkey info : infos ) {
             final IssuerAndSerialNumber ias = info.getIssuerAndSerialNumber();
             X509AuxCertificate signer = null;
-//             System.err.println("looking for: " + ias.getName() + " and " + ias.getCertificateSerialNumber());
-//             System.err.println(" in: " + certs);
-//             System.err.println(" in: " + getSign().getCert());
             if(certs != null) {
                 signer = findByIssuerAndSerial(certs, ias.getName(), ias.getCertificateSerialNumber().getValue());
             }
@@ -266,7 +258,7 @@ public class PKCS7 {
 
         final int md_type = ASN1Registry.oid2nid( si.getDigestAlgorithm().getAlgorithm() );
         BIO btmp = bio;
-        MessageDigest mdc = null;
+        MessageDigest mdc;
 
         for(;;) {
             if(btmp == null || (btmp = bio.findType(BIO.TYPE_MD)) == null) {
@@ -316,12 +308,10 @@ public class PKCS7 {
             if(!sign.verify(os.getOctets())) {
                 throw new NotVerifiedPKCS7Exception();
             }
-        } catch(NotVerifiedPKCS7Exception e) {
+        } catch (NotVerifiedPKCS7Exception e) {
             throw e;
-        } catch(Exception e) {
-            System.err.println("Other exception");
-            e.printStackTrace(System.err);
-            throw new NotVerifiedPKCS7Exception();
+        } catch (GeneralSecurityException|IOException e) {
+            throw new NotVerifiedPKCS7Exception(e);
         }
     }
 
@@ -502,7 +492,7 @@ public class PKCS7 {
      *
      */
     public void decrypt(PrivateKey pkey, X509AuxCertificate cert, BIO data, int flags) throws PKCS7Exception {
-        if(!isEnveloped()) {
+        if (!isEnveloped()) {
             throw new PKCS7Exception(F_PKCS7_DECRYPT, R_WRONG_CONTENT_TYPE);
         }
         try {
@@ -669,17 +659,16 @@ public class PKCS7 {
     /** c: PKCS7_dataDecode
      *
      */
-    public BIO dataDecode(PrivateKey pkey, BIO inBio, X509AuxCertificate pcert) throws PKCS7Exception {
+    public BIO dataDecode(final PrivateKey pkey, BIO inBio, final X509AuxCertificate pcert) throws PKCS7Exception {
         BIO out = null; BIO btmp; BIO etmp; BIO bio;
-        byte[] dataBody = null;
+        byte[] dataBody;
         Collection<AlgorithmIdentifier> mdSk = null;
         Collection<RecipInfo> rsk = null;
         AlgorithmIdentifier encAlg = null;
         Cipher evpCipher = null;
         RecipInfo ri = null;
 
-        int i = getType();
-        switch(i) {
+        switch(getType()) {
         case ASN1Registry.NID_pkcs7_signed:
             dataBody = getSign().getContents().getOctetString().getOctets();
             mdSk = getSign().getMdAlgs();
@@ -692,7 +681,6 @@ public class PKCS7 {
             try {
                 evpCipher = EVP.getCipher(encAlg.getAlgorithm());
             } catch(Exception e) {
-                e.printStackTrace(System.err);
                 throw new PKCS7Exception(F_PKCS7_DATADECODE, R_UNSUPPORTED_CIPHER_TYPE, e);
             }
             break;
@@ -703,7 +691,6 @@ public class PKCS7 {
             try {
                 evpCipher = EVP.getCipher(encAlg.getAlgorithm());
             } catch(Exception e) {
-                e.printStackTrace(System.err);
                 throw new PKCS7Exception(F_PKCS7_DATADECODE, R_UNSUPPORTED_CIPHER_TYPE, e);
             }
             break;
@@ -722,15 +709,14 @@ public class PKCS7 {
                     } else {
                         out.push(btmp);
                     }
-                } catch(Exception e) {
-                    e.printStackTrace(System.err);
+                } catch (Exception e) {
                     throw new PKCS7Exception(F_PKCS7_DATADECODE, R_UNKNOWN_DIGEST_TYPE, e);
                 }
             }
         }
 
 
-        if(evpCipher != null) {
+        if (evpCipher != null) {
 
             /* It was encrypted, we need to decrypt the secret key
              * with the private key */
@@ -738,44 +724,40 @@ public class PKCS7 {
             /* Find the recipientInfo which matches the passed certificate
              * (if any)
              */
-            if(pcert != null) {
-                for(Iterator<RecipInfo> iter = rsk.iterator(); iter.hasNext();) {
+            if (pcert != null) {
+                for (Iterator<RecipInfo> iter = rsk.iterator(); iter.hasNext();) {
                     ri = iter.next();
-                    if(ri.compare(pcert)) {
-                        break;
-                    }
+                    if (ri.compare(pcert)) break;
                     ri = null;
                 }
-                if(null == ri) {
+                if (null == ri) {
                     throw new PKCS7Exception(F_PKCS7_DATADECODE, R_NO_RECIPIENT_MATCHES_CERTIFICATE);
                 }
             }
 
             byte[] tmp = null;
             /* If we haven't got a certificate try each ri in turn */
-            if(null == pcert) {
-                for(Iterator<RecipInfo> iter = rsk.iterator(); iter.hasNext();) {
+            if (null == pcert) {
+                Exception cause = null;
+                for (Iterator<RecipInfo> iter = rsk.iterator(); iter.hasNext();) {
                     ri = iter.next();
                     try {
                         tmp = EVP.decrypt(ri.getEncKey().getOctets(), pkey);
-                        if(tmp != null) {
-                            break;
-                        }
-                    } catch(Exception e) {
-                        tmp = null;
+                        if (tmp != null) break;
+                    } catch (GeneralSecurityException e) {
+                        tmp = null; cause = e;
                     }
                     ri = null;
                 }
-                if(ri == null) {
-                    throw new PKCS7Exception(F_PKCS7_DATADECODE, R_NO_RECIPIENT_MATCHES_KEY);
+                if (ri == null) {
+                    throw new PKCS7Exception(F_PKCS7_DATADECODE, R_NO_RECIPIENT_MATCHES_KEY, cause);
                 }
             } else {
                 try {
                     Cipher cipher = SecurityHelper.getCipher(CipherSpec.getWrappingAlgorithm(pkey.getAlgorithm()));
                     cipher.init(Cipher.DECRYPT_MODE, pkey);
                     tmp = cipher.doFinal(ri.getEncKey().getOctets());
-                } catch (Exception e) {
-                    e.printStackTrace(System.err);
+                } catch (GeneralSecurityException e) {
                     throw new PKCS7Exception(F_PKCS7_DATADECODE, -1, e);
                 }
             }
@@ -783,7 +765,7 @@ public class PKCS7 {
             ASN1Encodable params = encAlg.getParameters();
             try {
                 String algo = org.jruby.ext.openssl.Cipher.Algorithm.getAlgorithmBase(evpCipher);
-                if(params != null && params instanceof ASN1OctetString) {
+                if (params instanceof ASN1OctetString) {
                     if (algo.startsWith("RC2")) {
                         // J9's IBMJCE needs this exceptional RC2 support.
                         // Giving IvParameterSpec throws 'Illegal parameter' on IBMJCE.
@@ -798,8 +780,8 @@ public class PKCS7 {
                 } else {
                     evpCipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(tmp, algo));
                 }
-            } catch(Exception e) {
-                e.printStackTrace(System.err);
+            }
+            catch (Exception e) {
                 throw new PKCS7Exception(F_PKCS7_DATADECODE, -1, e);
             }
 
@@ -901,7 +883,6 @@ public class PKCS7 {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace(System.err);
                 throw new PKCS7Exception(F_PKCS7_DATAINIT, R_ERROR_SETTING_CIPHER, e);
             }
 
@@ -1278,10 +1259,10 @@ public class PKCS7 {
      *
      */
     public ASN1OctetString getOctetString() {
-        if(isData()) {
-            return getData();
-        } else if(isOther() && getOther() != null && getOther() instanceof ASN1OctetString) {
-            return (ASN1OctetString)getOther();
+        if (isData()) return getData();
+        Object other;
+        if (isOther() && (other = getOther()) instanceof ASN1OctetString) {
+            return (ASN1OctetString) other;
         }
         return null;
     }

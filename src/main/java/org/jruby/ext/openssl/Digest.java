@@ -56,15 +56,14 @@ public class Digest extends RubyObject {
         public Digest allocate(Ruby runtime, RubyClass klass) { return new Digest(runtime, klass); }
     };
 
-    public static void createDigest(Ruby runtime, RubyModule OpenSSL) {
+    static void createDigest(Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         runtime.getLoadService().require("digest");
 
         final RubyModule coreDigest = runtime.getModule("Digest");
         final RubyClass DigestClass = coreDigest.getClass("Class"); // ::Digest::Class
         RubyClass Digest = OpenSSL.defineClassUnder("Digest", DigestClass, ALLOCATOR);
-        Digest.defineAnnotatedMethods(Digest.class);
-        RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         OpenSSL.defineClassUnder("DigestError", OpenSSLError, OpenSSLError.getAllocator());
+        Digest.defineAnnotatedMethods(Digest.class);
 
         String digestName;
 
@@ -156,7 +155,7 @@ public class Digest extends RubyObject {
     }
 
     @JRubyMethod(required = 1, optional = 1, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject... args) {
         IRubyObject data = context.nil;
         if ( args.length > 1 ) data = args[1];
         initializeImpl(context.runtime, args[0].asString(), data);

@@ -64,25 +64,24 @@ import org.jruby.util.ByteList;
 public abstract class PKey extends RubyObject {
     private static final long serialVersionUID = 6114668087816965720L;
 
-    public static void createPKey(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createPKey(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         final RubyModule PKey = OpenSSL.defineModuleUnder("PKey");
         PKey.defineAnnotatedMethods(PKeyModule.class);
 
         // PKey is abstract
         RubyClass PKeyPKey = PKey.defineClassUnder("PKey", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR);
-        RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
-        PKey.defineClassUnder("PKeyError", OpenSSLError, OpenSSLError.getAllocator());
+        RubyClass PKeyError = PKey.defineClassUnder("PKeyError", OpenSSLError, OpenSSLError.getAllocator());
 
         PKeyPKey.defineAnnotatedMethods(PKey.class);
 
-        PKeyRSA.createPKeyRSA(runtime, PKey, PKeyPKey);
-        PKeyDSA.createPKeyDSA(runtime, PKey, PKeyPKey);
-        PKeyDH.createPKeyDH(runtime, PKey, PKeyPKey);
-        PKeyEC.createPKeyEC(runtime, PKey, PKeyPKey);
+        PKeyRSA.createPKeyRSA(runtime, PKey, PKeyPKey, PKeyError);
+        PKeyDSA.createPKeyDSA(runtime, PKey, PKeyPKey, PKeyError);
+        PKeyDH.createPKeyDH(runtime, PKey, PKeyPKey, PKeyError);
+        PKeyEC.createPKeyEC(runtime, PKey, PKeyPKey, OpenSSLError);
     }
 
     public static RaiseException newPKeyError(Ruby runtime, String message) {
-        return Utils.newError(runtime, _PKey(runtime).getClass("PKeyError"), message);
+        return Utils.newError(runtime, (RubyClass) _PKey(runtime).getConstantAt("PKeyError"), message);
     }
 
     static RubyModule _PKey(final Ruby runtime) {

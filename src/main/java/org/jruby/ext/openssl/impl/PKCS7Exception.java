@@ -39,7 +39,7 @@ public class PKCS7Exception extends Exception {
     private String errorData;
 
     public PKCS7Exception(int method, int reason) {
-        this(method, reason, ""+null);
+        this(method, reason, (String) null);
     }
 
     public PKCS7Exception(int method, int reason, String errorData) {
@@ -53,7 +53,7 @@ public class PKCS7Exception extends Exception {
         super("PKCS7[Method: " + method + ", Reason: " + reason + "]", cause);
         this.method = method;
         this.reason = reason;
-        this.errorData = cause.getMessage();
+        this.errorData = cause != null ? cause.getMessage() : null;
     }
 
     public int getMethod() {

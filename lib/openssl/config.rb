@@ -7,3 +7,11 @@ elsif RUBY_VERSION > '2.1'
 else
   load "jopenssl19/openssl/#{File.basename(__FILE__)}"
 end
+
+# @note moved from JOpenSSL native bits.
+module OpenSSL
+  class Config
+    DEFAULT_CONFIG_FILE = nil
+  end
+  class ConfigError < OpenSSLError; end
+end

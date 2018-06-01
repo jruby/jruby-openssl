@@ -66,6 +66,12 @@ public class SSL {
     public static final long OP_NETSCAPE_CA_DN_BUG =                        0x20000000L;
     public static final long OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG =           0x40000000L;
 
+    public static final int SSL2_VERSION = 1;
+    public static final int SSL3_VERSION = 768;
+    public static final int TLS1_VERSION = 769;
+    public static final int TLS1_1_VERSION = 770;
+    public static final int TLS1_2_VERSION = 771;
+
     private static final String JSSE_TLS_ephemeralDHKeySize = "jdk.tls.ephemeralDHKeySize" ;
     private static final String JSSE_TLS_ephemeralDHKeySize_default = "matched" ;
     private static final String JSSE_TLS_disabledAlgorithms = "jdk.tls.disabledAlgorithms" ;
@@ -113,18 +119,17 @@ public class SSL {
         return newSSLError(runtime, message, ex);
     }
 
-    public static void createSSL(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createSSL(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         final RubyModule SSL = OpenSSL.defineModuleUnder("SSL");
-        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         final RubyClass SSLError = SSL.defineClassUnder("SSLError", OpenSSLError, OpenSSLError.getAllocator());
 
         final IRubyObject WaitReadable = runtime.getIO().getConstantAt("WaitReadable");
-        if ( WaitReadable != null ) { // since 2.0 (do not exist in 1.8 / 1.9)
+        if ( WaitReadable != null ) { // since 2.0 (do not exist in 1.9)
             SSL.defineClassUnder("SSLErrorWaitReadable", SSLError, OpenSSLError.getAllocator()).
                 include(new IRubyObject[]{ WaitReadable });
         }
         final IRubyObject WaitWritable = runtime.getIO().getConstantAt("WaitWritable");
-        if ( WaitWritable != null ) { // since 2.0 (do not exist in 1.8 / 1.9)
+        if ( WaitWritable != null ) { // since 2.0 (do not exist in 1.9)
             SSL.defineClassUnder("SSLErrorWaitWritable", SSLError, OpenSSLError.getAllocator()).
                 include(new IRubyObject[]{ WaitWritable });
         }
@@ -150,11 +155,16 @@ public class SSL {
         SSL.setConstant("OP_NETSCAPE_CA_DN_BUG", runtime.newFixnum(OP_NETSCAPE_CA_DN_BUG));
         SSL.setConstant("OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG", runtime.newFixnum(OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG));
 
+        SSL.setConstant("SSL2_VERSION", runtime.newFixnum(SSL2_VERSION));
+        SSL.setConstant("SSL3_VERSION", runtime.newFixnum(SSL3_VERSION));
+        SSL.setConstant("TLS1_VERSION", runtime.newFixnum(TLS1_VERSION));
+        SSL.setConstant("TLS1_1_VERSION", runtime.newFixnum(TLS1_1_VERSION));
+        SSL.setConstant("TLS1_2_VERSION", runtime.newFixnum(TLS1_2_VERSION));
+
         SSLContext.createSSLContext(runtime, SSL);
         SSLSocket.createSSLSocket(runtime, SSL);
-        SSLSession.createSession(runtime, SSL);
+        SSLSession.createSession(runtime, SSL, OpenSSLError);
 
-        createSocketForwarder(SSL);
         createNonblock(SSL);
     }
 
@@ -206,62 +216,6 @@ public class SSL {
     static RubyModule _SSL(final Ruby runtime) {
         return (RubyModule) runtime.getModule("OpenSSL").getConstant("SSL");
     }
-
-    private static RubyModule createSocketForwarder(final RubyModule SSL) { // OpenSSL::SSL
-        final RubyModule SocketForwarder = SSL.defineModuleUnder("SocketForwarder");
-        SocketForwarder.defineAnnotatedMethods(SocketForwarder.class);
-        return SocketForwarder;
-    }
-
-    @JRubyModule(name = "OpenSSL::SSL::SocketForwarder")
-    public static class SocketForwarder {
-
-        @JRubyMethod
-        public static IRubyObject addr(ThreadContext context, IRubyObject self) {
-            return to_io(context, self).callMethod(context, "addr");
-        }
-
-        @JRubyMethod
-        public static IRubyObject peeraddr(ThreadContext context, IRubyObject self) {
-            return to_io(context, self).callMethod(context, "peeraddr");
-        }
-
-        @JRubyMethod(name = "closed?")
-        public static IRubyObject closed_p(ThreadContext context, IRubyObject self) {
-            return to_io(context, self).callMethod(context, "closed?");
-        }
-
-        @JRubyMethod
-        //@JRubyMethod(required = 2) // def getsockopt(level, optname)
-        //public static IRubyObject getsockopt(ThreadContext context, IRubyObject self, IRubyObject[] args) {
-        public static IRubyObject getsockopt(ThreadContext context, IRubyObject self, IRubyObject level, IRubyObject optname) {
-            //return to_io(context, self).callMethod(context, "getsockopt", args);
-            return to_io(context, self).callMethod(context, "getsockopt", new IRubyObject[] { level, optname });
-        }
-
-        @JRubyMethod
-        //@JRubyMethod(required = 3) // def setsockopt(level, optname, optval)
-        //public static IRubyObject setsockopt(ThreadContext context, IRubyObject self, IRubyObject[] args) {
-        public static IRubyObject setsockopt(ThreadContext context, IRubyObject self, IRubyObject level, IRubyObject optname, IRubyObject optval) {
-            //return to_io(context, self).callMethod(context, "setsockopt", args);
-            return to_io(context, self).callMethod(context, "setsockopt", new IRubyObject[] { level, optname, optval });
-        }
-
-        @JRubyMethod(name = "do_not_reverse_lookup=") // def do_not_reverse_lookup=(flag)
-        public static IRubyObject do_not_reverse_lookup_eq(ThreadContext context, IRubyObject self, IRubyObject flag) {
-            return to_io(context, self).callMethod(context, "do_not_reverse_lookup=", flag);
-        }
-
-        @JRubyMethod(rest = true) // def fcntl(*args)
-        public static IRubyObject fcntl(ThreadContext context, IRubyObject self, IRubyObject[] args) {
-            return to_io(context, self).callMethod(context, "fcntl", args);
-        }
-
-        private static IRubyObject to_io(ThreadContext context, IRubyObject self) {
-            return self.callMethod(context, "to_io");
-        }
-
-    } // SocketForwarder
 
     private static RubyModule createNonblock(final RubyModule SSL) { // OpenSSL::SSL
         final RubyModule Nonblock = SSL.defineModuleUnder("Nonblock");

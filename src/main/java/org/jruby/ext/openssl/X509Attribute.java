@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
@@ -64,13 +65,12 @@ public class X509Attribute extends RubyObject {
         }
     };
 
-    public static void createAttribute(Ruby runtime, RubyModule _X509) {
-        RubyClass _Attribute = _X509.defineClassUnder("Attribute", runtime.getObject(), ATTRIBUTE_ALLOCATOR);
+    static void createAttribute(Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
+        RubyClass Attribute = X509.defineClassUnder("Attribute", runtime.getObject(), ATTRIBUTE_ALLOCATOR);
 
-        RubyClass openSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        _X509.defineClassUnder("AttributeError", openSSLError, openSSLError.getAllocator());
+        X509.defineClassUnder("AttributeError", OpenSSLError, OpenSSLError.getAllocator());
 
-        _Attribute.defineAnnotatedMethods(X509Attribute.class);
+        Attribute.defineAnnotatedMethods(X509Attribute.class);
     }
 
 
@@ -141,14 +141,16 @@ public class X509Attribute extends RubyObject {
 
     @JRubyMethod
     public IRubyObject to_der(final ThreadContext context) {
-        final byte[] bytes;
         try { // NOTE: likely won't work due Constructive !
-            bytes = toASN1(context).getEncoded(ASN1Encoding.DER);
+            return StringHelper.newString(context.runtime, toDER(context));
         }
         catch (IOException e) {
             throw newIOError(context.runtime, e);
         }
-        return StringHelper.newString(context.runtime, bytes);
+    }
+
+    final byte[] toDER(ThreadContext context) throws IOException {
+        return toASN1(context).getEncoded(ASN1Encoding.DER);
     }
 
     @JRubyMethod
@@ -184,6 +186,23 @@ public class X509Attribute extends RubyObject {
         catch (IllegalArgumentException e) {
             throw newArgumentError(context.runtime, e);
         }
+    }
+
+    @Override
+    @JRubyMethod(name = "==")
+    public IRubyObject op_equal(ThreadContext context, IRubyObject obj) {
+        if (this == obj) return context.runtime.getTrue();
+        if (obj instanceof X509Attribute) {
+            boolean equal;
+            try {
+                equal = Arrays.equals(toDER(context), ((X509Attribute) obj).toDER(context));
+            }
+            catch (IOException e) {
+                throw newIOError(context.runtime, e);
+            }
+            return context.runtime.newBoolean(equal);
+        }
+        return context.runtime.getFalse();
     }
 
 }// X509Attribute

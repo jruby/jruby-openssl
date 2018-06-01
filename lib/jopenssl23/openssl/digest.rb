@@ -24,7 +24,7 @@ module OpenSSL
 
   end # Digest
 
-  # Returns a Digest subclass by +name+.
+  # Returns a Digest subclass by _name_
   #
   #   require 'openssl'
   #

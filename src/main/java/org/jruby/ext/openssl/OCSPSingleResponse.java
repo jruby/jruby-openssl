@@ -32,15 +32,9 @@
 */
 package org.jruby.ext.openssl;
 
-import static org.jruby.ext.openssl.OCSP._OCSP;
-import static org.jruby.ext.openssl.OCSP.newOCSPError;
-
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1GeneralizedTime;
@@ -61,12 +55,13 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
+
+import static org.jruby.ext.openssl.OCSP.*;
 
 /*
  * An OpenSSL::OCSP::SingleResponse represents an OCSP SingleResponse structure, 

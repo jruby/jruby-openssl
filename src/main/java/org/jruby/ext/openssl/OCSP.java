@@ -32,11 +32,13 @@
 */
 package org.jruby.ext.openssl;
 
-import java.security.Security;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
+import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
@@ -137,7 +139,7 @@ public class OCSP {
     private static final int _V_RESPID_KEY =1;
     
     static {
-        Map<Integer, String> resMap = new HashMap<Integer, String>();
+        Map<Integer, String> resMap = new HashMap<>(8, 1);
         resMap.put(_RESPONSE_STATUS_SUCCESSFUL, _RESPONSE_STATUS_SUCCESSFUL_STR);
         resMap.put(_RESPONSE_STATUS_MALFORMEDREQUEST, _RESPONSE_STATUS_MALFORMEDREQUEST_STR);
         resMap.put(_RESPONSE_STATUS_INTERNALERROR, _RESPONSE_STATUS_INTERNALERROR_STR);
@@ -147,10 +149,8 @@ public class OCSP {
         responseMap = resMap;
     }
     
-    public static void createOCSP(final Ruby runtime, final RubyModule OpenSSL) {
+    static void createOCSP(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         final RubyModule OCSP = OpenSSL.defineModuleUnder("OCSP");
-        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
-        Security.addProvider(new BouncyCastleProvider());
         OCSP.defineClassUnder("OCSPError", OpenSSLError, OpenSSLError.getAllocator());
         
         OCSPBasicResponse.createBasicResponse(runtime, OCSP);
@@ -210,6 +210,37 @@ public class OCSP {
     
     static RubyModule _OCSP(final Ruby runtime) {
         return (RubyModule) runtime.getModule("OpenSSL").getConstant("OCSP");
+    }
+
+    static byte[] generateNonce(final Ruby runtime) {
+        // OSSL currently generates 16 byte nonce by default
+        return generateNonce(runtime, new byte[16]);
+    }
+
+    static byte[] generateNonce(final Ruby runtime, byte[] bytes) {
+        OpenSSL.getSecureRandom(runtime).nextBytes(bytes);
+        return bytes;
+    }
+
+    static JcaContentSignerBuilder newJcaContentSignerBuilder(String alg) {
+        JcaContentSignerBuilder builder = new JcaContentSignerBuilder(alg);
+        if (SecurityHelper.isProviderAvailable("BC")) builder.setProvider("BC");
+        else builder.setProvider( SecurityHelper.getSecurityProvider() );
+        return builder;
+    }
+
+    static JcaContentVerifierProviderBuilder newJcaContentVerifierProviderBuilder() {
+        JcaContentVerifierProviderBuilder builder = new JcaContentVerifierProviderBuilder();
+        if (SecurityHelper.isProviderAvailable("BC")) builder.setProvider("BC");
+        else builder.setProvider( SecurityHelper.getSecurityProvider() );
+        return builder;
+    }
+
+    static JcaDigestCalculatorProviderBuilder newJcaDigestCalculatorProviderBuilder() {
+        JcaDigestCalculatorProviderBuilder builder = new JcaDigestCalculatorProviderBuilder();
+        if (SecurityHelper.isProviderAvailable("BC")) builder.setProvider("BC");
+        else builder.setProvider( SecurityHelper.getSecurityProvider() );
+        return builder;
     }
 
 }

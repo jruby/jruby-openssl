@@ -89,8 +89,7 @@ public class BN extends RubyObject {
         return new BN(runtime, value != null ? value : BigInteger.ZERO);
     }
 
-    public static void createBN(final Ruby runtime, final RubyModule OpenSSL) {
-        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
+    static void createBN(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         OpenSSL.defineClassUnder("BNError", OpenSSLError, OpenSSLError.getAllocator());
 
         RubyClass BN = OpenSSL.defineClassUnder("BN", runtime.getObject(), BN_ALLOCATOR);
@@ -106,7 +105,7 @@ public class BN extends RubyObject {
     }
 
     protected BN(Ruby runtime, BigInteger value) {
-        super(runtime, runtime.getModule("OpenSSL").getClass("BN"));
+        super(runtime, (RubyClass) runtime.getModule("OpenSSL").getConstantAt("BN"));
         this.value = value;
     }
 

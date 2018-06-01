@@ -28,16 +28,16 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
+import java.util.HashSet;
 
-import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
+import org.jruby.*;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.internal.runtime.methods.DynamicMethod;
 import org.jruby.internal.runtime.methods.UndefinedMethod;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.TypeConverter;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -147,6 +147,42 @@ final class Utils {
 
     private static <T extends Throwable> void throwsUnchecked(Throwable t) throws T {
         throw (T) t;
+    }
+
+    // from JRuby's ArgsUtil :
+
+    static IRubyObject[] extractKeywordArgs(final ThreadContext context, RubyHash options, String... validKeys) {
+        return extractKeywordArgs(context, options, validKeys, 0);
+    }
+
+    static IRubyObject[] extractKeywordArgs(final ThreadContext context, RubyHash options, String[] validKeys, int offset) {
+        final IRubyObject[] ret = new IRubyObject[offset + validKeys.length];
+
+        final HashSet<RubySymbol> validKeySet = new HashSet<>(ret.length);
+
+        // Build the return values
+        for (int i=0; i<validKeys.length; i++) {
+            final String key = validKeys[i];
+            RubySymbol keySym = context.runtime.newSymbol(key);
+            IRubyObject val = options.fastARef(keySym);
+            ret[offset + i] = val != null ? val : RubyBasicObject.UNDEF;
+            validKeySet.add(keySym);
+        }
+
+        // Check for any unknown keys
+        options.visitAll(new RubyHash.Visitor() {
+            public void visit(IRubyObject key, IRubyObject value) {
+                if (!validKeySet.contains(key)) {
+                    throw context.runtime.newArgumentError("unknown keyword: " + key);
+                }
+            }
+        });
+
+        return ret;
+    }
+
+    static IRubyObject extractKeywordArg(ThreadContext context, String keyword, RubyHash opts) {
+        return opts.op_aref(context, context.runtime.newSymbol(keyword));
     }
 
 }// Utils

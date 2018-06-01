@@ -694,9 +694,8 @@ public class ASN1 {
         return (ASN1Encodable) getInstance.invoke(null, value);
     }
 
-    public static void createASN1(final Ruby runtime, final RubyModule OpenSSL) {
+    public static void createASN1(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         final RubyModule ASN1 = OpenSSL.defineModuleUnder("ASN1");
-        final RubyClass OpenSSLError = OpenSSL.getClass("OpenSSLError");
         ASN1.defineClassUnder("ASN1Error", OpenSSLError, OpenSSLError.getAllocator());
 
         ASN1.defineAnnotatedMethods(ASN1.class);

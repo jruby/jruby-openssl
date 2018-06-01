@@ -30,7 +30,8 @@ module OpenSSL
     class << self
 
       ##
-      # Parses a given +string+ as a blob that contains configuration for openssl.
+      # Parses a given _string_ as a blob that contains configuration for
+      # OpenSSL.
       #
       # If the source of the IO is a file, then consider using #parse_config.
       def parse(string)
@@ -46,7 +47,7 @@ module OpenSSL
       alias load new
 
       ##
-      # Parses the configuration data read from +io+, see also #parse.
+      # Parses the configuration data read from _io_, see also #parse.
       #
       # Raises a ConfigError on invalid configuration data.
       def parse_config(io)
@@ -71,7 +72,7 @@ module OpenSSL
         end
       end
 
-      private
+    private
 
       def parse_config_lines(io)
         section = 'default'
@@ -110,10 +111,10 @@ module OpenSSL
       QUOTE_REGEXP_DQ = /\A([^"\\]*(?:""[^"\\]*|\\.[^"\\]*)*)"/
       # escaped char map
       ESCAPE_MAP = {
-          "r" => "\r",
-          "n" => "\n",
-          "b" => "\b",
-          "t" => "\t",
+        "r" => "\r",
+        "n" => "\n",
+        "b" => "\b",
+        "t" => "\t",
       }
 
       def unescape_value(data, section, value)
@@ -123,36 +124,36 @@ module OpenSSL
           c = m[0]
           value = m.post_match
           case c
-            when "'"
-              if m = value.match(QUOTE_REGEXP_SQ)
-                scanned << m[1].gsub(/\\(.)/, '\\1')
-                value = m.post_match
-              else
-                break
-              end
-            when '"'
-              if m = value.match(QUOTE_REGEXP_DQ)
-                scanned << m[1].gsub(/""/, '').gsub(/\\(.)/, '\\1')
-                value = m.post_match
-              else
-                break
-              end
-            when "\\"
-              c = value.slice!(0, 1)
-              scanned << (ESCAPE_MAP[c] || c)
-            when "$"
-              ref, value = extract_reference(value)
-              refsec = section
-              if ref.index('::')
-                refsec, ref = ref.split('::', 2)
-              end
-              if v = get_key_string(data, refsec, ref)
-                scanned << v
-              else
-                raise ConfigError, "variable has no value"
-              end
+          when "'"
+            if m = value.match(QUOTE_REGEXP_SQ)
+              scanned << m[1].gsub(/\\(.)/, '\\1')
+              value = m.post_match
             else
-              raise 'must not reaced'
+              break
+            end
+          when '"'
+            if m = value.match(QUOTE_REGEXP_DQ)
+              scanned << m[1].gsub(/""/, '').gsub(/\\(.)/, '\\1')
+              value = m.post_match
+            else
+              break
+            end
+          when "\\"
+            c = value.slice!(0, 1)
+            scanned << (ESCAPE_MAP[c] || c)
+          when "$"
+            ref, value = extract_reference(value)
+            refsec = section
+            if ref.index('::')
+              refsec, ref = ref.split('::', 2)
+            end
+            if v = get_key_string(data, refsec, ref)
+              scanned << v
+            else
+              raise ConfigError, "variable has no value"
+            end
+          else
+            raise 'must not reaced'
           end
         end
         scanned << value
@@ -186,25 +187,25 @@ module OpenSSL
           c = m[0]
           line = m.post_match
           case c
-            when '#'
+          when '#'
+            line = nil
+            break
+          when "'", '"'
+            regexp = (c == "'") ? QUOTE_REGEXP_SQ : QUOTE_REGEXP_DQ
+            scanned << c
+            if m = line.match(regexp)
+              scanned << m[0]
+              line = m.post_match
+            else
+              scanned << line
               line = nil
               break
-            when "'", '"'
-              regexp = (c == "'") ? QUOTE_REGEXP_SQ : QUOTE_REGEXP_DQ
-              scanned << c
-              if m = line.match(regexp)
-                scanned << m[0]
-                line = m.post_match
-              else
-                scanned << line
-                line = nil
-                break
-              end
-            when "\\"
-              scanned << c
-              scanned << line.slice!(0, 1)
-            else
-              raise 'must not reaced'
+            end
+          when "\\"
+            scanned << c
+            scanned << line.slice!(0, 1)
+          else
+            raise 'must not reaced'
           end
         end
         scanned << line
@@ -236,7 +237,7 @@ module OpenSSL
     #
     # This can be used in contexts like OpenSSL::X509::ExtensionFactory.config=
     #
-    # If the optional +filename+ parameter is provided, then it is read in and
+    # If the optional _filename_ parameter is provided, then it is read in and
     # parsed via #parse_config.
     #
     # This can raise IO exceptions based on the access, or availability of the
@@ -255,7 +256,7 @@ module OpenSSL
     end
 
     ##
-    # Gets the value of +key+ from the given +section+
+    # Gets the value of _key_ from the given _section_
     #
     # Given the following configurating file being loaded:
     #
@@ -265,8 +266,8 @@ module OpenSSL
     #     #=> [ default ]
     #     #   foo=bar
     #
-    # You can get a specific value from the config if you know the +section+
-    # and +key+ like so:
+    # You can get a specific value from the config if you know the _section_
+    # and _key_ like so:
     #
     #   config.get_value('default','foo')
     #     #=> "bar"
@@ -297,7 +298,7 @@ module OpenSSL
     end
 
     ##
-    # Set the target +key+ with a given +value+ under a specific +section+.
+    # Set the target _key_ with a given _value_ under a specific _section_.
     #
     # Given the following configurating file being loaded:
     #
@@ -307,7 +308,7 @@ module OpenSSL
     #     #=> [ default ]
     #     #   foo=bar
     #
-    # You can set the value of +foo+ under the +default+ section to a new
+    # You can set the value of _foo_ under the _default_ section to a new
     # value:
     #
     #   config.add_value('default', 'foo', 'buzz')
@@ -322,7 +323,7 @@ module OpenSSL
     end
 
     ##
-    # Get a specific +section+ from the current configuration
+    # Get a specific _section_ from the current configuration
     #
     # Given the following configurating file being loaded:
     #
@@ -351,7 +352,7 @@ module OpenSSL
     end
 
     ##
-    # Sets a specific +section+ name with a Hash +pairs+
+    # Sets a specific _section_ name with a Hash _pairs_.
     #
     # Given the following configuration being created:
     #
@@ -365,7 +366,7 @@ module OpenSSL
     #     #   baz=buz
     #
     # It's important to note that this will essentially merge any of the keys
-    # in +pairs+ with the existing +section+. For example:
+    # in _pairs_ with the existing _section_. For example:
     #
     #   config['default']
     #     #=> {"foo"=>"bar", "baz"=>"buz"}
@@ -450,13 +451,13 @@ module OpenSSL
       "#<#{self.class.name} sections=#{sections.inspect}>"
     end
 
-    protected
+  protected
 
     def data # :nodoc:
       @data
     end
 
-    private
+  private
 
     def initialize_copy(other)
       @data = other.data.dup

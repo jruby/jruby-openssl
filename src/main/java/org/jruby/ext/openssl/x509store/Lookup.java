@@ -27,33 +27,12 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
-import org.jruby.ext.openssl.OpenSSL;
-import org.jruby.ext.openssl.util.Cache;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_CERT_DIR;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_ASN1;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_DEFAULT;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_FILETYPE_PEM;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_CRL;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_FAIL;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_LU_X509;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_L_ADD_DIR;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_L_FILE_LOAD;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_BAD_X509_FILETYPE;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_INVALID_DIRECTORY;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_LOADING_CERT_DIR;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_LOADING_DEFAULTS;
-import static org.jruby.ext.openssl.x509store.X509Utils.X509_R_WRONG_LOOKUP_TYPE;
-import static org.jruby.ext.openssl.x509store.X509Utils.getDefaultCertificateDirectoryEnvironment;
-import static org.jruby.ext.openssl.x509store.X509Utils.getDefaultCertificateFileEnvironment;
-
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
@@ -67,15 +46,13 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import org.jruby.Ruby;
-import org.jruby.RubyHash;
+import org.jruby.ext.openssl.OpenSSL;
 import org.jruby.ext.openssl.SecurityHelper;
+import org.jruby.ext.openssl.util.Cache;
 import org.jruby.util.JRubyFile;
 import org.jruby.util.SafePropertyAccessor;
-import org.jruby.util.io.ChannelDescriptor;
-import org.jruby.util.io.ChannelStream;
-import org.jruby.util.io.FileExistsException;
-import org.jruby.util.io.InvalidValueException;
-import org.jruby.util.io.ModeFlags;
+
+import static org.jruby.ext.openssl.x509store.X509Utils.*;
 
 /**
  * X509_LOOKUP
@@ -84,7 +61,6 @@ import org.jruby.util.io.ModeFlags;
  */
 public class Lookup {
 
-    boolean init = false;
     boolean skip = false;
 
     final LookupMethod method;
@@ -376,37 +352,11 @@ public class Lookup {
     }
 
     private InputStream wrapJRubyNormalizedInputStream(String file) throws IOException {
-        try {
-            return JRubyFile.createResource(runtime, file).inputStream();
-        }
-        catch (NoSuchMethodError e) { // JRubyFile.createResource.inputStream (JRuby < 1.7.17)
-            try {
-                ChannelDescriptor descriptor = ChannelDescriptor.open(runtime.getCurrentDirectory(), file, new ModeFlags(ModeFlags.RDONLY));
-                return ChannelStream.open(runtime, descriptor).newInputStream();
-            }
-            catch (NoSuchMethodError ex) {
-                File f = new File(file);
-                if ( ! f.isAbsolute() ) {
-                    f = new File(runtime.getCurrentDirectory(), file);
-                }
-                return new BufferedInputStream(new FileInputStream(f));
-            }
-            catch (FileExistsException ex) {
-                // should not happen because ModeFlag does not contain CREAT.
-                OpenSSL.debugStackTrace(ex);
-                throw new IllegalStateException(ex);
-            }
-            catch (InvalidValueException ex) {
-                // should not happen because ModeFlasg does not contain APPEND.
-                OpenSSL.debugStackTrace(ex);
-                throw new IllegalStateException(ex);
-            }
-        }
+        return JRubyFile.createResource(runtime, file).inputStream();
     }
 
     private String envEntry(final String key) {
-    	RubyHash env = (RubyHash) runtime.getObject().getConstant("ENV");
-        return (String) env.get( runtime.newString(key) );
+        return (String) runtime.getENV().get( runtime.newString(key) );
     }
 
     /**
@@ -679,6 +629,7 @@ public class Lookup {
                     buffer.append('.').append(postfix).append(k);
 
                     final String path = buffer.toString();
+
                     if ( ! new File(path).exists() ) break;
 
                     if ( type == X509_LU_X509 ) {

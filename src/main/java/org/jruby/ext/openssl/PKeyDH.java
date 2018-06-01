@@ -80,12 +80,9 @@ public class PKeyDH extends PKey {
         public PKeyDH allocate(Ruby runtime, RubyClass klass) { return new PKeyDH(runtime, klass); }
     };
 
-    public static void createPKeyDH(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey) {
+    static void createPKeyDH(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey, final RubyClass PKeyError) {
         RubyClass DH = PKey.defineClassUnder("DH", PKeyPKey, ALLOCATOR);
-
-        RubyClass PKeyError = PKey.getClass("PKeyError");
         PKey.defineClassUnder("DHError", PKeyError, PKeyError.getAllocator());
-
         DH.defineAnnotatedMethods(PKeyDH.class);
     }
 

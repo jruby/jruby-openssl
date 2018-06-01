@@ -98,10 +98,9 @@ public class X509Name extends RubyObject {
         }
     };
 
-    public static void createX509Name(final Ruby runtime, final RubyModule _X509) {
-        RubyClass _Name = _X509.defineClassUnder("Name", runtime.getObject(), X509NAME_ALLOCATOR);
-        RubyClass _OpenSSLError = runtime.getModule("OpenSSL").getClass("OpenSSLError");
-        _X509.defineClassUnder("NameError", _OpenSSLError, _OpenSSLError.getAllocator());
+    static void createX509Name(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
+        RubyClass _Name = X509.defineClassUnder("Name", runtime.getObject(), X509NAME_ALLOCATOR);
+        X509.defineClassUnder("NameError", OpenSSLError, OpenSSLError.getAllocator());
 
         _Name.defineAnnotatedMethods(X509Name.class);
         _Name.includeModule(runtime.getComparable());
