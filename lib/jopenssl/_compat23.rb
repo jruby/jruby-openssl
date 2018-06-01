@@ -7,7 +7,7 @@ module OpenSSL
     class DH
 
       def set_key(pub_key, priv_key)
-        self.public_key = pub_key
+        self.pub_key = pub_key
         self.priv_key = priv_key
         self
       end
@@ -28,7 +28,7 @@ module OpenSSL
     class DSA
 
       def set_key(pub_key, priv_key)
-        self.public_key = pub_key
+        self.pub_key = pub_key
         self.priv_key = priv_key
         self
       end
