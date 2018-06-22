@@ -2,9 +2,6 @@
 
 gemspec :jar => 'jopenssl', :include_jars => true
 
-sonatype_url = 'https://oss.sonatype.org/content/repositories/snapshots/'
-snapshot_repository :id => 'sonatype', :url => sonatype_url
-
 distribution_management do
   snapshot_repository :id => :ossrh, :url => 'https://oss.sonatype.org/content/repositories/snapshots'
   repository :id => :ossrh, :url => 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
@@ -80,29 +77,24 @@ plugin :clean do
                  'failOnError' =>  'false' )
 end
 
-# NOTE: unfortunately we can not use 1.6.8 to generate invokers ...
-# although we'd like to compile against 1.6 to make sure all is well
-jar 'org.jruby:jruby-core', '1.7.17', :scope => :provided  # 1.6.8
+jar 'org.jruby:jruby-core', '1.7.20', :scope => :provided
 jar 'junit:junit', '4.11', :scope => :test
 
 jruby_plugin! :gem do
-  # when installing dependent gems we want to use the built in openssl
-  # not the one from this lib directory
-  # we compile against jruby-core-1.7.17 and want to keep this out of
-  # the plugin execution here
+  # when installing dependent gems we want to use the built in openssl not the one from this lib directory
+  # we compile against jruby-core-1.7.20 and want to keep this out of the plugin execution here
   execute_goal :id => 'default-initialize', :addProjectClasspath => false, :libDirectory => 'something-which-does-not-exists'
   execute_goals :id => 'default-push', :skip => true
 end
 
-# we want to have the snapshots on oss.sonatype.org and the released gems
-# on maven central
+# we want to have the snapshots on oss.sonatype.org and the released gems on maven central
 plugin :deploy, '2.8.1' do
   execute_goals( :deploy, :skip => false )
 end
 
 supported_bc_versions = %w{ 1.55 1.56 1.57 1.58 1.59 }
 
-default_bc_version = File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
+default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
 properties( 'jruby.plugins.version' => '1.0.10',
@@ -122,7 +114,11 @@ properties( 'jruby.plugins.version' => '1.0.10',
 
 # make sure we have the embedded jars in place before we run runit plugin
 plugin! :dependency do
-  execute_goal 'copy-dependencies', :phase => 'generate-test-resources', :outputDirectory => '${basedir}/lib', :useRepositoryLayout => true, :includeGroupIds => 'org.bouncycastle'
+  execute_goal 'copy-dependencies',
+               :phase => 'generate-test-resources',
+               :outputDirectory => '${basedir}/lib',
+               :useRepositoryLayout => true,
+               :includeGroupIds => 'org.bouncycastle'
 end
 
 jruby_plugin(:runit) { execute_goal( :test, :runitDirectory => '${runit.dir}' ) }
@@ -141,26 +137,9 @@ invoker_run_options = {
       'runit.dir' => '${runit.dir}' }
 }
 
-# profile :id => 'test-1.6.8' do
-#   plugin :invoker, '1.8' do
-#     execute_goals( :install, :run, invoker_run_options )
-#   end
-#   properties 'jruby.versions' => '1.6.8', 'jruby.modes' => '1.8,1.9',
-#              'bc.versions' => supported_bc_versions.join(',')
-# end
-#
-# profile :id => 'test-1.7.4' do
-#   plugin :invoker, '1.8' do
-#     execute_goals( :install, :run, invoker_run_options )
-#   end
-#   properties 'jruby.versions' => '1.7.4', 'jruby.modes' => '1.8,1.9',
-#              'bc.versions' => supported_bc_versions.join(',')
-# end
-
 jruby_1_7_versions = %w{ 1.7.18 1.7.20 1.7.22 1.7.23 1.7.24 1.7.25 1.7.26 1.7.27 }
 
 jruby_1_7_versions.each { |version|
-
 profile :id => "test-#{version}" do
   plugin :invoker, '1.8' do
     execute_goals( :install, :run, invoker_run_options )
@@ -168,7 +147,6 @@ profile :id => "test-#{version}" do
   properties 'jruby.versions' => version, 'jruby.modes' => '1.9,2.0',
              'bc.versions' => supported_bc_versions.join(',')
 end
-
 }
 
 jruby_9_K_versions = %w{ 9.0.1.0 9.0.5.0 9.1.2.0 9.1.8.0 9.1.12.0 9.1.16.0 9.1.17.0 9.2.0.0 }
@@ -190,4 +168,5 @@ profile :id => 'release' do
     execute_goal :sign, :phase => :verify
   end
 end
+
 # vim: syntax=Ruby

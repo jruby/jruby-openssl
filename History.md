@@ -1,3 +1,15 @@
+## 0.10.1
+
+* loading JOpenSSL's native ext part the JRuby 9.2 (internal) way
+* avoid, once again, installing BC provider on boot (due OCSP support)
+* [feat] support OpenSSL::KDF as a (semi) OpenSSL::PKCS5 replacement
+* rename ugly-sh "Jopenssl" constant to **JOpenSSL**
+* support PKCS7#decrypt with 1 argument (pkey only - without certificate)
+* undo some of the call-sites in SSLSocket - account for sub-classes (#165)
+* follow-up to provide == for X.509 types (like C-OpenSSL does in 2.1) 
+* validate iter parameter on Cipher#pkcs5_keyivgen (since OpenSSL 2.0.8)
+* remove openssl/pkcs7.rb -> since 1.8 no longer supported
+
 ## 0.10.0
 
 **NOTE:** dropped support for anything below ~ JRuby 1.7.20
