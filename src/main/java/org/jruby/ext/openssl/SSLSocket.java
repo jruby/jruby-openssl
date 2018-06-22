@@ -428,12 +428,11 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject verify_result(final ThreadContext context) {
-        final Ruby runtime = context.runtime;
         if (engine == null) {
-            runtime.getWarnings().warn("SSL session is not started yet.");
-            return runtime.getNil();
+            context.runtime.getWarnings().warn("SSL session is not started yet.");
+            return context.nil;
         }
-        return runtime.newFixnum(verifyResult);
+        return context.runtime.newFixnum(verifyResult);
     }
 
     // This select impl is a copy of RubyThread.select, then blockingLock is
