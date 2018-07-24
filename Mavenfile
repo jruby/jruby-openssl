@@ -98,14 +98,14 @@ default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
 properties( 'jruby.plugins.version' => '1.0.10',
-            'jruby.versions' => '1.7.20',
+            'jruby.versions' => '1.7.26',
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
             # use this version of jruby for ALL the jruby-maven-plugins
-            'jruby.version' => '1.7.20',
+            'jruby.version' => '1.7.26',
             # dump pom.xml as readonly when running 'rmvn'
             'polyglot.dump.pom' => 'pom.xml',
             'polyglot.dump.readonly' => true,
