@@ -4,16 +4,10 @@ jdk:
   - openjdk7
   - oraclejdk8
 
-addons:
-  apt:
-    packages:
-      - oracle-java9-installer
-
 env:
   - TEST_PROFILE=test-1.7.20
   - TEST_PROFILE=test-1.7.26
   - TEST_PROFILE=test-9.0.5.0
-  - TEST_PROFILE=test-9.1.8.0
   - TEST_PROFILE=test-9.1.17.0
 
 install: if [[ -v BUNDLE_INSTALL ]]; then jruby -S bundle install; else echo ""; fi
@@ -22,10 +16,14 @@ script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_P
 
 matrix:
   allow_failures:
-    - jdk: oraclejdk9
+    - jdk: openjdk11
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
     - rvm: jruby-head
   include:
+    # 9.2 on Java 8+ only:
+    - jdk: oraclejdk8
+      env: TEST_PROFILE=test-9.2.0.0
+    #
     - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-1.7.24
@@ -45,7 +43,10 @@ matrix:
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-9.2.0.0
-    - jdk: oraclejdk9
+    - jdk: openjdk11
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
+      rvm: jruby-9.2.0.0
+    - jdk: openjdk11
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-head
     #
@@ -61,12 +62,12 @@ matrix:
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.1.8.0
-    - jdk: openjdk7
-      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
-      rvm: jruby-9.1.16.0
     - jdk: oraclejdk9
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.1.17.0
+    - jdk: openjdk11
+      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+      rvm: jruby-9.2.0.0
 notifications:
   irc:
     channels:
