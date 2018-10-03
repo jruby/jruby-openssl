@@ -11,7 +11,7 @@ DO NOT MODIFIY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.10.1</version>
+  <version>0.10.2.dev-SNAPSHOT</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -57,31 +57,24 @@ DO NOT MODIFIY - GENERATED CODE
     </snapshotRepository>
   </distributionManagement>
   <properties>
+    <tesla.dump.pom>pom.xml</tesla.dump.pom>
+    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
+    <polyglot.dump.readonly>true</polyglot.dump.readonly>
     <bc.versions>1.59</bc.versions>
+    <invoker.test>${bc.versions}</invoker.test>
+    <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
     <mavengem.wagon.version>0.2.0</mavengem.wagon.version>
+    <jruby.version>1.7.26</jruby.version>
     <jruby.plugins.version>1.0.10</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
-    <jruby.version>1.7.26</jruby.version>
-    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
     <jruby.versions>1.7.26</jruby.versions>
-    <polyglot.dump.readonly>true</polyglot.dump.readonly>
-    <tesla.dump.pom>pom.xml</tesla.dump.pom>
-    <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
     <tesla.dump.readonly>true</tesla.dump.readonly>
-    <invoker.test>${bc.versions}</invoker.test>
   </properties>
   <dependencies>
     <dependency>
       <groupId>rubygems</groupId>
       <artifactId>jar-dependencies</artifactId>
       <version>[0.1,0.99999]</version>
-      <type>gem</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>rubygems</groupId>
-      <artifactId>mocha</artifactId>
-      <version>[1.1.0,1.1.99999]</version>
       <type>gem</type>
       <scope>test</scope>
     </dependency>
@@ -407,8 +400,8 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.versions>1.7.18</jruby.versions>
       </properties>
     </profile>
@@ -445,8 +438,8 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.versions>1.7.20</jruby.versions>
       </properties>
     </profile>
@@ -483,8 +476,8 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.versions>1.7.22</jruby.versions>
       </properties>
     </profile>
@@ -521,8 +514,8 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.versions>1.7.23</jruby.versions>
       </properties>
     </profile>
@@ -559,8 +552,8 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.versions>1.7.24</jruby.versions>
       </properties>
     </profile>
@@ -597,8 +590,8 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.versions>1.7.25</jruby.versions>
       </properties>
     </profile>
@@ -635,8 +628,8 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.versions>1.7.26</jruby.versions>
       </properties>
     </profile>
@@ -673,8 +666,8 @@ DO NOT MODIFIY - GENERATED CODE
         </plugins>
       </build>
       <properties>
-        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.modes>1.9,2.0</jruby.modes>
+        <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
         <jruby.versions>1.7.27</jruby.versions>
       </properties>
     </profile>
@@ -712,8 +705,8 @@ DO NOT MODIFIY - GENERATED CODE
       </build>
       <properties>
         <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
-        <jruby.version>9.0.1.0</jruby.version>
         <jruby.versions>9.0.1.0</jruby.versions>
+        <jruby.version>9.0.1.0</jruby.version>
       </properties>
     </profile>
     <profile>
@@ -750,8 +743,8 @@ DO NOT MODIFIY - GENERATED CODE
       </build>
       <properties>
         <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
-        <jruby.version>9.0.5.0</jruby.version>
         <jruby.versions>9.0.5.0</jruby.versions>
+        <jruby.version>9.0.5.0</jruby.version>
       </properties>
     </profile>
     <profile>
@@ -788,8 +781,8 @@ DO NOT MODIFIY - GENERATED CODE
       </build>
       <properties>
         <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
-        <jruby.version>9.1.2.0</jruby.version>
         <jruby.versions>9.1.2.0</jruby.versions>
+        <jruby.version>9.1.2.0</jruby.version>
       </properties>
     </profile>
     <profile>
@@ -826,8 +819,8 @@ DO NOT MODIFIY - GENERATED CODE
       </build>
       <properties>
         <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
-        <jruby.version>9.1.8.0</jruby.version>
         <jruby.versions>9.1.8.0</jruby.versions>
+        <jruby.version>9.1.8.0</jruby.version>
       </properties>
     </profile>
     <profile>
@@ -864,8 +857,8 @@ DO NOT MODIFIY - GENERATED CODE
       </build>
       <properties>
         <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
-        <jruby.version>9.1.12.0</jruby.version>
         <jruby.versions>9.1.12.0</jruby.versions>
+        <jruby.version>9.1.12.0</jruby.version>
       </properties>
     </profile>
     <profile>
@@ -902,8 +895,8 @@ DO NOT MODIFIY - GENERATED CODE
       </build>
       <properties>
         <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
-        <jruby.version>9.1.16.0</jruby.version>
         <jruby.versions>9.1.16.0</jruby.versions>
+        <jruby.version>9.1.16.0</jruby.version>
       </properties>
     </profile>
     <profile>
@@ -940,8 +933,8 @@ DO NOT MODIFIY - GENERATED CODE
       </build>
       <properties>
         <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
-        <jruby.version>9.1.17.0</jruby.version>
         <jruby.versions>9.1.17.0</jruby.versions>
+        <jruby.version>9.1.17.0</jruby.version>
       </properties>
     </profile>
     <profile>
@@ -978,8 +971,8 @@ DO NOT MODIFIY - GENERATED CODE
       </build>
       <properties>
         <bc.versions>1.55,1.56,1.57,1.58,1.59</bc.versions>
-        <jruby.version>9.2.0.0</jruby.version>
         <jruby.versions>9.2.0.0</jruby.versions>
+        <jruby.version>9.2.0.0</jruby.version>
       </properties>
     </profile>
     <profile>
