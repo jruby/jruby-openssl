@@ -475,4 +475,27 @@ class TestCipher < TestCase
     end
   end
 
+  def test_encrypt_aes_256_cbc_modifies_buffer
+    cipher = OpenSSL::Cipher.new("AES-256-CBC")
+    cipher.key = "a" * 32
+    cipher.encrypt
+    buffer = ''
+    actual = cipher.update('bar' * 10, buffer)
+    if jruby?
+      expected = "\xE6\xD3Y\fc\xEE\xBA\xB2*\x0Fr\xD1\xC2b\x03\xD0"
+    else
+      expected = "8\xA7\xBE\xB1\xAE\x88j\xCB\xA3\xE9j\x00\xD2W_\x91"
+    end
+    assert_equal actual, expected
+    assert_equal buffer, expected
+  end
+
+  def test_encrypt_aes_256_cbc_invalid_buffer
+    cipher = OpenSSL::Cipher.new("AES-256-CBC")
+    cipher.key = "a" * 32
+    cipher.encrypt
+    buffer = Object.new
+    assert_raise(TypeError) { cipher.update('bar' * 10, buffer) }
+  end
+
 end

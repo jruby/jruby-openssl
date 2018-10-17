@@ -68,6 +68,7 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 import org.jruby.util.ByteList;
+import org.jruby.util.TypeConverter;
 
 import static org.jruby.ext.openssl.OpenSSL.*;
 
@@ -1104,6 +1105,11 @@ public class Cipher extends RubyObject {
 
     @JRubyMethod
     public IRubyObject update(final ThreadContext context, final IRubyObject arg) {
+        return update(context, arg, null);
+    }
+
+    @JRubyMethod
+    public IRubyObject update(final ThreadContext context, final IRubyObject arg, IRubyObject buffer) {
         final Ruby runtime = context.runtime;
 
         if ( isDebug(runtime) ) dumpVars( runtime.getOut(), "update()" );
@@ -1143,7 +1149,13 @@ public class Cipher extends RubyObject {
             debugStackTrace( runtime, e );
             throw newCipherError(runtime, e);
         }
-        return RubyString.newString(runtime, str);
+
+        if( buffer == null ) {
+            return RubyString.newString(runtime, str);
+        } else {
+            buffer = TypeConverter.convertToType(buffer, context.runtime.getString(), "to_str", true);
+            return ((RubyString) buffer).replace(RubyString.newString(runtime, str));
+        }
     }
 
     @JRubyMethod(name = "<<")
