@@ -1091,7 +1091,6 @@ public class Cipher extends RubyObject {
         }
         cipherInited = true;
         processedDataBytes = 0;
-        //outBuffer = new ByteList(keyLength);
     }
 
     private String getCipherAlgorithm() {
@@ -1100,7 +1099,6 @@ public class Cipher extends RubyObject {
     }
 
     private int processedDataBytes = 0;
-    //private volatile ByteList outBuffer;
     private byte[] lastIV;
 
     @JRubyMethod
@@ -1150,12 +1148,11 @@ public class Cipher extends RubyObject {
             throw newCipherError(runtime, e);
         }
 
-        if( buffer == null ) {
-            return RubyString.newString(runtime, str);
-        } else {
-            buffer = TypeConverter.convertToType(buffer, context.runtime.getString(), "to_str", true);
-            return ((RubyString) buffer).replace(RubyString.newString(runtime, str));
-        }
+        if ( buffer == null ) return RubyString.newString(runtime, str);
+
+        buffer = TypeConverter.convertToType(buffer, context.runtime.getString(), "to_str", true);
+        ((RubyString) buffer).setValue(str);
+        return buffer;
     }
 
     @JRubyMethod(name = "<<")
