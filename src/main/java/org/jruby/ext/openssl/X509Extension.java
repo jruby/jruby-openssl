@@ -295,10 +295,11 @@ public class X509Extension extends RubyObject {
         throw context.runtime.newTypeError(arg, context.runtime.getString());
     }
 
+    private static final byte[] NULL = ByteList.NULL_ARRAY;
+
     private static final byte[] CA_ = {'C', 'A', ':'};
     private static final byte[] TRUE = {'T', 'R', 'U', 'E'};
     private static final byte[] FALSE = {'F', 'A', 'L', 'S', 'E'};
-    private static final byte[] _ = {};
     private static final byte[] SEP = {',', ' '};
     private static final byte[] Decipher_Only = {'D', 'e', 'c', 'i', 'p', 'h', 'e', 'r', ' ', 'O', 'n', 'l', 'y'};
     private static final byte[] Digital_Signature = {'D', 'i', 'g', 'i', 't', 'a', 'l', ' ', 'S', 'i', 'g', 'n', 'a', 't', 'u', 'r', 'e'};
@@ -356,7 +357,7 @@ public class X509Extension extends RubyObject {
             if ( oid.equals("2.5.29.15") ) { // keyUsage
                 final byte[] enc = getRealValueEncoded();
                 byte b3 = 0; byte b2 = enc[2]; if ( enc.length > 3 ) b3 = enc[3];
-                final ByteList val = new ByteList(64); byte[] sep = _;
+                final ByteList val = new ByteList(64); byte[] sep = NULL;
                 if ((b2 & (byte) 128) != 0) {
                     val.append(sep); val.append(Decipher_Only); sep = SEP;
                 }
@@ -388,7 +389,7 @@ public class X509Extension extends RubyObject {
             }
             if ( oid.equals("2.16.840.1.113730.1.1") ) { // nsCertType
                 final byte b0 = getRealValueEncoded()[0];
-                final ByteList val = new ByteList(64); byte[] sep = _;
+                final ByteList val = new ByteList(64); byte[] sep = NULL;
                 if ((b0 & (byte) 128) != 0) {
                     val.append(sep); val.append(SSL_Client); sep = SEP;
                 }
