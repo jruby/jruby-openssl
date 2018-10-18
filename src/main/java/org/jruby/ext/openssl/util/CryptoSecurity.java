@@ -124,14 +124,14 @@ public final class CryptoSecurity {
 
             Field isRestricted = JceSecurity.getDeclaredField("isRestricted");
 
-            if ( Modifier.isFinal(isRestricted.getModifiers()) ) {
+            if (Modifier.isFinal(isRestricted.getModifiers())) {
                 Field modifiers = Field.class.getDeclaredField("modifiers");
                 modifiers.setAccessible(true);
                 modifiers.setInt(isRestricted, isRestricted.getModifiers() & ~Modifier.FINAL);
             }
 
             isRestricted.setAccessible(true);
-            if (isRestricted.getBoolean(null) == false) {
+            if (isRestricted.getBoolean(null) == true) {
                 isRestricted.setBoolean(null, false); // isRestricted = false;
                 return true;
             }
