@@ -11,7 +11,7 @@ DO NOT MODIFIY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.10.1</version>
+  <version>0.10.2.dev-SNAPSHOT</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -57,18 +57,18 @@ DO NOT MODIFIY - GENERATED CODE
     </snapshotRepository>
   </distributionManagement>
   <properties>
-    <bc.versions>1.59</bc.versions>
-    <mavengem.wagon.version>0.2.0</mavengem.wagon.version>
-    <jruby.plugins.version>1.0.10</jruby.plugins.version>
+    <bc.versions>1.60</bc.versions>
     <invoker.skip>${maven.test.skip}</invoker.skip>
-    <jruby.version>1.7.26</jruby.version>
-    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
-    <jruby.versions>1.7.26</jruby.versions>
-    <polyglot.dump.readonly>true</polyglot.dump.readonly>
-    <tesla.dump.pom>pom.xml</tesla.dump.pom>
-    <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
-    <tesla.dump.readonly>true</tesla.dump.readonly>
     <invoker.test>${bc.versions}</invoker.test>
+    <jruby.plugins.version>1.1.5</jruby.plugins.version>
+    <jruby.version>9.1.17.0</jruby.version>
+    <jruby.versions>1.7.26</jruby.versions>
+    <mavengem.wagon.version>0.2.1</mavengem.wagon.version>
+    <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
+    <polyglot.dump.readonly>true</polyglot.dump.readonly>
+    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
+    <tesla.dump.pom>pom.xml</tesla.dump.pom>
+    <tesla.dump.readonly>true</tesla.dump.readonly>
   </properties>
   <dependencies>
     <dependency>
@@ -95,17 +95,17 @@ DO NOT MODIFIY - GENERATED CODE
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
-      <version>1.59</version>
+      <version>1.60</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
-      <version>1.59</version>
+      <version>1.60</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bctls-jdk15on</artifactId>
-      <version>1.59</version>
+      <version>1.60</version>
     </dependency>
     <dependency>
       <groupId>org.jruby</groupId>
@@ -284,6 +284,9 @@ DO NOT MODIFIY - GENERATED CODE
           <debug>true</debug>
           <showWarnings>true</showWarnings>
           <showDeprecation>true</showDeprecation>
+          <excludes>
+            <exclude>module-info.java</exclude>
+          </excludes>
           <generatedSourcesDirectory>${basedir}/target/generated-sources</generatedSourcesDirectory>
           <annotationProcessors>
             <annotationProcessor>org.jruby.anno.AnnotationBinder</annotationProcessor>
@@ -373,6 +376,27 @@ DO NOT MODIFIY - GENERATED CODE
     </plugins>
   </build>
   <profiles>
+    <profile>
+      <id>module-info</id>
+      <activation>
+        <jdk>[9,)</jdk>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.1</version>
+            <configuration>
+              <source>9</source>
+              <target>1.7</target>
+              <includes>
+                <include>module-info.java</include>
+              </includes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>test-1.7.18</id>
       <build>

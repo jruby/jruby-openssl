@@ -49,6 +49,7 @@ plugin( :compiler, '3.1',
         :source => '1.7', :target => java_target,
         :encoding => 'UTF-8', :debug => true,
         :showWarnings => true, :showDeprecation => true,
+        :excludes => [ 'module-info.java' ],
 
         :generatedSourcesDirectory => gen_sources,
         :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ],
@@ -65,6 +66,11 @@ plugin( :compiler, '3.1',
       :includes => [ 'org/jruby/gen/**/*.java' ], :optimize => true,
       :compilerArgs => [ '-XDignore.symbol.file=true' ]
       # NOTE: maybe '-J-Xbootclasspath/p:${unsafe.jar}' ... as well ?!
+end
+
+profile 'module-info' do
+  activation { jdk '[9,)' }
+  plugin :compiler, '3.1', :source => '9', :target => java_target, :includes => [ 'module-info.java' ]
 end
 
 plugin :clean do
@@ -97,7 +103,7 @@ supported_bc_versions = %w{ 1.55 1.56 1.57 1.58 1.59 }
 default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
-properties( 'jruby.plugins.version' => '1.0.10',
+properties( 'jruby.plugins.version' => '1.1.5',
             'jruby.versions' => '1.7.26',
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
@@ -105,7 +111,7 @@ properties( 'jruby.plugins.version' => '1.0.10',
             'invoker.skip' => '${maven.test.skip}',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
             # use this version of jruby for ALL the jruby-maven-plugins
-            'jruby.version' => '1.7.26',
+            'jruby.version' => '9.1.17.0',
             # dump pom.xml as readonly when running 'rmvn'
             'polyglot.dump.pom' => 'pom.xml',
             'polyglot.dump.readonly' => true,
