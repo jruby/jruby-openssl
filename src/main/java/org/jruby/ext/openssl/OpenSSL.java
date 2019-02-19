@@ -67,6 +67,7 @@ public final class OpenSSL {
 
         final String warn = SafePropertyAccessor.getProperty("jruby.openssl.warn");
         if ( warn != null ) OpenSSL.warn = Boolean.parseBoolean(warn);
+        else OpenSSL.warn = runtime.warningsEnabled();
 
         // Config.createConfig(runtime, _OpenSSL);
         ExtConfig.create(runtime, _OpenSSL);
@@ -177,7 +178,7 @@ public final class OpenSSL {
     @JRubyMethod(name = "fips_mode=", meta = true)
     public static IRubyObject set_fips_mode(ThreadContext context, IRubyObject self, IRubyObject value) {
         if ( value.isTrue() ) {
-            warn(context, "WARNING: FIPS mode not supported on JRuby-OpenSSL");
+            warn(context, "FIPS mode not supported on JRuby-OpenSSL");
         }
         return value;
     }
@@ -235,7 +236,7 @@ public final class OpenSSL {
     }
 
     static void warn(final ThreadContext context, final CharSequence msg) {
-        warn(context, RubyString.newString(context.runtime, msg));
+        if ( warn ) warn(context, RubyString.newString(context.runtime, msg));
     }
 
     static void warn(final ThreadContext context, final RubyString msg) {
