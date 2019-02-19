@@ -335,7 +335,7 @@ public class PKCS7 extends RubyObject {
     @Override
     @JRubyMethod(visibility = Visibility.PRIVATE)
     public IRubyObject initialize_copy(IRubyObject obj) {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#initialize_copy");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#initialize_copy");
         return this;
     }
 
@@ -387,25 +387,25 @@ public class PKCS7 extends RubyObject {
 
     @JRubyMethod(name = "detached")
     public IRubyObject detached() {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#detached");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#detached");
         return getRuntime().getNil();
     }
 
     @JRubyMethod(name = "detached=")
     public IRubyObject set_detached(IRubyObject obj) {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#detached=");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#detached=");
         return getRuntime().getNil();
     }
 
     @JRubyMethod(name = "detached?")
     public IRubyObject detached_p() {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#detached?");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#detached?");
         return getRuntime().getNil();
     }
 
     @JRubyMethod(name="cipher=")
     public IRubyObject set_cipher(IRubyObject obj) {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#cipher=");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#cipher=");
         return getRuntime().getNil();
     }
 
@@ -446,7 +446,7 @@ public class PKCS7 extends RubyObject {
 
     @JRubyMethod
     public IRubyObject add_recipient(IRubyObject obj) {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#add_recipient");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#add_recipient");
         return getRuntime().getNil();
     }
 
@@ -484,7 +484,7 @@ public class PKCS7 extends RubyObject {
 
     @JRubyMethod(name="certificates=")
     public IRubyObject set_certificates(IRubyObject obj) {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#certificates=");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#certificates=");
         return getRuntime().getNil();
     }
 
@@ -524,19 +524,19 @@ public class PKCS7 extends RubyObject {
 
     @JRubyMethod
     public IRubyObject add_crl(IRubyObject obj) {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#add_crl");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#add_crl");
         return getRuntime().getNil();
     }
 
     @JRubyMethod(name="crls=")
     public IRubyObject set_crls(IRubyObject obj) {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#crls=");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#crls=");
         return getRuntime().getNil();
     }
 
     @JRubyMethod
     public IRubyObject crls() {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: PKCS7#crls");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::PKCS7#crls");
         return getRuntime().getNil();
     }
 
@@ -721,7 +721,7 @@ public class PKCS7 extends RubyObject {
         @JRubyMethod(visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context,
             IRubyObject arg1, IRubyObject arg2, IRubyObject arg3) {
-            warn(context, "WARNING: unimplemented method called: signerInfo#initialize");
+            warn(context, "WARNING: unimplemented method called: OpenSSL::PKCS7::SignerInfo#initialize");
             return this;
         }
 
@@ -738,7 +738,7 @@ public class PKCS7 extends RubyObject {
 
         @JRubyMethod
         public IRubyObject signed_time(final ThreadContext context) {
-            warn(context, "WARNING: unimplemented method called: signerInfo#signed_time");
+            warn(context, "WARNING: unimplemented method called: OpenSSL::PKCS7::SignerInfo#signed_time");
             return context.runtime.getNil();
         }
     }
@@ -777,7 +777,7 @@ public class PKCS7 extends RubyObject {
 
         @JRubyMethod(visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context, IRubyObject arg) {
-            warn(context, "WARNING: unimplemented method called: recipientInfo#initialize");
+            warn(context, "WARNING: unimplemented method called: OpenSSL::PKCS7::RecipientInfo#initialize");
             return this;
         }
 
@@ -793,7 +793,7 @@ public class PKCS7 extends RubyObject {
 
         @JRubyMethod
         public IRubyObject enc_key(final ThreadContext context) {
-            warn(context, "WARNING: unimplemented method called: recipientInfo#enc_key");
+            warn(context, "WARNING: unimplemented method called: OpenSSL::PKCS7::RecipientInfo#enc_key");
             return context.runtime.getNil();
         }
     }

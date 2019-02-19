@@ -540,7 +540,7 @@ public class SSLContext extends RubyObject {
     public IRubyObject set_session_cache_mode(IRubyObject mode) {
         //this.sessionCacheMode = RubyInteger.fix2int(mode);
         //return mode;
-        warn(getRuntime().getCurrentContext(), "SSLContext#session_cache_mode= has no effect under JRuby");
+        warn(getRuntime().getCurrentContext(), "OpenSSL::SSL::SSLContext#session_cache_mode= has no effect under JRuby");
         return session_cache_mode();
     }
 
@@ -574,7 +574,7 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod(name = "security_level=")
     public IRubyObject set_security_level(ThreadContext context, IRubyObject level) {
-        warn(context, "WARNING: SSLContext#security_level= has no effect under JRuby");
+        warn(context, "OpenSSL::SSL::SSLContext#security_level= has no effect under JRuby");
         return context.nil;
     }
 

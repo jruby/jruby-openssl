@@ -1242,7 +1242,7 @@ public class ASN1 {
 
     @JRubyMethod(meta = true, required = 1)
     public static IRubyObject traverse(final ThreadContext context, final IRubyObject self, IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: ASN1#traverse");
+        warn(context, "WARNING: unimplemented method called: OpenSSL::ASN1#traverse");
         return context.runtime.getNil();
     }
 
@@ -1742,7 +1742,7 @@ public class ASN1 {
             if ( isDebug(context.runtime) ) {
                 debug(this + " toASN1() could not handle class " + getMetaClass() + " and value " + val.inspect() + " (" + val.getClass().getName() + ")");
             }
-            warn(context, "WARNING: unimplemented method called: ASN1Data#toASN1 (" + type + ")");
+            warn(context, "WARNING: unimplemented method called: OpenSSL::ASN1Data#toASN1 (" + type + ")");
             return null;
         }
 

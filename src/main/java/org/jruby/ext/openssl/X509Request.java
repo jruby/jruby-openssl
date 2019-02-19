@@ -173,7 +173,7 @@ public class X509Request extends RubyObject {
     @JRubyMethod(visibility = Visibility.PRIVATE)
     public IRubyObject initialize_copy(IRubyObject obj) {
         final Ruby runtime = getRuntime();
-        warn(runtime.getCurrentContext(), "WARNING: unimplemented method called: request#initialize_copy");
+        warn(runtime.getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::X509::Request#initialize_copy");
 
         if ( this == obj ) return this;
 
@@ -253,7 +253,7 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod
     public IRubyObject to_text(final ThreadContext context) {
-        warn(context, "WARNING: unimplemented method called: X509::Request#to_text");
+        warn(context, "WARNING: unimplemented method called: OpenSSL::X509::Request#to_text");
         return context.nil;
     }
 
@@ -271,7 +271,7 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod(name="version=")
     public IRubyObject set_version(final ThreadContext context, IRubyObject version) {
-        warn(context, "X509::Request#version= has no effect on certification request");
+        warn(context, "OpenSSL::X509::Request#version= has no effect on certification request");
         return this.version = version;
     }
 
@@ -293,7 +293,7 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod
     public IRubyObject signature_algorithm(final ThreadContext context) {
-        warn(context, "WARNING: unimplemented method called: request#signature_algorithm");
+        warn(context, "WARNING: unimplemented method called: OpenSSL::X509::Request#signature_algorithm");
         return context.runtime.getNil();
     }
 

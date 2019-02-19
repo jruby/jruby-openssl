@@ -156,7 +156,7 @@ public class X509Store extends RubyObject {
 
     @JRubyMethod
     public IRubyObject add_path(final ThreadContext context, final IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: Store#add_path");
+        warn(context, "WARNING: unimplemented method called: OpenSSL::X509::Store#add_path");
         return context.nil;
     }
 

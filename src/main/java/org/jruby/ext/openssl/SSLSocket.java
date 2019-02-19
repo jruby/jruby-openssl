@@ -1095,19 +1095,19 @@ public class SSLSocket extends RubyObject {
     public IRubyObject npn_protocol() {
         if ( engine == null ) return getRuntime().getNil();
         // NOTE: maybe a time to use https://github.com/benmmurphy/ssl_npn
-        warn(getRuntime().getCurrentContext(), "WARNING: SSLSocket#npn_protocol is not supported");
+        warn(getRuntime().getCurrentContext(), "OpenSSL::SSL::SSLSocket#npn_protocol is not supported");
         return getRuntime().getNil(); // throw new UnsupportedOperationException();
     }
 
     @JRubyMethod
     public IRubyObject state() {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: SSLSocket#state");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::SSL::SSLSocket#state");
         return getRuntime().getNil();
     }
 
     @JRubyMethod
     public IRubyObject pending() {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: SSLSocket#pending");
+        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::SSL::SSLSocket#pending");
         return getRuntime().getNil();
     }
 

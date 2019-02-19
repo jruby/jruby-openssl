@@ -130,7 +130,7 @@ public class SSLSession extends RubyObject {
 
     @JRubyMethod(name = "id=")
     public IRubyObject set_id(final ThreadContext context, IRubyObject id) {
-        warn(context, "WARNING: Session#id= is not supported (read-only)");
+        warn(context, "OpenSSL::SSL::Session#id= is not supported (read-only)");
         return context.nil;
     }
 
@@ -142,7 +142,7 @@ public class SSLSession extends RubyObject {
 
     @JRubyMethod(name = "time=")
     public IRubyObject set_time(final ThreadContext context, IRubyObject time) {
-        warn(context, "WARNING: Session#time= is not supported (read-only)");
+        warn(context, "OpenSSL::SSL::Session#time= is not supported (read-only)");
         return context.nil;
     }
 
@@ -158,7 +158,7 @@ public class SSLSession extends RubyObject {
     public IRubyObject set_timeout(final ThreadContext context, IRubyObject timeout) {
         final SSLSessionContext sessionContext = sslSession().getSessionContext();
         if ( sessionContext == null ) {
-            warn(context, "WARNING: can not set Session#timeout=("+ timeout +") no session context");
+            warn(context, "WARNING: can not set OpenSSL::SSL::Session#timeout=("+ timeout +") no session context");
             return context.nil;
         }
         sessionContext.setSessionTimeout(RubyNumeric.fix2int(timeout)); // in seconds as well
