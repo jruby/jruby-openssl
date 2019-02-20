@@ -175,25 +175,21 @@ public class X509CRL extends RubyObject {
         return getCRL().getSignature();
     }
 
-    private static boolean avoidJavaSecurity = false;
+    private static final boolean avoidJavaSecurity = false; // true NOT SUPPORTED
 
-    private static java.security.cert.X509CRL generateCRL(
-        final byte[] bytes, final int offset, final int length)
+    private static java.security.cert.X509CRL generateCRL(final byte[] bytes, final int offset, final int length)
         throws GeneralSecurityException {
         CertificateFactory factory = SecurityHelper.getCertificateFactory("X.509");
-        return (java.security.cert.X509CRL) factory.generateCRL(
-            new ByteArrayInputStream(bytes, offset, length)
-        );
+        return (java.security.cert.X509CRL) factory.generateCRL(new ByteArrayInputStream(bytes, offset, length));
     }
 
-    private static X509CRLHolder parseCRLHolder(
-        final byte[] bytes, final int offset, final int length) throws IOException {
+    private static X509CRLHolder parseCRLHolder(final byte[] bytes, final int offset, final int length)
+        throws IOException {
         return new X509CRLHolder(new ByteArrayInputStream(bytes, offset, length));
     }
 
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context,
-        final IRubyObject[] args, final Block block) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args, final Block block) {
         final Ruby runtime = context.runtime;
 
         this.extensions = runtime.newArray(8);
@@ -218,6 +214,10 @@ public class X509CRL extends RubyObject {
         catch (GeneralSecurityException e) {
             debugStackTrace(runtime, e);
             throw newCRLError(runtime, e);
+        }
+
+        if (this.crl == null) {
+            throw newCRLError(runtime, ""); // MRI: "header too long" for OpenSSL::X509::CRL.new('')
         }
 
         set_last_update( context, RubyTime.newTime(runtime, crl.getThisUpdate().getTime()) );

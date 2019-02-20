@@ -16,6 +16,8 @@ class TestX509CRL < TestCase
     if RUBY_VERSION >= '2.0.0' || defined? JRUBY_VERSION
       assert crl.inspect.index('#<OpenSSL::X509::CRL:') == 0, crl.inspect
     end
+
+    assert_raises(OpenSSL::X509::CRLError) { OpenSSL::X509::CRL.new('') }
   end
 
 REVOKED_TEXT = <<EOF
