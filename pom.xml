@@ -60,7 +60,7 @@ DO NOT MODIFIY - GENERATED CODE
     <bc.versions>1.60</bc.versions>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <invoker.test>${bc.versions}</invoker.test>
-    <jruby.plugins.version>1.1.5</jruby.plugins.version>
+    <jruby.plugins.version>1.1.6</jruby.plugins.version>
     <jruby.version>9.1.17.0</jruby.version>
     <jruby.versions>1.7.26</jruby.versions>
     <mavengem.wagon.version>0.2.1</mavengem.wagon.version>
