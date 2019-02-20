@@ -2,4 +2,8 @@ module JOpenSSL
   VERSION = '0.10.2.dev'
   BOUNCY_CASTLE_VERSION = '1.60'
 end
-Jopenssl = JOpenSSL
+
+Object.class_eval do
+  Jopenssl = JOpenSSL
+  private_constant :Jopenssl if respond_to?(:private_constant)
+end
