@@ -4,5 +4,5 @@ gem 'httpclient', :require => false
 gem 'trocla', '~> 0.2.3', :require => false
 
 group :development do
-  gem 'rake', :require => nil
+  gem 'rake', '< 12', :require => nil # due JRuby 1.7 (1.9.3)
 end
