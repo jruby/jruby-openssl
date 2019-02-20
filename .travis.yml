@@ -24,8 +24,14 @@ matrix:
   allow_failures:
     - jdk: oraclejdk9
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
+    - jdk: oraclejdk11
+      env: TEST_COMMAND="jruby -S rake integration:install integration:test"
     - rvm: jruby-head
   include:
+    - jdk: oraclejdk8
+      env: TEST_PROFILE=test-9.2.1.0
+    - jdk: oraclejdk8
+      env: TEST_PROFILE=test-9.2.5.0
     - jdk: oraclejdk8
       env: TEST_PROFILE=test-9.2.6.0
     #
