@@ -21,12 +21,12 @@ else
   raise "bcpkix jar not found" unless jar; $CLASSPATH << jar
 end if defined? JRUBY_VERSION
 
-# NOTE: RUnit maven plugin (<= 1.0.5) does not handle test-unit well !
-#begin
-#  gem 'test-unit'
-#rescue LoadError
-#  puts "gem 'test-unit' not available, will load built-in 'test/unit'"
-#end
+begin
+  gem 'test-unit'
+rescue LoadError
+  warn "gem 'test-unit' not available, will load built-in 'test/unit'"
+end
+
 begin
   gem 'minitest'
   require 'minitest/autorun'
@@ -51,8 +51,10 @@ begin
         end
       end
   end
-rescue LoadError
-end
+rescue LoadError => e
+  warn "gem 'minitest' failed to load: #{e.inspect}"
+end unless (Test::Unit::AutoRunner.respond_to?(:setup_option)) rescue true # runit rules
+# @see https://github.com/torquebox/jruby-maven-plugins/blob/master/runit-maven-plugin/src/main/java/de/saumya/mojo/runit/RunitMavenTestScriptFactory.java
 
 if defined? Minitest::Test
   TestCase = Minitest::Test
@@ -60,6 +62,8 @@ else
   require 'test/unit'
   TestCase = Test::Unit::TestCase
 end
+
+puts "#{__FILE__} using #{TestCase}" if $VERBOSE || defined?(REPORT_PATH)
 
 TestCase.class_eval do
 
