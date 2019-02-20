@@ -28,12 +28,13 @@ matrix:
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
     - rvm: jruby-head
   include:
+    # since maven runit fails to boot with test-unit being a default gem on 9.2 :
     - jdk: oraclejdk8
-      env: TEST_PROFILE=test-9.2.1.0
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
+      rvm: jruby-9.2.5.0
     - jdk: oraclejdk8
-      env: TEST_PROFILE=test-9.2.5.0
-    - jdk: oraclejdk8
-      env: TEST_PROFILE=test-9.2.6.0
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
+      rvm: jruby-9.2.6.0
     #
     - jdk: openjdk7
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
@@ -53,7 +54,7 @@ matrix:
       rvm: jruby-9.1.17.0
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
-      rvm: jruby-9.2.6.0
+      rvm: jruby-9.2.1.0
     - jdk: oraclejdk9
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-head
