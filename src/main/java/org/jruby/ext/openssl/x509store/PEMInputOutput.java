@@ -992,7 +992,7 @@ public class PEMInputOutput {
 
     public static void writeDSAPrivateKey(Writer _out, DSAPrivateKey obj, CipherSpec cipher, char[] passwd) throws IOException {
         BufferedWriter out = makeBuffered(_out);
-        PrivateKeyInfo info = new PrivateKeyInfo((ASN1Sequence) new ASN1InputStream(getEncoded(obj)).readObject());
+        PrivateKeyInfo info = PrivateKeyInfo.getInstance(new ASN1InputStream(getEncoded(obj)).readObject());
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
         ASN1OutputStream aOut = new ASN1OutputStream(bOut);
 
