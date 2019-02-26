@@ -31,14 +31,13 @@ import javax.crypto.spec.SecretKeySpec;
 import org.bouncycastle.crypto.PBEParametersGenerator;
 import org.bouncycastle.crypto.generators.OpenSSLPBEParametersGenerator;
 import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.openssl.EncryptionException;
 
 import org.jruby.ext.openssl.SecurityHelper;
 
 /**
  * <code>org.bouncycastle.openssl.jcajce.PEMUtilities</code>
- * re-implemented as 1.47 compatible
  *
- * @see MiscPEMGenerator
  * @author kares
  */
 abstract class PEMUtilities
@@ -51,7 +50,7 @@ abstract class PEMUtilities
         char[]  password,
         String  dekAlgName,
         byte[]  iv)
-        throws PEMException
+        throws EncryptionException
     {
         AlgorithmParameterSpec paramSpec = new IvParameterSpec(iv);
         String                 alg;
@@ -66,8 +65,8 @@ abstract class PEMUtilities
             padding = "NoPadding";
         }
         if (dekAlgName.endsWith("-ECB") ||
-            "DES-EDE".equals(dekAlgName) ||
-            "DES-EDE3".equals(dekAlgName))
+                "DES-EDE".equals(dekAlgName) ||
+                "DES-EDE3".equals(dekAlgName))
         {
             // ECB is actually the default (though seldom used) when OpenSSL
             // uses DES-EDE (des2) or DES-EDE3 (des3).
@@ -79,7 +78,6 @@ abstract class PEMUtilities
             blockMode = "OFB";
             padding = "NoPadding";
         }
-
 
         // Figure out algorithm and key size.
         if (dekAlgName.startsWith("DES-EDE"))
@@ -147,15 +145,13 @@ abstract class PEMUtilities
             }
             else
             {
-                //throw new EncryptionException("unknown AES encryption with private key");
-                throw new PEMException("unknown AES encryption with private key");
+                throw new EncryptionException("unknown AES encryption with private key");
             }
             sKey = getKey(password, "AES", keyBits / 8, salt);
         }
         else
         {
-            //throw new EncryptionException("unknown encryption with private key");
-            throw new PEMException("unknown encryption with private key");
+            throw new EncryptionException("unknown encryption with private key");
         }
 
         String transformation = alg + "/" + blockMode + "/" + padding;
@@ -178,8 +174,7 @@ abstract class PEMUtilities
         }
         catch (Exception e)
         {
-            //throw new EncryptionException("exception using cipher - please check password and data.", e);
-            throw new PEMException("exception using cipher - please check password and data.", e);
+            throw new EncryptionException("exception using cipher - please check password and data.", e);
         }
     }
 
