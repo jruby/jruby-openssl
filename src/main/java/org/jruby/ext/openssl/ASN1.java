@@ -43,49 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-import org.bouncycastle.asn1.ASN1Boolean;
-import org.bouncycastle.asn1.ASN1Encodable;
-import org.bouncycastle.asn1.ASN1EncodableVector;
-import org.bouncycastle.asn1.ASN1Encoding;
-import org.bouncycastle.asn1.ASN1Enumerated;
-import org.bouncycastle.asn1.ASN1GeneralizedTime;
-import org.bouncycastle.asn1.ASN1InputStream;
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.ASN1Set;
-import org.bouncycastle.asn1.ASN1String;
-import org.bouncycastle.asn1.ASN1Integer;
-import org.bouncycastle.asn1.ASN1Null;
-import org.bouncycastle.asn1.ASN1OctetString;
-import org.bouncycastle.asn1.ASN1Primitive;
-import org.bouncycastle.asn1.ASN1TaggedObject;
-import org.bouncycastle.asn1.ASN1UTCTime;
-import org.bouncycastle.asn1.DERBitString;
-import org.bouncycastle.asn1.BEROctetString;
-import org.bouncycastle.asn1.BERSequenceGenerator;
-import org.bouncycastle.asn1.BERSet;
-import org.bouncycastle.asn1.BERTags;
-import org.bouncycastle.asn1.DERApplicationSpecific;
-import org.bouncycastle.asn1.DERBMPString;
-import org.bouncycastle.asn1.DERBoolean;
-import org.bouncycastle.asn1.DEREnumerated;
-import org.bouncycastle.asn1.DERGeneralString;
-import org.bouncycastle.asn1.DERGeneralizedTime;
-import org.bouncycastle.asn1.DERIA5String;
-import org.bouncycastle.asn1.DERInteger;
-import org.bouncycastle.asn1.DERNull;
-import org.bouncycastle.asn1.DERNumericString;
-import org.bouncycastle.asn1.DERObjectIdentifier;
-import org.bouncycastle.asn1.DEROctetString;
-import org.bouncycastle.asn1.DERPrintableString;
-import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.DERT61String;
-import org.bouncycastle.asn1.DERTaggedObject;
-import org.bouncycastle.asn1.DERUTCTime;
-import org.bouncycastle.asn1.DERUTF8String;
-import org.bouncycastle.asn1.DERUniversalString;
-import org.bouncycastle.asn1.DERVisibleString;
-import org.bouncycastle.asn1.DLSet;
+import org.bouncycastle.asn1.*;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -966,10 +924,6 @@ public class ASN1 {
             final BN val = BN.newBN(runtime, ((ASN1Integer) obj).getValue());
             return ASN1.getClass("Integer").newInstance(context, val, Block.NULL_BLOCK);
         }
-        if ( obj instanceof DERInteger ) {
-            final BN val = BN.newBN(runtime, ((DERInteger) obj).getValue());
-            return ASN1.getClass("Integer").newInstance(context, val, Block.NULL_BLOCK);
-        }
 
         if ( obj instanceof DERBitString ) {
             final DERBitString derObj = (DERBitString) obj;
@@ -1038,11 +992,6 @@ public class ASN1 {
             final boolean val = ((ASN1Boolean) obj).isTrue();
             return ASN1.getClass("Boolean").newInstance(context, runtime.newBoolean(val), Block.NULL_BLOCK);
         }
-        // DERBoolean extends ASN1Boolean only since 1.51 (<= 1.50 the other way around)
-        if ( obj instanceof DERBoolean ) {
-            final boolean val = ((DERBoolean) obj).isTrue();
-            return ASN1.getClass("Boolean").newInstance(context, runtime.newBoolean(val), Block.NULL_BLOCK);
-        }
 
         if ( obj instanceof ASN1UTCTime ) {
             final Date adjustedTime;
@@ -1068,24 +1017,18 @@ public class ASN1 {
             return ASN1.getClass("GeneralizedTime").newInstance(context, time, Block.NULL_BLOCK);
         }
         // NOTE: keep for BC versions compatibility ... extends ASN1GeneralizedTime (since BC 1.51)
-        if ( obj instanceof DERGeneralizedTime ) {
-            final Date generalTime;
-            try {
-                generalTime = ((DERGeneralizedTime) obj).getDate();
-            }
-            catch (ParseException e) { throw new IOException(e); }
-            final RubyTime time = RubyTime.newTime(runtime, generalTime.getTime());
-            return ASN1.getClass("GeneralizedTime").newInstance(context, time, Block.NULL_BLOCK);
-        }
+        //if ( obj instanceof DERGeneralizedTime ) {
+        //    final Date generalTime;
+        //    try {
+        //        generalTime = ((DERGeneralizedTime) obj).getDate();
+        //    }
+        //    catch (ParseException e) { throw new IOException(e); }
+        //    final RubyTime time = RubyTime.newTime(runtime, generalTime.getTime());
+        //    return ASN1.getClass("GeneralizedTime").newInstance(context, time, Block.NULL_BLOCK);
+        //}
 
         if ( obj instanceof ASN1ObjectIdentifier ) {
             final String objId = ((ASN1ObjectIdentifier) obj).getId();
-            return ASN1.getClass("ObjectId").newInstance(context, runtime.newString(objId), Block.NULL_BLOCK);
-        }
-        // ASN1ObjectIdentifier extends DERObjectIdentifier < 1.51
-        // DERObjectIdentifier extends ASN1ObjectIdentifier = 1.51
-        if ( obj instanceof DERObjectIdentifier ) {
-            final String objId = ((DERObjectIdentifier) obj).getId();
             return ASN1.getClass("ObjectId").newInstance(context, runtime.newString(objId), Block.NULL_BLOCK);
         }
 
