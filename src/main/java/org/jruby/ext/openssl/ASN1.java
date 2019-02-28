@@ -1098,8 +1098,8 @@ public class ASN1 {
             return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
         }
 
-        if ( obj instanceof DERApplicationSpecific ) {
-            final DERApplicationSpecific appSpecific = (DERApplicationSpecific) obj;
+        if ( obj instanceof ASN1ApplicationSpecific ) {
+            final ASN1ApplicationSpecific appSpecific = (ASN1ApplicationSpecific) obj;
             IRubyObject tag = runtime.newFixnum( appSpecific.getApplicationTag() );
             IRubyObject tag_class = runtime.newSymbol("APPLICATION");
             final ASN1Sequence sequence = (ASN1Sequence) appSpecific.getObject(SEQUENCE);
