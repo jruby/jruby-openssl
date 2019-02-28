@@ -521,18 +521,18 @@ public class ASN1 {
 
     private final static Object[][] ASN1_INFO = {
         { "EOC", null, "EndOfContent" }, // OpenSSL::ASN1::EOC (0)
-        { "BOOLEAN", org.bouncycastle.asn1.DERBoolean.class, "Boolean" },
-        { "INTEGER", org.bouncycastle.asn1.DERInteger.class, "Integer" },
+        { "BOOLEAN", org.bouncycastle.asn1.ASN1Boolean.class, "Boolean" },
+        { "INTEGER", org.bouncycastle.asn1.ASN1Integer.class, "Integer" },
         { "BIT_STRING", org.bouncycastle.asn1.DERBitString.class, "BitString" },
         { "OCTET_STRING", org.bouncycastle.asn1.DEROctetString.class, "OctetString" },
         { "NULL", org.bouncycastle.asn1.DERNull.class, "Null" },
         // OpenSSL::ASN1::OBJECT (6) :
-        { "OBJECT", org.bouncycastle.asn1.DERObjectIdentifier.class, "ObjectId" },
+        { "OBJECT", org.bouncycastle.asn1.ASN1ObjectIdentifier.class, "ObjectId" },
         { "OBJECT_DESCRIPTOR", null, null },
         { "EXTERNAL", null, null },
         { "REAL", null, null },
         // OpenSSL::ASN1::ENUMERATED (10) :
-        { "ENUMERATED", org.bouncycastle.asn1.DEREnumerated.class, "Enumerated" },
+        { "ENUMERATED", org.bouncycastle.asn1.ASN1Enumerated.class, "Enumerated" },
         { "EMBEDDED_PDV", null, null },
         // OpenSSL::ASN1::UTF8STRING (12) :
         { "UTF8STRING", org.bouncycastle.asn1.DERUTF8String.class, "UTF8String" },
@@ -1589,18 +1589,15 @@ public class ASN1 {
                 }
             }
 
-            final IRubyObject val = callMethod(context, "value");
-            if ( type == ASN1ObjectIdentifier.class || type == DERObjectIdentifier.class ) {
+            final IRubyObject val = value(context);
+            if ( type == ASN1ObjectIdentifier.class ) {
                 return getObjectID(context.runtime, val.toString());
             }
             if ( type == DERNull.class || type == ASN1Null.class ) {
                 return DERNull.INSTANCE;
             }
-            if ( ASN1Boolean.class.isAssignableFrom( type ) ) {
+            if ( ASN1Boolean.class.isAssignableFrom(type) ) {
                 return ASN1Boolean.getInstance(val.isTrue());
-            }
-            if ( type == DERBoolean.class ) {
-                return DERBoolean.getInstance(val.isTrue());
             }
             if ( type == DERUTCTime.class ) {
                 if ( val instanceof RubyTime ) {
@@ -1614,20 +1611,13 @@ public class ASN1 {
                 }
                 return DERGeneralizedTime.getInstance( val.asString().getBytes() );
             }
-            if ( type == DERInteger.class ) {
-                return new DERInteger( bigIntegerValue(val) );
-            }
-            if ( ASN1Integer.class.isAssignableFrom( type ) ) {
+            if ( ASN1Integer.class.isAssignableFrom(type) ) {
                 return new ASN1Integer( bigIntegerValue(val) );
             }
-            if ( type == DEREnumerated.class ) {
-                return new DEREnumerated( bigIntegerValue(val) );
-            }
-            if ( type == ASN1Enumerated.class ) {
+            if ( ASN1Enumerated.class.isAssignableFrom(type) ) {
                 return new ASN1Enumerated( bigIntegerValue(val) );
             }
-            //if ( type == DEROctetString.class ) {
-            if ( ASN1OctetString.class.isAssignableFrom( type ) ) {
+            if ( ASN1OctetString.class.isAssignableFrom(type) ) {
                 return new DEROctetString( val.asString().getBytes() );
             }
             if ( type == DERBitString.class ) {
