@@ -17,55 +17,55 @@ module OpenSSL
   module SSL
     class SSLContext
       unless const_defined? :DEFAULT_PARAMS # JRuby does it in Java
-        DEFAULT_PARAMS = { # :nodoc:
-          :min_version => OpenSSL::SSL::TLS1_VERSION,
-          :verify_mode => OpenSSL::SSL::VERIFY_PEER,
-          :verify_hostname => true,
-          :options => -> {
-            opts = OpenSSL::SSL::OP_ALL
-            opts &= ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS
-            opts |= OpenSSL::SSL::OP_NO_COMPRESSION
-            opts
-          }.call
-        }
+      DEFAULT_PARAMS = { # :nodoc:
+        :min_version => OpenSSL::SSL::TLS1_VERSION,
+        :verify_mode => OpenSSL::SSL::VERIFY_PEER,
+        :verify_hostname => true,
+        :options => -> {
+          opts = OpenSSL::SSL::OP_ALL
+          opts &= ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS
+          opts |= OpenSSL::SSL::OP_NO_COMPRESSION
+          opts
+        }.call
+      }
 
-        if !(OpenSSL::OPENSSL_VERSION.start_with?("OpenSSL") &&
-            OpenSSL::OPENSSL_VERSION_NUMBER >= 0x10100000)
-          DEFAULT_PARAMS.merge!(
-              ciphers: %w{
-              ECDHE-ECDSA-AES128-GCM-SHA256
-              ECDHE-RSA-AES128-GCM-SHA256
-              ECDHE-ECDSA-AES256-GCM-SHA384
-              ECDHE-RSA-AES256-GCM-SHA384
-              DHE-RSA-AES128-GCM-SHA256
-              DHE-DSS-AES128-GCM-SHA256
-              DHE-RSA-AES256-GCM-SHA384
-              DHE-DSS-AES256-GCM-SHA384
-              ECDHE-ECDSA-AES128-SHA256
-              ECDHE-RSA-AES128-SHA256
-              ECDHE-ECDSA-AES128-SHA
-              ECDHE-RSA-AES128-SHA
-              ECDHE-ECDSA-AES256-SHA384
-              ECDHE-RSA-AES256-SHA384
-              ECDHE-ECDSA-AES256-SHA
-              ECDHE-RSA-AES256-SHA
-              DHE-RSA-AES128-SHA256
-              DHE-RSA-AES256-SHA256
-              DHE-RSA-AES128-SHA
-              DHE-RSA-AES256-SHA
-              DHE-DSS-AES128-SHA256
-              DHE-DSS-AES256-SHA256
-              DHE-DSS-AES128-SHA
-              DHE-DSS-AES256-SHA
-              AES128-GCM-SHA256
-              AES256-GCM-SHA384
-              AES128-SHA256
-              AES256-SHA256
-              AES128-SHA
-              AES256-SHA
-            }.join(":"),
-              )
-        end
+      if !(OpenSSL::OPENSSL_VERSION.start_with?("OpenSSL") &&
+           OpenSSL::OPENSSL_VERSION_NUMBER >= 0x10100000)
+        DEFAULT_PARAMS.merge!(
+          ciphers: %w{
+            ECDHE-ECDSA-AES128-GCM-SHA256
+            ECDHE-RSA-AES128-GCM-SHA256
+            ECDHE-ECDSA-AES256-GCM-SHA384
+            ECDHE-RSA-AES256-GCM-SHA384
+            DHE-RSA-AES128-GCM-SHA256
+            DHE-DSS-AES128-GCM-SHA256
+            DHE-RSA-AES256-GCM-SHA384
+            DHE-DSS-AES256-GCM-SHA384
+            ECDHE-ECDSA-AES128-SHA256
+            ECDHE-RSA-AES128-SHA256
+            ECDHE-ECDSA-AES128-SHA
+            ECDHE-RSA-AES128-SHA
+            ECDHE-ECDSA-AES256-SHA384
+            ECDHE-RSA-AES256-SHA384
+            ECDHE-ECDSA-AES256-SHA
+            ECDHE-RSA-AES256-SHA
+            DHE-RSA-AES128-SHA256
+            DHE-RSA-AES256-SHA256
+            DHE-RSA-AES128-SHA
+            DHE-RSA-AES256-SHA
+            DHE-DSS-AES128-SHA256
+            DHE-DSS-AES256-SHA256
+            DHE-DSS-AES128-SHA
+            DHE-DSS-AES256-SHA
+            AES128-GCM-SHA256
+            AES256-GCM-SHA384
+            AES128-SHA256
+            AES256-SHA256
+            AES128-SHA
+            AES256-SHA
+          }.join(":"),
+        )
+      end
       end
 
       if defined?(OpenSSL::PKey::DH)
@@ -110,6 +110,21 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       # The callback is invoked with an SSLSocket and a server name.  The
       # callback must return an SSLContext for the server name or nil.
       attr_accessor :servername_cb
+
+      # call-seq:
+      #    SSLContext.new           -> ctx
+      #    SSLContext.new(:TLSv1)   -> ctx
+      #    SSLContext.new("SSLv23") -> ctx
+      #
+      # Creates a new SSL context.
+      #
+      # If an argument is given, #ssl_version= is called with the value. Note
+      # that this form is deprecated. New applications should use #min_version=
+      # and #max_version= as necessary.
+      # def initialize(version = nil)
+      #   self.options |= OpenSSL::SSL::OP_ALL
+      #   self.ssl_version = version if version
+      # end
 
       ##
       # call-seq:
