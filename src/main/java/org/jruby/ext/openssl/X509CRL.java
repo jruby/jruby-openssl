@@ -128,14 +128,15 @@ public class X509CRL extends RubyObject {
         super(runtime, type);
     }
 
-    private X509CRL(Ruby runtime) {
-        super(runtime, _CRL(runtime));
+    java.security.cert.X509CRL getCRL() {
+        return getCRL(false);
     }
 
-    java.security.cert.X509CRL getCRL() {
+    private java.security.cert.X509CRL getCRL(boolean allowNull) {
         if ( crl != null ) return crl;
         try {
             if ( crlHolder == null ) {
+                if ( allowNull ) return null;
                 throw new IllegalStateException("no crl holder");
             }
             final byte[] encoded = crlHolder.getEncoded();
@@ -168,7 +169,8 @@ public class X509CRL extends RubyObject {
 
     final byte[] getEncoded() throws IOException, CRLException {
         if ( crlHolder != null ) return crlHolder.getEncoded();
-        return getCRL().getEncoded();
+        java.security.cert.X509CRL crl = getCRL(true);
+        return crl == null ? new byte[0] : crl.getEncoded(); // TODO CRL.new isn't like MRI
     }
 
     private byte[] getSignature() {
