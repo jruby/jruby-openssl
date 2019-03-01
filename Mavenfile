@@ -171,7 +171,13 @@ end
 }
 
 profile :id => 'release' do
-  plugin :gpg, '1.5' do
+  plugin :source do
+    execute_goal :jar, id: 'attach-sources'
+  end
+  plugin :javadoc do
+    execute_goal :jar, id: 'attach-javadoc'
+  end
+  plugin :gpg, '1.6' do
     execute_goal :sign, :phase => :verify
   end
 end

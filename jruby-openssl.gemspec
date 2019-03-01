@@ -8,8 +8,8 @@ Gem::Specification.new do |s|
   s.version = version_rb.match( /.*\sVERSION\s*=\s*['"](.*)['"]/ )[1]
 
   s.platform = 'java'
-  s.authors = ['Ola Bini', 'JRuby contributors']
-  s.email = "ola.bini@gmail.com"
+  s.authors = ['Karol Bucek', 'Ola Bini', 'JRuby contributors']
+  s.email = 'self+jruby-openssl@kares.org'
   s.summary = "JRuby OpenSSL"
   s.homepage = 'https://github.com/jruby/jruby-openssl'
   s.description = 'JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.'
