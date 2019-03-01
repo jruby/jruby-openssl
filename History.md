@@ -1,3 +1,12 @@
+## 0.10.2
+
+* update Bouncy-Castle to 1.61 (and handle supported BC compatibility)
+* [fix] avoid NPE when CRL fails to parse (invalid str) (jruby/jruby#5619)
+* hide (deprecated) Jopenssl constant 
+* default OpenSSL.warn to warnings-enabled flag
+* only un-restrict jce when its restricted
+* OpenSSL::Cipher#update additional buffer argument (#170) (jruby/jruby#5242)
+
 ## 0.10.1
 
 * loading JOpenSSL's native ext part the JRuby 9.2 (internal) way
