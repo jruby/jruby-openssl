@@ -105,6 +105,7 @@ default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1
 
 properties( 'jruby.plugins.version' => '1.1.6',
             'jruby.versions' => '9.1.17.0',
+            'jruby.switches' => '-W0', # https://github.com/torquebox/jruby-maven-plugins/issues/94
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
