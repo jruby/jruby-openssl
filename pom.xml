@@ -65,13 +65,11 @@ DO NOT MODIFIY - GENERATED CODE
     <invoker.test>${bc.versions}</invoker.test>
     <jruby.plugins.version>1.1.6</jruby.plugins.version>
     <jruby.version>9.1.17.0</jruby.version>
-    <jruby.versions>1.7.26</jruby.versions>
+    <jruby.versions>9.1.17.0</jruby.versions>
     <mavengem.wagon.version>0.2.1</mavengem.wagon.version>
     <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
     <polyglot.dump.readonly>true</polyglot.dump.readonly>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
-    <tesla.dump.pom>pom.xml</tesla.dump.pom>
-    <tesla.dump.readonly>true</tesla.dump.readonly>
   </properties>
   <dependencies>
     <dependency>
@@ -1051,28 +1049,6 @@ DO NOT MODIFIY - GENERATED CODE
       <id>release</id>
       <build>
         <plugins>
-          <plugin>
-            <artifactId>maven-source-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>attach-sources</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>attach-javadoc</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
           <plugin>
             <artifactId>maven-gpg-plugin</artifactId>
             <version>1.6</version>

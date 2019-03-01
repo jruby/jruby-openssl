@@ -104,19 +104,17 @@ default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
 properties( 'jruby.plugins.version' => '1.1.6',
-            'jruby.versions' => '1.7.26',
+            'jruby.versions' => '9.1.17.0',
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
             # use this version of jruby for ALL the jruby-maven-plugins
-            'jruby.version' => '9.1.17.0',
+            'jruby.version' => '9.1.17.0', # Java 7 compatible till supporting JRuby 1.7
             # dump pom.xml as readonly when running 'rmvn'
             'polyglot.dump.pom' => 'pom.xml',
-            'polyglot.dump.readonly' => true,
-            'tesla.dump.pom' => 'pom.xml',
-            'tesla.dump.readonly' => true )
+            'polyglot.dump.readonly' => true )
 
 # make sure we have the embedded jars in place before we run runit plugin
 plugin! :dependency do
@@ -171,12 +169,6 @@ end
 }
 
 profile :id => 'release' do
-  plugin :source do
-    execute_goal :jar, id: 'attach-sources'
-  end
-  plugin :javadoc do
-    execute_goal :jar, id: 'attach-javadoc'
-  end
   plugin :gpg, '1.6' do
     execute_goal :sign, :phase => :verify
   end
