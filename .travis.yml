@@ -83,12 +83,3 @@ matrix:
     - jdk: oraclejdk11
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
       rvm: jruby-9.2.6.0
-notifications:
-  irc:
-    channels:
-      - "irc.freenode.org#jruby"
-    on_success: change
-    on_failure: always
-    template:
-      - "%{repository} (%{branch}:%{commit} by %{author}): %{message} (%{build_url})"
-    skip_join: true
