@@ -1,5 +1,6 @@
 language: ruby
 
+dist: precise # due OpenJDK 7
 jdk:
   - openjdk7
   - oraclejdk8
