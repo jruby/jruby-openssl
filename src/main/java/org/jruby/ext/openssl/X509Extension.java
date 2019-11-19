@@ -45,7 +45,6 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1String;
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.BERTags;
-import org.bouncycastle.asn1.DERBoolean;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERUniversalString;
@@ -240,10 +239,6 @@ public class X509Extension extends RubyObject {
                     setRealCritical( ((ASN1Boolean) criticalOrValue).isTrue() );
                     this.value = ( (DEROctetString) seq.getObjectAt(2) ).getOctets(); // byte[]
                 }
-                else if ( criticalOrValue instanceof DERBoolean ) { // NOTE: keep it due BC <= 1.50
-                    setRealCritical( ((DERBoolean) criticalOrValue).isTrue() );
-                    this.value = ( (DEROctetString) seq.getObjectAt(2) ).getOctets(); // byte[]
-                }
                 else {
                     this.value = ( (DEROctetString) criticalOrValue ).getOctets(); // byte[]
                 }
@@ -339,13 +334,7 @@ public class X509Extension extends RubyObject {
                 if (seq2.size() > 0) {
                     val.append(CA_);
                     ASN1Encodable obj0 = seq2.getObjectAt(0);
-                    final boolean bool;
-                    if ( obj0 instanceof ASN1Boolean ) {
-                        bool = ((ASN1Boolean) obj0).isTrue();
-                    }
-                    else { // NOTE: keep it due BC <= 1.50
-                        bool = ((DERBoolean) obj0).isTrue();
-                    }
+                    final boolean bool = ((ASN1Boolean) obj0).isTrue();
                     val.append( bool ? TRUE : FALSE );
                 }
                 if (seq2.size() > 1) {
@@ -824,7 +813,7 @@ public class X509Extension extends RubyObject {
     ASN1Sequence toASN1Sequence() throws IOException {
         final ASN1EncodableVector vec = new ASN1EncodableVector();
         vec.add( getRealObjectID() );
-        if ( critical ) vec.add( DERBoolean.TRUE );
+        if ( critical ) vec.add( ASN1Boolean.TRUE );
         vec.add( new DEROctetString( getRealValueEncoded() ) );
         return new DLSequence(vec);
     }
