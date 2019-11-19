@@ -11,7 +11,7 @@ DO NOT MODIFIY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.10.2</version>
+  <version>0.10.3.dev-SNAPSHOT</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -60,7 +60,7 @@ DO NOT MODIFIY - GENERATED CODE
     </snapshotRepository>
   </distributionManagement>
   <properties>
-    <bc.versions>1.61</bc.versions>
+    <bc.versions>1.62</bc.versions>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <invoker.test>${bc.versions}</invoker.test>
     <jruby.plugins.version>1.1.6</jruby.plugins.version>
@@ -97,17 +97,17 @@ DO NOT MODIFIY - GENERATED CODE
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
-      <version>1.61</version>
+      <version>1.62</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
-      <version>1.61</version>
+      <version>1.62</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bctls-jdk15on</artifactId>
-      <version>1.61</version>
+      <version>1.62</version>
     </dependency>
     <dependency>
       <groupId>org.jruby</groupId>
