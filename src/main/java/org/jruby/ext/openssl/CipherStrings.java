@@ -1800,10 +1800,10 @@ public class CipherStrings {
                 SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
-        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",   name = "ECDHE-RSA-AES256-SHA384");
-	    CipherNames.put(name, new Def(name,
-            SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
-            SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384", name = "ECDHE-RSA-AES256-SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
         SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", name = "ECDHE-RSA-AES256-GCM-SHA384");
