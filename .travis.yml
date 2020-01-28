@@ -12,6 +12,11 @@ env:
   - TEST_PROFILE=test-9.1.8.0
   - TEST_PROFILE=test-9.1.17.0
 
+before_install:
+  - unset _JAVA_OPTIONS
+  - rvm @default,@global do gem uninstall bundler -a -x -I || true
+  - gem install bundler -v "~>1.17.3"
+
 install: if [[ -v BUNDLE_INSTALL ]]; then jruby -S bundle install; else echo ""; fi
 
 script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_PROFILE; fi
