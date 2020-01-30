@@ -9,7 +9,7 @@ class TestX509Store < TestCase
     @cert = OpenSSL::X509::Certificate.new(cert)
     @ca_cert = File.expand_path('../ca.crt', __FILE__) # File.expand_path('../demoCA/cacert.pem', __FILE__)
     @javastore = File.expand_path('../javastore.ts', __FILE__)
-    @pem = File.expand_path('../EntrustnetSecureServerCertificationAuthority.pem', __FILE__)
+    @pem = File.expand_path('../Entrust.net_Premium_2048_Secure_Server_CA.pem', __FILE__) # validity: 1999 - 2029
   end
 
   @@ssl_cert_file = ENV['SSL_CERT_FILE']
@@ -30,7 +30,7 @@ class TestX509Store < TestCase
     store.set_default_paths
 
     puts @cert.inspect if $VERBOSE
-    #puts @cert.to_java java.security.cert.X509Certificate
+    #puts @cert.to_java java.security.cert.X509Certificate if $VERBOSE
 
     verified = store.verify(@cert)
     assert verified, "CA verification failed: #{store.inspect}"
@@ -72,7 +72,27 @@ class TestX509Store < TestCase
     store = OpenSSL::X509::Store.new
     store.set_default_paths
     store.add_file @pem
-    assert store.verify( OpenSSL::X509::Certificate.new(File.read(@pem)))
+    cert = OpenSSL::X509::Certificate.new(File.read(@pem))
+
+    puts cert.to_text if $VERBOSE
+
+    verified = store.verify(cert)
+    assert verified, "verification failed for cert: #{cert.inspect} - #{store.inspect}"
+  end
+
+
+  def test_add_file_to_store_with_expired_ca_cert
+    ENV['SSL_CERT_FILE'] = @ca_cert
+    pem = File.expand_path('../Entrust.net_Secure_Server_CA.expired.pem', __FILE__)
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+    store.add_file pem
+    cert = OpenSSL::X509::Certificate.new(File.read(pem))
+
+    puts cert.to_text if $VERBOSE
+
+    verified = store.verify(cert)
+    assert !verified, "verification passed for (expired) cert: #{cert.inspect}"
   end
 
   def test_use_non_existing_cert_file
