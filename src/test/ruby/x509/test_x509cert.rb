@@ -321,8 +321,13 @@ EOF
   def test_to_text_read_back
     crt = File.expand_path('ca.crt', File.dirname(__FILE__))
     cert = OpenSSL::X509::Certificate.new File.read(crt)
+
+    p cert if $VERBOSE
+
     assert cert.to_text.index('X509v3 Authority Key Identifier:')
-    assert cert.to_text.match /X509v3 Authority Key Identifier:\s*keyid:C6:17:42:6B:7F:B6:44:30:67:01:3D:44:83:9D:0F:B4:52:A1:D7:B7/m
+    assert cert.to_text.match /X509v3 Authority Key Identifier:\s*keyid:B6:24:8F:53:D1:24:66:F2:1D:EA:4F:37:2B:F0:3A:3A:78:BA:5D:45/m
+    assert cert.to_text.index('X509v3 Subject Key Identifier:')
+    assert cert.to_text.match /X509v3 Subject Key Identifier:\s*B6:24:8F:53:D1:24:66:F2:1D:EA:4F:37:2B:F0:3A:3A:78:BA:5D:45/m
   end
 
   def test_to_text_npe_regression

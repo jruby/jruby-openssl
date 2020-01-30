@@ -74,7 +74,7 @@ class TestX509Store < TestCase
     store.add_file @pem
     cert = OpenSSL::X509::Certificate.new(File.read(@pem))
 
-    puts cert.to_text if $VERBOSE
+    p cert if $VERBOSE
 
     verified = store.verify(cert)
     assert verified, "verification failed for cert: #{cert.inspect} - #{store.inspect}"
@@ -89,7 +89,7 @@ class TestX509Store < TestCase
     store.add_file pem
     cert = OpenSSL::X509::Certificate.new(File.read(pem))
 
-    puts cert.to_text if $VERBOSE
+    p cert if $VERBOSE
 
     verified = store.verify(cert)
     assert !verified, "verification passed for (expired) cert: #{cert.inspect}"
