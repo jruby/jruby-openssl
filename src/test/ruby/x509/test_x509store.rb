@@ -152,7 +152,7 @@ class TestX509Store < TestCase
     end
   end
 
-  def test_adding_pem_to_store
+  def test_adding_pem_to_store_like_rubygems
     debug = false
     #OpenSSL.debug = true
     # mimic what rubygems/request#add_rubygems_trusted_certs does to find the .pem certificates
@@ -171,7 +171,7 @@ class TestX509Store < TestCase
       # only verify on self signed certifactes
       assert store.verify(cert) if pem !~ /COMODORSA|AddTrustExternalCARoot/
     end
-  end
+  end if defined?(JRUBY_VERSION) && Gem::Version.create(JRUBY_VERSION) >= Gem::Version.create('9.1.17.0')
 
   def test_verify
     @rsa1024 = OpenSSL::PKey::RSA.new SSLTestHelper::TEST_KEY_RSA1024 # OpenSSL::TestUtils::TEST_KEY_RSA1024
