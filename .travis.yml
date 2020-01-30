@@ -23,6 +23,7 @@ script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_P
 
 matrix:
   allow_failures:
+    - jdk: openjdk7
     - jdk: oraclejdk11
       env: TEST_COMMAND="jruby -S rake integration:install integration:test"
     - rvm: jruby-head
@@ -51,6 +52,9 @@ matrix:
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-9.2.8.0
+    - jdk: oraclejdk11
+      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
+      rvm: jruby-9.2.9.0
     - jdk: oraclejdk8
       env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -S rake test" BUNDLE_INSTALL=true
       rvm: jruby-head
@@ -78,7 +82,6 @@ notifications:
     channels:
       - "irc.freenode.org#jruby"
     on_success: change
-    on_failure: always
     template:
       - "%{repository} (%{branch}:%{commit} by %{author}): %{message} (%{build_url})"
     skip_join: true
