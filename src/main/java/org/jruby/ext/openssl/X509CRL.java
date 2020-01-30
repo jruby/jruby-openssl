@@ -389,7 +389,11 @@ public class X509CRL extends RubyObject {
         for ( int i = 0; i < exts.size(); i++ ) {
             final X509Extension ext = exts.get(i);
             final ASN1ObjectIdentifier oid = ext.getRealObjectID();
-            final String no = ASN1.o2a(context.runtime, oid);
+            String no = ASN1.o2a(context.runtime, oid, true);
+            if (no == null) { // MRI here just appends the OID string
+                no = ASN1.oid2Sym(context.runtime, oid, true);
+                if (no == null) no = oid.toString();
+            }
             text.append(S20,0,indent).append( no ).append(": ");
             if ( ext.isRealCritical() ) text.append("critical");
             text.append('\n');
