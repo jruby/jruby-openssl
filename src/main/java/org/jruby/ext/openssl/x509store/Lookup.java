@@ -42,8 +42,9 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.jruby.Ruby;
 import org.jruby.ext.openssl.OpenSSL;
@@ -333,8 +334,8 @@ public class Lookup {
         final FileInputStream fin = new FileInputStream(certsFile);
         int count = 0;
         try {
-	        // hardcode the keystore type, as we expect cacerts to be a java
-	        // keystore - especially needed for jdk9
+            // hardcode the keystore type, as we expect cacerts to be a java keystore
+            // especially needed since Java 9 (getDefaultType on 11/13 is "pkcs12")
             KeyStore keystore = SecurityHelper.getKeyStore("jks");
 	        // null password - as the cacerts file isn't password protected
             keystore.load(fin, null);
@@ -466,13 +467,13 @@ public class Lookup {
             case X509_L_FILE_LOAD:
                 if (arglInt == X509_FILETYPE_DEFAULT) {
                     try {
-                        file = ctx.envEntry( getDefaultCertificateFileEnvironment() ); // ENV['SSL_CERT_FILE']
+                        file = ctx.envEntry(X509_CERT_FILE_EVP); // ENV['SSL_CERT_FILE']
                     }
                     catch (RuntimeException e) {
-                        OpenSSL.debug(ctx.runtime, "failed to read SSL_CERT_FILE", e);
+                        OpenSSL.debug(ctx.runtime, "failed to read env " + X509_CERT_FILE_EVP, e);
                     }
                     if (file == null) {
-                        file = X509Utils.X509_CERT_FILE.replace('/', File.separatorChar);
+                        file = X509_CERT_FILE.replace('/', File.separatorChar);
                     }
                     if (file.matches(".*\\.(crt|cer|pem)$")) {
                         ok = ctx.loadCertificateOrCRLFile(file, X509_FILETYPE_PEM) != 0 ? 1 : 0;
@@ -498,8 +499,8 @@ public class Lookup {
      * c: BY_DIR, lookup_dir_st
      */
     private static class LookupDir {
-        Collection<String> dirs;
-        Collection<Integer> dirsType;
+        String[] dirs;
+        int[] dirsType;
     }
 
     /**
@@ -507,10 +508,7 @@ public class Lookup {
      */
     private static class NewLookupDir implements LookupMethod.NewItemFunction {
         public int call(final Lookup lookup) {
-            final LookupDir lookupDir = new LookupDir();
-            lookupDir.dirs = new ArrayList<String>();
-            lookupDir.dirsType = new ArrayList<Integer>();
-            lookup.methodData = lookupDir;
+            lookup.methodData = new LookupDir();
             return 1;
         }
     }
@@ -535,7 +533,7 @@ public class Lookup {
 
         public int call(final Lookup ctx, final Integer cmd, String argp, Number argl, String[] retp) {
             int ret = 0;
-            final LookupDir lookupData = (LookupDir) ctx.methodData;
+            final LookupDir lookupDir = (LookupDir) ctx.methodData;
             switch ( cmd ) {
             case X509_L_ADD_DIR :
                 if ( argl.intValue() == X509_FILETYPE_DEFAULT ) {
@@ -546,16 +544,16 @@ public class Lookup {
                     catch (RuntimeException e) { }
 
                     if ( certDir != null ) {
-                        ret = addCertificateDirectory(lookupData, certDir, X509_FILETYPE_PEM);
+                        ret = addCertificateDirectory(lookupDir, certDir, X509_FILETYPE_PEM);
                     } else {
-                        ret = addCertificateDirectory(lookupData, X509_CERT_DIR, X509_FILETYPE_PEM);
+                        ret = addCertificateDirectory(lookupDir, X509_CERT_DIR, X509_FILETYPE_PEM);
                     }
                     if ( ret == 0 ) {
                         X509Error.addError(X509_R_LOADING_CERT_DIR);
                     }
                 }
                 else {
-                    ret = addCertificateDirectory(lookupData, argp, argl.intValue());
+                    ret = addCertificateDirectory(lookupDir, argp, argl.intValue());
                 }
                 break;
             }
@@ -575,18 +573,19 @@ public class Lookup {
                 return 0;
             }
 
-            String[] dirs = dir.split(File.pathSeparator);
+            final String[] dirs = dir.split(File.pathSeparator);
 
-            for ( int i=0; i<dirs.length; i++ ) {
-                if ( dirs[i].length() == 0 ) {
-                    continue;
-                }
-                if ( ctx.dirs.contains(dirs[i]) ) {
-                    continue;
-                }
-                ctx.dirsType.add(type);
-                ctx.dirs.add(dirs[i]);
+            final Map<String, ?> ctxDirs = new LinkedHashMap<String, Object>(dirs.length);
+            if ( ctx.dirs != null ) for (String d : ctx.dirs) ctxDirs.put(d, null);
+
+            for ( int i = 0; i < dirs.length; i++ ) {
+                if ( dirs[i].isEmpty() ) continue;
+                ctxDirs.put(dirs[i], null); // if key exists no-op
             }
+
+            final int len = ctxDirs.size();
+            ctx.dirs = ctxDirs.keySet().toArray(new String[len]);
+            Arrays.fill(ctx.dirsType = new int[len], type);
 
             return 1;
         }
@@ -618,10 +617,9 @@ public class Lookup {
             final String hash = String.format("%08x", name.hash());
             final StringBuilder buffer = new StringBuilder(48);
 
-            final Iterator<Integer> iter = context.dirsType.iterator();
-
-            for ( final String dir : context.dirs ) {
-                final int dirType = iter.next();
+            for ( int i = 0; i < context.dirs.length; i++ ) {
+                final String dir = context.dirs[i];
+                final int dirType = context.dirsType[i];
                 for ( int k = 0; ; k++ ) {
                     buffer.setLength(0); // reset - clear buffer
                     buffer.append(dir).append(File.separatorChar);
