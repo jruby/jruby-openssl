@@ -113,112 +113,66 @@ class TestSSLContext < TestCase
 
     all_ciphers = context.ciphers.map { |cipher_array| cipher_array[0] }
 
-    # NOTE: assuming JCE installed ()CryptoSecurity.setAllPermissionPolicy)
-    #  ...  otherwise on Java 8 (1.8.0_112-b15) :
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_DH_anon_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_DH_anon_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_anon_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_DH_anon_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_DHE_DSS_WITH_AES_256_CBC_SHA256
-    # Ignoring unavailable cipher suite: TLS_DHE_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-    # Ignoring unavailable cipher suite: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+    jce_installed = true # always assume installed (Java 8+)
 
-    jce_installed = true # || nil
-    expected_ciphers = [jce_installed && "ECDHE-ECDSA-AES256-SHA",
-                        jce_installed && "ECDHE-RSA-AES256-SHA",
-                        jce_installed && "AES256-SHA",
-                        jce_installed && "ECDH-ECDSA-AES256-SHA",
-                        jce_installed && "ECDH-RSA-AES256-SHA",
-                        jce_installed && "DHE-RSA-AES256-SHA",
-                        jce_installed && "DHE-DSS-AES256-SHA",
-                        "ECDHE-ECDSA-AES128-SHA256",
-                        "ECDHE-RSA-AES128-SHA256",
-                        "ECDH-ECDSA-AES128-SHA256",
-                        "ECDH-RSA-AES128-SHA256",
-                        "ECDHE-ECDSA-AES128-SHA",
-                        "ECDHE-RSA-AES128-SHA",
-                        "AES128-SHA",
-                        "ECDH-ECDSA-AES128-SHA",
-                        "ECDH-RSA-AES128-SHA",
-                        "DHE-RSA-AES128-SHA",
-                        "DHE-DSS-AES128-SHA",
-                        "ECDHE-ECDSA-DES-CBC3-SHA",
-                        "ECDHE-RSA-DES-CBC3-SHA",
-                        "DES-CBC3-SHA",
-                        "ECDH-ECDSA-DES-CBC3-SHA",
-                        "ECDH-RSA-DES-CBC3-SHA",
-                        "EDH-RSA-DES-CBC3-SHA",
-                        "EDH-DSS-DES-CBC3-SHA",
-                        jce_installed && "AECDH-AES256-SHA",
-                        jce_installed && "ADH-AES256-SHA",
-                        "AECDH-AES128-SHA",
-                        "ADH-AES128-SHA",
-                        "AECDH-DES-CBC3-SHA",
-                        "ADH-DES-CBC3-SHA"]
+    defunct_ciphers = [ # in terms of OpenSSL not reporting them on "ALL" (Ubuntu 16 LTS)
+         jce_installed && "ECDH-ECDSA-AES256-SHA", # (old) backward compatibility
+         jce_installed && "ECDH-RSA-AES256-SHA", # (old) backward compatibility
+         "ECDH-ECDSA-AES128-SHA",
+         "ECDH-RSA-AES128-SHA",
+         #"ECDHE-ECDSA-DES-CBC3-SHA",
+         #"ECDHE-RSA-DES-CBC3-SHA",
+         #"DES-CBC3-SHA", # (old) SSLv3
+         #"ECDH-ECDSA-DES-CBC3-SHA",
+         #"ECDH-RSA-DES-CBC3-SHA",
+         #"EDH-RSA-DES-CBC3-SHA",
+         #"EDH-DSS-DES-CBC3-SHA",
+         jce_installed && "AECDH-AES256-SHA",
+         jce_installed && "ADH-AES256-SHA",
+         #"AECDH-DES-CBC3-SHA",
+         #"ADH-DES-CBC3-SHA",
+    ]
 
-    #expected_ciphers.compact.each do |cipher|
-    #  assert all_ciphers.include?(cipher), "#{cipher} should have been included"
-    #end
+    shared_ciphers = [
+        jce_installed && "ECDHE-ECDSA-AES256-SHA",
+        jce_installed && "ECDHE-RSA-AES256-SHA",
+        jce_installed && "AES256-SHA",
+        jce_installed && "DHE-RSA-AES256-SHA",
+        jce_installed && "DHE-DSS-AES256-SHA",
+        "ECDHE-ECDSA-AES128-SHA",
+        "ECDHE-RSA-AES128-SHA",
+        "AES128-SHA",
+        "DHE-RSA-AES128-SHA",
+        "DHE-DSS-AES128-SHA",
+        "AECDH-AES128-SHA",
+        "ADH-AES128-SHA",
+
+        "ECDHE-RSA-AES128-SHA256", "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES256-SHA384", "ECDHE-RSA-AES256-GCM-SHA384",
+
+        # added support in 0.10.3
+        "ECDHE-ECDSA-AES256-SHA384",
+        "ECDHE-RSA-AES256-SHA384",
+        "DHE-RSA-AES256-SHA256",
+        "DHE-DSS-AES256-SHA256",
+        "ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES128-GCM-SHA256", "ECDHE-RSA-AES256-GCM-SHA384",
+        "DHE-DSS-AES128-GCM-SHA256", "DHE-DSS-AES256-GCM-SHA384",
+        "DHE-RSA-AES128-GCM-SHA256", "DHE-RSA-AES256-GCM-SHA384",
+        "AES128-GCM-SHA256", "AES256-GCM-SHA384",
+    ]
+
+    expected_ciphers = [
+        "ECDHE-ECDSA-AES128-SHA256",
+        "ECDH-ECDSA-AES128-SHA256",
+        "ECDH-RSA-AES128-SHA256",
+        #"ECDH-ECDSA-AES128-SHA",
+        #"ECDH-RSA-AES128-SHA",
+    ] + defunct_ciphers + shared_ciphers
+
+    expected_ciphers.compact.each do |cipher|
+      assert all_ciphers.include?(cipher), "#{cipher} should have been included"
+    end
 
     diff = (expected_ciphers - all_ciphers).compact
     assert_equal [], diff
