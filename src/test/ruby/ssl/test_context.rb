@@ -106,8 +106,6 @@ class TestSSLContext < TestCase
   end
 
   def test_context_ciphers
-    return skip('on Java 6') if defined?(ENV_JAVA) && ENV_JAVA['java.version'] < '1.7'
-
     self.class.disable_security_restrictions
 
     context = OpenSSL::SSL::SSLContext.new
@@ -224,6 +222,6 @@ class TestSSLContext < TestCase
 
     diff = (expected_ciphers - all_ciphers).compact
     assert_equal [], diff
+  end
 
-  end if RUBY_VERSION > '1.9'
 end

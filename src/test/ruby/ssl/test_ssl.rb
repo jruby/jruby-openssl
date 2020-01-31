@@ -122,7 +122,7 @@ class TestSSL < TestCase
       assert_equal("TLSv1.1", ssl.ssl_version)
       ssl.close
     end
-  end unless java6? # TLS1_1 is not supported by JDK 6
+  end
 
   def test_ssl_version_tlsv1_2
     ctx_proc = Proc.new do |ctx|
@@ -135,7 +135,7 @@ class TestSSL < TestCase
       assert_equal("TLSv1.2", ssl.ssl_version)
       ssl.close
     end
-  end unless java6? # TLS1_2 is not supported by JDK 6
+  end
 
   def test_read_nonblock_would_block
     start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
@@ -167,7 +167,7 @@ class TestSSL < TestCase
 
       ssl.close
     end
-  end if RUBY_VERSION > '1.9'
+  end
 
   def test_connect_nonblock_would_block
     start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
@@ -199,7 +199,7 @@ class TestSSL < TestCase
 
       ssl.close
     end
-  end if RUBY_VERSION > '1.9'
+  end
 
   def test_renegotiation_cb
     num_handshakes = 0
