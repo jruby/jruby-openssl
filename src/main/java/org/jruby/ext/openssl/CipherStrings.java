@@ -414,21 +414,24 @@ public class CipherStrings {
         }
 
         Def setCipherSuite(final String suite) {
-            if ( this.cipherSuite == null ) {
+            String cipherSuite = this.cipherSuite;
+            if (cipherSuite == null) {
                 synchronized (this) {
-                    if ( this.cipherSuite == null ) {
-                        this.cipherSuite = suite; return this;
+                    if (this.cipherSuite == null) {
+                        this.cipherSuite = suite;
+                        return this;
                     }
                 }
+                cipherSuite = suite;
             }
-            if ( suite.equals(this.cipherSuite) ) return this;
+            if (suite.equals(cipherSuite)) return this;
             try {
                 Def clone = (Def) super.clone();
                 clone.cipherSuite = suite;
                 return clone;
             }
             catch (CloneNotSupportedException e) {
-                throw new RuntimeException(e); // won't happen
+                throw new AssertionError(e); // won't happen
             }
         }
 
@@ -1673,7 +1676,7 @@ public class CipherStrings {
                             ));
 
         String name;
-        CipherNames = new HashMap<String, Def>(Ciphers.size() + 24, 1);
+        CipherNames = new HashMap<String, Def>(Ciphers.size() + 64, 1);
 
         SuiteToOSSL = new HashMap<String, String>( 120, 1 );
         SuiteToOSSL.put("SSL_RSA_WITH_NULL_MD5", "NULL-MD5");
@@ -1721,22 +1724,16 @@ public class CipherStrings {
         SuiteToOSSL.put("TLS_DH_anon_WITH_3DES_EDE_CBC_SHA","ADH-DES-CBC3-SHA");
         SuiteToOSSL.put("TLS_RSA_WITH_AES_128_CBC_SHA", "AES128-SHA");
         SuiteToOSSL.put("TLS_RSA_WITH_AES_256_CBC_SHA", "AES256-SHA");
-        SuiteToOSSL.put("TLS_RSA_WITH_AES_128_CBC_SHA256", "AES128-SHA256");
-        SuiteToOSSL.put("TLS_RSA_WITH_AES_256_CBC_SHA256", "AES256-SHA256");
         SuiteToOSSL.put("TLS_DH_DSS_WITH_AES_128_CBC_SHA","DH-DSS-AES128-SHA");
         SuiteToOSSL.put("TLS_DH_DSS_WITH_AES_256_CBC_SHA","DH-DSS-AES256-SHA");
         SuiteToOSSL.put("TLS_DH_RSA_WITH_AES_128_CBC_SHA","DH-RSA-AES128-SHA");
         SuiteToOSSL.put("TLS_DH_RSA_WITH_AES_256_CBC_SHA","DH-RSA-AES256-SHA");
         SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_128_CBC_SHA", "DHE-DSS-AES128-SHA");
-        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_256_CBC_SHA","DHE-DSS-AES256-SHA");
-        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_128_CBC_SHA256", "DHE-DSS-AES128-SHA256");
-        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_256_CBC_SHA256", "DHE-DSS-AES256-SHA256");
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_256_CBC_SHA", "DHE-DSS-AES256-SHA");
         SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "DHE-RSA-AES128-SHA");
-        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_256_CBC_SHA","DHE-RSA-AES256-SHA");
-        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256", "DHE-RSA-AES128-SHA256");
-        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", "DHE-RSA-AES256-SHA256");
-        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_128_CBC_SHA","ADH-AES128-SHA");
-        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_256_CBC_SHA","ADH-AES256-SHA");
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_256_CBC_SHA", "DHE-RSA-AES256-SHA");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_128_CBC_SHA", "ADH-AES128-SHA");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_256_CBC_SHA", "ADH-AES256-SHA");
         SuiteToOSSL.put("TLS_DH_anon_WITH_AES_128_CBC_SHA256", "ADH-AES128-SHA256");
         SuiteToOSSL.put("TLS_DH_anon_WITH_AES_256_CBC_SHA256", "ADH-AES256-SHA256");
         SuiteToOSSL.put("TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA","EXP1024-DES-CBC-SHA");
@@ -1925,8 +1922,80 @@ public class CipherStrings {
 
         SuiteToOSSL.put("TLS_ECDH_anon_WITH_RC4_128_SHA", name = "AECDH-RC4-SHA");
         CipherNames.put(name, new Def(name,
-            SSL_kECDHE|SSL_aNULL|SSL_RC4|SSL_SHA|SSL_TLSV1,
-            SSL_NOT_EXP, 128, 128, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+                SSL_kECDHE|SSL_aNULL|SSL_RC4|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 128, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256", name = "DHE-RSA-AES128-GCM-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kEDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256", name = "DHE-RSA-AES128-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kEDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", name = "DHE-RSA-AES256-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kEDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", name = "DHE-RSA-AES256-GCM-SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_kEDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_128_GCM_SHA256", name = "DHE-DSS-AES128-GCM-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kEDH|SSL_aDSS|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_128_CBC_SHA256", name = "DHE-DSS-AES128-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kEDH|SSL_aDSS|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_256_CBC_SHA256", name = "DHE-DSS-AES256-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kEDH|SSL_aDSS|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_DHE_DSS_WITH_AES_256_GCM_SHA384", name = "DHE-DSS-AES256-GCM-SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_kEDH|SSL_aDSS|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_128_GCM_SHA256", name = "AES128-GCM-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_128_CBC_SHA256", name = "AES128-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_256_CBC_SHA256", name = "AES256-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_RSA_WITH_AES_256_GCM_SHA384", name = "AES256-GCM-SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
         SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_NULL_SHA", "ECDHE-ECDSA-NULL-SHA");
