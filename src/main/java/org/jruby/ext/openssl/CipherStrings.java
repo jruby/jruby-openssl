@@ -1764,10 +1764,22 @@ public class CipherStrings {
             SSL_NOT_EXP|SSL_HIGH, 256, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", name = "ECDHE-ECDSA-AES128-GCM-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kECDHE|SSL_aECDSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
         SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256", name = "ECDHE-ECDSA-AES128-SHA256");
 	    CipherNames.put(name, new Def(name,
             SSL_kECDHE|SSL_aECDSA|SSL_AES|SSL_SHA|SSL_TLSV1,
             SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", name = "ECDHE-ECDSA-AES256-GCM-SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_kECDHE|SSL_aECDSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
         SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384", name = "ECDHE-ECDSA-AES256-SHA384");
@@ -1788,25 +1800,25 @@ public class CipherStrings {
             SSL_NOT_EXP|SSL_HIGH, 256, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
-        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256", name = "ECDHE-RSA-AES128-SHA256");
-	    CipherNames.put(name, new Def(name,
-            SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
-            SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
-        ));
-
         SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", name = "ECDHE-RSA-AES128-GCM-SHA256");
         CipherNames.put(name, new Def(name,
                 SSL_kECDHE|SSL_RSA|SSL_AES|SSL_SHA|SSL_TLSV1,
                 SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
-        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384", name = "ECDHE-RSA-AES256-SHA384");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256", name = "ECDHE-RSA-AES128-SHA256");
+	    CipherNames.put(name, new Def(name,
+            SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+            SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", name = "ECDHE-RSA-AES256-GCM-SHA384");
         CipherNames.put(name, new Def(name,
                 SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
                 SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
-        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", name = "ECDHE-RSA-AES256-GCM-SHA384");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384", name = "ECDHE-RSA-AES256-SHA384");
         CipherNames.put(name, new Def(name,
                 SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
                 SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
@@ -1824,10 +1836,22 @@ public class CipherStrings {
             SSL_NOT_EXP|SSL_HIGH, 256, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256", name = "ECDH-ECDSA-AES128-GCM-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kECDH|SSL_aECDSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
         SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256", name = "ECDH-ECDSA-AES128-SHA256");
 	    CipherNames.put(name, new Def(name,
             SSL_kECDH|SSL_aECDSA|SSL_AES|SSL_SHA|SSL_TLSV1,
             SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384",  name = "ECDH-ECDSA-AES256-GCM-SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_kECDH|SSL_aECDSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
         SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384",  name = "ECDH-ECDSA-AES256-SHA384");
@@ -1848,13 +1872,25 @@ public class CipherStrings {
             SSL_NOT_EXP|SSL_HIGH, 256, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256", name = "ECDH-RSA-AES128-GCM-SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_kECDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
         SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256", name = "ECDH-RSA-AES128-SHA256");
 	    CipherNames.put(name, new Def(name,
             SSL_kECDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
             SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
-        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384",    name = "ECDH-RSA-AES256-SHA384");
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384", name = "ECDH-RSA-AES256-GCM-SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_kECDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384", name = "ECDH-RSA-AES256-SHA384");
 	    CipherNames.put(name, new Def(name,
             SSL_kECDH|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
             SSL_NOT_EXP|SSL_HIGH, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
