@@ -564,15 +564,22 @@ public class X509Cert extends RubyObject {
     public IRubyObject sign(final ThreadContext context, final IRubyObject key, final IRubyObject digest) {
         final Ruby runtime = context.runtime;
 
+        if (!(key instanceof PKey)) { // MRI: NoMethodError: undefined method `private?' for nil:NilClass
+            throw runtime.newTypeError(key, PKey._PKey(runtime).getClass("PKey"));
+        }
+
         // Have to obey some artificial constraints of the OpenSSL implementation. Stupid.
         final String keyAlg = ((PKey) key).getAlgorithm();
         final String digAlg; final String digName;
         if (digest instanceof Digest) {
             digAlg = ((Digest) digest).getShortAlgorithm();
-            digName = ((Digest) digest).name().toString();
+            digName = ((Digest) digest).getName();
         }
-        else {
+        else if (digest instanceof RubyString) {
             digAlg = digest.asJavaString(); digName = null;
+        }
+        else { // MRI: TypeError: wrong argument type nil (expected OpenSSL/Digest)
+            throw runtime.newTypeError(digest, Digest._Digest(runtime));
         }
 
         if( ( "DSA".equalsIgnoreCase(keyAlg) && "MD5".equalsIgnoreCase(digAlg) ) ||
