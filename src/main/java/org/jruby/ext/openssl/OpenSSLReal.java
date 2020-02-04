@@ -91,18 +91,10 @@ public class OpenSSLReal {
             }
             return block.call();
         } catch (NoSuchProviderException nspe) {
-            throw new GeneralSecurityException(bcExceptionMessage(nspe), nspe);
+            throw new GeneralSecurityException(OpenSSL.bcExceptionMessage(nspe), nspe);
         } catch (Exception e) {
             throw new GeneralSecurityException(e.getMessage(), e);
         }
-    }
-
-    public static String bcExceptionMessage(NoSuchProviderException e) {
-        return OpenSSL.bcExceptionMessage(e);
-    }
-
-    public static String bcExceptionMessage(NoClassDefFoundError e) {
-        return OpenSSL.bcExceptionMessage(e);
     }
 
 }

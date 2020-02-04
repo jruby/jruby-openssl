@@ -23,7 +23,6 @@
  */
 package org.jruby.ext.openssl;
 
-import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
 import java.util.Map;
 
@@ -343,11 +342,7 @@ public final class OpenSSL {
 
     //
 
-    static String bcExceptionMessage(NoSuchProviderException ex) {
-        return "You need to configure JVM/classpath to enable BouncyCastle Security Provider: " + ex;
-    }
-
-    static String bcExceptionMessage(NoClassDefFoundError ex) {
+    static String bcExceptionMessage(Throwable ex) {
         return "You need to configure JVM/classpath to enable BouncyCastle Security Provider: " + ex;
     }
 
