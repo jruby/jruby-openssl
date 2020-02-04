@@ -41,6 +41,7 @@ import java.util.List;
 import javax.net.ssl.X509TrustManager;
 
 import org.jruby.Ruby;
+import org.jruby.ext.openssl.OpenSSL;
 
 /**
  * c: X509_STORE
@@ -115,8 +116,11 @@ public class Store implements X509TrustManager {
 
     // @Deprecated int cache = 1; // not-used
 
-    private volatile X509Object[] objects = new X509Object[0];
-    private volatile Lookup[] certLookups = new Lookup[0];
+    private static final X509Object[] NULL_OBJECTS = new X509Object[0];
+    private static final Lookup[] NULL_LOOKUP = new Lookup[0];
+
+    private volatile X509Object[] objects = NULL_OBJECTS;
+    private volatile Lookup[] certLookups = NULL_LOOKUP;
 
     public final VerifyParameter verifyParameter;
 
@@ -243,8 +247,8 @@ public class Store implements X509TrustManager {
     /**
      * c: X509_STORE_set1_param
      */
-    public int setParam(VerifyParameter pm) {
-        return verifyParameter.set(verifyParameter);
+    public int setParam(VerifyParameter param) {
+        return verifyParameter.set(param);
     }
 
     /**
@@ -365,7 +369,6 @@ public class Store implements X509TrustManager {
     public int setDefaultPaths(Ruby runtime) throws Exception {
 
         Lookup lookup = addLookup(runtime, Lookup.fileLookup());
-        //if ( lookup == null ) return 0;
 
         try {
             lookup.loadFile(new CertificateFile.Path(null, X509_FILETYPE_DEFAULT));
@@ -379,11 +382,10 @@ public class Store implements X509TrustManager {
             if (!e.getClass().getSimpleName().equals("NotFound")) {
                 throw e;
             }
-            // set_default_paths ignores FileNotFound
+            OpenSSL.debug(runtime, "add X509_CERT_FILER_CTX (to default paths)", e);
         }
 
         lookup = addLookup(runtime, Lookup.hashDirLookup());
-        //if ( lookup == null ) return 0;
 
         try {
             lookup.addDir(new CertificateHashDir.Dir(null, X509_FILETYPE_DEFAULT));
@@ -395,7 +397,7 @@ public class Store implements X509TrustManager {
             if (!e.getClass().getSimpleName().equals("NotFound")) {
                 throw e;
             }
-            // set_default_paths ignores FileNotFound
+            OpenSSL.debug(runtime, "add X509_HASH_DIR_CTX (to default paths)", e);
         }
 
         X509Error.clearErrors();
