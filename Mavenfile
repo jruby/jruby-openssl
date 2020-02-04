@@ -98,7 +98,7 @@ plugin :deploy, '2.8.1' do
   execute_goals( :deploy, :skip => false )
 end
 
-supported_bc_versions = %w{ 1.55 1.56 1.57 1.58 1.59 1.60 1.61 }
+supported_bc_versions = %w{ 1.56 1.57 1.58 1.59 1.60 1.61 1.62 1.63 1.64 }
 
 default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
@@ -156,7 +156,7 @@ end
 }
 
 jruby_9_K_versions  = %w{ 9.0.1.0 9.0.5.0 9.1.2.0 9.1.8.0 9.1.12.0 9.1.16.0 9.1.17.0 }
-jruby_9_K_versions += %w{ 9.2.0.0 9.2.5.0 9.2.6.0 }
+jruby_9_K_versions += %w{ 9.2.0.0 9.2.5.0 9.2.6.0 9.2.7.0 9.2.8.0 9.2.9.0 }
 
 jruby_9_K_versions.each { |version|
 profile :id => "test-#{version}" do
