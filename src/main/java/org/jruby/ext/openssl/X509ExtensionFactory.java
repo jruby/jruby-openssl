@@ -404,7 +404,7 @@ public class X509ExtensionFactory extends RubyObject {
 
         for ( String value : valuex.split(",") ) { // e.g. "keyid:always,issuer:always"
             if ( value.startsWith("keyid:") ) { // keyid:always
-                ASN1Encodable publicKeyIdentifier = new DEROctetString(publicKeyIdentifier(context));
+                ASN1Encodable publicKeyIdentifier = new DEROctetString(issuerPublicKeyIdentifier(context));
                 vec.add(new DERTaggedObject(false, 0, publicKeyIdentifier));
             }
             else if ( value.startsWith("issuer:") ) { // issuer:always
@@ -421,9 +421,16 @@ public class X509ExtensionFactory extends RubyObject {
         return new DERSequence(vec);
     }
 
-    private byte[] publicKeyIdentifier(final ThreadContext context) {
+    private byte[] subjectPublicKeyIdentifier(final ThreadContext context) {
+        return publicKeyIdentifier(context, getSubjectPublicKey(context));
+    }
+
+    private byte[] issuerPublicKeyIdentifier(final ThreadContext context) {
+        return publicKeyIdentifier(context, getIssuerPublicKey(context));
+    }
+
+    private byte[] publicKeyIdentifier(final ThreadContext context, final IRubyObject pkey) {
         final Ruby runtime = context.runtime;
-        IRubyObject pkey = getPublicKey(context);
         IRubyObject der;
         if (pkey instanceof PKeyRSA) {
             der = pkey.callMethod(context, "to_der");
@@ -434,12 +441,19 @@ public class X509ExtensionFactory extends RubyObject {
         return getSHA1Digest(runtime, der.asString().getByteList());
     }
 
-    private IRubyObject getPublicKey(final ThreadContext context) {
-        IRubyObject issuer_cert = getInstanceVariable("@issuer_certificate");
-        if ( issuer_cert instanceof X509Cert ) {
-            return ((X509Cert) issuer_cert).public_key(context);
+    private IRubyObject getSubjectPublicKey(final ThreadContext context) {
+        return certPublicKey(context, subject_cert());
+    }
+
+    private IRubyObject getIssuerPublicKey(final ThreadContext context) {
+        return certPublicKey(context, issuer_cert());
+    }
+
+    private IRubyObject certPublicKey(final ThreadContext context, final IRubyObject cert) {
+        if ( cert instanceof X509Cert ) {
+            return ((X509Cert) cert).public_key(context);
         }
-        return issuer_cert.callMethod(context, "public_key");
+        return cert.callMethod(context, "public_key");
     }
 
     private X500Name authorityCertIssuer(final ThreadContext context) {
@@ -447,11 +461,11 @@ public class X509ExtensionFactory extends RubyObject {
         if ( issuer instanceof X509Name ) {
             return ((X509Name) issuer).getX500Name();
         }
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("authorityCertIssuer");
     }
 
     private IRubyObject getIssuer(final ThreadContext context) {
-        IRubyObject issuer_cert = getInstanceVariable("@issuer_certificate");
+        IRubyObject issuer_cert = issuer_cert();
         if ( issuer_cert instanceof X509Cert ) {
             return ((X509Cert) issuer_cert).getIssuer();
         }
@@ -459,7 +473,7 @@ public class X509ExtensionFactory extends RubyObject {
     }
 
     private BigInteger getIssuerSerialNumber(final ThreadContext context) {
-        IRubyObject issuer_cert = getInstanceVariable("@issuer_certificate");
+        IRubyObject issuer_cert = issuer_cert();
         if ( issuer_cert instanceof X509Cert ) {
             return ((X509Cert) issuer_cert).getSerial();
         }
@@ -553,7 +567,7 @@ public class X509ExtensionFactory extends RubyObject {
 
     private DEROctetString parseSubjectKeyIdentifier(final ThreadContext context, final String oid, final String valuex) {
         if ( "hash".equalsIgnoreCase(valuex) ) {
-            return new DEROctetString(publicKeyIdentifier(context));
+            return new DEROctetString(subjectPublicKeyIdentifier(context));
         }
         if ( valuex.length() == 20 || ! isHex(valuex) ) {
             return new DEROctetString(ByteList.plain(valuex));
