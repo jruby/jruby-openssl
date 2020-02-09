@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 
 import org.bouncycastle.asn1.*;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -430,7 +431,7 @@ public class X509ExtensionFactory extends RubyObject {
             der = ASN1.decode(context, ASN1._ASN1(runtime), pkey.callMethod(context, "to_der"));
             der = der.callMethod(context, "value").callMethod(context, "[]", runtime.newFixnum(1)).callMethod(context, "value");
         }
-        return getSHA1Digest(runtime, der.asString().getBytes());
+        return getSHA1Digest(runtime, der.asString().getByteList());
     }
 
     private IRubyObject getPublicKey(final ThreadContext context) {
@@ -466,9 +467,11 @@ public class X509ExtensionFactory extends RubyObject {
         return serial.isNil() ? null : ((BN) serial).getValue();
     }
 
-    private static byte[] getSHA1Digest(Ruby runtime, byte[] bytes) {
+    private static byte[] getSHA1Digest(Ruby runtime, ByteList bytes) {
         try {
-            return SecurityHelper.getMessageDigest("SHA-1").digest(bytes);
+            MessageDigest sha1 = SecurityHelper.getMessageDigest("SHA-1");
+            sha1.update(bytes.unsafeBytes(), bytes.getBegin(), bytes.getRealSize());
+            return sha1.digest();
         }
         catch (GeneralSecurityException e) {
             throw newExtensionError(runtime, e.getMessage());
