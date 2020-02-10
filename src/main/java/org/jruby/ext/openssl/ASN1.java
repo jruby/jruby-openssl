@@ -1683,7 +1683,7 @@ public class ASN1 {
             if ( val instanceof RubyInteger ) { // RubyBignum
                 return ((RubyInteger) val).getBigIntegerValue();
             }
-            if ( val instanceof BN ) ((BN) val).getValue();
+            if ( val instanceof BN ) return ((BN) val).getValue();
             return new BigInteger( val.asString().getBytes() );
         }
 

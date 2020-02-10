@@ -505,6 +505,25 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
 #    assert_equal raw, asn1.to_der
   end
 
+
+  def test_encode_der_integer_wrapped
+    asn1 = OpenSSL::ASN1::Sequence([ OpenSSL::ASN1::Integer(42), OpenSSL::ASN1::Integer(84) ])
+
+    der = "0\x06\x02\x01*\x02\x01T"
+    assert_equal der, asn1.to_der
+
+    asn1 = OpenSSL::ASN1::Sequence([ OpenSSL::ASN1::Integer(OpenSSL::BN.new(42)), OpenSSL::ASN1::Integer(OpenSSL::BN.new(84)) ])
+
+    der = "0\x06\x02\x01*\x02\x01T"
+    assert_equal der, asn1.to_der
+
+    i = OpenSSL::ASN1::Integer(OpenSSL::BN.new('1234567890'))
+    assert_equal 1234567890, i.value.to_i
+
+    i = OpenSSL::ASN1::Integer('12345678901234567890')
+    assert_equal 12345678901234567890, i.value.to_i
+  end
+
   private
 
   def assert_universal(tag, asn1, inf_len=false)
