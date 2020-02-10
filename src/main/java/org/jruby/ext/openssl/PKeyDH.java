@@ -288,7 +288,7 @@ public class PKeyDH extends PKey {
 
     @Override
     @JRubyMethod(name = { "to_pem", "to_s" }, alias = "export", rest = true)
-    public RubyString to_pem(final IRubyObject[] args) {
+    public RubyString to_pem(ThreadContext context, final IRubyObject[] args) {
         //Arity.checkArgumentCount(getRuntime(), args, 0, 2);
 
         //CipherSpec spec = null; char[] passwd = null;

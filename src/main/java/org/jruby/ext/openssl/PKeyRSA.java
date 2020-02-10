@@ -62,6 +62,7 @@ import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
+import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -218,26 +219,26 @@ public class PKeyRSA extends PKey {
     }
 
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args, final Block block) {
         final Ruby runtime = context.runtime;
 
         if ( Arity.checkArgumentCount(runtime, args, 0, 2) == 0 ) {
             privateKey = null; publicKey = null; return this;
         }
 
-        IRubyObject arg = args[0]; IRubyObject pass = null;
-        if ( args.length > 1 ) pass = args[1];
+        IRubyObject arg = args[0];
+        IRubyObject arg1 = args.length > 1 ? args[1] : null; // exponent (Fixnum) or password (String)
 
         if ( arg instanceof RubyFixnum ) {
             int keySize = RubyNumeric.fix2int((RubyFixnum) arg);
             BigInteger exp = RSAKeyGenParameterSpec.F4;
-            if ( pass != null && ! pass.isNil() ) {
-                exp = BigInteger.valueOf(RubyNumeric.num2long(pass));
+            if (arg1 != null && !arg1.isNil()) {
+                exp = BigInteger.valueOf(RubyNumeric.num2long(arg1));
             }
             return rsaGenerate(runtime, this, keySize, exp);
         }
 
-        final char[] passwd = password(pass);
+        final char[] passwd = password(context, arg1, block);
         final RubyString str = readInitArg(context, arg);
         final String strJava = str.toString();
 
@@ -434,13 +435,13 @@ public class PKeyRSA extends PKey {
 
     @Override
     @JRubyMethod(name = { "to_pem", "to_s" }, alias = "export", rest = true)
-    public RubyString to_pem(final IRubyObject[] args) {
-        Arity.checkArgumentCount(getRuntime(), args, 0, 2);
+    public RubyString to_pem(ThreadContext context, final IRubyObject[] args) {
+        Arity.checkArgumentCount(context.runtime, args, 0, 2);
 
         CipherSpec spec = null; char[] passwd = null;
         if ( args.length > 0 ) {
             spec = cipherSpec( args[0] );
-            if ( args.length > 1 ) passwd = password(args[1]);
+            if ( args.length > 1 ) passwd = password(context, args[1], null);
         }
 
         try {
@@ -451,13 +452,13 @@ public class PKeyRSA extends PKey {
             else {
                 PEMInputOutput.writeRSAPublicKey(writer, publicKey);
             }
-            return RubyString.newString(getRuntime(), writer.getBuffer());
+            return RubyString.newString(context.runtime, writer.getBuffer());
         }
         catch (NoClassDefFoundError ncdfe) {
-            throw newRSAError(getRuntime(), bcExceptionMessage(ncdfe));
+            throw newRSAError(context.runtime, bcExceptionMessage(ncdfe));
         }
         catch (IOException ioe) {
-            throw newRSAError(getRuntime(), ioe.getMessage());
+            throw newRSAError(context.runtime, ioe.getMessage());
         }
     }
 

@@ -59,6 +59,7 @@ import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
+import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
@@ -222,7 +223,7 @@ public final class PKeyEC extends PKey {
     public String getAlgorithm() { return "EC"; }
 
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args, Block block) {
         final Ruby runtime = context.runtime;
 
         privateKey = null; publicKey = null;
@@ -241,7 +242,7 @@ public final class PKeyEC extends PKey {
 
         IRubyObject pass = null;
         if ( args.length > 1 ) pass = args[1];
-        final char[] passwd = password(pass);
+        final char[] passwd = password(context, pass, block);
         final RubyString str = readInitArg(context, arg);
         final String strJava = str.toString();
 
@@ -597,13 +598,13 @@ public final class PKeyEC extends PKey {
 
     @Override
     @JRubyMethod(name = "to_pem", alias = "export", rest = true)
-    public RubyString to_pem(final IRubyObject[] args) {
-        Arity.checkArgumentCount(getRuntime(), args, 0, 2);
+    public RubyString to_pem(ThreadContext context, final IRubyObject[] args) {
+        Arity.checkArgumentCount(context.runtime, args, 0, 2);
 
         CipherSpec spec = null; char[] passwd = null;
         if ( args.length > 0 ) {
             spec = cipherSpec( args[0] );
-            if ( args.length > 1 ) passwd = password( args[1] );
+            if ( args.length > 1 ) passwd = password(context, args[1], null);
         }
 
         try {
@@ -614,10 +615,10 @@ public final class PKeyEC extends PKey {
             else {
                 PEMInputOutput.writeECPublicKey(writer, publicKey);
             }
-            return RubyString.newString(getRuntime(), writer.getBuffer());
+            return RubyString.newString(context.runtime, writer.getBuffer());
         }
         catch (IOException ex) {
-            throw newECError(getRuntime(), ex.getMessage());
+            throw newECError(context.runtime, ex.getMessage());
         }
     }
 
@@ -742,7 +743,7 @@ public final class PKeyEC extends PKey {
             CipherSpec spec = null; char[] passwd = null;
             if ( args.length > 0 ) {
                 spec = cipherSpec( args[0] );
-                if ( args.length > 1 ) passwd = password(args[1]);
+                if ( args.length > 1 ) passwd = password(context, args[1], null);
             }
 
             try {

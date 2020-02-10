@@ -52,6 +52,7 @@ import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
+import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.ThreadContext;
@@ -172,22 +173,22 @@ public class PKeyDSA extends PKey {
     }
 
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args, final Block block) {
         final Ruby runtime = context.runtime;
 
         if ( Arity.checkArgumentCount(runtime, args, 0, 2) == 0 ) {
             this.privateKey = null; this.publicKey = null; return this;
         }
 
-        IRubyObject arg = args[0]; IRubyObject pass = null;
-        if ( args.length > 1 ) pass = args[1];
+        IRubyObject arg = args[0];
+        IRubyObject arg1 = args.length > 1 ? args[1] : null; // password (String)
 
         if ( arg instanceof RubyFixnum ) {
             int keySize = RubyNumeric.fix2int((RubyFixnum) arg);
             return dsaGenerate(context.runtime, this, keySize);
         }
 
-        final char[] passwd = password(pass);
+        final char[] passwd = password(context, arg1, block);
         final RubyString str = readInitArg(context, arg);
         final String strJava = str.toString();
 
@@ -343,13 +344,13 @@ public class PKeyDSA extends PKey {
 
     @Override
     @JRubyMethod(name = { "to_pem", "to_s" }, alias = "export", rest = true)
-    public RubyString to_pem(final IRubyObject[] args) {
-        Arity.checkArgumentCount(getRuntime(), args, 0, 2);
+    public RubyString to_pem(final ThreadContext context, final IRubyObject[] args) {
+        Arity.checkArgumentCount(context.runtime, args, 0, 2);
 
         CipherSpec spec = null; char[] passwd = null;
         if ( args.length > 0 ) {
             spec = cipherSpec( args[0] );
-            if ( args.length > 1 ) passwd = password(args[1]);
+            if ( args.length > 1 ) passwd = password(context, args[1], null);
         }
 
         try {
@@ -360,13 +361,13 @@ public class PKeyDSA extends PKey {
             else {
                 PEMInputOutput.writeDSAPublicKey(writer, publicKey);
             }
-            return RubyString.newString(getRuntime(), writer.getBuffer());
+            return RubyString.newString(context.runtime, writer.getBuffer());
         }
         catch (NoClassDefFoundError ncdfe) {
-            throw newDSAError(getRuntime(), bcExceptionMessage(ncdfe));
+            throw newDSAError(context.runtime, bcExceptionMessage(ncdfe));
         }
         catch (IOException e) {
-            throw newDSAError(getRuntime(), e.getMessage(), e);
+            throw newDSAError(context.runtime, e.getMessage(), e);
         }
     }
 

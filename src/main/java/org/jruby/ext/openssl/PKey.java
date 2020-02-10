@@ -48,6 +48,7 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
+import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -203,11 +204,16 @@ public abstract class PKey extends RubyObject {
 
     public abstract RubyString to_der() ;
 
-    public abstract RubyString to_pem(final IRubyObject[] args) ;
+    public abstract RubyString to_pem(ThreadContext context, final IRubyObject[] args) ;
+
+    @Deprecated
+    public RubyString to_pem(final IRubyObject[] args) {
+        return to_pem(getRuntime().getCurrentContext(), args);
+    }
 
     @Deprecated
     public RubyString export(final IRubyObject[] args) {
-        return to_pem(args);
+        return to_pem(getRuntime().getCurrentContext(), args);
     }
 
     @JRubyMethod(name = "sign")
@@ -359,9 +365,20 @@ public abstract class PKey extends RubyObject {
         return null;
     }
 
+    @Deprecated
     protected static char[] password(final IRubyObject pass) {
         if ( pass != null && ! pass.isNil() ) {
             return pass.toString().toCharArray();
+        }
+        return null;
+    }
+
+    protected static char[] password(final ThreadContext context, IRubyObject pass, final Block block) {
+        if (pass != null && !pass.isNil()) { // argument takes precedence (instead of block)
+            return pass.toString().toCharArray();
+        }
+        if (block != null && block.isGiven()) {
+            return password(context, block.call(context), null);
         }
         return null;
     }
@@ -376,7 +393,7 @@ public abstract class PKey extends RubyObject {
         Kernel.callMethod("print", context.runtime.newString(prompt));
         final RubyString gets = Kernel.callMethod(context, "gets").convertToString();
         gets.chomp_bang(context);
-        return gets.toString().toCharArray();
+        return gets.decodeString().toCharArray();
     }
 
     protected static boolean ttySTDIN(final ThreadContext context) {
