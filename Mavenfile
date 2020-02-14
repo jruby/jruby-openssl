@@ -86,6 +86,11 @@ end
 jar 'org.jruby:jruby-core', '1.7.20', :scope => :provided
 jar 'junit:junit', '4.11', :scope => :test
 
+# 9.1.17.0 is Java 7 compatible (till supporting JRuby 1.7)
+# NOTE: to build on Java 11 - installing gems fails (due old jossl) with:
+#  load error: jopenssl/load -- java.lang.StringIndexOutOfBoundsException
+MVN_JRUBY_VERSION = ENV_JAVA['java.version'].to_i >= 9 ? '9.2.9.0' : '9.1.17.0'
+
 jruby_plugin! :gem do
   # when installing dependent gems we want to use the built in openssl not the one from this lib directory
   # we compile against jruby-core-1.7.20 and want to keep this out of the plugin execution here
@@ -103,16 +108,17 @@ supported_bc_versions = %w{ 1.56 1.57 1.58 1.59 1.60 1.61 1.62 1.63 1.64 }
 default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
-properties( 'jruby.plugins.version' => '1.1.6',
-            'jruby.versions' => '9.1.17.0',
+properties( 'jruby.plugins.version' => '1.1.8',
             'jruby.switches' => '-W0', # https://github.com/torquebox/jruby-maven-plugins/issues/94
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
-            # use this version of jruby for ALL the jruby-maven-plugins
-            'jruby.version' => '9.1.17.0', # Java 7 compatible till supporting JRuby 1.7
+            'mavengem.wagon.version' => '1.0.3', # for jruby plugin
+            'mavengem-wagon.version' => '1.0.3', # for polyglot-ruby
+            # use this version of jruby for the jruby-maven-plugins
+            'jruby.versions' => MVN_JRUBY_VERSION, 'jruby.version' => MVN_JRUBY_VERSION,
             # dump pom.xml as readonly when running 'rmvn'
             'polyglot.dump.pom' => 'pom.xml',
             'polyglot.dump.readonly' => true )
