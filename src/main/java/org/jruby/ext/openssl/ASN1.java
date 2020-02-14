@@ -829,7 +829,7 @@ public class ASN1 {
         return newInstance(context, self, "BMPString", args);
     }
 
-    @JRubyMethod(name="Nul", module=true, rest=true)
+    @JRubyMethod(name={"Null", "Nul"}, module=true, rest=true) // TODO Nul name should be dropped
     public static IRubyObject fact_Null(ThreadContext context, IRubyObject self, IRubyObject[] args) {
         return newInstance(context, self, "Null", args);
     }
@@ -847,6 +847,11 @@ public class ASN1 {
     @JRubyMethod(name="GeneralizedTime", module=true, rest=true)
     public static IRubyObject fact_GeneralizedTime(ThreadContext context, IRubyObject self, IRubyObject[] args) {
         return newInstance(context, self, "GeneralizedTime", args);
+    }
+
+    @JRubyMethod(name="EndOfContent", module=true, rest=true)
+    public static IRubyObject fact_EndOfContent(ThreadContext context, IRubyObject self, IRubyObject[] args) {
+        return newInstance(context, self, "EndOfContent", args);
     }
 
     @JRubyMethod(name="Sequence", module=true, rest=true)
