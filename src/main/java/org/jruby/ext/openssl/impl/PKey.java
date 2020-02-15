@@ -178,8 +178,9 @@ public class PKey {
 
     public static KeyPair readRSAPrivateKey(final KeyFactory rsaFactory, final byte[] input)
         throws IOException, InvalidKeySpecException {
-        ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(input).readObject();
-        if ( seq.size() == 9 ) {
+        ASN1Sequence seq;
+        ASN1Primitive obj = new ASN1InputStream(input).readObject();
+        if (obj instanceof ASN1Sequence && (seq = (ASN1Sequence) obj).size() == 9) {
             BigInteger mod = ((ASN1Integer) seq.getObjectAt(1)).getValue();
             BigInteger pubexp = ((ASN1Integer) seq.getObjectAt(2)).getValue();
             BigInteger privexp = ((ASN1Integer) seq.getObjectAt(3)).getValue();
@@ -203,8 +204,9 @@ public class PKey {
 
     public static PublicKey readRSAPublicKey(final KeyFactory rsaFactory, final byte[] input)
         throws IOException, InvalidKeySpecException {
-        ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(input).readObject();
-        if ( seq.size() == 2 ) {
+        ASN1Sequence seq;
+        ASN1Primitive obj = new ASN1InputStream(input).readObject();
+        if (obj instanceof ASN1Sequence && (seq = (ASN1Sequence) obj).size() == 2) {
             BigInteger mod = ((ASN1Integer) seq.getObjectAt(0)).getValue();
             BigInteger pubexp = ((ASN1Integer) seq.getObjectAt(1)).getValue();
             return rsaFactory.generatePublic(new RSAPublicKeySpec(mod, pubexp));
@@ -220,8 +222,9 @@ public class PKey {
 
     public static KeyPair readDSAPrivateKey(final KeyFactory dsaFactory, final byte[] input)
         throws IOException, InvalidKeySpecException {
-        ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(input).readObject();
-        if ( seq.size() == 6 ) {
+        ASN1Sequence seq;
+        ASN1Primitive obj = new ASN1InputStream(input).readObject();
+        if (obj instanceof ASN1Sequence && (seq = (ASN1Sequence) obj).size() == 6) {
             BigInteger p = ((ASN1Integer) seq.getObjectAt(1)).getValue();
             BigInteger q = ((ASN1Integer) seq.getObjectAt(2)).getValue();
             BigInteger g = ((ASN1Integer) seq.getObjectAt(3)).getValue();
