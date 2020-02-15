@@ -126,6 +126,57 @@ class TestX509Extension < TestCase
     assert ext1.to_der != ext2.to_der
   end
 
+  def test_subject_key_identifier_hash
+    #key = Fixtures.pkey("rsa1024")
+    key = OpenSSL::PKey::RSA.new(1024)
+    subject = "/C=FR/ST=IDF/L=PARIS/O=Company/CN=myhost.example"
+    cert = OpenSSL::X509::Certificate.new
+    cert.subject = cert.issuer = OpenSSL::X509::Name.parse(subject)
+
+    cert.not_before = now = Time.new(2020)
+    cert.not_after = now + 5 * 365 * 24 * 60 * 60
+    cert.public_key = key.public_key
+    cert.serial = 0x0
+    cert.version = 2
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = ef.issuer_certificate = cert
+
+    cert.add_extension ef.create_extension('basicConstraints', 'CA:FALSE', true)
+    cert.add_extension ef.create_extension('keyUsage', 'keyEncipherment,dataEncipherment,digitalSignature')
+
+    sequence = rsa_key_seq(cert.public_key)
+    pp sequence if $DEBUG
+
+    cert.add_extension ef.create_extension('subjectKeyIdentifier', 'hash')
+    cert.add_extension ef.create_extension('authorityKeyIdentifier', 'keyid:always,issuer:always')
+
+    cert.sign key, OpenSSL::Digest::SHA256.new
+
+    assert_equal 4, cert.extensions.size
+    assert_equal 'subjectKeyIdentifier', cert.extensions[2].oid
+
+    assert_equal rsa_key_id(cert.public_key), cert.extensions[2].value
+    #assert_equal "D1:FE:F9:FB:F8:AE:1B:C1:60:CB:FA:03:E2:59:6D:D8:73:08:92:13", rsa_key_id(cert.public_key)
+    #assert_equal "D1:FE:F9:FB:F8:AE:1B:C1:60:CB:FA:03:E2:59:6D:D8:73:08:92:13", cert.extensions[2].value
+
+    # keyid:...\nDirName:/C=FR/ST=IDF/L=PARIS/O=Company/CN=myhost.example\nserial:00\n
+    auth_key_id_value = cert.extensions[3].value
+    key_id, dir_name, serial = auth_key_id_value.split("\n")
+    # assert_equal 'keyid:' + rsa_key_id(key), key_id
+    # assert_equal "DirName:#{subject}", dir_name
+    # assert_equal 'serial:00', serial
+  end
+
+  def rsa_key_seq(public_key)
+    OpenSSL::ASN1::Sequence [ OpenSSL::ASN1::Integer.new(public_key.n), OpenSSL::ASN1::Integer.new(public_key.e) ]
+  end
+
+  def rsa_key_id(public_key)
+    key_id = OpenSSL::Digest::SHA1.hexdigest(rsa_key_seq(public_key).to_der)
+    key_id.scan(/../).join(':').upcase
+  end
+
   def test_subject_alt_name_sign_to_pem
     domain_list = 'test.example.com,test2.example.com,example.com,www.example.com'
 

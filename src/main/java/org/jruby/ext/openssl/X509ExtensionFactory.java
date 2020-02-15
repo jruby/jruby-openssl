@@ -47,6 +47,7 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
@@ -431,14 +432,23 @@ public class X509ExtensionFactory extends RubyObject {
 
     private byte[] publicKeyIdentifier(final ThreadContext context, final IRubyObject pkey) {
         final Ruby runtime = context.runtime;
-        IRubyObject der;
-        if (pkey instanceof PKeyRSA) {
-            der = pkey.callMethod(context, "to_der");
+        ByteList encoded;
+        if (pkey instanceof PKeyRSA || pkey instanceof PKeyDSA) {
+            try {
+                ASN1Primitive info = ((PKey) pkey).toASN1PublicInfo();
+                encoded = new ByteList(info.getEncoded(), false);
+            } catch (IOException ex) {
+                RaiseException error = context.runtime.newRuntimeError(ex.toString());
+                error.initCause(ex);
+                throw error;
+            }
         } else {
-            der = ASN1.decode(context, ASN1._ASN1(runtime), pkey.callMethod(context, "to_der"));
+            IRubyObject der = ASN1.decode(context, ASN1._ASN1(runtime), pkey.callMethod(context, "to_der"));
             der = der.callMethod(context, "value").callMethod(context, "[]", runtime.newFixnum(1)).callMethod(context, "value");
+            encoded = der.asString().getByteList();
         }
-        return getSHA1Digest(runtime, der.asString().getByteList());
+
+        return getSHA1Digest(runtime, encoded);
     }
 
     private IRubyObject getSubjectPublicKey(final ThreadContext context) {

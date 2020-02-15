@@ -40,6 +40,7 @@ import java.security.spec.DSAPrivateKeySpec;
 import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 
+import org.bouncycastle.asn1.ASN1Primitive;
 import org.jruby.Ruby;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
@@ -62,8 +63,8 @@ import org.jruby.util.ByteList;
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.impl.PKey.readDSAPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readDSAPublicKey;
+import static org.jruby.ext.openssl.impl.PKey.toASN1Primitive;
 import static org.jruby.ext.openssl.impl.PKey.toDerDSAKey;
-import static org.jruby.ext.openssl.PKey._PKey;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -315,6 +316,11 @@ public class PKeyDSA extends PKey {
             throw newDSAError(getRuntime(), e.getMessage(), e);
         }
         return StringHelper.newString(getRuntime(), bytes);
+    }
+
+    @Override
+    public ASN1Primitive toASN1PublicInfo() {
+        return toASN1Primitive(publicKey);
     }
 
     @JRubyMethod

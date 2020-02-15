@@ -41,6 +41,9 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Sequence;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
@@ -228,6 +231,16 @@ public abstract class PKey extends RubyObject {
         catch (GeneralSecurityException ex) {
             throw newPKeyError(runtime, ex.getMessage());
         }
+    }
+
+    public ASN1Primitive toASN1PublicInfo() throws IOException {
+        ASN1InputStream input = new ASN1InputStream(to_der().getBytes());
+
+        ASN1Primitive data = input.readObject();
+        if (data instanceof ASN1Sequence) {
+            return ((ASN1Sequence) data).getObjectAt(1).toASN1Primitive();
+        }
+        return data;
     }
 
     static ByteList sign(final String signAlg, final PrivateKey privateKey, final ByteList data)

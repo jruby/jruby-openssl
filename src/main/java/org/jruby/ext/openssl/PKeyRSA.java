@@ -50,6 +50,7 @@ import java.security.spec.RSAPublicKeySpec;
 
 import static javax.crypto.Cipher.*;
 
+import org.bouncycastle.asn1.ASN1Primitive;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyBignum;
@@ -71,9 +72,9 @@ import org.jruby.runtime.Visibility;
 import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import static org.jruby.ext.openssl.OpenSSL.*;
-import static org.jruby.ext.openssl.PKey._PKey;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPublicKey;
+import static org.jruby.ext.openssl.impl.PKey.toASN1Primitive;
 import static org.jruby.ext.openssl.impl.PKey.toDerRSAKey;
 
 /**
@@ -369,6 +370,11 @@ public class PKeyRSA extends PKey {
             throw newRSAError(getRuntime(), e.getMessage());
         }
         return StringHelper.newString(getRuntime(), bytes);
+    }
+
+    @Override
+    public ASN1Primitive toASN1PublicInfo() {
+        return toASN1Primitive(publicKey);
     }
 
     @JRubyMethod
