@@ -239,13 +239,27 @@ public class PKey {
 
     public static PublicKey readDSAPublicKey(final KeyFactory dsaFactory, final byte[] input)
         throws IOException, InvalidKeySpecException {
-        ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(input).readObject();
-        if ( seq.size() == 4 ) {
-            BigInteger y = ((ASN1Integer) seq.getObjectAt(0)).getValue();
-            BigInteger p = ((ASN1Integer) seq.getObjectAt(1)).getValue();
-            BigInteger q = ((ASN1Integer) seq.getObjectAt(2)).getValue();
-            BigInteger g = ((ASN1Integer) seq.getObjectAt(3)).getValue();
-            return dsaFactory.generatePublic(new DSAPublicKeySpec(y, p, q, g));
+        ASN1Sequence seq;
+        ASN1Primitive obj = new ASN1InputStream(input).readObject();
+        if (obj instanceof ASN1Sequence) {
+            seq = (ASN1Sequence) obj;
+            if (seq.size() == 4) {
+                BigInteger y = ((ASN1Integer) seq.getObjectAt(0)).getValue();
+                BigInteger p = ((ASN1Integer) seq.getObjectAt(1)).getValue();
+                BigInteger q = ((ASN1Integer) seq.getObjectAt(2)).getValue();
+                BigInteger g = ((ASN1Integer) seq.getObjectAt(3)).getValue();
+                return dsaFactory.generatePublic(new DSAPublicKeySpec(y, p, q, g));
+            } else if (seq.size() == 2 && seq.getObjectAt(1) instanceof DERBitString) {
+                ASN1Integer y = (ASN1Integer)
+                        new ASN1InputStream(((DERBitString) seq.getObjectAt(1)).getBytes()).readObject();
+                seq = (ASN1Sequence) ((ASN1Sequence) seq.getObjectAt(0)).getObjectAt(1);
+                BigInteger p = ((ASN1Integer) seq.getObjectAt(0)).getValue();
+                BigInteger q = ((ASN1Integer) seq.getObjectAt(1)).getValue();
+                BigInteger g = ((ASN1Integer) seq.getObjectAt(2)).getValue();
+                //System.out.println(y);
+                //System.out.println(p);
+                return dsaFactory.generatePublic(new DSAPublicKeySpec(y.getPositiveValue(), p, q, g));
+            }
         }
         return null;
     }

@@ -56,6 +56,7 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
@@ -64,6 +65,7 @@ import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 
 import java.util.StringTokenizer;
@@ -466,9 +468,17 @@ public class PEMInputOutput {
         final String BEG_STRING_DSA_PUBLIC = BEF_G + PEM_STRING_DSA_PUBLIC;
         final BufferedReader reader = makeBuffered(in); String line;
         while ( ( line = reader.readLine() ) != null ) {
-            if ( line.indexOf(BEG_STRING_DSA_PUBLIC) != -1 ) {
+            if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
-                    return (DSAPublicKey) readPublicKey(reader, "DSA", BEF_E + PEM_STRING_DSA_PUBLIC);
+                    return readDSAPublicKey(reader, BEF_E + PEM_STRING_PUBLIC);
+                }
+                catch (Exception e) {
+                    throw mapReadException("problem creating DSA public key: ", e);
+                }
+            }
+            else if ( line.indexOf(BEG_STRING_DSA_PUBLIC) != -1 ) {
+                try {
+                    return readDSAPublicKey(reader, BEF_E + PEM_STRING_DSA_PUBLIC);
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating DSA public key: ", e);
@@ -558,7 +568,7 @@ public class PEMInputOutput {
                     throw mapReadException("problem creating RSA public key: ", e);
                 }
             }
-            else if ( line.indexOf(BEF_G+PEM_STRING_RSA_PUBLIC) != -1 ) {
+            else if ( line.indexOf(BEF_G + PEM_STRING_RSA_PUBLIC) != -1 ) {
                 try {
                     return (RSAPublicKey) readPublicKey(reader, "RSA", BEF_E + PEM_STRING_RSA_PUBLIC);
                 }
@@ -1170,12 +1180,30 @@ public class PEMInputOutput {
         Object asnObject = new ASN1InputStream(readBase64Bytes(in, endMarker)).readObject();
         ASN1Sequence sequence = (ASN1Sequence) asnObject;
         org.bouncycastle.asn1.pkcs.RSAPublicKey rsaPubStructure = org.bouncycastle.asn1.pkcs.RSAPublicKey.getInstance(sequence);
-        RSAPublicKeySpec keySpec = new RSAPublicKeySpec(
-                    rsaPubStructure.getModulus(),
-                    rsaPubStructure.getPublicExponent());
+        RSAPublicKeySpec keySpec = new RSAPublicKeySpec(rsaPubStructure.getModulus(), rsaPubStructure.getPublicExponent());
 
         try {
             return (RSAPublicKey) SecurityHelper.getKeyFactory("RSA").generatePublic(keySpec);
+        }
+        catch (NoSuchAlgorithmException e) { /* ignore */ }
+        catch (InvalidKeySpecException e) { /* ignore */ }
+        return null;
+    }
+
+    private static DSAPublicKey readDSAPublicKey(BufferedReader in, String endMarker) throws IOException {
+        Object asnObject = new ASN1InputStream(readBase64Bytes(in, endMarker)).readObject();
+        Enumeration seq = ((ASN1Sequence) asnObject).getObjects();
+        ASN1Integer y = ASN1Integer.getInstance(seq.nextElement());
+        ASN1Integer p = ASN1Integer.getInstance(seq.nextElement());
+        ASN1Integer q = ASN1Integer.getInstance(seq.nextElement());
+        ASN1Integer g = ASN1Integer.getInstance(seq.nextElement());
+
+        DSAPublicKeySpec keySpec = new DSAPublicKeySpec(
+                y.getPositiveValue(), p.getPositiveValue(), q.getPositiveValue(), g.getPositiveValue()
+        );
+
+        try {
+            return (DSAPublicKey) SecurityHelper.getKeyFactory("DSA").generatePublic(keySpec);
         }
         catch (NoSuchAlgorithmException e) { /* ignore */ }
         catch (InvalidKeySpecException e) { /* ignore */ }
