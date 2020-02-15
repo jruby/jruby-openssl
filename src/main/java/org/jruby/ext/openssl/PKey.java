@@ -109,59 +109,53 @@ public abstract class PKey extends RubyObject {
                 pass = args[1].isNil() ? null : args[1].toString().toCharArray();
             }
 
-            final byte[] input = StringHelper.readX509PEM(context, data);
-            KeyPair key = null;
+            final RubyString str = readInitArg(context, data);
+            Object key = null;
             // d2i_PrivateKey_bio
             try {
-                key =org.jruby.ext.openssl.impl.PKey.readPrivateKey(input);
-            } catch (IOException ioe) {
-                // ignore
-            } catch (GeneralSecurityException gse) {
-                // ignore
-            }
+                key = readPrivateKey(str, pass);
+            } catch (IOException e) { /* ignore */ }
             // PEM_read_bio_PrivateKey
-            if (key == null) {
-                try {
-                    key = PEMInputOutput.readPrivateKey(new InputStreamReader(new ByteArrayInputStream(input)), pass);
-                } catch (IOException ioe) {
-                    // ignore
-                }
-            }
             if (key != null) {
-                final String alg = getAlgorithm(key);
+                final KeyPair keyPair = (KeyPair) key;
+                final String alg = getAlgorithm(keyPair);
                 if ( "RSA".equals(alg) ) {
                     return new PKeyRSA(runtime, _PKey(runtime).getClass("RSA"),
-                            (RSAPrivateCrtKey) key.getPrivate(), (RSAPublicKey) key.getPublic()
+                            (RSAPrivateCrtKey) keyPair.getPrivate(), (RSAPublicKey) keyPair.getPublic()
                     );
                 }
                 if ( "DSA".equals(alg) ) {
                     return new PKeyDSA(runtime, _PKey(runtime).getClass("DSA"),
-                            (DSAPrivateKey) key.getPrivate(), (DSAPublicKey) key.getPublic()
+                            (DSAPrivateKey) keyPair.getPrivate(), (DSAPublicKey) keyPair.getPublic()
                     );
                 }
                 if ( "ECDSA".equals(alg) ) {
                     return new PKeyEC(runtime, _PKey(runtime).getClass("EC"),
-                            (PrivateKey) key.getPrivate(), (PublicKey) key.getPublic()
+                            (PrivateKey) keyPair.getPrivate(), (PublicKey) keyPair.getPublic()
                     );
                 }
             }
 
             PublicKey pubKey = null;
+            try {
+                pubKey = PEMInputOutput.readRSAPublicKey(new StringReader(str.toString()), null);
+                return new PKeyRSA(runtime, (RSAPublicKey) pubKey);
+            } catch (IOException e) { /* ignore */ }
+            try {
+                pubKey = PEMInputOutput.readDSAPublicKey(new StringReader(str.toString()), null);
+                return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
+            } catch (IOException e) { /* ignore */ }
+
+            final byte[] input = StringHelper.readX509PEM(context, str);
             // d2i_PUBKEY_bio
             try {
                 pubKey = org.jruby.ext.openssl.impl.PKey.readPublicKey(input);
-            } catch (IOException ioe) {
-                // ignore
-            } catch (GeneralSecurityException gse) {
-                // ignore
-            }
+            } catch (IOException|GeneralSecurityException e) { /* ignore */ }
             // PEM_read_bio_PUBKEY
             if (pubKey == null) {
                 try {
-                    pubKey = PEMInputOutput.readPubKey(new InputStreamReader(new ByteArrayInputStream(input)));
-                } catch (IOException ioe) {
-                    // ignore
-                }
+                    pubKey = PEMInputOutput.readPubKey(new StringReader(str.toString()));
+                } catch (IOException e) { /* ignore */ }
             }
 
             if (pubKey != null) {

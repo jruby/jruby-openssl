@@ -263,8 +263,6 @@ public class PKey {
                 BigInteger p = ((ASN1Integer) seq.getObjectAt(0)).getValue();
                 BigInteger q = ((ASN1Integer) seq.getObjectAt(1)).getValue();
                 BigInteger g = ((ASN1Integer) seq.getObjectAt(2)).getValue();
-                //System.out.println(y);
-                //System.out.println(p);
                 return dsaFactory.generatePublic(new DSAPublicKeySpec(y.getPositiveValue(), p, q, g));
             }
         }
