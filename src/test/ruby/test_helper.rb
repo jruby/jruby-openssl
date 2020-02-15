@@ -212,6 +212,25 @@ TestCase.class_eval do
     OpenSSL::Digest::SHA1.hexdigest(pkvalue).scan(/../).join(":").upcase
   end
 
+  module Fixtures
+    module_function
+
+    def pkey(name)
+      OpenSSL::PKey.read(read_file("pkey", name))
+    end
+
+    def pkey_dh(name)
+      # DH parameters can be read by OpenSSL::PKey.read atm
+      OpenSSL::PKey::DH.new(read_file("pkey", name))
+    end
+
+    @@__fixtures_cache = {}
+
+    def read_file(category, name)
+      @@__fixtures_cache[ [category, name] ] ||=
+          File.read(File.join(File.dirname(__FILE__), "fixtures", category, name))
+    end
+  end
 end
 
 begin

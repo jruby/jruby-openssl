@@ -280,7 +280,7 @@ public abstract class PKey extends RubyObject {
         return OpenSSL.getSecureRandom(runtime);
     }
 
-    // shared Helpers for PKeyRSA / PKEyDSA :
+    // shared Helpers for PKeyRSA / PKeyDSA :
 
     protected PrivateKey tryPKCS8EncodedKey(final Ruby runtime, final KeyFactory keyFactory, final byte[] encodedKey) {
         try {

@@ -55,12 +55,16 @@ import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.spec.DHParameterSpec;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
+import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.DERNull;
+import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.sec.ECPrivateKeyStructure;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
@@ -69,6 +73,7 @@ import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECPublicKeySpec;
+import org.bouncycastle.jcajce.provider.asymmetric.util.KeyUtil;
 
 import org.jruby.ext.openssl.SecurityHelper;
 
@@ -285,23 +290,26 @@ public class PKey {
     }
 
     public static byte[] toDerRSAKey(RSAPublicKey pubKey, RSAPrivateCrtKey privKey) throws IOException {
-        ASN1EncodableVector vec = new ASN1EncodableVector();
         if ( pubKey != null && privKey == null ) {
+            ASN1EncodableVector vec = new ASN1EncodableVector();
             vec.add(new ASN1Integer(pubKey.getModulus()));
             vec.add(new ASN1Integer(pubKey.getPublicExponent()));
+            // pubKey.getEncoded() :
+            return KeyUtil.getEncodedSubjectPublicKeyInfo(
+                new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE), new DERSequence(vec)
+            );
         }
-        else {
-            vec.add(new ASN1Integer(BigInteger.ZERO));
-            vec.add(new ASN1Integer(privKey.getModulus()));
-            vec.add(new ASN1Integer(privKey.getPublicExponent()));
-            vec.add(new ASN1Integer(privKey.getPrivateExponent()));
-            vec.add(new ASN1Integer(privKey.getPrimeP()));
-            vec.add(new ASN1Integer(privKey.getPrimeQ()));
-            vec.add(new ASN1Integer(privKey.getPrimeExponentP()));
-            vec.add(new ASN1Integer(privKey.getPrimeExponentQ()));
-            vec.add(new ASN1Integer(privKey.getCrtCoefficient()));
-        }
-        return new DLSequence(vec).getEncoded();
+        ASN1EncodableVector vec = new ASN1EncodableVector();
+        vec.add(new ASN1Integer(BigInteger.ZERO));
+        vec.add(new ASN1Integer(privKey.getModulus()));
+        vec.add(new ASN1Integer(privKey.getPublicExponent()));
+        vec.add(new ASN1Integer(privKey.getPrivateExponent()));
+        vec.add(new ASN1Integer(privKey.getPrimeP()));
+        vec.add(new ASN1Integer(privKey.getPrimeQ()));
+        vec.add(new ASN1Integer(privKey.getPrimeExponentP()));
+        vec.add(new ASN1Integer(privKey.getPrimeExponentQ()));
+        vec.add(new ASN1Integer(privKey.getCrtCoefficient()));
+        return new DERSequence(vec).toASN1Primitive().getEncoded(ASN1Encoding.DER);
     }
 
     public static byte[] toDerDSAKey(DSAPublicKey pubKey, DSAPrivateKey privKey) throws IOException {
