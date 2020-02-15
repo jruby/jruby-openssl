@@ -52,6 +52,7 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.ext.openssl.impl.ASN1Registry;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
@@ -101,39 +102,35 @@ public class OCSPCertificateId extends RubyObject {
         originalIssuer = (X509Cert) issuer;
         BigInteger serial = subjectCert.getSerial();        
         
-        return initializeImpl(context, serial, originalIssuer, digest);
+        return initializeImpl(context.runtime, serial, originalIssuer, digest);
     }
     
     @JRubyMethod(name = "initialize", visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, IRubyObject subject, IRubyObject issuer) {
-        Ruby runtime = context.getRuntime();
+        final Ruby runtime = context.runtime;
         
         X509Cert subjectCert = (X509Cert) subject;
         originalIssuer = (X509Cert) issuer;
         BigInteger serial = subjectCert.getSerial();
 
-        Digest digestInstance = new Digest(runtime, _Digest(runtime));
-        IRubyObject digest = digestInstance.initialize(context, new IRubyObject[] { RubyString.newString(runtime, "SHA1") });
+        Digest digest = new Digest(runtime, _Digest(runtime));
+        digest.initializeImpl(runtime, RubyString.newString(runtime, "SHA1"), runtime.getNil());
         
-        return initializeImpl(context, serial, originalIssuer, digest);
+        return initializeImpl(runtime, serial, originalIssuer, digest);
     }
     
     @JRubyMethod(name = "initialize", visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, IRubyObject der) {
-        Ruby runtime = context.getRuntime();
-        
         RubyString derStr = StringHelper.readPossibleDERInput(context, der);
-        try {            
+        try {
             return initializeImpl(derStr.getBytes());
         }
-        catch (IOException e) {
-            throw newOCSPError(runtime, e);
+        catch (Exception e) {
+            throw newOCSPError(context.runtime, e);
         }
     }
     
-    private IRubyObject initializeImpl(final ThreadContext context, BigInteger serial,
-            IRubyObject issuerCert, IRubyObject digest) {
-        Ruby runtime = context.getRuntime();
+    private IRubyObject initializeImpl(final Ruby runtime, BigInteger serial, X509Cert issuerCert, IRubyObject digest) {
         
         Digest rubyDigest = (Digest) digest;
         ASN1ObjectIdentifier oid = ASN1.sym2Oid(runtime, rubyDigest.getName().toLowerCase());
@@ -147,10 +144,8 @@ public class OCSPCertificateId extends RubyObject {
             throw newOCSPError(runtime, e);
         }
 
-        X509Cert rubyCert = (X509Cert) issuerCert;
-        
         try {
-            this.bcCertId = new CertificateID(calc, new X509CertificateHolder(rubyCert.getAuxCert().getEncoded()), serial).toASN1Primitive();
+            this.bcCertId = new CertificateID(calc, new X509CertificateHolder(issuerCert.getAuxCert().getEncoded()), serial).toASN1Primitive();
         }
         catch (Exception e) {
             throw newOCSPError(runtime, e);
@@ -159,7 +154,7 @@ public class OCSPCertificateId extends RubyObject {
         return this;
     }
     
-    private IRubyObject initializeImpl(byte[] derByteStream) throws IOException {
+    private IRubyObject initializeImpl(byte[] derByteStream) {
         this.bcCertId = CertID.getInstance(derByteStream);
         
         return this;
@@ -171,8 +166,8 @@ public class OCSPCertificateId extends RubyObject {
     }
     
     @JRubyMethod(name = "issuer_name_hash")
-    public IRubyObject issuer_name_hash() {
-        Ruby runtime = getRuntime();
+    public IRubyObject issuer_name_hash(ThreadContext context) {
+        Ruby runtime = context.runtime;
         String oidSym = ASN1.oid2Sym(runtime, getBCCertificateID().getHashAlgOID());
         RubyString digestName = RubyString.newString(runtime, oidSym);
 
@@ -183,17 +178,14 @@ public class OCSPCertificateId extends RubyObject {
         // a hash of a hash if we don't have the original issuer around.
         if (originalIssuer == null) {
             try {
-                return Digest.hexdigest(runtime.getCurrentContext(), this, digestName,
+                return Digest.hexdigest(context, this, digestName,
                         RubyString.newString(runtime, bcCertId.getIssuerNameHash().getEncoded("DER")));
             }
             catch (IOException e) {
                 throw newOCSPError(runtime, e);
             }
         }
-        else {
-            return Digest.hexdigest(runtime.getCurrentContext(), this, digestName,
-                    originalIssuer.getSubject().to_der(runtime.getCurrentContext()));
-        }
+        return Digest.hexdigest(context, this, digestName, originalIssuer.getSubject().to_der(context));
     }
     
     // For whatever reason, the MRI Ruby tests appear to suggest that they compute the hexdigest hash 
@@ -202,23 +194,22 @@ public class OCSPCertificateId extends RubyObject {
     // is already computed and can't be reversed to get to the original key, so we just compute 
     // a hash of a hash if we don't have the original issuer around.
     @JRubyMethod(name = "issuer_key_hash")
-    public IRubyObject issuer_key_hash() {
-        Ruby runtime = getRuntime();
+    public IRubyObject issuer_key_hash(ThreadContext context) {
+        Ruby runtime = context.runtime;
         String oidSym = ASN1.oid2Sym(runtime, getBCCertificateID().getHashAlgOID());
         RubyString digestName = RubyString.newString(runtime, oidSym);
 
-        if (originalIssuer == null) {
-            try {
-                return Digest.hexdigest(runtime.getCurrentContext(), this, RubyString.newString(runtime, oidSym),
+        try {
+            if (originalIssuer == null) {
+                return Digest.hexdigest(context, this, digestName,
                         RubyString.newString(runtime, bcCertId.getIssuerKeyHash().getEncoded("DER")));
             }
-            catch (IOException e) {
-                throw newOCSPError(runtime, e);
-            }
+            PKey key = (PKey) originalIssuer.public_key(context);
+            byte[] key_der = key.toASN1PublicInfo().toASN1Primitive().getEncoded(ASN1Encoding.DER);
+            return Digest.hexdigest(context, this, digestName, RubyString.newStringNoCopy(runtime, key_der));
         }
-        else {
-            PKey key = (PKey)originalIssuer.public_key(runtime.getCurrentContext());
-            return Digest.hexdigest(runtime.getCurrentContext(), this, digestName, key.to_der()); 
+        catch (IOException e) {
+            throw newOCSPError(runtime, e);
         }
     }
     
@@ -226,10 +217,7 @@ public class OCSPCertificateId extends RubyObject {
     public IRubyObject hash_algorithm() {
         Ruby runtime = getRuntime();
         ASN1ObjectIdentifier oid = bcCertId.getHashAlgorithm().getAlgorithm();
-        Integer nid = ASN1.oid2nid(runtime, oid);
-        String ln = ASN1.nid2ln(runtime, nid);
-        
-        return RubyString.newString(runtime, ln);
+        return RubyString.newString(runtime, ASN1.o2a(runtime, oid));
     }
     
     @JRubyMethod(name = "cmp")
