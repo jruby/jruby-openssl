@@ -106,7 +106,7 @@ class TestRSA < TestCase
   def test_RSAPrivateKey_encrypted
     rsa1024 = Fixtures.pkey("rsa1024")
     # key = abcdef
-    pem = <<~EOF
+    pem = <<-EOF
 -----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
 DEK-Info: AES-128-CBC,733F5302505B34701FC41F5C0746E4C0
@@ -161,7 +161,7 @@ OlWNYDkPiZioeFkA3/fTMvG4moB2Pp9Q4GU5fJ6k43Ccu1up8dX/LumZb4ecg5/x
     pp OpenSSL::ASN1.decode(key.to_der) if $DEBUG
     assert_equal der, key.to_der
 
-    pem = <<~EOF
+    pem = <<-EOF
 -----BEGIN RSA PUBLIC KEY-----
 MIGJAoGBAMvCxLDUQKc+1P4+Q6AeFwYDvWfALb+cvzlUEadGoPE6qNWHsLFoo8RF
 geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
