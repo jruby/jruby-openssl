@@ -177,7 +177,7 @@ geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
 
     expected = "b48c0b2bbd35b906c5af4e46ed7355e4aaeadc99"
     assert_equal expected, OpenSSL::Digest::SHA1.hexdigest(key.to_der)
-  end
+  end if !defined?(JRUBY_VERSION) || JRUBY_VERSION > '9.1' # set_key only since Ruby 2.3
 
   private
 

@@ -183,7 +183,7 @@ oXi9OA==
     assert_equal asn1.value[0].value[1].value[2].value, OpenSSL::ASN1.decode(dup_der).value[0].value[1].value[2].value
 
     assert_equal pem, dup_public(dsa512).export
-  end
+  end if !defined?(JRUBY_VERSION) || JRUBY_VERSION > '9.1' # set_pqg only since Ruby 2.3
 
   def test_read_DSAPublicKey_pem
     # NOTE: where is the standard? PKey::DSA.new can read only PEM
