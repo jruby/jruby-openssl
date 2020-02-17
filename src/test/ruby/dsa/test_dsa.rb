@@ -86,7 +86,7 @@ class TestDSA < TestCase
     assert_predicate key, :private?
     assert_same_dsa dsa512, key
 
-    pem = <<~EOF
+    pem = <<-EOF
 -----BEGIN DSA PRIVATE KEY-----
 MIH4AgEAAkEA5lB4GvEwjrsMlGDqGsxrbqeFRh6o9OWt6FgTYiEEHaOYhkIxv0Ok
 RZPDNwOG997mDjBnvDJ1i56OmS3MbTnovwIVAJgub/aDrSDB4DZGH7UyarcaGy6D
@@ -106,7 +106,7 @@ Q1VB8qkJN7rA7/2HrCR3gTsWNb1YhAsnFsoeRscC+LxXoXi9OAIUBG98h4tilg6S
   def test_DSAPrivateKey_encrypted
     # key = abcdef
     dsa512 = Fixtures.pkey("dsa512")
-    pem = <<~EOF
+    pem = <<-EOF
 -----BEGIN DSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
 DEK-Info: AES-128-CBC,F8BB7BFC7EAB9118AC2E3DA16C8DB1D9
@@ -154,7 +154,7 @@ Wgx6c8K+qBAIVrilw3EWxw==
     pp OpenSSL::ASN1.decode(key.to_der) if $DEBUG
     assert_equal der, key.to_der
 
-    pem = <<~EOF
+    pem = <<-EOF
 -----BEGIN PUBLIC KEY-----
 MIHxMIGoBgcqhkjOOAQBMIGcAkEA5lB4GvEwjrsMlGDqGsxrbqeFRh6o9OWt6FgT
 YiEEHaOYhkIxv0OkRZPDNwOG997mDjBnvDJ1i56OmS3MbTnovwIVAJgub/aDrSDB
