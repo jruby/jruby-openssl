@@ -451,7 +451,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
 
     assert OpenSSL::X509::Certificate.new( cert_der ).verify key
     # running the same in MRI also fails
-    #calulated_sig = key.sign(OpenSSL::Digest::SHA1.new, cert_der)
+    calulated_sig = key.sign(OpenSSL::Digest::SHA1.new, cert_der)
     #assert_equal calulated_sig, sig_val.value
   end
 

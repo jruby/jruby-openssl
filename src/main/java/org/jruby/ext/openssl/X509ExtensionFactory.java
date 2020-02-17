@@ -403,12 +403,16 @@ public class X509ExtensionFactory extends RubyObject {
     private ASN1Sequence parseAuthorityKeyIdentifier(final ThreadContext context, final String valuex) {
         final ASN1EncodableVector vec = new ASN1EncodableVector();
 
-        for ( String value : valuex.split(",") ) { // e.g. "keyid:always,issuer:always"
+        final String[] values = valuex.split(","); // e.g. "keyid:always,issuer:always"
+        for ( int i = 0; i<values.length; i++ ) {
+            final String value = values[i];
             if ( value.startsWith("keyid") ) { // keyid[:always]
                 ASN1Encodable publicKeyIdentifier = new DEROctetString(issuerPublicKeyIdentifier(context));
                 vec.add(new DERTaggedObject(false, 0, publicKeyIdentifier));
+
+                if ( i < values.length - 1 && !"issuer:always".equals(values[i + 1]) ) break;
             }
-            else if ( value.startsWith("issuer") ) { // issuer[:always]
+            if ( value.startsWith("issuer") ) { // issuer[:always]
                 GeneralName issuerName = new GeneralName(authorityCertIssuer(context));
                 vec.add(new DERTaggedObject(false, 1, new GeneralNames(issuerName)));
 
@@ -505,7 +509,7 @@ public class X509ExtensionFactory extends RubyObject {
     private ASN1Encodable parseIssuerAltName(final ThreadContext context, final String valuex)
         throws IOException {
         if ( valuex.startsWith("issuer:copy") ) {
-            RubyArray exts = (RubyArray) getInstanceVariable("@issuer_certificate").callMethod(context, "extensions");
+            RubyArray exts = (RubyArray) issuer_cert().callMethod(context, "extensions");
             for ( int i = 0; i < exts.size(); i++ ) {
                 X509Extension ext = (X509Extension) exts.entry(i);
                 final String oid = ext.getRealObjectID().getId();

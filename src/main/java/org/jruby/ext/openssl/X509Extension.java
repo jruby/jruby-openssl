@@ -420,30 +420,36 @@ public class X509Extension extends RubyObject {
             if ( oid.equals("2.5.29.35") ) { // authorityKeyIdentifier
                 ASN1Encodable value = getRealValue();
 
-                if ( value instanceof ASN1OctetString ) {
+                if (value instanceof ASN1OctetString) {
                     value = ASN1.readObject( ((ASN1OctetString) value).getOctets() );
                 }
 
-                final ByteList val = new ByteList(72); val.append(keyid_);
+                final ByteList val = new ByteList(72);
 
-                if ( value instanceof ASN1Sequence ) {
+                if (value instanceof ASN1Sequence) {
                     final ASN1Sequence seq = (ASN1Sequence) value;
                     final int size = seq.size();
                     if ( size == 0 ) return RubyString.newEmptyString(runtime);
 
-                    ASN1Primitive keyid = seq.getObjectAt(0).toASN1Primitive();
-                    hexBytes( keyidBytes(keyid), val ).append('\n');
-
-                    for ( int i = 1; i < size; i++ ) {
-                        final ASN1Encodable issuer = seq.getObjectAt(i);
-                        // NOTE: blindly got OpenSSL tests passing (likely in-complete) :
-                        if ( issuer instanceof ASN1TaggedObject ) {
-                            ASN1Primitive obj = ((ASN1TaggedObject) issuer).getObject();
-                            switch( ((ASN1TaggedObject) issuer).getTagNo() ) {
+                    for ( int i = 0; i < size; i++ ) {
+                        final ASN1Encodable enc = seq.getObjectAt(i);
+                        if (enc instanceof ASN1TaggedObject) {
+                            ASN1Primitive obj = ((ASN1TaggedObject) enc).getObject();
+                            switch( ((ASN1TaggedObject) enc).getTagNo() ) {
+                                case 0 :
+                                    ASN1Primitive keyid = obj;
+                                    val.append(keyid_);
+                                    hexBytes( keyidBytes(keyid), val );
+                                    break;
                                 case 1 :
-                                    if ( obj instanceof ASN1TaggedObject ) {
-                                        formatGeneralName(GeneralName.getInstance(obj), val, true);
+                                    GeneralName name;
+                                    if (obj instanceof ASN1Sequence) { // GeneralNames -> toASN1Primitive()
+                                        GeneralName[] names = GeneralNames.getInstance(obj).getNames();
+                                        name = names.length > 0 ? names[0] : null;
+                                    } else {
+                                        name = GeneralName.getInstance(obj);
                                     }
+                                    if (name != null) formatGeneralName(name, val, true);
                                     break;
                                 case 2 : // serial
                                     val.append(new byte[] { 's','e','r','i','a','l',':' });
@@ -451,10 +457,13 @@ public class X509Extension extends RubyObject {
                                         hexBytes( ((ASN1Integer) obj).getValue().toByteArray(), val);
                                     }
                                     else {
-                                        hexBytes( ((ASN1OctetString) obj ).getOctets(), val );                                        
+                                        hexBytes( ((ASN1OctetString) obj ).getOctets(), val );
                                     }
                                     break;
                             }
+                        } else if (size == 1) {
+                            ASN1Primitive keyid = enc.toASN1Primitive();
+                            hexBytes( keyidBytes(keyid), val );
                         }
                         val.append('\n');
                     }

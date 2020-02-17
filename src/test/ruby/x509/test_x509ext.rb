@@ -268,6 +268,23 @@ class TestX509Extension < TestCase
     assert_equal keyid = "keyid:91:0D:0C:A9:43:73:DF:8C:A9:E3:C2:0A:05:E3:CF:BE:A7:38:8D:DD\n", ext.value
     assert !ext.critical?
     assert_equal [ "authorityKeyIdentifier", keyid, false ], ext.to_a
+
+    issuer = "DirName:/CN=localhost\n" + "serial:01\n"
+    ext = ef.create_extension("authorityKeyIdentifier", "keyid,issuer")
+    assert_equal keyid, ext.value
+    assert_equal [ "authorityKeyIdentifier", keyid, false ], ext.to_a
+
+    ext = ef.create_extension("authorityKeyIdentifier", "issuer")
+    assert_equal [ "authorityKeyIdentifier", issuer, false ], ext.to_a
+
+    ext = ef.create_extension("authorityKeyIdentifier", "keyid:always,issuer:always")
+    assert_equal keyid + issuer, ext.value
+    assert_equal [ "authorityKeyIdentifier", keyid + issuer, false ], ext.to_a
+
+    ext = ef.create_extension("authorityKeyIdentifier", "keyid:always,issuer")
+    assert_equal keyid, ext.value
+    assert_equal [ "authorityKeyIdentifier", keyid, false ], ext.to_a
+
     # cert.sign(key, OpenSSL::Digest::SHA1.new)
   end
 

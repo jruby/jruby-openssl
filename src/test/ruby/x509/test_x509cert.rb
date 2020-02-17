@@ -74,18 +74,16 @@ END
   end
 
   def test_aki_extension_to_text
-    cert = create_self_signed_cert [ %w[CN localhost] ], __method__
+    cert = create_self_signed_cert [ %w[CN localhost] ], __method__.to_s
     keyid = "97:39:9D:C3:FB:CD:BA:8F:54:0C:90:7B:46:3F:EA:D6:43:75:B1:CB"
 
     assert cert.extensions.size > 0
     value = cert.extensions.last.value
-    # assert_equal "keyid:#{keyid}\nDirName:/CN=localhost\nserial:01\n", value
-    assert value.start_with?("keyid:#{keyid}\n")
-    assert value.end_with?("\nserial:01\n")
+    assert_equal "keyid:#{keyid}\nDirName:/CN=localhost\nserial:01\n", value
   end
 
   def create_self_signed_cert(cn, comment) # cert generation ripped from WEBrick
-    rsa = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
     cert = OpenSSL::X509::Certificate.new
     cert.version = 2
     cert.serial = 1
@@ -94,7 +92,7 @@ END
     cert.issuer = name
     cert.not_before = Time.now
     cert.not_after = Time.now + (365*24*60*60)
-    cert.public_key = rsa.public_key
+    cert.public_key = key.public_key
 
     ef = OpenSSL::X509::ExtensionFactory.new(nil,cert)
     ef.issuer_certificate = cert
@@ -107,7 +105,7 @@ END
     ]
     aki = ef.create_extension("authorityKeyIdentifier", "keyid:always,issuer:always")
     cert.add_extension(aki)
-    cert.sign(rsa, OpenSSL::Digest::SHA1.new)
+    cert.sign(key, OpenSSL::Digest::SHA1.new)
 
     cert
   end
