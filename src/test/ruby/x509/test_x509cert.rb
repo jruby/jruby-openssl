@@ -393,6 +393,32 @@ EOF
     end
   end
 
+  def test_sign_cert_default_serial # jruby/jruby#1691
+    context = OpenSSL::SSL::SSLContext.new
+    context.verify_mode = OpenSSL::SSL::VERIFY_NONE
+
+    context.key             = OpenSSL::PKey::RSA.new(1024)
+    context.cert            = OpenSSL::X509::Certificate.new
+    context.cert.subject    = OpenSSL::X509::Name.new( [['CN', 'localhost']] )
+    context.cert.issuer     = context.cert.subject
+    context.cert.public_key = context.key
+    context.cert.not_before = Time.now
+    context.cert.not_after  = Time.now + 60 * 60 * 24
+
+    if defined? JRUBY_VERSION
+      begin
+        res = context.cert.sign(context.key, OpenSSL::Digest::SHA1.new)
+      rescue OpenSSL::X509::CertificateError
+        return
+      end
+    else
+      res = context.cert.sign(context.key, OpenSSL::Digest::SHA1.new)
+    end
+    # MRI allows (invalid) serial == 0 :
+    assert res.is_a?(OpenSSL::X509::Certificate)
+    assert_equal 0, res.serial
+  end
+
   def test_cert_loading_regression
     cert_text = "0\x82\x01\xAD0\x82\x01\xA1\xA0\x03\x02\x01\x02\x02\x01\x010\x03\x06\x01\x000g1\v0\t\x06\x03U\x04\x06\x13\x02US1\x130\x11\x06\x03U\x04\b\f\nCalifornia1\x150\x13\x06\x03U\x04\a\f\fSanta Monica1\x110\x0F\x06\x03U\x04\n\f\bOneLogin1\x190\x17\x06\x03U\x04\x03\f\x10app.onelogin.com0\x1E\x17\r100309095845Z\x17\r150309095845Z0g1\v0\t\x06\x03U\x04\x06\x13\x02US1\x130\x11\x06\x03U\x04\b\f\nCalifornia1\x150\x13\x06\x03U\x04\a\f\fSanta Monica1\x110\x0F\x06\x03U\x04\n\f\bOneLogin1\x190\x17\x06\x03U\x04\x03\f\x10app.onelogin.com0\x81\x9F0\r\x06\t*\x86H\x86\xF7\r\x01\x01\x01\x05\x00\x03\x81\x8D\x000\x81\x89\x02\x81\x81\x00\xE8\xD2\xBBW\xE3?/\x1D\xE7\x0E\x10\xC8\xBD~\xCD\xDE!#\rL\x92G\xDF\xE1f?L\xB1\xBC9\x99\x14\xE5\x84\xD2Zi\x87<>d\xBD\x81\xF9\xBA\x85\xD2\xFF\xAA\x90\xF3Z\x97\xA5\x1D\xB0W\xC0\x93\xA3\x06IP\xB84\xF5\xD7Qu\x19\xFCB\xCA\xA3\xD4\\\x8E\v\x9B%\x13|\xB6m\x9D\xA8\x16\xE6\xBB\xDA\x87\xFF\xE3\xD7\xE9\xBA9\xC5O\xA2\xA7C\xADB\x04\xCA\xA5\x0E\x84\xD0\xA8\xE4\xFA\xDA\xF1\x89\xF2s\xFA1\x95\xAF\x03\xAB1\xAA\xE7y\x02\x03\x01\x00\x010\x03\x06\x01\x00\x03\x01\x00"
     assert cert = OpenSSL::X509::Certificate.new(cert_text)

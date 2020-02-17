@@ -280,6 +280,10 @@ public class X509Cert extends RubyObject {
         return Utils.newError(runtime, _CertificateError(runtime), msg);
     }
 
+    static RaiseException newCertificateError(final Ruby runtime, String msg, Exception e) {
+        return Utils.newError(runtime, _CertificateError(runtime), msg, e);
+    }
+
     @Override
     @JRubyMethod(visibility = Visibility.PRIVATE)
     public IRubyObject initialize_copy(IRubyObject obj) {
@@ -607,6 +611,10 @@ public class X509Cert extends RubyObject {
         catch (GeneralSecurityException e) {
             throw newCertificateError(runtime, e);
         }
+        catch (IllegalStateException e) {
+            // e.g. "not all mandatory fields set in V3 TBScertificate generator"
+            throw newCertificateError(runtime, "could not generate certificate", e);
+        }
 
         if (cert == null) throw newCertificateError(runtime, (String) null);
 
@@ -620,6 +628,9 @@ public class X509Cert extends RubyObject {
     private org.bouncycastle.x509.X509V3CertificateGenerator getCertificateBuilder() {
         org.bouncycastle.x509.X509V3CertificateGenerator generator =
             new org.bouncycastle.x509.X509V3CertificateGenerator();
+        if ( serial.equals(BigInteger.ZERO) ) { // NOTE: diversion from MRI (OpenSSL allows not setting serial)
+            throw newCertificateError(getRuntime(), "Certificate#serial needs to be set (to > 0)");
+        }
         generator.setSerialNumber( serial.abs() );
 
         if ( subject != null ) generator.setSubjectDN( ((X509Name) subject).getRealName() );
