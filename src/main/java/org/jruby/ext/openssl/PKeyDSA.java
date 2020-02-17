@@ -34,6 +34,7 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.*;
 import java.security.interfaces.DSAKey;
+import java.security.interfaces.DSAParams;
 import java.security.interfaces.DSAPrivateKey;
 import java.security.interfaces.DSAPublicKey;
 import java.security.spec.DSAPrivateKeySpec;
@@ -45,6 +46,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
+import org.jruby.RubyHash;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyString;
@@ -346,6 +348,31 @@ public class PKeyDSA extends PKey {
     @JRubyMethod
     public PKeyDSA public_key() {
         return new PKeyDSA(getRuntime(), this.publicKey);
+    }
+
+    @JRubyMethod
+    public IRubyObject params(final ThreadContext context) {
+        final Ruby runtime = context.runtime;
+        RubyHash hash = RubyHash.newHash(runtime);
+        if (publicKey != null) {
+            if (publicKey.getParams() != null) {
+                setParams(context, runtime, hash, publicKey.getParams());
+            }
+            hash.op_aset(context, runtime.newString("pub_key"), BN.newBN(runtime, publicKey.getY()));
+        }
+        if (privateKey != null) {
+            if (publicKey == null && privateKey.getParams() != null) {
+                setParams(context, runtime, hash, privateKey.getParams());
+            }
+            hash.op_aset(context, runtime.newString("priv_key"), BN.newBN(runtime, privateKey.getX()));
+        }
+        return hash;
+    }
+
+    private static void setParams(ThreadContext context, Ruby runtime, RubyHash hash, DSAParams params) {
+        hash.op_aset(context, runtime.newString("p"), BN.newBN(runtime, params.getP()));
+        hash.op_aset(context, runtime.newString("q"), BN.newBN(runtime, params.getQ()));
+        hash.op_aset(context, runtime.newString("g"), BN.newBN(runtime, params.getG()));
     }
 
     @Override
