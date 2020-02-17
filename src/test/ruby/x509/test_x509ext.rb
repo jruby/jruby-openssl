@@ -191,7 +191,7 @@ class TestX509Extension < TestCase
 
     csr.sign rsa_key, OpenSSL::Digest::SHA256.new
 
-    puts csr.to_text if $VERBOSE
+    puts csr.to_text if $DEBUG
 
     csr = OpenSSL::X509::Request.new pem = csr.to_pem
     assert_equal 2, csr.attributes.length
@@ -234,6 +234,41 @@ class TestX509Extension < TestCase
         assert_equal (test[:output] || test[:input]), ext.value
         assert_equal test[:der], ext.to_der
     }
+  end
+
+  def test_authority_key_identifier
+    cn = [ %w[CN localhost] ]
+    # key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    key = Fixtures.pkey("dsa512") # DSA
+    cert = OpenSSL::X509::Certificate.new
+    cert.version = 2
+    cert.serial = 1
+    name = OpenSSL::X509::Name.new(cn)
+    cert.subject = name
+    cert.issuer = name # self-signed
+    cert.not_before = Time.now
+    cert.not_after = Time.now + (365*24*60*60)
+    cert.public_key = key.public_key
+
+    ef = OpenSSL::X509::ExtensionFactory.new(nil, cert)
+    ef.issuer_certificate = cert
+    cert.extensions = [
+        ef.create_extension("basicConstraints","CA:FALSE"),
+        ef.create_extension("subjectKeyIdentifier", "hash"),
+        #ef.create_extension("extendedKeyUsage", "serverAuth"),
+        ef.create_extension("nsComment", __method__.to_s),
+    ]
+
+    ext = ef.create_extension("authorityKeyIdentifier", "keyid")
+    cert.add_extension(ext)
+
+    assert_equal 4, cert.extensions.size
+
+    ext = cert.extensions.last
+    assert_equal keyid = "keyid:91:0D:0C:A9:43:73:DF:8C:A9:E3:C2:0A:05:E3:CF:BE:A7:38:8D:DD\n", ext.value
+    assert !ext.critical?
+    assert_equal [ "authorityKeyIdentifier", keyid, false ], ext.to_a
+    # cert.sign(key, OpenSSL::Digest::SHA1.new)
   end
 
   def subject_alt_name(domains)

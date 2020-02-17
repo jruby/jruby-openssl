@@ -404,11 +404,11 @@ public class X509ExtensionFactory extends RubyObject {
         final ASN1EncodableVector vec = new ASN1EncodableVector();
 
         for ( String value : valuex.split(",") ) { // e.g. "keyid:always,issuer:always"
-            if ( value.startsWith("keyid:") ) { // keyid:always
+            if ( value.startsWith("keyid") ) { // keyid[:always]
                 ASN1Encodable publicKeyIdentifier = new DEROctetString(issuerPublicKeyIdentifier(context));
                 vec.add(new DERTaggedObject(false, 0, publicKeyIdentifier));
             }
-            else if ( value.startsWith("issuer:") ) { // issuer:always
+            else if ( value.startsWith("issuer") ) { // issuer[:always]
                 GeneralName issuerName = new GeneralName(authorityCertIssuer(context));
                 vec.add(new DERTaggedObject(false, 1, new GeneralNames(issuerName)));
 
