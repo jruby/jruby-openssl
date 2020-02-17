@@ -50,10 +50,10 @@ plugin( :compiler, '3.1',
         :encoding => 'UTF-8', :debug => true,
         :showWarnings => true, :showDeprecation => true,
         :excludes => [ 'module-info.java' ],
+        #:jdkToolchain => { :version => '[1.7,11)' },
 
         :generatedSourcesDirectory => gen_sources,
-        :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ],
-        :compilerArgs => [ '-XDignore.symbol.file=true' ] ) do
+        :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ]) do
 
   #execute_goal :compile, :id => 'annotation-binder', :phase => 'compile',
   #    :generatedSourcesDirectory => gen_sources, #:outputDirectory => gen_sources,
@@ -62,15 +62,19 @@ plugin( :compiler, '3.1',
   #    :useIncrementalCompilation => false, :fork => true, :verbose => true,
   #    :compilerArgs => [ '-XDignore.symbol.file=true', '-J-Dfile.encoding=UTF-8' ]
 
-  execute_goal :compile, :id => 'compile-populators', :phase => 'process-classes',
-      :includes => [ 'org/jruby/gen/**/*.java' ], :optimize => true,
-      :compilerArgs => [ '-XDignore.symbol.file=true' ]
-      # NOTE: maybe '-J-Xbootclasspath/p:${unsafe.jar}' ... as well ?!
+  execute_goal :compile,
+               :id => 'compile-populators', :phase => 'process-classes',
+               :includes => [ 'org/jruby/gen/**/*.java' ],
+               :optimize => true,
+               :compilerArgs => [ '', '-XDignore.symbol.file=true' ]
 end
 
 profile 'module-info' do
   activation { jdk '[9,)' }
-  plugin :compiler, '3.1', :source => '9', :target => java_target, :includes => [ 'module-info.java' ]
+  plugin :compiler, '3.8.1',
+         :source => '9', :target => java_target,
+         :release => '9',
+         :includes => [ 'module-info.java' ]
 end
 
 plugin :clean do
