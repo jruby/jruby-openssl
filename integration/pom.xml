@@ -26,13 +26,13 @@
         <enabled>true</enabled>
       </snapshots>
       <id>jruby</id>
-      <url>http://ci.jruby.org/snapshots/maven</url>
+      <url>https://ci.jruby.org/snapshots/maven</url>
     </repository>
   </repositories>
   <pluginRepositories>
     <pluginRepository>
       <id>rubygems-releases</id>
-      <url>http://rubygems-proxy.torquebox.org/releases</url>
+      <url>https://rubygems-proxy.torquebox.org/releases</url>
     </pluginRepository>
   </pluginRepositories>
   <build>
