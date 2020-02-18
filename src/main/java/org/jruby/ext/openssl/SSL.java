@@ -53,24 +53,40 @@ public class SSL {
     public static final long OP_ALL =                                       0x00000FFFL;
     public static final long OP_NO_TICKET =                                 0x00004000L;
     public static final long OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION =    0x00010000L;
+    public static final long OP_NO_COMPRESSION =                            0x00020000L;
     public static final long OP_SINGLE_ECDH_USE =                           0x00080000L;
     public static final long OP_SINGLE_DH_USE =                             0x00100000L;
     public static final long OP_EPHEMERAL_RSA =                             0x00200000L;
     public static final long OP_CIPHER_SERVER_PREFERENCE =                  0x00400000L;
     public static final long OP_TLS_ROLLBACK_BUG =                          0x00800000L;
+
     public static final long OP_NO_SSLv2 =                                  0x01000000L; // supported
     public static final long OP_NO_SSLv3 =                                  0x02000000L; // supported
     public static final long OP_NO_TLSv1 =                                  0x04000000L; // supported
-    public static final long OP_PKCS1_CHECK_1 =                             0x08000000L;
-    public static final long OP_PKCS1_CHECK_2 =                             0x10000000L;
-    public static final long OP_NETSCAPE_CA_DN_BUG =                        0x20000000L;
-    public static final long OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG =           0x40000000L;
+    public static final long OP_NO_TLSv1_2 =                                0x08000000L;
+    public static final long OP_NO_TLSv1_1 =                                0x10000000L;
+    public static final long OP_NO_TLSv1_3 =                                0x20000000L;
 
-    public static final int SSL2_VERSION = 1;
-    public static final int SSL3_VERSION = 768;
-    public static final int TLS1_VERSION = 769;
-    public static final int TLS1_1_VERSION = 770;
-    public static final int TLS1_2_VERSION = 771;
+    // define SSL_OP_NO_SSL_MASK (SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2|SSL_OP_NO_TLSv1_3)
+
+    /* Deprecated in OpenSSL 1.0.1. */
+    static final long OP_PKCS1_CHECK_1 =                             0x08000000L;
+    /* Deprecated in OpenSSL 1.0.1. */
+    static final long OP_PKCS1_CHECK_2 =                             0x10000000L;
+    /* Deprecated in OpenSSL 1.1.0. */
+    static final long OP_NETSCAPE_CA_DN_BUG =                        0x20000000L;
+    /* Deprecated in OpenSSL 1.1.0. */
+    static final long OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG =           0x40000000L;
+
+    public static final int SSL2_VERSION = 0x0002;
+    public static final int SSL3_VERSION = 0x0300;
+    public static final int TLS1_VERSION = 0x0301;
+    public static final int TLS1_1_VERSION = 0x0302;
+    public static final int TLS1_2_VERSION = 0x0303;
+    /* OpenSSL 1.1.1 */
+    public static final int TLS1_3_VERSION = 0x0304;
+
+    // define TLS_MAX_VERSION  TLS1_3_VERSION
 
     private static final String JSSE_TLS_ephemeralDHKeySize = "jdk.tls.ephemeralDHKeySize" ;
     private static final String JSSE_TLS_ephemeralDHKeySize_default = "matched" ;
@@ -142,6 +158,7 @@ public class SSL {
         SSL.setConstant("OP_ALL", runtime.newFixnum(OP_ALL));
         SSL.setConstant("OP_NO_TICKET", runtime.newFixnum(OP_NO_TICKET));
         SSL.setConstant("OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION", runtime.newFixnum(OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION));
+        SSL.setConstant("OP_NO_COMPRESSION", runtime.newFixnum(OP_NO_COMPRESSION));
         SSL.setConstant("OP_SINGLE_ECDH_USE", runtime.newFixnum(OP_SINGLE_ECDH_USE));
         SSL.setConstant("OP_SINGLE_DH_USE", runtime.newFixnum(OP_SINGLE_DH_USE));
         SSL.setConstant("OP_EPHEMERAL_RSA", runtime.newFixnum(OP_EPHEMERAL_RSA));
@@ -150,6 +167,9 @@ public class SSL {
         SSL.setConstant("OP_NO_SSLv2", runtime.newFixnum(OP_NO_SSLv2));
         SSL.setConstant("OP_NO_SSLv3", runtime.newFixnum(OP_NO_SSLv3));
         SSL.setConstant("OP_NO_TLSv1", runtime.newFixnum(OP_NO_TLSv1));
+        SSL.setConstant("OP_NO_TLSv1_1", runtime.newFixnum(OP_NO_TLSv1_1));
+        SSL.setConstant("OP_NO_TLSv1_2", runtime.newFixnum(OP_NO_TLSv1_2));
+        //SSL.setConstant("OP_NO_TLSv1_3", runtime.newFixnum(OP_NO_TLSv1_3));
         SSL.setConstant("OP_PKCS1_CHECK_1", runtime.newFixnum(OP_PKCS1_CHECK_1));
         SSL.setConstant("OP_PKCS1_CHECK_2", runtime.newFixnum(OP_PKCS1_CHECK_2));
         SSL.setConstant("OP_NETSCAPE_CA_DN_BUG", runtime.newFixnum(OP_NETSCAPE_CA_DN_BUG));
@@ -160,6 +180,7 @@ public class SSL {
         SSL.setConstant("TLS1_VERSION", runtime.newFixnum(TLS1_VERSION));
         SSL.setConstant("TLS1_1_VERSION", runtime.newFixnum(TLS1_1_VERSION));
         SSL.setConstant("TLS1_2_VERSION", runtime.newFixnum(TLS1_2_VERSION));
+        //SSL.setConstant("TLS1_3_VERSION", runtime.newFixnum(TLS1_3_VERSION));
 
         SSLContext.createSSLContext(runtime, SSL);
         SSLSocket.createSSLSocket(runtime, SSL);
