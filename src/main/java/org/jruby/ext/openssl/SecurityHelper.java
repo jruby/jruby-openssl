@@ -266,10 +266,7 @@ public abstract class SecurityHelper {
         throws CertificateException {
         final CertificateFactorySpi spi = (CertificateFactorySpi) getImplEngine("CertificateFactory", type);
         if ( spi == null ) throw new CertificateException(type + " not found");
-        return newInstance(CertificateFactory.class,
-                new Class[]{ CertificateFactorySpi.class, Provider.class, String.class },
-                new Object[]{ spi, provider, type }
-        );
+        return CertificateFactory.getInstance(type, provider);
     }
 
     /**
