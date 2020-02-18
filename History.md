@@ -1,3 +1,24 @@
+## 0.10.3
+
+* [fix] implement (missing) PKey::DSA#params
+* [fix] authorityKeyIdentifier ext (general-name) value
+* [fix] authority keyid extension's :always part optional (#174)
+* [fix] work-around for not setting certificate serial
+  raise a more friendly error (jruby/jruby#1691)
+* [fix] PKey.read not parsing RSA pub-key (#176)
+* [feat] support reading DSA (public key) in full DER
+* [fix] RSA key DER format to closely follow OpenSSL
+* [fix] add missing ASN1 factory methods (Null, EndOfContent)
+* [fix] support getting password from block for PKeys
+* [fix] incorrect ASN.1 for wrapped Integer type
+* [fix] correct public key for subjectKeyIdentifier ext (#173)
+* [fix] invalid Cert#sign handling -> raise (instead of ClassCastException)
+* [feat] more TLS (GCM) ciphers - supported on Java 8+
+* [feat] add ECDHE-RSA-AES128-GCM-SHA256 as supported cipher (#185)
+* [feat] add support for ECDHE-RSA-AES256-GCM-SHA384 (#187)
+* [fix] try hard not to fail on unkown oids (OpenSSL::X509::Certificate#to_text)
+* update Bouncy-Castle to 1.62 (and handle supported BC compatibility)
+
 ## 0.10.2
 
 * update Bouncy-Castle to 1.61 (and handle supported BC compatibility)

@@ -11,7 +11,7 @@ DO NOT MODIFIY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.10.3.dev-SNAPSHOT</version>
+  <version>0.10.3</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -61,17 +61,17 @@ DO NOT MODIFIY - GENERATED CODE
   </distributionManagement>
   <properties>
     <bc.versions>1.62</bc.versions>
-    <mavengem.wagon.version>1.0.3</mavengem.wagon.version>
+    <invoker.skip>${maven.test.skip}</invoker.skip>
+    <invoker.test>${bc.versions}</invoker.test>
+    <jruby.plugins.version>1.1.8</jruby.plugins.version>
     <jruby.switches>-W0</jruby.switches>
     <jruby.version>9.1.17.0</jruby.version>
-    <jruby.plugins.version>1.1.8</jruby.plugins.version>
-    <invoker.skip>${maven.test.skip}</invoker.skip>
-    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
-    <mavengem-wagon.version>1.0.3</mavengem-wagon.version>
     <jruby.versions>9.1.17.0</jruby.versions>
-    <polyglot.dump.readonly>true</polyglot.dump.readonly>
+    <mavengem-wagon.version>1.0.3</mavengem-wagon.version>
+    <mavengem.wagon.version>1.0.3</mavengem.wagon.version>
     <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
-    <invoker.test>${bc.versions}</invoker.test>
+    <polyglot.dump.readonly>true</polyglot.dump.readonly>
+    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
   </properties>
   <dependencies>
     <dependency>
