@@ -1,3 +1,8 @@
+## 0.10.4
+
+* Use CertificateFactory.getInstance rather than reflection
+  eliminates one of the module warnings we have been seeing (#161)
+
 ## 0.10.3
 
 * [fix] implement (missing) PKey::DSA#params
