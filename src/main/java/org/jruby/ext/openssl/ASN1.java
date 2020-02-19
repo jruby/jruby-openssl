@@ -1431,12 +1431,6 @@ public class ASN1 {
             }
         }
 
-        static RaiseException createNativeRaiseException(final ThreadContext context,
-            final Throwable e) {
-            Throwable cause = e.getCause(); if ( cause == null ) cause = e;
-            return RaiseException.createNativeRaiseException(context.runtime, cause);
-        }
-
     }
 
     public static class Primitive extends ASN1Data {
@@ -1672,7 +1666,7 @@ public class ASN1 {
                 }
                 catch (Exception e) { // TODO exception handling
                     debugStackTrace(context.runtime, e);
-                    throw createNativeRaiseException(context, e);
+                    throw Utils.newError(context.runtime, context.runtime.getRuntimeError(), e);
                 }
             }
 
