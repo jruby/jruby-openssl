@@ -231,7 +231,7 @@ public class SSL {
         if ( waitErrorBacktrace ) {
             return Utils.newError(runtime, errorClass, message, false);
         }
-        return Utils.newErrorWithoutTrace(runtime, errorClass, message, false);
+        return Utils.newErrorWithoutTrace(runtime, errorClass, message);
     }
 
     static RubyModule _SSL(final Ruby runtime) {

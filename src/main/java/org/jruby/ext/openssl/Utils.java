@@ -70,9 +70,9 @@ final class Utils {
         return new RaiseException(runtime, runtime.getRuntimeError(), msg, true);
     }
 
-    static RaiseException newErrorWithoutTrace(Ruby runtime, RubyClass errorClass, String message, boolean nativeException) {
+    static RaiseException newErrorWithoutTrace(Ruby runtime, RubyClass errorClass, String message) {
         final IRubyObject backtrace = runtime.newEmptyArray(); // runtime.getNil();
-        return new RaiseException(runtime, errorClass, message, backtrace, nativeException);
+        return new RaiseException(runtime, errorClass, message, backtrace, false);
     }
 
     static RaiseException newError(Ruby runtime, RubyClass errorClass, String message, boolean nativeException) {
