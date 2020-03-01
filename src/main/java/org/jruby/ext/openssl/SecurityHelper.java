@@ -355,11 +355,14 @@ public abstract class SecurityHelper {
      */
     public static MessageDigest getMessageDigest(final String algorithm) throws NoSuchAlgorithmException {
         try {
+            return MessageDigest.getInstance(algorithm);
+        } catch (NoSuchAlgorithmException nsae) {
+            // try reflective logic
             final Provider provider = getSecurityProviderIfAccessible();
             if ( provider != null ) return getMessageDigest(algorithm, provider);
+
+            throw nsae; // give up
         }
-        catch (NoSuchAlgorithmException e) { }
-        return MessageDigest.getInstance(algorithm);
     }
 
     @SuppressWarnings("unchecked")
