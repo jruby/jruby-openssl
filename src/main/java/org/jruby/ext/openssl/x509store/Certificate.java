@@ -54,7 +54,9 @@ public class Certificate extends X509Object {
     public boolean matches(final X509Object other) {
         if (other instanceof Certificate) {
             final Certificate that = (Certificate) other;
-            return X509AuxCertificate.equalSubjects(this.x509, that.x509);
+            if (X509AuxCertificate.equalSubjects(this.x509, that.x509)) {
+                return this.x509.hashCode() == that.x509.hashCode();
+            };
         }
         return false;
     }

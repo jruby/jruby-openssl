@@ -39,6 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.net.ssl.X509TrustManager;
+import javax.security.auth.x500.X500Principal;
 
 import org.jruby.Ruby;
 import org.jruby.ext.openssl.OpenSSL;
@@ -329,8 +330,25 @@ public class Store implements X509TrustManager {
                 return 0;
             }
         }
-        X509Object[] newObjects = Arrays.copyOf(objects, length + 1);
-        newObjects[ length ] = xObject;
+        X509Object[] newObjects = new X509Object[length + 1];
+
+        int idx = length;
+        if (xObject instanceof Certificate) {
+            final X500Principal p1 = ((Certificate) xObject).x509.getIssuerX500Principal();
+            final Name n1 = new Name(p1);
+
+            for (idx = 0; idx < objects.length; idx++) {
+                X509Object xMember  = objects[idx];
+                if (xMember instanceof Certificate) {
+                    X500Principal p2 = ((Certificate) xMember).x509.getIssuerX500Principal();
+                    if(n1.equalTo(p2)) break;
+                }
+            }
+        }
+
+        System.arraycopy(objects, 0, newObjects, 0, idx);
+        System.arraycopy(objects, idx, newObjects, idx + 1, length-idx);
+        newObjects[idx] = xObject;
         objects = newObjects;
         return 1;
     }
