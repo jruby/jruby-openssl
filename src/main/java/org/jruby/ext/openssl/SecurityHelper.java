@@ -286,10 +286,7 @@ public abstract class SecurityHelper {
         throws NoSuchAlgorithmException {
         KeyFactorySpi spi = (KeyFactorySpi) getImplEngine("KeyFactory", algorithm);
         if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " not found");
-        return newInstance(KeyFactory.class,
-            new Class[] { KeyFactorySpi.class, Provider.class, String.class },
-            new Object[] { spi, provider, algorithm }
-        );
+        return KeyFactory.getInstance(algorithm, provider);
     }
 
     /**
