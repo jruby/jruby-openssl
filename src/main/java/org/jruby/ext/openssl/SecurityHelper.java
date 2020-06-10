@@ -110,28 +110,6 @@ public abstract class SecurityHelper {
     static boolean setJsseProvider = true;
     static volatile Provider jsseProvider;
 
-    /**
-     * inject under a given name a cipher. also ensures that the registered
-     * classes are getting used.
-     *
-     * @param name the name under which the class gets registered
-     * @param clazz the CipherSpi class
-     */
-    public static void addCipher(String name, Class<? extends CipherSpi> clazz) {
-        implEngines.put("Cipher:" + name, clazz);
-        tryCipherInternal = true;
-    }
-
-    /**
-     * inject under a given name a signature
-     *
-     * @param name the name under which the class gets registered
-     * @param clazz the SignaturSpi class
-     */
-    public static void addSignature(String name, Class<? extends SignatureSpi> clazz) {
-        implEngines.put("Signature:" + name, clazz);
-    }
-
     public static Provider getSecurityProvider() {
         Provider provider = securityProvider;
         if ( setBouncyCastleProvider && provider == null ) {

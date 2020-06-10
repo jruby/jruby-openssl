@@ -47,24 +47,6 @@ public class SecurityHelperTest {
     }
 
     @Test
-    public void injectCipherImpl() throws Exception {
-        SecurityHelper.addCipher("fake", CipherSpiFake.class);
-        javax.crypto.Cipher cipher = SecurityHelper.getCipher("fake");
-        assertEquals(cipher.getProvider(), savedProvider);
-        java.lang.reflect.Field spi = cipher.getClass().getDeclaredField("spi");
-        spi.setAccessible(true);
-        assertEquals(spi.get(cipher).getClass(), CipherSpiFake.class);
-    }
-
-    @Test
-    public void injectSignatureImpl() throws Exception {
-        SecurityHelper.addSignature("fake", SignatureSpiFake.class);
-        Signature signature = SecurityHelper.getSignature("fake");
-        assertEquals(signature.getProvider(), savedProvider);
-        assertEquals(signature.getClass(), SignatureSpiFake.class);
-    }
-
-    @Test
     public void usesBouncyCastleSecurityProviderByDefault() {
         assertNotNull(SecurityHelper.getSecurityProvider());
         assertEquals("org.bouncycastle.jce.provider.BouncyCastleProvider",
