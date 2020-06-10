@@ -284,8 +284,6 @@ public abstract class SecurityHelper {
 
     static KeyFactory getKeyFactory(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
-        KeyFactorySpi spi = (KeyFactorySpi) getImplEngine("KeyFactory", algorithm);
-        if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " not found");
         return KeyFactory.getInstance(algorithm, provider);
     }
 
@@ -305,28 +303,7 @@ public abstract class SecurityHelper {
     @SuppressWarnings("unchecked")
     static KeyPairGenerator getKeyPairGenerator(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
-        final Object spi = getImplEngine("KeyPairGenerator", algorithm);
-        if ( spi == null ) {
-            throw new NoSuchAlgorithmException(algorithm + " KeyPairGenerator not available");
-        }
-
-        final KeyPairGenerator keyPairGenerator;
-        if ( spi instanceof KeyPairGenerator ) {
-            keyPairGenerator = (KeyPairGenerator) spi;
-        }
-        else {
-            final Class<? extends KeyPairGenerator> delegate;
-            try {
-                delegate = (Class<? extends KeyPairGenerator>)
-                    Class.forName(KeyPairGenerator.class.getName() + "$Delegate");
-            } catch (ClassNotFoundException e) { throw new RuntimeException(e); }
-
-            keyPairGenerator = newInstance(delegate,
-                new Class[] { KeyPairGeneratorSpi.class, String.class }, spi, algorithm
-            );
-        }
-        setField(keyPairGenerator, KeyPairGenerator.class, "provider", provider);
-        return keyPairGenerator;
+        return KeyPairGenerator.getInstance(algorithm, provider);
     }
 
     /**
@@ -365,26 +342,7 @@ public abstract class SecurityHelper {
     @SuppressWarnings("unchecked")
     static MessageDigest getMessageDigest(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
-        final Object spi = getImplEngine("MessageDigest", algorithm);
-        if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " not found");
-
-        final MessageDigest messageDigest;
-        if ( spi instanceof MessageDigest ) {
-            messageDigest = (MessageDigest) spi;
-        }
-        else {
-            final Class<? extends MessageDigest> delegate;
-            try {
-                delegate = (Class<? extends MessageDigest>)
-                    Class.forName(MessageDigest.class.getName() + "$Delegate");
-            } catch (ClassNotFoundException e) { throw new RuntimeException(e); }
-
-            messageDigest = newInstance(delegate,
-                new Class[] { MessageDigestSpi.class, String.class }, spi, algorithm
-            );
-        }
-        setField(messageDigest, MessageDigest.class, "provider", provider);
-        return messageDigest;
+        return MessageDigest.getInstance(algorithm, provider);
     }
 
     public static SecureRandom getSecureRandom() {
@@ -403,13 +361,7 @@ public abstract class SecurityHelper {
 
     private static SecureRandom getSecureRandom(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
-        final SecureRandomSpi spi = (SecureRandomSpi) getImplEngine("SecureRandom", algorithm);
-        if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " not found");
-
-        return newInstance(SecureRandom.class,
-            new Class[] { SecureRandomSpi.class, Provider.class, String.class },
-            new Object[] { spi, provider, algorithm }
-        );
+        return SecureRandom.getInstance(algorithm, provider);
     }
 
     // NOTE: none (at least for BC 1.47)
@@ -481,7 +433,6 @@ public abstract class SecurityHelper {
 
             spi = (CipherSpi) getImplEngine("Cipher", algorithm);
             if ( spi == null ) {
-                // if ( silent ) return null;
                 throw new NoSuchAlgorithmException(transformation + " not found");
             }
 
@@ -500,14 +451,9 @@ public abstract class SecurityHelper {
         }
         try {
             // this constructor does not verify the provider
-            Cipher cipher = newInstance(Cipher.class,
-                    new Class[] { CipherSpi.class, String.class },
-                    new Object[] { spi, transformation }
-            );
-            setField(cipher, Cipher.class, "provider", provider);
-            return cipher;
+            return Cipher.getInstance(transformation, provider);
         }
-        catch( Exception e ) {
+        catch (Exception e) { // TODO now seems like a redundant left over
             // this constructor does verify the provider which might fail
             return newInstance(Cipher.class,
                     new Class[] { CipherSpi.class, Provider.class, String.class },
@@ -531,25 +477,7 @@ public abstract class SecurityHelper {
     @SuppressWarnings("unchecked")
     static Signature getSignature(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
-        final Object spi = getImplEngine("Signature", algorithm);
-        if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " Signature not available");
-
-        final Signature signature;
-        if ( spi instanceof Signature ) {
-            signature = (Signature) spi;
-        } else {
-            final Class<? extends Signature> delegate;
-            try {
-                delegate = (Class<? extends Signature>)
-                    Class.forName(Signature.class.getName() + "$Delegate");
-            } catch (ClassNotFoundException e) { throw new RuntimeException(e); }
-
-            signature = newInstance(delegate,
-                new Class[] { SignatureSpi.class, String.class }, spi, algorithm
-            );
-        }
-        setField(signature, Signature.class, "provider", provider);
-        return signature;
+        return Signature.getInstance(algorithm, provider);
     }
 
     /**
@@ -572,15 +500,13 @@ public abstract class SecurityHelper {
 
     private static Mac getMac(final String algorithm, final Provider provider, boolean silent)
         throws NoSuchAlgorithmException {
-        MacSpi spi = (MacSpi) getImplEngine("Mac", algorithm);
-        if ( spi == null ) {
-            if ( silent ) return null;
-            throw new NoSuchAlgorithmException(algorithm + " not found");
+        try {
+            return Mac.getInstance(algorithm, provider);
         }
-        return newInstance(Mac.class,
-            new Class[] { MacSpi.class, Provider.class, String.class },
-            new Object[] { spi, provider, algorithm }
-        );
+        catch (NoSuchAlgorithmException e) {
+            if ( silent ) return null;
+            throw e;
+        }
     }
 
     /**
@@ -598,13 +524,7 @@ public abstract class SecurityHelper {
 
     static KeyGenerator getKeyGenerator(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
-        final KeyGeneratorSpi spi = (KeyGeneratorSpi) getImplEngine("KeyGenerator", algorithm);
-        if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " not found");
-
-        return newInstance(KeyGenerator.class,
-            new Class[] { KeyGeneratorSpi.class, Provider.class, String.class },
-            new Object[] { spi, provider, algorithm }
-        );
+        return KeyGenerator.getInstance(algorithm, provider);
     }
 
     /**
@@ -622,13 +542,7 @@ public abstract class SecurityHelper {
 
     static KeyAgreement getKeyAgreement(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
-        final KeyAgreementSpi spi = (KeyAgreementSpi) getImplEngine("KeyAgreement", algorithm);
-        if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " not found");
-
-        return newInstance(KeyAgreement.class,
-            new Class[] { KeyAgreementSpi.class, Provider.class, String.class },
-            new Object[] { spi, provider, algorithm }
-        );
+        return KeyAgreement.getInstance(algorithm, provider);
     }
 
     /**
@@ -646,13 +560,7 @@ public abstract class SecurityHelper {
 
     static SecretKeyFactory getSecretKeyFactory(final String algorithm, final Provider provider)
         throws NoSuchAlgorithmException {
-        final SecretKeyFactorySpi spi = (SecretKeyFactorySpi) getImplEngine("SecretKeyFactory", algorithm);
-        if ( spi == null ) throw new NoSuchAlgorithmException(algorithm + " not found");
-
-        return newInstance(SecretKeyFactory.class,
-            new Class[] { SecretKeyFactorySpi.class, Provider.class, String.class },
-            new Object[] { spi, provider, algorithm }
-        );
+        return SecretKeyFactory.getInstance(algorithm, provider);
     }
 
     private static final String providerSSLContext; // NOTE: experimental support for using BCJSSE
@@ -738,7 +646,7 @@ public abstract class SecurityHelper {
             catch (CertException e) {
                 throw new SignatureException(e);
             }
-	    // can happen if the input is DER but does not match expected strucure
+            // can happen if the input is DER but does not match expected structure
             catch (ClassCastException e) {
                 throw new SignatureException(e);
             }
@@ -811,8 +719,6 @@ public abstract class SecurityHelper {
             throw new IllegalStateException("algorithm " + algorithm + " in provider " + bcProvider.getName() + " but class \"" + className + "\" inaccessible!");
         }
     }
-
-    // the obligratory "reflection crap" :
 
     private static <T> T newInstance(Class<T> klass, Class<?>[] paramTypes, Object... params) {
         final Constructor<T> constructor;
