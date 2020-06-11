@@ -36,12 +36,9 @@ import java.security.cert.X509CRL;
  */
 public class CRL extends X509Object {
 
-    public /* final */ java.security.cert.CRL crl;
+    public final java.security.cert.CRL crl;
 
-    @Deprecated // not-used
-    public CRL() { /* */ }
-
-    public CRL(X509CRL crl) {
+    public CRL(java.security.cert.CRL crl) {
         this.crl = crl;
     }
 

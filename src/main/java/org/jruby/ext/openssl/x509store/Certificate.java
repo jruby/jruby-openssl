@@ -34,10 +34,10 @@ package org.jruby.ext.openssl.x509store;
  */
 public class Certificate extends X509Object {
 
-    public final X509AuxCertificate x509;
+    public final X509AuxCertificate cert;
 
     public Certificate(final X509AuxCertificate cert) {
-        this.x509 = cert;
+        this.cert = cert;
     }
 
     @Override
@@ -47,15 +47,15 @@ public class Certificate extends X509Object {
 
     @Override
     public boolean isName(final Name name) {
-        return name.equalToCertificateSubject(x509);
+        return name.equalToCertificateSubject(cert);
     }
 
     @Override
     public boolean matches(final X509Object other) {
         if (other instanceof Certificate) {
             final Certificate that = (Certificate) other;
-            if (X509AuxCertificate.equalSubjects(this.x509, that.x509)) {
-                return this.x509.hashCode() == that.x509.hashCode();
+            if (X509AuxCertificate.equalSubjects(this.cert, that.cert)) {
+                return this.cert.hashCode() == that.cert.hashCode();
             };
         }
         return false;
@@ -65,7 +65,7 @@ public class Certificate extends X509Object {
     public int compareTo(final X509Object other) {
         int cmp = super.compareTo(other);
         if (cmp != 0) return cmp;
-        return x509.equals( ( (Certificate) other ).x509 ) ? 0 : -1;
+        return cert.equals( ((Certificate) other).cert ) ? 0 : -1;
     }
 
 }// X509_OBJECT_CERT

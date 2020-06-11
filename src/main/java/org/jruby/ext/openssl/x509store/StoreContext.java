@@ -150,8 +150,8 @@ public class StoreContext {
         }
 
         X509Object obj = s_obj[0];
-        if ( checkIssued.call(this, x, ((Certificate) obj).x509) != 0 ) {
-            issuers[0] = ((Certificate) obj).x509;
+        if ( checkIssued.call(this, x, ((Certificate) obj).cert) != 0 ) {
+            issuers[0] = ((Certificate) obj).cert;
             return 1;
         }
 
@@ -165,7 +165,7 @@ public class StoreContext {
             if ( pobj.type() != X509Utils.X509_LU_X509 ) {
                 return 0;
             }
-            final X509AuxCertificate x509 = ((Certificate) pobj).x509;
+            final X509AuxCertificate x509 = ((Certificate) pobj).cert;
             if ( ! xn.equalTo( x509.getSubjectX500Principal() ) ) {
                 return 0;
             }

@@ -304,7 +304,7 @@ public class Store implements X509TrustManager {
     public int addCRL(final java.security.cert.CRL crl) {
         if ( crl == null ) return 0;
 
-        final CRL crlObj = new CRL(); crlObj.crl = crl;
+        final CRL crlObj = new CRL(crl);
 
         final X509Object[] objects = this.objects;
         if ( matchedObject(objects, crlObj) ) {
@@ -334,14 +334,14 @@ public class Store implements X509TrustManager {
 
         int idx = length;
         if (xObject instanceof Certificate) {
-            final X500Principal p1 = ((Certificate) xObject).x509.getIssuerX500Principal();
+            final X500Principal p1 = ((Certificate) xObject).cert.getIssuerX500Principal();
             final Name n1 = new Name(p1);
 
             for (idx = 0; idx < objects.length; idx++) {
                 X509Object xMember  = objects[idx];
                 if (xMember instanceof Certificate) {
-                    X500Principal p2 = ((Certificate) xMember).x509.getIssuerX500Principal();
-                    if(n1.equalTo(p2)) break;
+                    X500Principal p2 = ((Certificate) xMember).cert.getIssuerX500Principal();
+                    if (n1.equalTo(p2)) break;
                 }
             }
         }
@@ -438,7 +438,7 @@ public class Store implements X509TrustManager {
         for ( int i = 0; i< objects.length; i++ ) {
             final X509Object object = objects[i];
             if ( object instanceof Certificate ) {
-                issuers.add( ( (Certificate) object ).x509 );
+                issuers.add(( (Certificate) object ).cert);
             }
         }
         return issuers.toArray( new X509Certificate[ issuers.size() ] );

@@ -36,10 +36,7 @@ import java.security.PrivateKey;
  */
 public class PKey extends X509Object {
 
-    public /* final */ java.security.PrivateKey pkey;
-
-    @Deprecated // not-used
-    public PKey() { /* no-op */  }
+    public final java.security.PrivateKey pkey;
 
     public PKey(PrivateKey pkey) {
         this.pkey = pkey;
@@ -48,4 +45,19 @@ public class PKey extends X509Object {
     public int type() {
         return X509Utils.X509_LU_PKEY;
     }
+
+    @Override
+    public boolean isName(final Name nm) {
+        return false;
+    }
+
+    @Override
+    public boolean matches(final X509Object other) {
+        if (other instanceof PKey) {
+            final PKey that = (PKey) other;
+            return this.pkey.equals( that.pkey );
+        }
+        return false;
+    }
+
 }// X509_OBJECT_PKEY

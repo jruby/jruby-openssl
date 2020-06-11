@@ -68,15 +68,11 @@ public abstract class X509Object implements Comparable<X509Object> {
         return null;
     }
 
-    public boolean isName(Name nm) {
-        return false;
-    }
+    public abstract boolean isName(Name nm) ;
 
-    public boolean matches(X509Object o) {
-        return false;
-    }
+    public abstract boolean matches(X509Object o) ;
 
-    public abstract int type();
+    public abstract int type() ;
 
     public int compareTo(X509Object other) {
         return type() - other.type();

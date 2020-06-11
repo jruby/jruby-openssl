@@ -86,7 +86,6 @@ import static org.jruby.ext.openssl.X509Cert._Certificate;
 import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSL.warn;
-import static org.jruby.ext.openssl.Utils.hasNonNilInstanceVariable;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -974,7 +973,7 @@ public class SSLContext extends RubyObject {
                         if (storeCtx.getBySubject(X509Utils.X509_LU_X509, name, s_obj) <= 0) {
                             break;
                         }
-                        x = ((Certificate) s_obj[0]).x509;
+                        x = ((Certificate) s_obj[0]).cert;
                     }
                     catch (RuntimeException e) {
                         debugStackTrace(e);
