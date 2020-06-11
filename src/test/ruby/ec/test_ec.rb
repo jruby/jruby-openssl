@@ -233,6 +233,18 @@ class TestEC < TestCase
     end
   end
 
+  def test_sign_verify
+    key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
+
+    key = OpenSSL::PKey::EC.new(File.read(key_file))
+    data = 'abcd'
+    digest = OpenSSL::Digest::SHA256.new
+    sig = key.sign(digest, data)
+    assert_true key.verify(digest, sig, data)
+
+    key.sign(OpenSSL::Digest::SHA1.new, data)
+  end
+
   def test_group_encoding
     for group in @groups
       for meth in [:to_der, :to_pem]
