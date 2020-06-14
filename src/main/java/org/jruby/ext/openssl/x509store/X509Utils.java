@@ -421,11 +421,11 @@ public abstract class X509Utils {
     public static final int	V_FLAG_STRICT = 0x20;
     public static final int	V_FLAG_X509_STRICT = 0x20;
     public static final int	V_FLAG_ALLOW_PROXY_CERTS = 0x40;
-    public static final int     V_FLAG_POLICY_CHECK = 0x80;
-    public static final int     V_FLAG_EXPLICIT_POLICY = 0x100;
+    public static final int V_FLAG_POLICY_CHECK = 0x80;
+    public static final int V_FLAG_EXPLICIT_POLICY = 0x100;
     public static final int	V_FLAG_INHIBIT_ANY = 0x200;
-    public static final int     V_FLAG_INHIBIT_MAP = 0x400;
-    public static final int     V_FLAG_NOTIFY_POLICY = 0x800;
+    public static final int V_FLAG_INHIBIT_MAP = 0x400;
+    public static final int V_FLAG_NOTIFY_POLICY = 0x800;
 
     public static final int VP_FLAG_DEFAULT = 0x1;
     public static final int VP_FLAG_OVERWRITE = 0x2;

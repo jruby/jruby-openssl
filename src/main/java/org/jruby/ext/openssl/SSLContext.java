@@ -620,8 +620,7 @@ public class SSLContext extends RubyObject {
     }
 
     // should keep SSLContext as a member for introducin SSLSession. later...
-    final SSLEngine createSSLEngine(String peerHost, int peerPort)
-        throws NoSuchAlgorithmException, KeyManagementException {
+    final SSLEngine createSSLEngine(String peerHost, int peerPort) {
         final SSLEngine engine;
         // an empty peerHost implies no SNI (RFC 3546) support requested
         if ( peerHost == null || peerHost.length() == 0 ) {
@@ -639,12 +638,9 @@ public class SSLContext extends RubyObject {
     }
 
     private String[] getCipherSuites(final String[] supported) {
-        Collection<CipherStrings.Def> cipherDefs =
-                CipherStrings.matchingCiphers(this.ciphers, supported, true);
+        Collection<CipherStrings.Def> cipherDefs = CipherStrings.matchingCiphers(this.ciphers, supported, true);
         final String[] result = new String[ cipherDefs.size() ]; int i = 0;
-        for ( CipherStrings.Def def : cipherDefs ) {
-            result[ i++ ] = def.getCipherSuite();
-        }
+        for ( CipherStrings.Def def : cipherDefs ) result[ i++ ] = def.getCipherSuite();
         return result;
     }
 
@@ -655,15 +651,12 @@ public class SSLContext extends RubyObject {
             final String[] engineProtocols = engine.getEnabledProtocols();
             final List<String> protocols = new ArrayList<String>(enabledProtocols.length);
             for ( final String enabled : enabledProtocols ) {
-                if (((options & SSL.OP_NO_SSLv2) != 0) && enabled.equals("SSLv2")) {
-                    continue;
-                }
-                if (((options & SSL.OP_NO_SSLv3) != 0) && enabled.equals("SSLv3")) {
-                    continue;
-                }
-                if (((options & SSL.OP_NO_TLSv1) != 0) && enabled.equals("TLSv1")) {
-                    continue;
-                }
+                if (((options & OP_NO_SSLv2) != 0) && enabled.equals("SSLv2")) continue;
+                if (((options & OP_NO_SSLv3) != 0) && enabled.equals("SSLv3")) continue;
+                if (((options & OP_NO_TLSv1) != 0) && enabled.equals("TLSv1")) continue;
+                if (((options & OP_NO_TLSv1_1) != 0) && enabled.equals("TLSv1.1")) continue;
+                if (((options & OP_NO_TLSv1_2) != 0) && enabled.equals("TLSv1.2")) continue;
+                if (((options & OP_NO_TLSv1_3) != 0) && enabled.equals("TLSv1.3")) continue;
                 for ( final String allowed : engineProtocols ) {
                     if ( allowed.equals(enabled) ) protocols.add(allowed);
                 }

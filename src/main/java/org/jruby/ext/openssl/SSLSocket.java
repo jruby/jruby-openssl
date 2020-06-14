@@ -208,8 +208,7 @@ public class SSLSocket extends RubyObject {
         return context.nil;
     }
 
-    private SSLEngine ossl_ssl_setup(final ThreadContext context)
-        throws NoSuchAlgorithmException, KeyManagementException {
+    private SSLEngine ossl_ssl_setup(final ThreadContext context) {
         SSLEngine engine = this.engine;
         if ( engine != null ) return engine;
 
@@ -301,16 +300,6 @@ public class SSLSocket extends RubyObject {
             forceClose();
             throw newSSLErrorFromHandshake(context.runtime, e);
         }
-        catch (NoSuchAlgorithmException e) {
-            debugStackTrace(context.runtime, e);
-            forceClose();
-            throw newSSLError(context.runtime, e);
-        }
-        catch (KeyManagementException e) {
-            debugStackTrace(context.runtime, e);
-            forceClose();
-            throw newSSLError(context.runtime, e);
-        }
         catch (IOException e) {
             //debugStackTrace(context.runtime, e);
             forceClose();
@@ -390,14 +379,6 @@ public class SSLSocket extends RubyObject {
                 debugStackTrace(context.runtime, e);
             }
             throw newSSLErrorFromHandshake(context.runtime, e);
-        }
-        catch (NoSuchAlgorithmException e) {
-            debugStackTrace(context.runtime, e);
-            throw newSSLError(context.runtime, e);
-        }
-        catch (KeyManagementException e) {
-            debugStackTrace(context.runtime, e);
-            throw newSSLError(context.runtime, e);
         }
         catch (IOException e) {
             debugStackTrace(context.runtime, e);

@@ -129,15 +129,6 @@ abstract class StringHelper {
     static final ByteList NEW_LINE = new ByteList(new byte[] { '\n' }, false);
     static final ByteList COMMA_SPACE = new ByteList(new byte[] { ',',' ' }, false);
 
-    static void gsub(final Ruby runtime, final ByteList str, final byte match, final byte replace) {
-        final int begin = str.getBegin();
-        final int slen = str.getRealSize();
-        final byte[] bytes = str.getUnsafeBytes();
-        for ( int i = begin; i < begin + slen; i++ ) {
-            if ( bytes[i] == match ) bytes[i] = replace;
-        }
-    }
-
     static final char[] S20 = new char[] {
         ' ',' ',' ',' ',  ' ',' ',' ',' ',
         ' ',' ',' ',' ',  ' ',' ',' ',' ',
