@@ -27,6 +27,10 @@ else
       RubyMaven.exec( 'package -Dmaven.test.skip=true' )
     end
   end
+  task :test_prepare do
+    RubyMaven.exec( 'prepare-package -Dmaven.test.skip=true' )
+    RubyMaven.exec( 'test-compile' ) # separate step due -Dmaven.test.skip=true
+  end
 end
 
 task :build do

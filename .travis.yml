@@ -19,6 +19,9 @@ install: if [[ -v BUNDLE_INSTALL ]]; then jruby -S bundle install; else echo "";
 
 script: if [[ -v TEST_COMMAND ]]; then $TEST_COMMAND; else mvn verify -P $TEST_PROFILE; fi
 
+__stub:
+  - &rake_test_command TEST_COMMAND="jruby -rbundler/setup -S rake test_prepare && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
+
 matrix:
   allow_failures:
     - jdk: openjdk7
@@ -33,17 +36,14 @@ matrix:
   include:
     # since maven runit fails to boot with test-unit being a default gem on 9.2 :
     - jdk: oraclejdk8
-      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
-      rvm: jruby-9.2.5.0
-    - jdk: oraclejdk8
-      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
-      rvm: jruby-9.2.9.0
+      env: *rake_test_command
+      rvm: jruby-9.2.12.0
     #
     - jdk: openjdk7
-      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
+      env: *rake_test_command
       rvm: jruby-1.7.24
     - jdk: oraclejdk8
-      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
+      env: *rake_test_command
       rvm: jruby-1.7.27
     #
     - jdk: openjdk7
@@ -51,16 +51,16 @@ matrix:
 
       rvm: jruby-1.7.26
     - jdk: oraclejdk8
-      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
-      rvm: jruby-9.2.8.0
-    - jdk: oraclejdk11
-      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
+      env: *rake_test_command
       rvm: jruby-9.2.9.0
+    - jdk: oraclejdk11
+      env: *rake_test_command
+      rvm: jruby-9.2.11.1
     - jdk: oraclejdk8
-      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
+      env: *rake_test_command
       rvm: jruby-head
     - jdk: oraclejdk11
-      env: TEST_COMMAND="jruby -rbundler/setup -S rmvn test-compile && jruby -rbundler/setup -S rake test" BUNDLE_INSTALL=true
+      env: *rake_test_command
       rvm: jruby-head
     #
     - jdk: oraclejdk8
@@ -77,7 +77,7 @@ matrix:
       rvm: jruby-9.1.17.0
     - jdk: oraclejdk11
       env: TEST_COMMAND="jruby -rbundler/setup -S rake integration:install integration:test" BUNDLE_INSTALL=true
-      rvm: jruby-9.2.9.0
+      rvm: jruby-9.2.12.0
 notifications:
   irc:
     channels:
