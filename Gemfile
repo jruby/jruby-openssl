@@ -14,4 +14,4 @@ gem 'mocha', '~> 1.4', '< 2.0'
 gem 'ruby-maven', github: 'deivid-rodriguez/ruby-maven', branch: 'exit_status'
 
 # NOTE: runit-maven-plugin will use it's own :
-# gem 'test-unit', '2.5.5'
+gem 'test-unit', '2.5.5'
