@@ -31,13 +31,6 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version     = '>= 1.9.3'
   s.required_rubygems_version = '>= 2.4.8'
-
-  s.add_development_dependency 'jar-dependencies', '~> 0.1'
-
-  s.add_development_dependency 'mocha', '~> 1.4', '< 2.0'
-  s.add_development_dependency 'ruby-maven', '~> 3.0'
-  # NOTE: runit-maven-plugin will use it's own :
-  #s.add_development_dependency 'test-unit', '2.5.5'
 end
 
 # vim: syntax=Ruby
