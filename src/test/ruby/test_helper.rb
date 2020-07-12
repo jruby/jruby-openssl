@@ -127,7 +127,6 @@ TestCase.class_eval do
     disable_security_restrictions; return @@security_restrictions
   end
 
-  def self.java6?; java_version.last.to_i == 6 end
   def self.java7?; java_version.last.to_i == 7 end
   def self.java8?; java_version.last.to_i == 8 end
 
