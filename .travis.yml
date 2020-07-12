@@ -12,6 +12,7 @@ env:
 
 before_install:
   - unset _JAVA_OPTIONS
+  - unset JRUBY_OPTS
   - rvm @default,@global do gem uninstall bundler -a -x -I || true
   - gem install bundler -v "~>1.17.3"
 
