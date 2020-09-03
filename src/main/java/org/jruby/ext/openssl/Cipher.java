@@ -825,6 +825,12 @@ public class Cipher extends RubyObject {
         return getRuntime().newFixnum(ivLength);
     }
 
+    @JRubyMethod(name = "iv_len=", required = 1)
+    public final IRubyObject set_iv_len(IRubyObject len) {
+      this.ivLength = RubyNumeric.fix2int(len);
+      return len;
+    }
+
     @JRubyMethod(name = "key_len=", required = 1)
     public final IRubyObject set_key_len(IRubyObject len) {
         this.keyLength = RubyNumeric.fix2int(len);
