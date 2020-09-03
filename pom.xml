@@ -61,40 +61,19 @@ DO NOT MODIFIY - GENERATED CODE
   </distributionManagement>
   <properties>
     <bc.versions>1.65</bc.versions>
-    <invoker.skip>${maven.test.skip}</invoker.skip>
-    <invoker.test>${bc.versions}</invoker.test>
-    <jruby.plugins.version>1.1.8</jruby.plugins.version>
+    <mavengem.wagon.version>1.0.3</mavengem.wagon.version>
     <jruby.switches>-W0</jruby.switches>
     <jruby.version>9.1.17.0</jruby.version>
-    <jruby.versions>9.1.17.0</jruby.versions>
-    <mavengem-wagon.version>1.0.3</mavengem-wagon.version>
-    <mavengem.wagon.version>1.0.3</mavengem.wagon.version>
-    <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
-    <polyglot.dump.readonly>true</polyglot.dump.readonly>
+    <jruby.plugins.version>1.1.8</jruby.plugins.version>
+    <invoker.skip>${maven.test.skip}</invoker.skip>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
+    <mavengem-wagon.version>1.0.3</mavengem-wagon.version>
+    <jruby.versions>9.1.17.0</jruby.versions>
+    <polyglot.dump.readonly>true</polyglot.dump.readonly>
+    <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
+    <invoker.test>${bc.versions}</invoker.test>
   </properties>
   <dependencies>
-    <dependency>
-      <groupId>rubygems</groupId>
-      <artifactId>jar-dependencies</artifactId>
-      <version>[0.1,0.99999]</version>
-      <type>gem</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>rubygems</groupId>
-      <artifactId>mocha</artifactId>
-      <version>[1.4,2.0)</version>
-      <type>gem</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>rubygems</groupId>
-      <artifactId>ruby-maven</artifactId>
-      <version>[3.0,3.99999]</version>
-      <type>gem</type>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
