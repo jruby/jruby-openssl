@@ -1,3 +1,14 @@
+## 0.10.5
+
+* [fix] EC key sign/verify (#193)
+* [feat] upgrade BC library to 1.65
+* [refactor] clean security helpers to avoid reflection (#197)
+* Just use normal getInstance to get KeyFactory (fixes #197)
+* Allow multiple Certificates with the same SubjectDN in the store (#198)
+* Try direct path for MessageDigest before invasive path (#194) 
+  (relates to jruby/jruby#6098)
+* [refactor] avoid NativeException usage (jruby/jruby#5646) 
+
 ## 0.10.4
 
 * Use CertificateFactory.getInstance rather than reflection

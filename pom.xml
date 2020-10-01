@@ -11,7 +11,7 @@ DO NOT MODIFIY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.10.5.dev-SNAPSHOT</version>
+  <version>0.10.5</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -74,27 +74,6 @@ DO NOT MODIFIY - GENERATED CODE
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
   </properties>
   <dependencies>
-    <dependency>
-      <groupId>rubygems</groupId>
-      <artifactId>jar-dependencies</artifactId>
-      <version>[0.1,0.99999]</version>
-      <type>gem</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>rubygems</groupId>
-      <artifactId>mocha</artifactId>
-      <version>[1.4,2.0)</version>
-      <type>gem</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>rubygems</groupId>
-      <artifactId>ruby-maven</artifactId>
-      <version>[3.0,3.99999]</version>
-      <type>gem</type>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
