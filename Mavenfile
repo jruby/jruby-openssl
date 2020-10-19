@@ -88,7 +88,7 @@ plugin :clean do
 end
 
 jar 'org.jruby:jruby-core', '1.7.20', :scope => :provided
-jar 'junit:junit', '4.11', :scope => :test
+jar 'junit:junit', '[4.13.1,)', :scope => :test
 
 # 9.1.17.0 is Java 7 compatible (till supporting JRuby 1.7)
 # NOTE: to build on Java 11 - installing gems fails (due old jossl) with:
