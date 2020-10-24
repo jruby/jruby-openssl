@@ -136,6 +136,21 @@ class TestSSLSocket < TestCase
     end
   end if RUBY_VERSION > '2.2'
 
+  def test_minmax_ssl_version
+    # WIP: this test should setup it's own server to prove that SSLContext.min_version and SSLContext.max_version work as expected
+    # However below line is failing  with "no cipher match" even on master
+    # When "no cipher match" is fixed, then this test need cleanup
+
+    #ssl_server = server         
+    begin
+      ssl_client = client(443, host: "google.com", min_version: OpenSSL::SSL::TLS1_VERSION, max_version: OpenSSL::SSL::TLS1_1_VERSION, ciphers: nil)
+      #ssl_client = client(server_port(ssl_server), min_version: OpenSSL::SSL::TLS1_VERSION, max_version: OpenSSL::SSL::TLS1_1_VERSION)
+      assert_equal 'TLSv1.1', ssl_client.ssl_version
+    ensure
+      ssl_client.sysclose unless ssl_client.nil?
+    end
+  end if RUBY_VERSION > '2.3'
+
   def test_inherited_socket; require 'socket'
     inheritedSSLSocket = Class.new(OpenSSL::SSL::SSLSocket)
 
@@ -150,18 +165,21 @@ class TestSSLSocket < TestCase
 
   private
 
-  def server; require 'socket'
+  def server(ssl_version: nil); require 'socket'
     host = "127.0.0.1"; port = 0
     ctx = OpenSSL::SSL::SSLContext.new()
-    ctx.ciphers = "ADH"
+    ctx.ssl_version = ssl_version unless ssl_version.nil?
+    ctx.ciphers = "ADH" 
     server = TCPServer.new(host, port)
     OpenSSL::SSL::SSLServer.new(server, ctx)
   end
 
-  def client(port); require 'socket'
-    host = "127.0.0.1"
+  def client(port, host: "127.0.0.1", min_version: nil, max_version: nil, ciphers: "ADH")
+    require 'socket'
     ctx = OpenSSL::SSL::SSLContext.new()
-    ctx.ciphers = "ADH"
+    ctx.min_version = min_version unless min_version.nil?
+    ctx.max_version = max_version unless max_version.nil?
+    ctx.ciphers = ciphers unless ciphers.nil?
     client = TCPSocket.new(host, port)
     ssl = OpenSSL::SSL::SSLSocket.new(client, ctx)
     ssl.connect

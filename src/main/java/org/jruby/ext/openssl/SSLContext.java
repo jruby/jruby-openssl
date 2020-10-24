@@ -53,6 +53,7 @@ import javax.net.ssl.X509TrustManager;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyHash;
 import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
@@ -96,31 +97,44 @@ public class SSLContext extends RubyObject {
 
     // Mapping table for OpenSSL's SSL_METHOD -> JSSE's SSLContext algorithm.
     private static final HashMap<String, String> SSL_VERSION_OSSL2JSSE;
+    // Inverse mapping (incomplete, does not map 1-1 with SSL_VERSION_OSSL2JSSE)
+    private static final HashMap<String, String> SSL_VERSION_OSSL2JSSE_INV;
     // Mapping table for JSEE's enabled protocols for the algorithm.
     private static final Map<String, String[]> ENABLED_PROTOCOLS;
+    // Mapping table from CRuby parse_proto_version(VALUE str)
+    private static final Map<String, Integer> PROTO_VERSION_MAP;
+    // same as METHODS_MAP from ssl.rb
+    private static final Map<String, Integer> METHODS_MAP;
+    private static final Map<Integer, String> METHODS_MAP_INV;
 
     static {
         SSL_VERSION_OSSL2JSSE = new LinkedHashMap<String, String>(20, 1);
         ENABLED_PROTOCOLS = new HashMap<String, String[]>(8, 1);
 
+        SSL_VERSION_OSSL2JSSE_INV = new HashMap<String, String>();
+
         SSL_VERSION_OSSL2JSSE.put("TLSv1", "TLSv1");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_server", "TLSv1");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_client", "TLSv1");
         ENABLED_PROTOCOLS.put("TLSv1", new String[] { "TLSv1" });
+        SSL_VERSION_OSSL2JSSE_INV.put("TLSv1", "TLSv1_1");
 
         SSL_VERSION_OSSL2JSSE.put("SSLv2", "SSLv2");
         SSL_VERSION_OSSL2JSSE.put("SSLv2_server", "SSLv2");
         SSL_VERSION_OSSL2JSSE.put("SSLv2_client", "SSLv2");
         ENABLED_PROTOCOLS.put("SSLv2", new String[] { "SSLv2" });
+        SSL_VERSION_OSSL2JSSE_INV.put("SSLv2", "SSLv2");
 
         SSL_VERSION_OSSL2JSSE.put("SSLv3", "SSLv3");
         SSL_VERSION_OSSL2JSSE.put("SSLv3_server", "SSLv3");
         SSL_VERSION_OSSL2JSSE.put("SSLv3_client", "SSLv3");
         ENABLED_PROTOCOLS.put("SSLv3", new String[] { "SSLv3" });
+        SSL_VERSION_OSSL2JSSE_INV.put("SSLv3", "SSLv3");
 
         SSL_VERSION_OSSL2JSSE.put("SSLv23", "SSL");
         SSL_VERSION_OSSL2JSSE.put("SSLv23_server", "SSL");
         SSL_VERSION_OSSL2JSSE.put("SSLv23_client", "SSL");
+        SSL_VERSION_OSSL2JSSE_INV.put("SSL", "SSLv23");
 
         ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv2", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2" });
 
@@ -138,10 +152,34 @@ public class SSLContext extends RubyObject {
         SSL_VERSION_OSSL2JSSE.put("TLSv1_1", "TLSv1.1"); // supported on MRI 2.x
         SSL_VERSION_OSSL2JSSE.put("TLSv1_2", "TLSv1.2"); // supported on MRI 2.x
         ENABLED_PROTOCOLS.put("TLSv1.2", new String[] { "TLSv1.2" });
+        SSL_VERSION_OSSL2JSSE_INV.put("TLSv1.1", "TLSv1_1");
+        SSL_VERSION_OSSL2JSSE_INV.put("TLSv1.2", "TLSv1_2");
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1.2", "TLSv1.2"); // just for completeness
         SSL_VERSION_OSSL2JSSE.put("TLSv1_2_server", "TLSv1.2");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_2_client", "TLSv1.2");
+
+        PROTO_VERSION_MAP = new HashMap<String, Integer>();
+        PROTO_VERSION_MAP.put("SSL2", SSL.SSL2_VERSION);
+        PROTO_VERSION_MAP.put("SSL3", SSL.SSL3_VERSION);
+        PROTO_VERSION_MAP.put("TLS1", SSL.TLS1_VERSION);
+        PROTO_VERSION_MAP.put("TLS1_1", SSL.TLS1_1_VERSION);
+        PROTO_VERSION_MAP.put("TLS1_2", SSL.TLS1_2_VERSION);
+        PROTO_VERSION_MAP.put("TLS1_3", SSL.TLS1_3_VERSION);
+
+        METHODS_MAP = new HashMap<String, Integer>();
+        METHODS_MAP.put("SSLv23", 0);
+        METHODS_MAP.put("SSLv2", SSL.SSL2_VERSION);
+        METHODS_MAP.put("SSLv3", SSL.SSL3_VERSION);
+        METHODS_MAP.put("TLSv1", SSL.TLS1_VERSION);
+        METHODS_MAP.put("TLSv1_1", SSL.TLS1_1_VERSION);
+        METHODS_MAP.put("TLSv1_2", SSL.TLS1_2_VERSION);
+        METHODS_MAP.put("TLSv1_3", SSL.TLS1_3_VERSION);
+
+        METHODS_MAP_INV = new HashMap<Integer, String>();
+        for(Map.Entry<String, Integer> e: METHODS_MAP.entrySet()) {
+            METHODS_MAP_INV.put(e.getValue(), e.getKey());
+        }
     }
 
     private static ObjectAllocator SSLCONTEXT_ALLOCATOR = new ObjectAllocator() {
@@ -267,9 +305,14 @@ public class SSLContext extends RubyObject {
     }
 
     private String ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
-    private String protocol = "SSL"; // SSLv23 in OpenSSL by default
+    private static final String DEFAULT_PROTOCOL = "SSL"; // SSLv23 in OpenSSL by default
+    private static final int DEFAULT_PROTOCOL_VERSION = 0;
+    private String protocol = null;
+    private Integer protocolVersion = null;
     private boolean protocolForServer = true;
     private boolean protocolForClient = true;
+    private int minProtocolVersion = 0;
+    private int maxProtocolVersion = 0;
     private PKey t_key;
     private X509Cert t_cert;
 
@@ -446,6 +489,8 @@ public class SSLContext extends RubyObject {
         }
         */
 
+        setupProtocolVersion(context);
+
         try {
             internalContext = createInternalContext(context, cert, key, store, clientCert, extraChainCert, verifyMode, timeout);
         }
@@ -456,6 +501,37 @@ public class SSLContext extends RubyObject {
         return runtime.getTrue();
     }
 
+    private void setupProtocolVersion(final ThreadContext context) {
+        if (protocolVersion == null) {
+            String ssl_version = null;
+            if (maxProtocolVersion != 0) {
+                ssl_version = METHODS_MAP_INV.get(maxProtocolVersion);
+                set_ssl_version(ssl_version);
+            } else {
+                ssl_version = getMaxSupportedProtocolVersion();
+                set_ssl_version(ssl_version);
+            }
+        }
+
+        if (minProtocolVersion !=0 || maxProtocolVersion !=0 ) {
+            if (minProtocolVersion != 0 && protocolVersion < minProtocolVersion) {
+                throw newSSLError(context.runtime, "no protocols available");
+            }
+            if (maxProtocolVersion != 0 && protocolVersion > maxProtocolVersion) {
+                throw newSSLError(context.runtime, "no protocols available");
+            }
+        }
+    }
+
+    private String getMaxSupportedProtocolVersion() {
+        //TODO: probably needs to be computed from
+        //javax.net.ssl.SSLContext.getSupportedSSLParameters().getProtocols()
+        //some changes prob. needed in dummySSLEngine and SecurityHelper.getSSLContext
+        //Hardcoding now.
+        //Nonetheless, TLS1.3 needs more changes in jruby-openssl
+        return "TLSv1_2";
+    }
+
     @JRubyMethod
     public RubyArray ciphers(final ThreadContext context) {
         return matchedCiphers(context);
@@ -464,7 +540,8 @@ public class SSLContext extends RubyObject {
     private RubyArray matchedCiphers(final ThreadContext context) {
         final Ruby runtime = context.runtime;
         try {
-            final String[] supported = getSupportedCipherSuites(this.protocol);
+            setupProtocolVersion(context);
+            final String[] supported = getSupportedCipherSuites(protocol);
             final Collection<CipherStrings.Def> cipherDefs =
                     CipherStrings.matchingCiphers(this.ciphers, supported, false);
 
@@ -517,17 +594,47 @@ public class SSLContext extends RubyObject {
         } else {
             versionStr = version.convertToString().toString();
         }
+        set_ssl_version(versionStr);
+        return version;
+    }
+
+    private void set_ssl_version(final String versionStr) {
         final String protocol = SSL_VERSION_OSSL2JSSE.get(versionStr);
         if ( protocol == null ) {
             throw getRuntime().newArgumentError("unknown SSL method `"+ versionStr +"'");
         }
         this.protocol = protocol;
+        this.protocolVersion = METHODS_MAP.get(versionStr);
         protocolForServer = ! versionStr.endsWith("_client");
         protocolForClient = ! versionStr.endsWith("_server");
-        return version;
     }
 
-    final String getProtocol() { return this.protocol; }
+    @JRubyMethod(name = "set_minmax_proto_version")
+    public IRubyObject set_minmax_proto_version(ThreadContext context, IRubyObject minVersion, IRubyObject maxVersion) {
+        minProtocolVersion = parseProtoVersion(minVersion);
+        maxProtocolVersion = parseProtoVersion(maxVersion);
+
+        return context.nil;
+    }
+
+    private int parseProtoVersion(IRubyObject version) {
+        if (version.isNil())
+            return 0;
+        if (version instanceof RubyFixnum) {
+            return (int) ((RubyFixnum) version).getLongValue();
+        }
+
+        String string = version.asString().asJavaString();
+        Integer sslVersion = PROTO_VERSION_MAP.get(string);
+
+        if (sslVersion == null) {
+            throw getRuntime().newArgumentError("unrecognized version \"" + string + "\"");
+        }
+
+        return sslVersion;
+    }
+
+	final String getProtocol() { return this.protocol; }
 
     @JRubyMethod(name = "session_cache_mode")
     public IRubyObject session_cache_mode() {

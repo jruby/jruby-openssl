@@ -104,6 +104,12 @@ class TestSSLContext < TestCase
     end
     assert_raises(TypeError) { context.ssl_version = 12 }
   end
+  
+  def test_context_minmax_version
+    context = OpenSSL::SSL::SSLContext.new
+    context.min_version = OpenSSL::SSL::TLS1_VERSION
+    context.max_version = OpenSSL::SSL::TLS1_2_VERSION
+  end
 
   def test_context_ciphers
     self.class.disable_security_restrictions
