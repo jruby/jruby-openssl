@@ -137,6 +137,38 @@ class TestSSL < TestCase
     end
   end
 
+  # Ruby supports TLSv1.3 already. Java - TLSv1.2.
+  MAX_SSL_VERSION = if defined? JRUBY_VERSION
+                      "TLSv1.2"
+                    else
+                      "TLSv1.3"
+                    end
+  [
+    [OpenSSL::SSL::TLS1_VERSION, nil,   MAX_SSL_VERSION, "(TLSv1,)"],
+    [OpenSSL::SSL::TLS1_1_VERSION, nil, MAX_SSL_VERSION, "(TLSv1.1,)"],
+    [OpenSSL::SSL::TLS1_2_VERSION, nil, MAX_SSL_VERSION, "(TLSv1.2,)"],
+    [nil, OpenSSL::SSL::TLS1_VERSION,   "TLSv1",         "(,TLSv1)"],
+    [nil, OpenSSL::SSL::TLS1_1_VERSION, "TLSv1.1",       "(,TLSv1.1)"],
+    [nil, OpenSSL::SSL::TLS1_2_VERSION, "TLSv1.2",       "(,TLSv1.2)"],
+    [OpenSSL::SSL::TLS1_VERSION, OpenSSL::SSL::TLS1_VERSION,   "TLSv1",   "(TLSv1,TLSv1)"],
+    [OpenSSL::SSL::TLS1_VERSION, OpenSSL::SSL::TLS1_1_VERSION, "TLSv1.1", "(TLSv1,TLSv1.1)"],
+    [OpenSSL::SSL::TLS1_VERSION, OpenSSL::SSL::TLS1_2_VERSION, "TLSv1.2", "(TLSv1,TLSv1.2)"]
+  ].each do |min_version, max_version, expected_version, desc|
+    define_method("test_ssl_minmax_#{desc}") do
+      ctx_proc = Proc.new do |ctx|
+        ctx.min_version = min_version unless min_version.nil?
+        ctx.max_version = max_version unless max_version.nil?
+      end
+      start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
+        sock = TCPSocket.new("127.0.0.1", port)
+        ssl = OpenSSL::SSL::SSLSocket.new(sock)
+        ssl.connect
+        assert_equal(expected_version, ssl.ssl_version)
+        ssl.close
+      end
+    end
+  end if RUBY_VERSION > '2.3' 
+
   def test_read_nonblock_would_block
     start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
       sock = TCPSocket.new("127.0.0.1", port)

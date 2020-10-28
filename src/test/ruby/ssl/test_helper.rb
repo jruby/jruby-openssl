@@ -1,4 +1,5 @@
 require File.expand_path('../test_helper', File.dirname(__FILE__))
+require 'openssl'
 
 module SSLTestHelper
 
@@ -7,7 +8,7 @@ module SSLTestHelper
   PORT = 20443
   ITERATIONS = ($0 == __FILE__) ? 100 : 10
 
-  def setup; require 'openssl'
+  def setup;
 
     @ca_key  = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
     @svr_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
