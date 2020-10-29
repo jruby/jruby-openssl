@@ -58,4 +58,32 @@ class TestX509Name < TestCase
     assert_equal [["DC", "org", 22], ["DC", "ruby-lang", 22], ["CN", "TestCA", 12]], name.to_a
   end
 
+  def test_hash_empty
+    name = OpenSSL::X509::Name.new
+    assert_equal 4003674586, name.hash
+  end
+
+  def test_hash
+    name = OpenSSL::X509::Name.new [['CN', 'nobody'], ['DC', 'example']]
+    assert_equal 3974220101, name.hash
+  end
+
+  def test_hash_multiple_spaces_mixed_case
+    name = OpenSSL::X509::Name.new [['CN', 'foo  bar'], ['DC', 'BAZ']]
+    name2 = OpenSSL::X509::Name.new [['CN', 'foo bar'], ['DC', 'baz']]
+    assert_equal 1941551332, name.hash
+    assert_equal 1941551332, name2.hash
+  end
+
+  def test_hash_long_name
+   puts 'test_hash_long_name'
+    name = OpenSSL::X509::Name.new [['CN', 'a' * 255], ['DC', 'example']]
+    assert_equal 214469118, name.hash
+  end
+
+  def test_hash_old
+    name = OpenSSL::X509::Name.new [['CN', 'nobody'], ['DC', 'example']]
+    assert_equal 1460400684, name.hash_old
+  end
+
 end
