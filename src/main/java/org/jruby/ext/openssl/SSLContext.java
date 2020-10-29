@@ -53,6 +53,7 @@ import javax.net.ssl.X509TrustManager;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyHash;
 import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
@@ -98,6 +99,10 @@ public class SSLContext extends RubyObject {
     private static final HashMap<String, String> SSL_VERSION_OSSL2JSSE;
     // Mapping table for JSEE's enabled protocols for the algorithm.
     private static final Map<String, String[]> ENABLED_PROTOCOLS;
+    // Mapping table from CRuby parse_proto_version(VALUE str)
+    private static final Map<String, Integer> PROTO_VERSION_MAP;
+
+    private static final Map<String, Integer> JSSE_TO_VERSION;
 
     static {
         SSL_VERSION_OSSL2JSSE = new LinkedHashMap<String, String>(20, 1);
@@ -142,6 +147,22 @@ public class SSLContext extends RubyObject {
         SSL_VERSION_OSSL2JSSE.put("TLSv1.2", "TLSv1.2"); // just for completeness
         SSL_VERSION_OSSL2JSSE.put("TLSv1_2_server", "TLSv1.2");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_2_client", "TLSv1.2");
+
+        PROTO_VERSION_MAP = new HashMap<String, Integer>();
+        PROTO_VERSION_MAP.put("SSL2", SSL.SSL2_VERSION);
+        PROTO_VERSION_MAP.put("SSL3", SSL.SSL3_VERSION);
+        PROTO_VERSION_MAP.put("TLS1", SSL.TLS1_VERSION);
+        PROTO_VERSION_MAP.put("TLS1_1", SSL.TLS1_1_VERSION);
+        PROTO_VERSION_MAP.put("TLS1_2", SSL.TLS1_2_VERSION);
+        PROTO_VERSION_MAP.put("TLS1_3", SSL.TLS1_3_VERSION);
+
+        JSSE_TO_VERSION = new HashMap<String, Integer>();
+        JSSE_TO_VERSION.put("SSLv2", SSL.SSL2_VERSION);
+        JSSE_TO_VERSION.put("SSLv3", SSL.SSL3_VERSION);
+        JSSE_TO_VERSION.put("TLSv1", SSL.TLS1_VERSION);
+        JSSE_TO_VERSION.put("TLSv1.1", SSL.TLS1_1_VERSION);
+        JSSE_TO_VERSION.put("TLSv1.2", SSL.TLS1_2_VERSION);
+        JSSE_TO_VERSION.put("TLSv1.3", SSL.TLS1_3_VERSION);
     }
 
     private static ObjectAllocator SSLCONTEXT_ALLOCATOR = new ObjectAllocator() {
@@ -270,6 +291,8 @@ public class SSLContext extends RubyObject {
     private String protocol = "SSL"; // SSLv23 in OpenSSL by default
     private boolean protocolForServer = true;
     private boolean protocolForClient = true;
+    private int minProtocolVersion = 0;
+    private int maxProtocolVersion = 0;
     private PKey t_key;
     private X509Cert t_cert;
 
@@ -464,7 +487,7 @@ public class SSLContext extends RubyObject {
     private RubyArray matchedCiphers(final ThreadContext context) {
         final Ruby runtime = context.runtime;
         try {
-            final String[] supported = getSupportedCipherSuites(this.protocol);
+            final String[] supported = getSupportedCipherSuites(protocol);
             final Collection<CipherStrings.Def> cipherDefs =
                     CipherStrings.matchingCiphers(this.ciphers, supported, false);
 
@@ -525,6 +548,31 @@ public class SSLContext extends RubyObject {
         protocolForServer = ! versionStr.endsWith("_client");
         protocolForClient = ! versionStr.endsWith("_server");
         return version;
+    }
+
+    @JRubyMethod(name = "set_minmax_proto_version")
+    public IRubyObject set_minmax_proto_version(ThreadContext context, IRubyObject minVersion, IRubyObject maxVersion) {
+        minProtocolVersion = parseProtoVersion(minVersion);
+        maxProtocolVersion = parseProtoVersion(maxVersion);
+
+        return context.nil;
+    }
+
+    private int parseProtoVersion(IRubyObject version) {
+        if (version.isNil())
+            return 0;
+        if (version instanceof RubyFixnum) {
+            return RubyFixnum.fix2int(version);
+        }
+
+        String string = version.asString().asJavaString();
+        Integer sslVersion = PROTO_VERSION_MAP.get(string);
+
+        if (sslVersion == null) {
+            throw getRuntime().newArgumentError("unrecognized version \"" + string + "\"");
+        }
+
+        return sslVersion;
     }
 
     final String getProtocol() { return this.protocol; }
@@ -651,6 +699,10 @@ public class SSLContext extends RubyObject {
             final String[] engineProtocols = engine.getEnabledProtocols();
             final List<String> protocols = new ArrayList<String>(enabledProtocols.length);
             for ( final String enabled : enabledProtocols ) {
+                int protocolVersion = JSSE_TO_VERSION.get(enabled);
+                if (minProtocolVersion != 0 && protocolVersion < minProtocolVersion) continue;
+                if (maxProtocolVersion != 0 && protocolVersion > maxProtocolVersion) continue;
+
                 if (((options & OP_NO_SSLv2) != 0) && enabled.equals("SSLv2")) continue;
                 if (((options & OP_NO_SSLv3) != 0) && enabled.equals("SSLv3")) continue;
                 if (((options & OP_NO_TLSv1) != 0) && enabled.equals("TLSv1")) continue;

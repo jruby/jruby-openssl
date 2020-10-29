@@ -38,4 +38,26 @@ class IntegrationSSLTest < TestCase
     puts http.get('/')
   end
 
+  def test_connect_ssl_minmax_version
+    require 'openssl'
+    require 'socket'
+
+    puts "\n"
+    puts "------------------------------------------------------------"
+    puts "-- SSL min/max version ... 'https://google.co.uk'"
+    puts "------------------------------------------------------------"
+
+    ctx = OpenSSL::SSL::SSLContext.new()
+    ctx.min_version = OpenSSL::SSL::TLS1_VERSION
+    ctx.max_version = OpenSSL::SSL::TLS1_1_VERSION
+    client = TCPSocket.new('google.co.uk', 443)
+    ssl = OpenSSL::SSL::SSLSocket.new(client, ctx)
+    ssl.sync_close = true
+    ssl.connect
+    begin
+        assert_equal 'TLSv1.1', ssl.ssl_version
+    ensure
+        ssl.sysclose
+    end
+  end
 end
