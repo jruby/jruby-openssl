@@ -35,6 +35,7 @@ import java.security.cert.X509Certificate;
 import javax.security.auth.x500.X500Principal;
 
 import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.jce.X509Principal;
 import org.bouncycastle.jce.provider.X509CertificateObject;
@@ -58,7 +59,7 @@ public class Name {
         this.name = name;
     }
 
-    public static int hash(final X500Name name) throws IOException {
+    public static int hashOld(final X500Name name) throws IOException {
         try {
             final byte[] bytes = name.getEncoded();
             MessageDigest md5 = SecurityHelper.getMessageDigest("MD5");
@@ -75,9 +76,43 @@ public class Name {
         }
     }
 
-    private transient int hash = 0;
+    public static long hash(final X500Name canonicalName) throws IOException {
+        try {
+            final byte[] bytes = canonicalName.getEncoded();
+            MessageDigest sha = SecurityHelper.getMessageDigest("SHA1");
+            int n = getLeadingTLLength(bytes);
+            sha.update(bytes, n, bytes.length - n); //canonical form does not include leading SEQUENCE Tag-Length
+            final byte[] digest = sha.digest();
+            long result = 0;
+            result |= digest[3] & 0xff; result <<= 8;
+            result |= digest[2] & 0xff; result <<= 8;
+            result |= digest[1] & 0xff; result <<= 8;
+            result |= digest[0] & 0xff;
+            return result & 0xffffffff;
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-    public final int hash() {
+    private static int getLeadingTLLength(byte[] bytes) throws IOException {
+        if (bytes.length <= 1) {
+            return bytes.length; //should not happen tough
+        }
+        byte length = bytes[1];
+        
+        if ((length & 0x80) == 0x80) {
+            // long form: Two to 127 octets. Bit 8 of first octet has value "1" and 
+            // bits 7-1 give the number of additional length octets.
+            int size = length & 0x7f;
+            return 1 + 1 + size;
+        }
+        return 2;   //short form: 1 byte tag, 1 byte length
+    }
+
+    private transient long hash = 0;
+
+    public final long hash() {
         try {
             return hash == 0 ? hash = hash(name) : hash;
         }
@@ -93,7 +128,7 @@ public class Name {
      * c: X509_NAME_hash
      */
     @Override
-    public int hashCode() { return hash(); }
+    public int hashCode() { return (int)hash(); }
 
     @Override
     public boolean equals(final Object that) {

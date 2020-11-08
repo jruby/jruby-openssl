@@ -49,6 +49,7 @@ import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1String;
 import org.bouncycastle.asn1.BERTags;
+import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.DLSet;
 import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
@@ -176,6 +177,7 @@ public class X509Name extends RubyObject {
     private final List<RubyInteger> types;
 
     private transient X500Name name;
+    private transient X500Name canonicalName;
 
     private void fromASN1Sequence(final byte[] encoded) {
         try {
@@ -242,6 +244,7 @@ public class X509Name extends RubyObject {
     @SuppressWarnings("unchecked")
     private void addType(final Ruby runtime, final ASN1Encodable value) {
         this.name = null; // NOTE: each fromX factory calls this ...
+        this.canonicalName = null;
         final Integer type = ASN1.typeId(value);
         if ( type == null ) {
             warn(runtime.getCurrentContext(), this + " addType() could not resolve type for: " +
@@ -256,6 +259,7 @@ public class X509Name extends RubyObject {
     private void addEntry(ASN1ObjectIdentifier oid, RubyString value, RubyInteger type)
         throws IOException {
         this.name = null;
+        this.canonicalName = null;
         this.oids.add(oid);
         final ASN1Encodable convertedValue = getNameEntryConverted().
                 getConvertedValue(oid, value.toString()
@@ -515,6 +519,50 @@ public class X509Name extends RubyObject {
         return name = builder.build();
     }
 
+    final X500Name getCanonicalX500Name() {
+        if ( canonicalName != null ) return canonicalName;
+
+        final X500NameBuilder builder = new X500NameBuilder( BCStyle.INSTANCE );
+        for ( int i = 0; i < oids.size(); i++ ) {
+            ASN1Encodable value = values.get(i);
+            value = canonicalize(value);
+            builder.addRDN( oids.get(i), value );
+        }
+        return canonicalName = builder.build();
+    }
+
+    private ASN1Encodable canonicalize(ASN1Encodable value) {
+        if (value instanceof ASN1String) {
+            ASN1String string = (ASN1String) value;
+            return new DERUTF8String(canonicalize(string.getString()));
+        }
+        return value;
+    }
+
+    private String canonicalize(String string) {
+        //asn1_string_canon (trim, to lower case, collapse multiple spaces)
+        string = string.trim();
+        if (string.length() == 0) {
+            return string;
+        }
+
+        StringBuilder out = new StringBuilder();
+        int i = 0;
+        while (i < string.length()) {
+            char c = string.charAt(i);
+            if (Character.isWhitespace(c)){
+                out.append(' ');
+                while (i < string.length() && Character.isWhitespace(string.charAt(i))) {
+                    i++;
+                }
+            } else {
+                out.append(Character.toLowerCase(c));
+                i++;
+            }
+        }
+        return out.toString();
+    }
+
     @JRubyMethod(name = { "cmp", "<=>" })
     public RubyFixnum cmp(IRubyObject other) {
         if ( equals(other) ) {
@@ -523,8 +571,8 @@ public class X509Name extends RubyObject {
         // TODO: do we really need cmp - if so what order huh?
         if ( other instanceof X509Name ) {
             final X509Name that = (X509Name) other;
-            final X500Name thisName = this.getX500Name();
-            final X500Name thatName = that.getX500Name();
+            final X500Name thisName = this.getCanonicalX500Name();
+            final X500Name thatName = that.getCanonicalX500Name();
             int cmp = thisName.toString().compareTo( thatName.toString() );
             return RubyFixnum.newFixnum( getRuntime(), cmp );
         }
@@ -536,8 +584,8 @@ public class X509Name extends RubyObject {
         if ( this == other ) return true;
         if ( other instanceof X509Name ) {
             final X509Name that = (X509Name) other;
-            final X500Name thisName = this.getX500Name();
-            final X500Name thatName = that.getX500Name();
+            final X500Name thisName = this.getCanonicalX500Name();
+            final X500Name thatName = that.getCanonicalX500Name();
             return thisName.equals(thatName);
         }
         return false;
@@ -546,7 +594,7 @@ public class X509Name extends RubyObject {
     @Override
     public int hashCode() {
         try {
-            return Name.hash( getX500Name() );
+            return (int) Name.hash( getCanonicalX500Name() );
         }
         catch (IOException e) {
             debugStackTrace(getRuntime(), e); return 0;
@@ -554,7 +602,6 @@ public class X509Name extends RubyObject {
         catch (RuntimeException e) {
             debugStackTrace(getRuntime(), e); return 0;
         }
-        // return 41 * this.oids.hashCode();
     }
 
     @JRubyMethod(name = "eql?")
@@ -571,7 +618,32 @@ public class X509Name extends RubyObject {
     @Override
     @JRubyMethod
     public RubyFixnum hash() {
-        return getRuntime().newFixnum( hashCode() );
+        long hash;
+        try {
+            hash = Name.hash( getCanonicalX500Name() );
+        }
+        catch (IOException e) {
+            debugStackTrace(getRuntime(), e); hash = 0;
+        }
+        catch (RuntimeException e) {
+            debugStackTrace(getRuntime(), e); hash = 0;
+        }
+        return getRuntime().newFixnum(hash);
+    }
+
+    @JRubyMethod
+    public RubyFixnum hash_old() {
+        int hash;
+        try {
+            hash = Name.hashOld( getX500Name() );
+        }
+        catch (IOException e) {
+            debugStackTrace(getRuntime(), e); hash = 0;
+        }
+        catch (RuntimeException e) {
+            debugStackTrace(getRuntime(), e); hash = 0;
+        }
+        return getRuntime().newFixnum( hash );
     }
 
     @JRubyMethod
