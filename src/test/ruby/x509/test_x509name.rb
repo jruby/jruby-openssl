@@ -84,6 +84,8 @@ class TestX509Name < TestCase
   def test_hash_old
     name = OpenSSL::X509::Name.new [['CN', 'nobody'], ['DC', 'example']]
     assert_equal 1460400684, name.hash_old
+    name = OpenSSL::X509::Name.new([['CN', 'foo'], ['DC', 'bar']])
+    assert_equal 3294068023, name.hash_old
   end
 
 end
