@@ -560,9 +560,15 @@ public class CipherStrings {
 
     private static Collection<Def> matchingExact(final String name, final String[] all,
         final boolean setSuite) {
-        final Def pattern = Definitions.get(name);
+        Def pattern = Definitions.get(name);
         if ( pattern != null ) {
             return matchingPattern(pattern, all, true, setSuite);
+        }
+        else {
+            Def cipher = CipherNames.get(name);
+            if (cipher != null) {
+                return Collections.singleton(cipher);
+            }
         }
         return null; // Collections.emptyList();
     }

@@ -518,7 +518,11 @@ public class SSLContext extends RubyObject {
             StringBuilder cipherStr = new StringBuilder();
             String sep = "";
             for ( int i = 0; i < ciphs.size(); i++ ) {
-                cipherStr.append(sep).append( ciphs.eltInternal(i).toString() );
+                IRubyObject elem = ciphs.eltInternal(i);
+                if (elem instanceof RubyArray) {
+                    elem = ((RubyArray) elem).eltInternal(0);
+                }
+                cipherStr.append(sep).append( elem.toString() );
                 sep = ":";
             }
             this.ciphers = cipherStr.toString();

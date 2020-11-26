@@ -184,4 +184,37 @@ class TestSSLContext < TestCase
     assert_equal [], diff
   end unless java7? # would need to filter out stuff such as ECDHE-RSA-AES128-GCM-SHA256
 
+  def test_set_ciphers_by_group_name
+    context = OpenSSL::SSL::SSLContext.new
+    context.ciphers = "AES"
+
+    actual = context.ciphers.map { |cipher| cipher[0]}
+    assert actual.include?("ECDHE-RSA-AES128-SHA")
+    assert actual.include?("ECDHE-ECDSA-AES128-SHA")
+    assert actual.include?("AES128-SHA")
+  end
+
+  def test_set_ciphers_by_cipher_name
+    context = OpenSSL::SSL::SSLContext.new
+    context.ciphers = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384"
+    actual = context.ciphers.map { |cipher| cipher[0]}
+    assert actual.include?("ECDHE-ECDSA-AES128-GCM-SHA256")
+    assert actual.include?("ECDHE-ECDSA-AES256-GCM-SHA384")
+  end
+
+  def test_set_ciphers_by_array_of_names
+    context = OpenSSL::SSL::SSLContext.new
+    context.ciphers = ["ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-ECDSA-AES256-GCM-SHA384"]
+    actual = context.ciphers.map { |cipher| cipher[0]}
+    assert actual.include?("ECDHE-ECDSA-AES128-GCM-SHA256")
+    assert actual.include?("ECDHE-ECDSA-AES256-GCM-SHA384")
+  end
+
+  def test_set_ciphers_by_array_of_name_version_bits
+    context = OpenSSL::SSL::SSLContext.new
+    context.ciphers = [["ECDHE-ECDSA-AES128-GCM-SHA256", "TLSv1.2", 128, 128]]
+    actual = context.ciphers.map { |cipher| cipher[0]}
+    assert actual.include?("ECDHE-ECDSA-AES128-GCM-SHA256")
+  end
+
 end
