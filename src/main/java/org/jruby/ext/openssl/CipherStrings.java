@@ -512,8 +512,10 @@ public class CipherStrings {
             }
 
             int index = 0;
-            switch ( part.charAt(0) ) {
-                case '!': case '+': case '-': index++; break;
+            if (part.length() > 0) {
+                switch ( part.charAt(0) ) {
+                    case '!': case '+': case '-': index++; break;
+                }
             }
 
             final Collection<Def> matching;

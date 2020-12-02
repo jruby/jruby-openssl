@@ -217,4 +217,12 @@ class TestSSLContext < TestCase
     assert actual.include?("ECDHE-ECDSA-AES128-GCM-SHA256")
   end
 
+  def test_set_ciphers_empty_array
+    context = OpenSSL::SSL::SSLContext.new
+    ex = assert_raise(OpenSSL::SSL::SSLError) do
+      context.ciphers = []
+    end
+    assert_equal "no cipher match", ex.message
+  end
+
 end
