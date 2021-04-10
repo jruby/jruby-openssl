@@ -123,9 +123,8 @@ properties( 'jruby.plugins.version' => '1.1.8',
             'mavengem-wagon.version' => '1.0.3', # for polyglot-ruby
             # use this version of jruby for the jruby-maven-plugins
             'jruby.versions' => MVN_JRUBY_VERSION, 'jruby.version' => MVN_JRUBY_VERSION,
-            # dump pom.xml as readonly when running 'rmvn'
-            'polyglot.dump.pom' => 'pom.xml',
-            'polyglot.dump.readonly' => true )
+            # dump pom.xml when running 'rmvn'
+            'polyglot.dump.pom' => 'pom.xml', 'polyglot.dump.readonly' => false )
 
 # make sure we have the embedded jars in place before we run runit plugin
 plugin! :dependency do
