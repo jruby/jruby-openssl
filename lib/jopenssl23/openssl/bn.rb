@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 #--
 #
 # = Ruby-space definitions that completes C-space funcs for BN
@@ -15,6 +15,8 @@
 
 module OpenSSL
   class BN
+    include Comparable
+
     def pretty_print(q)
       q.object_group(self) {
         q.text ' '

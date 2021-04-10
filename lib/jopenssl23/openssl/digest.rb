@@ -1,4 +1,4 @@
-# frozen_string_literal: false
+# frozen_string_literal: true
 #--
 # = Ruby-space predefined Digest subclasses
 #
@@ -14,6 +14,36 @@
 
 module OpenSSL
   class Digest
+
+    # Return the hash value computed with _name_ Digest. _name_ is either the
+    # long name or short name of a supported digest algorithm.
+    #
+    # === Examples
+    #
+    #   OpenSSL::Digest.digest("SHA256", "abc")
+    #
+    # which is equivalent to:
+    #
+    #   OpenSSL::Digest.digest('SHA256', "abc")
+    # 
+    # def self.digest(name, data)
+    #   super(data, name)
+    # end
+    #
+    # %w(MD4 MD5 RIPEMD160 SHA1 SHA224 SHA256 SHA384 SHA512).each do |name|
+    #   klass = Class.new(self) {
+    #     define_method(:initialize, ->(data = nil) {super(name, data)})
+    #   }
+    #
+    #   singleton = (class << klass; self; end)
+    #
+    #   singleton.class_eval{
+    #     define_method(:digest) {|data| new.digest(data)}
+    #     define_method(:hexdigest) {|data| new.hexdigest(data)}
+    #   }
+    #
+    #   const_set(name.tr('-', '_'), klass)
+    # end
 
     # Deprecated.
     #
