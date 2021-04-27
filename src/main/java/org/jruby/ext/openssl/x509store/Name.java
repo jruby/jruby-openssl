@@ -59,12 +59,12 @@ public class Name {
         this.name = name;
     }
 
-    public static int hashOld(final X500Name name) throws IOException {
+    public static long hashOld(final X500Name name) throws IOException {
         try {
             final byte[] bytes = name.getEncoded();
             MessageDigest md5 = SecurityHelper.getMessageDigest("MD5");
             final byte[] digest = md5.digest(bytes);
-            int result = 0;
+            long result = 0;
             result |= digest[3] & 0xff; result <<= 8;
             result |= digest[2] & 0xff; result <<= 8;
             result |= digest[1] & 0xff; result <<= 8;

@@ -633,7 +633,7 @@ public class X509Name extends RubyObject {
 
     @JRubyMethod
     public RubyFixnum hash_old() {
-        int hash;
+        long hash;
         try {
             hash = Name.hashOld( getX500Name() );
         }
