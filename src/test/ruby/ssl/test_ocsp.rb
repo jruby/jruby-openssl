@@ -14,7 +14,7 @@ class TestOCSP < TestCase
     now = Time.now
 
     ca_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCA")
-    @ca_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
+    @ca_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1
     ca_exts = [
       ["basicConstraints", "CA:TRUE", true],
       ["keyUsage", "cRLSign,keyCertSign", true],
@@ -22,7 +22,7 @@ class TestOCSP < TestCase
     @ca_cert = issue_cert(ca_subj, @ca_key, 1, now, now+1800, ca_exts, nil, nil, OpenSSL::Digest::SHA1.new)
 
     cert_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCA2")
-    @cert_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
+    @cert_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1
     cert_exts = [
       ["basicConstraints", "CA:TRUE", true],
       ["keyUsage", "cRLSign,keyCertSign", true],
@@ -30,12 +30,12 @@ class TestOCSP < TestCase
     @cert = issue_cert(cert_subj, @cert_key, 5, now, now+1800, cert_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA1.new)
 
     cert2_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCert")
-    @cert2_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
+    @cert2_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1
     cert2_exts = []
     @cert2 = issue_cert(cert2_subj, @cert2_key, 10, now, now+1800, cert2_exts, @cert, @cert_key, OpenSSL::Digest::SHA1.new)
 
     ocsp_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCAOCSP")
-    @ocsp_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    @ocsp_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2
     ocsp_exts = [
       ["extendedKeyUsage", "OCSPSigning", true],
     ]
@@ -60,7 +60,7 @@ class TestOCSP < TestCase
   def test_certificate_id_issuer_key_hash
     cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert)
     assert_equal OpenSSL::Digest::SHA1.hexdigest(OpenSSL::ASN1.decode(@ca_cert.to_der).value[0].value[6].value[1].value), cid.issuer_key_hash
-    assert_equal "d1fef9fbf8ae1bc160cbfa03e2596dd873089213", cid.issuer_key_hash
+    assert_equal "6eef4d0b438009bda21dd7f38a92472bc9bbfb3b", cid.issuer_key_hash
   end
 
   def test_certificate_id_hash_algorithm

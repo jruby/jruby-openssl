@@ -10,9 +10,9 @@ module SSLTestHelper
 
   def setup;
 
-    @ca_key  = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
-    @svr_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1024
-    @cli_key = OpenSSL::PKey::DSA.new TEST_KEY_DSA256
+    @ca_key  = OpenSSL::PKey::RSA.new TEST_KEY_RSA2
+    @svr_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1
+    @cli_key = OpenSSL::PKey::DSA.new TEST_KEY_DSA512
     @ca  = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
     @svr = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=localhost")
     @cli = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=localhost")
@@ -24,9 +24,9 @@ module SSLTestHelper
       [ "keyUsage", "keyEncipherment,digitalSignature", true ],
     ]
     now = Time.at(Time.now.to_i)
-    @ca_cert  = issue_cert(@ca, @ca_key, 1, now, now + 3600, ca_exts, nil, nil, OpenSSL::Digest::SHA1.new)
-    @svr_cert = issue_cert(@svr, @svr_key, 2, now, now + 1800, ee_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA1.new)
-    @cli_cert = issue_cert(@cli, @cli_key, 3, now, now + 1800, ee_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA1.new)
+    @ca_cert  = issue_cert(@ca, @ca_key, 1, now, now + 3600, ca_exts, nil, nil, OpenSSL::Digest::SHA256.new)
+    @svr_cert = issue_cert(@svr, @svr_key, 2, now, now + 1800, ee_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA256.new)
+    @cli_cert = issue_cert(@cli, @cli_key, 3, now, now + 1800, ee_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA256.new)
     @server = nil
   end
 
@@ -73,10 +73,10 @@ module SSLTestHelper
     store.purpose = OpenSSL::X509::PURPOSE_SSL_CLIENT
     context = OpenSSL::SSL::SSLContext.new
     context.cert_store = store
-    # context.extra_chain_cert = [ ca_cert ]
+    # context.extra_chain_cert = [ @ca_cert ]
     context.cert = @svr_cert
     context.key = @svr_key
-    context.tmp_dh_callback = proc { OpenSSL::PKey::DH.new(TEST_KEY_DH1024) }
+    context.tmp_dh_callback = proc { OpenSSL::PKey::DH.new(TEST_KEY_DH1) }
     context.verify_mode = verify_mode
     ctx_proc.call(context) if ctx_proc
 
@@ -121,10 +121,10 @@ module SSLTestHelper
       ctx = OpenSSL::SSL::SSLContext.new
       ctx.ciphers = "ADH-AES256-GCM-SHA384" if use_anon_cipher
       ctx.cert_store = store
-      #ctx.extra_chain_cert = [ ca_cert ]
+      # ctx.extra_chain_cert = [ @ca_cert ]
       ctx.cert = @svr_cert
       ctx.key = @svr_key
-      ctx.tmp_dh_callback = proc { OpenSSL::TestUtils::TEST_KEY_DH1024 }
+      ctx.tmp_dh_callback = proc { OpenSSL::TestUtils::TEST_KEY_DH1 }
       ctx.verify_mode = verify_mode
       ctx_proc.call(ctx) if ctx_proc
 
@@ -218,7 +218,6 @@ module SSLTestHelper
 
   def server_loop(ctx, ssls, stop_pipe_r, ignore_listener_error, server_proc, threads)
     loop do
-      ssl = nil
       begin
         readable, = IO.select([ssls, stop_pipe_r])
         return if readable.include? stop_pipe_r
@@ -232,8 +231,11 @@ module SSLTestHelper
       end
 
       threads << Thread.start do
-        # Thread.current.abort_on_exception = true
-        server_proc.call(ctx, ssl)
+        begin
+          server_proc.call(ctx, ssl)
+        ensure
+          ssl.close
+        end
       end
     end
   rescue Errno::EBADF, IOError, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET => ex
@@ -275,51 +277,111 @@ module SSLTestHelper
     ssl.close rescue nil
   end
 
-  TEST_KEY_RSA1024 = <<-_end_of_pem_
+  TEST_KEY_RSA1 = <<-_end_of_pem_
 -----BEGIN RSA PRIVATE KEY-----
-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
+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
 -----END RSA PRIVATE KEY-----
   _end_of_pem_
 
-  TEST_KEY_RSA2048 = <<-_end_of_pem_
+  TEST_KEY_RSA2 = <<-_end_of_pem_
 -----BEGIN RSA PRIVATE KEY-----
-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
+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
 -----END RSA PRIVATE KEY-----
   _end_of_pem_
 
@@ -345,11 +407,19 @@ Q1VB8qkJN7rA7/2HrCR3gTsWNb1YhAsnFsoeRscC+LxXoXi9OAIUBG98h4tilg6S
 -----END DSA PRIVATE KEY-----
   _end_of_pem_
 
-  TEST_KEY_DH1024 = <<-_end_of_pem_
+  TEST_KEY_DH1 = <<-_end_of_pem_
 -----BEGIN DH PARAMETERS-----
-MIGHAoGBAKnKQ8MNK6nYZzLrrcuTsLxuiJGXoOO5gT+tljOTbHBuiktdMTITzIY0
-pFxIvjG05D7HoBZQfrR0c92NGWPkAiCkhQKB8JCbPVzwNLDy6DZ0pmofDKrEsYHG
-AQjjxMXhwULlmuR/K+WwlaZPiLIBYalLAZQ7ZbOPeVkJ8ePao0eLAgEC
+MIICCAKCAgEAvRzXYxY6L2DjeYmm1eowtMDu1it3j+VwFr6s6PRWzc1apMtztr9G
+xZ2mYndUAJLgNLO3n2fUDCYVMB6ZkcekW8Siocof3xWiMA6wqZ6uw0dsE3q7ZX+6
+TLjgSjaXeGvjutvuEwVrFeaUi83bMgfXN8ToxIQVprIF35sYFt6fpbFATKfW7qqi
+P1pQkjmCskU4tztaWvlLh0qg85wuQGnpJaQT3gS30378i0IGbA0EBvJcSpTHYbLa
+nsdI9bfN/ZVgeolVMNMU9/n8R8vRhNPcHuciFwaqS656q+HavCIyxw/LfjSwwFvR
+TngCn0wytRErkzFIXnRKckh8/BpI4S+0+l1NkOwG4WJ55KJ/9OOdZW5o/QCp2bDi
+E0JN1EP/gkSom/prq8JR/yEqtsy99uc5nUxPmzv0IgdcFHZEfiQU7iRggEbx7qfQ
+Ve55XksmmJInmpCy1bSabAEgIKp8Ckt5KLYZ0RgTXUhcEpsxEo6cuAwoSJT5o4Rp
+yG3xow2ozPcqZkvb+d2CHj1sc54w9BVFAjVANEKmRil/9WKz14bu3wxEhOPqC54n
+QojjLcoXSoT66ZUOQnYxTSiLtzoKGPy8cAVPbkBrXz2u2sj5gcvr1JjoGjdHm9/3
+qnqC8fsTz8UndKNIQC337o4K0833bQMzRGl1/qjbAPit2B7E3b6xTZMCAQI=
 -----END DH PARAMETERS-----
   _end_of_pem_
 

@@ -174,8 +174,8 @@ class TestX509Store < TestCase
   end if defined?(JRUBY_VERSION) && Gem::Version.create(JRUBY_VERSION) >= Gem::Version.create('9.1.17.0')
 
   def test_verify
-    @rsa1024 = OpenSSL::PKey::RSA.new SSLTestHelper::TEST_KEY_RSA1024 # OpenSSL::TestUtils::TEST_KEY_RSA1024
-    @rsa2048 = OpenSSL::PKey::RSA.new SSLTestHelper::TEST_KEY_RSA2048 # OpenSSL::TestUtils::TEST_KEY_RSA2048
+    @rsa1024 = OpenSSL::PKey::RSA.new SSLTestHelper::TEST_KEY_RSA1 # OpenSSL::TestUtils::TEST_KEY_RSA1024
+    @rsa2048 = OpenSSL::PKey::RSA.new SSLTestHelper::TEST_KEY_RSA2 # OpenSSL::TestUtils::TEST_KEY_RSA2048
     @dsa256  = OpenSSL::PKey::DSA.new SSLTestHelper::TEST_KEY_DSA256 # OpenSSL::TestUtils::TEST_KEY_DSA256
     @dsa512  = OpenSSL::PKey::DSA.new SSLTestHelper::TEST_KEY_DSA512 # OpenSSL::TestUtils::TEST_KEY_DSA512
     @ca1 = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA1")
