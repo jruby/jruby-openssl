@@ -116,4 +116,12 @@ class TestDigest < TestCase
     assert_equal(sha512_a, encode16(OpenSSL::Digest::SHA512.digest("a")))
   end
 
+  def test_net_ssh_like_loading
+    require 'openssl'
+    require 'openssl/digest'
+    # shout not raise TypeError: superclass mismatch for class Digest
+    assert OpenSSL::Digest.is_a?(Class)
+    assert OpenSSL::Digest("MD5")
+  end
+
 end
