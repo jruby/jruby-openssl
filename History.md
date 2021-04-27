@@ -1,4 +1,4 @@
-## 0.10.6
+## 0.10.6 (yanked)
 
 * [feat] upgrade BC library to 1.68
 * [compat] align with Ruby OpenSSL 2.2.0
