@@ -26,7 +26,6 @@ package org.jruby.ext.openssl;
 import java.security.SecureRandom;
 import java.util.Map;
 
-import org.bouncycastle.util.Arrays;
 import org.jruby.*;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
@@ -88,7 +87,18 @@ public final class OpenSSL {
 
         runtime.getLoadService().require("jopenssl/version");
 
-        final byte[] version = { '2','.','2','.','0' };
+        // MRI 1.8.7 :
+        // OpenSSL::VERSION: "1.0.0"
+        // OpenSSL::OPENSSL_VERSION: "OpenSSL 1.0.1c 10 May 2012"
+        // OpenSSL::OPENSSL_VERSION_NUMBER: 268439615
+        // MRI 1.9.3 / 2.2.3 :
+        // OpenSSL::VERSION: "1.1.0"
+        // OpenSSL::OPENSSL_VERSION: "OpenSSL 1.0.1f 6 Jan 2014"
+        // OpenSSL::OPENSSL_VERSION_NUMBER: 268439663
+        // OpenSSL::OPENSSL_LIBRARY_VERSION: ""OpenSSL 1.0.2d 9 Jul 2015"
+        // OpenSSL::FIPS: false
+
+        final byte[] version = { '1','.','1','.','0' };
 
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
@@ -151,20 +161,6 @@ public final class OpenSSL {
         return Digest.getConstantAt( name.asJavaString() );
     }
 
-    @JRubyMethod(meta = true)
-    public static IRubyObject fixed_length_secure_compare(ThreadContext context, IRubyObject self, IRubyObject arg1, IRubyObject arg2) {
-        final ByteList str1 = arg1.convertToString().getByteList();
-        final ByteList str2 = arg2.convertToString().getByteList();
-        if (str1.length() != str2.length()) {
-            throw context.runtime.newArgumentError("inputs must be of equal length");
-        }
-        return context.runtime.newBoolean(
-                Arrays.constantTimeAreEqual(str1.length(),
-                        str1.unsafeBytes(), str1.begin(),
-                        str2.unsafeBytes(), str2.begin()
-                ));
-    }
-
     // API "stubs" in JRuby-OpenSSL :
 
     @JRubyMethod(meta = true)
@@ -177,16 +173,11 @@ public final class OpenSSL {
         return self.getRuntime().getNil(); // no-op in JRuby-OpenSSL
     }
 
-    @JRubyMethod(name = "fips_mode", meta = true)
-    public static IRubyObject get_fips_mode(ThreadContext context, IRubyObject self) {
-        warn(context, "FIPS mode not implemented on JRuby-OpenSSL");
-        return context.nil;
-    }
-
+    // Added in 2.0; not masked because it does nothing anyway (there's no reader in MRI)
     @JRubyMethod(name = "fips_mode=", meta = true)
     public static IRubyObject set_fips_mode(ThreadContext context, IRubyObject self, IRubyObject value) {
         if ( value.isTrue() ) {
-            warn(context, "FIPS mode not implemented on JRuby-OpenSSL");
+            warn(context, "FIPS mode not supported on JRuby-OpenSSL");
         }
         return value;
     }

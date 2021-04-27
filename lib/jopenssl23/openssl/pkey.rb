@@ -1,24 +1,11 @@
-# frozen_string_literal: true
+# frozen_string_literal: false
 #--
 # Ruby/OpenSSL Project
 # Copyright (C) 2017 Ruby/OpenSSL Project Authors
 #++
 
-require_relative 'marshal'
-
 module OpenSSL::PKey
-  class DH
-    include OpenSSL::Marshal
-  end
-
-  class DSA
-    include OpenSSL::Marshal
-  end
-
   if defined?(EC)
-  class EC
-    include OpenSSL::Marshal
-  end
   class EC::Point
     # :call-seq:
     #    point.to_bn([conversion_form]) -> OpenSSL::BN
@@ -34,9 +21,5 @@ module OpenSSL::PKey
     #   OpenSSL::BN.new(to_octet_string(conversion_form), 2)
     # end
   end
-  end
-
-  class RSA
-    include OpenSSL::Marshal
   end
 end

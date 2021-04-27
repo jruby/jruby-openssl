@@ -13,8 +13,11 @@ class TestOpenSSL < TestCase
   end if ENV['BC_VERSION']
 
   def test_version
-    assert_equal '2.2.0', OpenSSL::VERSION
-
+    if RUBY_VERSION.index('1.8')
+      assert_equal '1.0.0', OpenSSL::VERSION
+    else
+      assert_equal '1.1.0', OpenSSL::VERSION
+    end
     assert OpenSSL::OPENSSL_VERSION.index('OpenSSL')
     if defined? JRUBY_VERSION
       assert_equal 0, OpenSSL::OPENSSL_VERSION.index('JRuby-OpenSSL ')
@@ -42,7 +45,6 @@ class TestOpenSSL < TestCase
     OpenSSL.deprecated_warning_flag
     OpenSSL.check_func(:func, :header)
     OpenSSL.fips_mode = false
-    assert !OpenSSL.fips_mode
   end
 
   def test_Digest
