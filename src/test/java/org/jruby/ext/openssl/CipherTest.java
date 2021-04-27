@@ -10,10 +10,10 @@ public class CipherTest {
 
     @Test
     public void ciphersGetLazyInitialized() {
-        assertTrue( Cipher.Algorithm.supportedCiphers.isEmpty() );
+        //assertTrue( Cipher.Algorithm.AllSupportedCiphers.CIPHERS_MAP.isEmpty() );
         assertFalse( Cipher.isSupportedCipher("UNKNOWN") );
-        assertFalse( Cipher.Algorithm.supportedCiphers.isEmpty() );
-        assertTrue( Cipher.Algorithm.supportedCiphers.get("DES") != null );
+        assertFalse( Cipher.Algorithm.AllSupportedCiphers.CIPHERS_MAP.isEmpty() );
+        assertTrue( Cipher.Algorithm.AllSupportedCiphers.CIPHERS_MAP.get("DES") != null );
         assertTrue( Cipher.isSupportedCipher("DES") );
         assertTrue( Cipher.isSupportedCipher("des") );
         assertTrue( Cipher.isSupportedCipher("AES") );
@@ -36,14 +36,6 @@ public class CipherTest {
 
     @Test
     public void osslToJsse() {
-        Cipher.Algorithm.supportedCiphers.clear();
-        Cipher.Algorithm.supportedCiphersAll = false;
-        doTestOsslToJsse();
-    }
-
-    @Test
-    public void osslToJsseWithAllLoaded() {
-        Cipher.Algorithm.allSupportedCiphers();
         doTestOsslToJsse();
     }
 

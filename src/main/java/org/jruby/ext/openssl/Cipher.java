@@ -43,8 +43,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import static javax.crypto.Cipher.DECRYPT_MODE;
-import static javax.crypto.Cipher.ENCRYPT_MODE;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
@@ -70,6 +68,8 @@ import org.jruby.runtime.Visibility;
 import org.jruby.util.ByteList;
 import org.jruby.util.TypeConverter;
 
+import static javax.crypto.Cipher.DECRYPT_MODE;
+import static javax.crypto.Cipher.ENCRYPT_MODE;
 import static org.jruby.ext.openssl.OpenSSL.*;
 
 /**
@@ -142,7 +142,7 @@ public class Cipher extends RubyObject {
     public static IRubyObject ciphers(final ThreadContext context, final IRubyObject self) {
         final Ruby runtime = context.runtime;
 
-        final Collection<String> ciphers = Algorithm.allSupportedCiphers().keySet();
+        final Collection<String> ciphers = Algorithm.AllSupportedCiphers.CIPHERS_MAP.keySet();
         final RubyArray result = runtime.newArray( ciphers.size() * 2 );
         for ( final String cipher : ciphers ) {
             result.append( runtime.newString(cipher) ); // upper-case
@@ -156,7 +156,7 @@ public class Cipher extends RubyObject {
     public static boolean isSupportedCipher(final String name) {
         final String osslName = name.toUpperCase();
         //
-        if ( Algorithm.allSupportedCiphers().get( osslName ) != null ) {
+        if ( Algorithm.AllSupportedCiphers.CIPHERS_MAP.get( osslName ) != null ) {
             return true;
         }
         //
@@ -273,125 +273,115 @@ public class Cipher extends RubyObject {
             NO_PADDING_BLOCK_MODES.add("GCM");
         }
 
-        // Ruby to Java name String (or FALSE)
-        static final HashMap<String, String[]> supportedCiphers = new LinkedHashMap<String, String[]>(120, 1);
-        // we're _marking_ unsupported keys with a Boolean.FALSE mapping
-        // all cipher mappings are resolved on `OpenSSL::Cipher.ciphers`
-        // ... probably a slightly _rare_ case to be going for up front
-        static boolean supportedCiphersAll;
+        final static class AllSupportedCiphers {
 
-        static Map<String, String[]> allSupportedCiphers() {
-            if ( supportedCiphersAll ) return supportedCiphers;
-            synchronized ( supportedCiphers ) {
-                if ( supportedCiphersAll ) return supportedCiphers;
-
+            // Ruby to Java name String
+            static final HashMap<String, String[]> CIPHERS_MAP = new LinkedHashMap<String, String[]>(120, 1);
+            static {
                 // cleanup all FALSE keys :
                 //for ( String key: supportedCiphers.keySet() ) {
-                    //if ( supportedCiphers.get(key) == Boolean.FALSE ) supportedCiphers.remove(key);
+                //if ( supportedCiphers.get(key) == Boolean.FALSE ) supportedCiphers.remove(key);
                 //}
 
                 // OpenSSL: all the block ciphers normally use PKCS#5 padding
                 String[] modes;
                 modes = cipherModes("AES"); // null if not supported
-                if ( modes != null ) {
-                    for ( final String mode : modes ) {
+                if (modes != null) {
+                    for (final String mode : modes) {
                         final String realName = "AES/" + mode; // + "/PKCS5Padding"
-                        supportedCiphers.put( "AES-128-" + mode, new String[] { "AES", mode, "128", realName } );
-                        supportedCiphers.put( "AES-192-" + mode, new String[] { "AES", mode, "192", realName } );
-                        supportedCiphers.put( "AES-256-" + mode, new String[] { "AES", mode, "256", realName } );
+                        CIPHERS_MAP.put("AES-128-" + mode, new String[]{"AES", mode, "128", realName});
+                        CIPHERS_MAP.put("AES-192-" + mode, new String[]{"AES", mode, "192", realName});
+                        CIPHERS_MAP.put("AES-256-" + mode, new String[]{"AES", mode, "256", realName});
                     }
                     final String realName = "AES/CBC";
-                    supportedCiphers.put( "AES128", new String[] { "AES", "CBC", "128", realName } );
-                    supportedCiphers.put( "AES192", new String[] { "AES", "CBC", "192", realName } );
-                    supportedCiphers.put( "AES256", new String[] { "AES", "CBC", "256", realName } );
+                    CIPHERS_MAP.put("AES128", new String[]{"AES", "CBC", "128", realName});
+                    CIPHERS_MAP.put("AES192", new String[]{"AES", "CBC", "192", realName});
+                    CIPHERS_MAP.put("AES256", new String[]{"AES", "CBC", "256", realName});
                 }
 
                 modes = cipherModes("Blowfish");
-                if ( modes != null ) {
-                    supportedCiphers.put( "BF", new String[] { "BF", "CBC", null, "Blowfish/CBC" });
-                    for ( final String mode : modes ) {
-                        supportedCiphers.put( "BF-" + mode, new String[] { "BF", mode, null, "Blowfish/" + mode } );
+                if (modes != null) {
+                    CIPHERS_MAP.put("BF", new String[]{"BF", "CBC", null, "Blowfish/CBC"});
+                    for (final String mode : modes) {
+                        CIPHERS_MAP.put("BF-" + mode, new String[]{"BF", mode, null, "Blowfish/" + mode});
                     }
                 }
 
                 modes = cipherModes("Camellia");
-                if ( modes != null ) {
-                    for ( final String mode : modes ) {
+                if (modes != null) {
+                    for (final String mode : modes) {
                         final String realName = "Camellia/" + mode;
-                        supportedCiphers.put( "CAMELLIA-128-" + mode, new String[] { "CAMELLIA", mode, "128", realName } );
-                        supportedCiphers.put( "CAMELLIA-192-" + mode, new String[] { "CAMELLIA", mode, "192", realName } );
-                        supportedCiphers.put( "CAMELLIA-256-" + mode, new String[] { "CAMELLIA", mode, "256", realName } );
+                        CIPHERS_MAP.put("CAMELLIA-128-" + mode, new String[]{"CAMELLIA", mode, "128", realName});
+                        CIPHERS_MAP.put("CAMELLIA-192-" + mode, new String[]{"CAMELLIA", mode, "192", realName});
+                        CIPHERS_MAP.put("CAMELLIA-256-" + mode, new String[]{"CAMELLIA", mode, "256", realName});
                     }
                     final String realName = "Camellia/CBC";
-                    supportedCiphers.put( "CAMELLIA128", new String[] { "CAMELLIA", "CBC", "128", realName } );
-                    supportedCiphers.put( "CAMELLIA192", new String[] { "CAMELLIA", "CBC", "192", realName } );
-                    supportedCiphers.put( "CAMELLIA256", new String[] { "CAMELLIA", "CBC", "256", realName } );
+                    CIPHERS_MAP.put("CAMELLIA128", new String[]{"CAMELLIA", "CBC", "128", realName});
+                    CIPHERS_MAP.put("CAMELLIA192", new String[]{"CAMELLIA", "CBC", "192", realName});
+                    CIPHERS_MAP.put("CAMELLIA256", new String[]{"CAMELLIA", "CBC", "256", realName});
                 }
 
                 modes = cipherModes("CAST5");
-                if ( modes != null ) {
-                    supportedCiphers.put( "CAST", new String[] { "CAST", "CBC", null, "CAST5/CBC" } );
-                    supportedCiphers.put( "CAST-CBC", supportedCiphers.get("CAST") );
-                    for ( final String mode : modes ) {
-                        supportedCiphers.put( "CAST5-" + mode, new String[] { "CAST", mode, null, "CAST5/" + mode });
+                if (modes != null) {
+                    CIPHERS_MAP.put("CAST", new String[]{"CAST", "CBC", null, "CAST5/CBC"});
+                    CIPHERS_MAP.put("CAST-CBC", CIPHERS_MAP.get("CAST"));
+                    for (final String mode : modes) {
+                        CIPHERS_MAP.put("CAST5-" + mode, new String[]{"CAST", mode, null, "CAST5/" + mode});
                     }
                 }
 
                 modes = cipherModes("CAST6");
-                if ( modes != null ) {
-                    for ( final String mode : modes ) {
-                        supportedCiphers.put( "CAST6-" + mode, new String[] { "CAST6", mode, null, "CAST6/" + mode });
+                if (modes != null) {
+                    for (final String mode : modes) {
+                        CIPHERS_MAP.put("CAST6-" + mode, new String[]{"CAST6", mode, null, "CAST6/" + mode});
                     }
                 }
 
                 modes = cipherModes("DES");
-                if ( modes != null ) {
-                    supportedCiphers.put( "DES", new String[] { "DES", "CBC", null, "DES/CBC" } );
-                    for ( final String mode : modes ) {
-                        supportedCiphers.put( "DES-" + mode, new String[] { "DES", mode, null, "DES/" + mode });
+                if (modes != null) {
+                    CIPHERS_MAP.put("DES", new String[]{"DES", "CBC", null, "DES/CBC"});
+                    for (final String mode : modes) {
+                        CIPHERS_MAP.put("DES-" + mode, new String[]{"DES", mode, null, "DES/" + mode});
                     }
                 }
 
                 modes = cipherModes("DESede");
-                if ( modes != null ) {
-                    supportedCiphers.put( "DES-EDE", new String[] { "DES", "ECB", "EDE", "DESede/ECB" } );
-                    supportedCiphers.put( "DES-EDE-CBC", new String[] { "DES", "CBC", "EDE", "DESede/CBC" } );
-                    supportedCiphers.put( "DES-EDE-CFB", new String[] { "DES", "CBC", "EDE", "DESede/CFB" } );
-                    supportedCiphers.put( "DES-EDE-OFB", new String[] { "DES", "CBC", "EDE", "DESede/OFB" } );
-                    supportedCiphers.put( "DES-EDE3", new String[] { "DES", "ECB", "EDE3", "DESede/ECB" });
-                    for ( final String mode : modes ) {
-                        supportedCiphers.put( "DES-EDE3-" + mode, new String[] { "DES", mode, "EDE3", "DESede/" + mode });
+                if (modes != null) {
+                    CIPHERS_MAP.put("DES-EDE", new String[]{"DES", "ECB", "EDE", "DESede/ECB"});
+                    CIPHERS_MAP.put("DES-EDE-CBC", new String[]{"DES", "CBC", "EDE", "DESede/CBC"});
+                    CIPHERS_MAP.put("DES-EDE-CFB", new String[]{"DES", "CBC", "EDE", "DESede/CFB"});
+                    CIPHERS_MAP.put("DES-EDE-OFB", new String[]{"DES", "CBC", "EDE", "DESede/OFB"});
+                    CIPHERS_MAP.put("DES-EDE3", new String[]{"DES", "ECB", "EDE3", "DESede/ECB"});
+                    for (final String mode : modes) {
+                        CIPHERS_MAP.put("DES-EDE3-" + mode, new String[]{"DES", mode, "EDE3", "DESede/" + mode});
                     }
-                    supportedCiphers.put( "DES3", new String[] { "DES", "CBC", "EDE3", "DESede/CBC" } );
+                    CIPHERS_MAP.put("DES3", new String[]{"DES", "CBC", "EDE3", "DESede/CBC"});
                 }
 
                 modes = cipherModes("RC2");
-                if ( modes != null ) {
-                    supportedCiphers.put( "RC2", new String[] { "RC2", "CBC", null, "RC2/CBC" } );
-                    for ( final String mode : modes ) {
-                        supportedCiphers.put( "RC2-" + mode, new String[] { "RC2", mode, null, "RC2/" + mode } );
+                if (modes != null) {
+                    CIPHERS_MAP.put("RC2", new String[]{"RC2", "CBC", null, "RC2/CBC"});
+                    for (final String mode : modes) {
+                        CIPHERS_MAP.put("RC2-" + mode, new String[]{"RC2", mode, null, "RC2/" + mode});
                     }
-                    supportedCiphers.put( "RC2-40-CBC", new String[] { "RC2", "CBC", "40", "RC2/CBC" } );
-                    supportedCiphers.put( "RC2-64-CBC", new String[] { "RC2", "CBC", "64", "RC2/CBC" } );
+                    CIPHERS_MAP.put("RC2-40-CBC", new String[]{"RC2", "CBC", "40", "RC2/CBC"});
+                    CIPHERS_MAP.put("RC2-64-CBC", new String[]{"RC2", "CBC", "64", "RC2/CBC"});
                 }
 
                 modes = cipherModes("RC4"); // NOTE: stream cipher (BC supported)
-                if ( modes != null ) {
-                    supportedCiphers.put( "RC4", new String[] { "RC4", null, null, "RC4" } );
-                    supportedCiphers.put( "RC4-40", new String[] { "RC4", null, "40", "RC4" } );
+                if (modes != null) {
+                    CIPHERS_MAP.put("RC4", new String[]{"RC4", null, null, "RC4"});
+                    CIPHERS_MAP.put("RC4-40", new String[]{"RC4", null, "40", "RC4"});
                     //supportedCiphers.put( "RC2-HMAC-MD5", new String[] { "RC4", null, null, "RC4" });
                 }
 
                 modes = cipherModes("SEED");
-                if ( modes != null ) {
-                    supportedCiphers.put( "SEED", new String[] { "SEED", "CBC", null, "SEED/CBC" } );
-                    for ( final String mode : modes ) {
-                        supportedCiphers.put( "SEED-" + mode, new String[] { "SEED", mode, null, "SEED/" + mode });
+                if (modes != null) {
+                    CIPHERS_MAP.put("SEED", new String[]{"SEED", "CBC", null, "SEED/CBC"});
+                    for (final String mode : modes) {
+                        CIPHERS_MAP.put("SEED-" + mode, new String[]{"SEED", mode, null, "SEED/" + mode});
                     }
                 }
-
-                supportedCiphersAll = true;
-                return supportedCiphers;
             }
         }
 
@@ -436,7 +426,7 @@ public class Cipher extends RubyObject {
 
         private static Algorithm osslToJava(final String osslName, final String padding) {
 
-            final String[] algVals = supportedCiphers.get(osslName);
+            final String[] algVals = AllSupportedCiphers.CIPHERS_MAP.get(osslName);
             if ( algVals != null ) {
                 final String cryptoMode = algVals[1];
                 Algorithm alg = new Algorithm(algVals[0], algVals[2], cryptoMode);
