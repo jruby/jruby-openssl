@@ -562,14 +562,21 @@ public class CipherStrings {
 
     private static Collection<Def> matchingExact(final String name, final String[] all,
         final boolean setSuite) {
-        Def pattern = Definitions.get(name);
-        if ( pattern != null ) {
+        final Def pattern = Definitions.get(name);
+        if (pattern != null) {
             return matchingPattern(pattern, all, true, setSuite);
         }
-        else {
-            Def cipher = CipherNames.get(name);
-            if (cipher != null) {
-                return Collections.singleton(cipher);
+
+        final Def def = CipherNames.get(name);
+        if (def != null) {
+            if (setSuite) {
+                for (final String entry : all) {
+                    if (name.equals(SuiteToOSSL.get(entry))) {
+                        return Collections.singleton(def.setCipherSuite(entry));
+                    }
+                }
+            } else {
+                return Collections.singleton(def);
             }
         }
         return null; // Collections.emptyList();
