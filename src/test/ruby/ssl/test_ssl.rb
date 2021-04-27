@@ -249,13 +249,15 @@ class TestSSL < TestCase
   def test_tlsext_hostname
     return unless OpenSSL::SSL::SSLSocket.instance_methods.include?(:hostname)
 
-    ctx_proc = Proc.new do |ctx, ssl|
-      foo_ctx = ctx.dup
+    fooctx = OpenSSL::SSL::SSLContext.new
+    fooctx.cert = @cli_cert
+    fooctx.key = @cli_key
 
+    ctx_proc = Proc.new do |ctx, ssl|
       ctx.servername_cb = Proc.new do |ssl2, hostname|
         case hostname
           when 'foo.example.com'
-            foo_ctx
+            fooctx
           when 'bar.example.com'
             nil
           else
