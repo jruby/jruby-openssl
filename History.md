@@ -1,13 +1,16 @@
-## 0.10.6 (yanked)
+## 0.10.7
 
 * [feat] upgrade BC library to 1.68
-* [compat] align with Ruby OpenSSL 2.2.0
 * [fix] SSLContext#ciphers= (fixes #221 and jruby/jruby#3100) (#222)
 * [fix] Java::JavaLang::StringIndexOutOfBoundsException on ctx.cipher=[] (fixes #220) (#223)
 * [fix] SSLContext#ciphers= compatibility (fixes #223) (#220)
-* [fix] Match OpenSSL::X509::Name.hash implementation with Ruby (#216)
+* [fix] Match OpenSSL::X509::Name.hash implementation with Ruby (#216, #218)
 * [fix] OpenSSL::SSL::SSLContext#min_version= failure (#215)
 * [fix] adds OpenSSL::Cipher#iv_len= setter (#208)
+
+## 0.10.6 (yanked)
+
+Due several regressions please update to version 0.10.7 or higher.
 
 ## 0.10.5
 
