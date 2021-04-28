@@ -285,4 +285,36 @@ class TestSSL < TestCase
     end
   end
 
+  CUSTOM_CIPHERS = "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:" +
+      "ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:" +
+      "ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:" +
+      "ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:" +
+      "DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:" +
+      "DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:" +
+      "AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:" +
+      "!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA"
+
+  def test_set_custom_params
+    ops = OpenSSL::SSL::OP_ALL
+    ops &= ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS if defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS)
+    ops |= OpenSSL::SSL::OP_NO_COMPRESSION if defined?(OpenSSL::SSL::OP_NO_COMPRESSION)
+    ops |= OpenSSL::SSL::OP_NO_SSLv2
+    ops |= OpenSSL::SSL::OP_NO_SSLv3
+
+    params = { :ssl_version => "TLSv1_2", :ciphers => CUSTOM_CIPHERS, :options => ops }
+    params.merge!( :verify_mode => OpenSSL::SSL::VERIFY_NONE )
+
+    ctx_proc = Proc.new { |ctx, ssl| ctx.set_params(params) }
+
+    start_server(OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
+      context = OpenSSL::SSL::SSLContext.new.tap { |ctx| ctx.set_params(params) }
+      socket = TCPSocket.new("127.0.0.1", port)
+      client = OpenSSL::SSL::SSLSocket.new socket, context
+
+      client.connect
+
+      client.close rescue nil
+    end
+  end
+
 end
