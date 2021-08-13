@@ -14,7 +14,7 @@
     <gem.path>${basedir}/../pkg/rubygems</gem.path>
     <jruby.plugins.version>1.0.9</jruby.plugins.version>
     <gem.home>${basedir}/../pkg/rubygems</gem.home>
-    <bc.version>1.50</bc.version>
+    <bc.version>1.67</bc.version>
     <tesla.dump.pom>pom.xml</tesla.dump.pom>
   </properties>
   <repositories>
