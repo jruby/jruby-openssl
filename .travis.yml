@@ -24,6 +24,7 @@ before_script:
 script: jruby -rbundler/setup -S rake test
 
 matrix:
+  fast_finish: true
   allow_failures:
     - rvm: jruby-head
     - script: jruby -rbundler/setup -S rake integration:install integration:test
@@ -64,3 +65,7 @@ notifications:
     template:
       - "%{repository} (%{branch}:%{commit} by %{author}): %{message} (%{build_url})"
     skip_join: true
+
+cache:
+  directories:
+  - $HOME/.m2
