@@ -45,6 +45,9 @@ import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.jruby.ext.openssl.SecurityHelper;
 
+import static org.jruby.ext.openssl.x509store.X509Error.addError;
+import static org.jruby.ext.openssl.x509store.X509Utils.*;
+
 /**
  * c: X509_STORE_CTX
  *
@@ -638,23 +641,53 @@ public class StoreContext {
      * c: X509_verify_cert
      */
     public int verifyCertificate() throws Exception {
-        X509AuxCertificate x, xtmp = null, chain_ss = null;
-        //X509_NAME xn;
-        int bad_chain = 0, depth, i, num;
-
         if ( certificate == null ) {
-            X509Error.addError(X509Utils.X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
+            addError(X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
+            this.error = X509Utils.V_ERR_INVALID_CALL;
             return -1;
         }
 
-        // first we make sure the chain we are going to build is
-        // present and that the first entry is in place
+        if ( chain != null ) {
+            /*
+             * This X509_STORE_CTX has already been used to verify a cert. We cannot do another one.
+             */
+            addError(ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+            this.error = X509Utils.V_ERR_INVALID_CALL;
+            return -1;
+        }
 
+        /*
+         * first we make sure the chain we are going to build is present and that
+         * the first entry is in place
+         */
         if ( chain == null ) {
-            chain = new ArrayList<X509AuxCertificate>();
+            chain = new ArrayList<X509AuxCertificate>(8);
             chain.add(certificate);
             lastUntrusted = 1;
         }
+
+        // TODO not implemented:
+        /* If the peer's public key is too weak, we can stop early. */
+
+        int ret = verifyChain();
+
+        /*
+         * Safety-net.  If we are returning an error, we must also set ctx->error,
+         * so that the chain is not considered verified should the error be ignored
+         * (e.g. TLS with SSL_VERIFY_NONE).
+         */
+        if (ret <= 0 && this.error == V_OK) {
+            this.error = V_ERR_UNSPECIFIED;
+        }
+        return ret;
+    }
+
+    /**
+     * c: verify_chain
+     */
+    private int verifyChain() throws Exception {
+        X509AuxCertificate x, xtmp = null, chain_ss = null;
+        int bad_chain = 0, depth, i, num;
 
         // We use a temporary STACK so we can chop and hack at it
 
@@ -750,7 +783,7 @@ public class StoreContext {
         /* Is last certificate looked up self signed? */
         if ( checkIssued.call(this, x, x) == 0 ) {
             if ( chain_ss == null || checkIssued.call(this, x, chain_ss) == 0 ) {
-                if(lastUntrusted >= num) {
+                if (lastUntrusted >= num) {
                     error = X509Utils.V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
                 } else {
                     error = X509Utils.V_ERR_UNABLE_TO_GET_ISSUER_CERT;
@@ -800,7 +833,6 @@ public class StoreContext {
         }
         return ok;
     }
-
 
     private final static Set<String> CRITICAL_EXTENSIONS = new HashSet<String>(8);
     static {
