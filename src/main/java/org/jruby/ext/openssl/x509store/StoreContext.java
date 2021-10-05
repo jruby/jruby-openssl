@@ -834,6 +834,335 @@ public class StoreContext {
         return ok;
     }
 
+    private static final short S_DOUNTRUSTED = (1 << 0); /* Search untrusted chain */
+    private static final short S_DOTRUSTED = (1 << 1);   /* Search trusted store */
+    private static final short S_DOALTERNATE = (1 << 2); /* Retry with pruned alternate chain */
+
+    /*
+     * x509_vfy.c: static int build_chain(X509_STORE_CTX *ctx)
+     */
+    int build_chain() throws Exception {
+        int num = chain.size();
+        X509AuxCertificate cert = chain.get(num - 1);
+        boolean ss = checkIssued.call(this, cert, cert) != 0; // cert_self_signed(cert)
+        short search;
+        boolean may_trusted = false;
+        boolean may_alternate = false;
+        int trust = X509_TRUST_UNTRUSTED;
+        int alt_untrusted = 0;
+        int depth;
+        int ok = 0;
+        int i;
+
+        /*
+         * Set up search policy, untrusted if possible, trusted-first if enabled.
+         * If we're doing DANE and not doing PKIX-TA/PKIX-EE, we never look in the
+         * trust_store, otherwise we might look there first.  If not trusted-first,
+         * and alternate chains are not disabled, try building an alternate chain
+         * if no luck with untrusted first.
+         */
+        search = untrusted != null ? S_DOUNTRUSTED : 0;
+        //if (DANETLS_HAS_PKIX(dane) || !DANETLS_HAS_DANE(dane)) {
+            if (search == 0 || (getParam().flags & V_FLAG_TRUSTED_FIRST) != 0) {
+                search |= S_DOTRUSTED;
+            } else if ((getParam().flags & V_FLAG_NO_ALT_CHAINS) == 0) {
+                may_alternate = true;
+            }
+            may_trusted = true;
+        //}
+
+        /*
+         * Shallow-copy the stack of untrusted certificates (with TLS, this is
+         * typically the content of the peer's certificate message) so can make
+         * multiple passes over it, while free to remove elements as we go.
+         */
+        ArrayList<X509AuxCertificate> sktmp = untrusted != null ? new ArrayList<>(untrusted) : null;
+
+        depth = verifyParameter.depth;
+
+        /*
+         * Still absurdly large, but arithmetically safe, a lower hard upper bound
+         * might be reasonable.
+         */
+        if (depth > Integer.MAX_VALUE / 2) depth = Integer.MAX_VALUE / 2;
+
+        /*
+         * Try to Extend the chain until we reach an ultimately trusted issuer.
+         * Build chains up to one longer the limit, later fail if we hit the limit,
+         * with an X509_V_ERR_CERT_CHAIN_TOO_LONG error code.
+         */
+        depth = depth + 1;
+
+        while (search != 0) {
+            X509AuxCertificate x, xtmp = null;
+
+            /*
+             * Look in the trust store if enabled for first lookup, or we've run
+             * out of untrusted issuers and search here is not disabled.  When we
+             * reach the depth limit, we stop extending the chain, if by that point
+             * we've not found a trust-anchor, any trusted chain would be too long.
+             *
+             * The error reported to the application verify callback is at the
+             * maximal valid depth with the current certificate equal to the last
+             * not ultimately-trusted issuer.  For example, with verify_depth = 0,
+             * the callback will report errors at depth=1 when the immediate issuer
+             * of the leaf certificate is not a trust anchor.  No attempt will be
+             * made to locate an issuer for that certificate, since such a chain
+             * would be a-priori too long.
+             */
+            if ((search & S_DOTRUSTED) != 0) {
+                i = num = chain.size();
+                if ((search & S_DOALTERNATE) != 0) {
+                    /*
+                     * As high up the chain as we can, look for an alternative
+                     * trusted issuer of an untrusted certificate that currently
+                     * has an untrusted issuer.  We use the alt_untrusted variable
+                     * to track how far up the chain we find the first match.  It
+                     * is only if and when we find a match, that we prune the chain
+                     * and reset ctx->num_untrusted to the reduced count of
+                     * untrusted certificates.  While we're searching for such a
+                     * match (which may never be found), it is neither safe nor
+                     * wise to preemptively modify either the chain or
+                     * ctx->num_untrusted.
+                     *
+                     * Note, like ctx->num_untrusted, alt_untrusted is a count of
+                     * untrusted certificates, not a "depth".
+                     */
+                    i = alt_untrusted;
+                }
+                x = chain.get(i - 1);
+
+                X509AuxCertificate[] p_xtmp = new X509AuxCertificate[] { xtmp };
+                ok = (depth < num) ? 0 : getIssuer.call(this, p_xtmp, x); // get_issuer(&xtmp, ctx, x)
+                xtmp = p_xtmp[0];
+
+                if (ok < 0) {
+                    trust = X509_TRUST_REJECTED;
+                    this.error = V_ERR_STORE_LOOKUP;
+                    search = 0;
+                    continue;
+                }
+
+                if (ok > 0) {
+                    /*
+                     * Alternative trusted issuer for a mid-chain untrusted cert?
+                     * Pop the untrusted cert's successors and retry.  We might now
+                     * be able to complete a valid chain via the trust store.  Note
+                     * that despite the current trust-store match we might still
+                     * fail complete the chain to a suitable trust-anchor, in which
+                     * case we may prune some more untrusted certificates and try
+                     * again.  Thus the S_DOALTERNATE bit may yet be turned on
+                     * again with an even shorter untrusted chain!
+                     *
+                     * We might find a suitable trusted certificate among the ones from the trust store.
+                     */
+                    if ((search & S_DOALTERNATE) != 0) {
+                        if (!(num > i && i > 0 && ss == false)) { // ossl_assert
+                            addError(ERR_R_INTERNAL_ERROR);
+                            trust = X509_TRUST_REJECTED;
+                            this.error = V_ERR_UNSPECIFIED;
+                            search = 0;
+                            continue;
+                        }
+                        search &= ~S_DOALTERNATE;
+                        for (; num > i; --num) chain.remove(chain.size() - 1); // pop
+                        num_untrusted = num;
+                    }
+
+                    /*
+                     * Self-signed untrusted certificates get replaced by their
+                     * trusted matching issuer.  Otherwise, grow the chain.
+                     */
+                    if (ss == false) {
+                        chain.add(x = xtmp);
+                        ss = checkIssued.call(this, x, x) != 0; // cert_self_signed(x)
+                    } else if (num == num_untrusted) {
+                        /*
+                         * We have a self-signed certificate that has the same
+                         * subject name (and perhaps keyid and/or serial number) as
+                         * a trust-anchor.  We must have an exact match to avoid
+                         * possible impersonation via key substitution etc.
+                         */
+                        if (!x.equals(xtmp)) {
+                            /* Self-signed untrusted mimic. */
+                            xtmp = null;
+                            ok = 0;
+                        } else {
+                            num_untrusted = --num;
+                            chain.set(num, x = xtmp);
+                        }
+                    }
+
+                    /*
+                     * We've added a new trusted certificate to the chain, recheck
+                     * trust.  If not done, and not self-signed look deeper.
+                     * Whether or not we're doing "trusted first", we no longer
+                     * look for untrusted certificates from the peer's chain.
+                     *
+                     * At this point ctx->num_trusted and num must reflect the
+                     * correct number of untrusted certificates, since the DANE
+                     * logic in check_trust() depends on distinguishing CAs from
+                     * "the wire" from CAs from the trust store.  In particular, the
+                     * certificate at depth "num" should be the new trusted
+                     * certificate with ctx->num_untrusted <= num.
+                     */
+                    if (ok != 0) {
+                        if (!(num_untrusted <= num)) { // ossl_assert
+                            addError(ERR_R_INTERNAL_ERROR);
+                            trust = X509_TRUST_REJECTED;
+                            this.error = V_ERR_UNSPECIFIED;
+                            search = 0;
+                            continue;
+                        }
+                        search &= ~S_DOUNTRUSTED;
+                        switch (trust = check_trust(num)) {
+                            case X509_TRUST_TRUSTED:
+                            case X509_TRUST_REJECTED:
+                                search = 0;
+                                continue;
+                        }
+                        if (ss == false) continue;
+                    }
+                }
+
+                /*
+                 * No dispositive decision, and either self-signed or no match, if
+                 * we were doing untrusted-first, and alt-chains are not disabled,
+                 * do that, by repeatedly losing one untrusted element at a time,
+                 * and trying to extend the shorted chain.
+                 */
+                if ((search & S_DOUNTRUSTED) == 0) {
+                    /* Continue search for a trusted issuer of a shorter chain? */
+                    if ((search & S_DOALTERNATE) != 0 && --alt_untrusted > 0)
+                        continue;
+                    /* Still no luck and no fallbacks left? */
+                    if (!may_alternate || (search & S_DOALTERNATE) != 0 || num_untrusted < 2)
+                        break;
+                    /* Search for a trusted issuer of a shorter chain */
+                    search |= S_DOALTERNATE;
+                    alt_untrusted = num_untrusted - 1;
+                    ss = false;
+                }
+            }
+
+            /*
+             * Extend chain with peer-provided certificates
+             */
+            if ((search & S_DOUNTRUSTED) != 0) {
+                num = chain.size();
+                if (!(num == num_untrusted)) { // ossl_assert
+                    addError(ERR_R_INTERNAL_ERROR);
+                    trust = X509_TRUST_REJECTED;
+                    this.error = V_ERR_UNSPECIFIED;
+                    search = 0;
+                    continue;
+                }
+                x = chain.get(num-1);
+
+                /*
+                 * Once we run out of untrusted issuers, we stop looking for more
+                 * and start looking only in the trust store if enabled.
+                 */
+                xtmp = (ss || depth < num) ? null : find_issuer(ctx, sktmp, x);
+                if (xtmp == null) {
+                    search &= ~S_DOUNTRUSTED;
+                    if (may_trusted) search |= S_DOTRUSTED;
+                    continue;
+                }
+
+                /* Drop this issuer from future consideration */
+                sktmp.remove(xtmp);
+
+                chain.add(xtmp);
+
+                x = xtmp;
+                num_untrusted++;
+                ss = checkIssued.call(this, xtmp, xtmp) != 0; // cert_self_signed(xtmp)
+
+            }
+        }
+        // sk_X509_free(sktmp)
+
+        /*
+         * Last chance to make a trusted chain, either bare DANE-TA public-key
+         * signers, or else direct leaf PKIX trust.
+         */
+        num = chain.size();
+        if (num <= depth) {
+            if (trust == X509_TRUST_UNTRUSTED && num == num_untrusted) {
+                trust = check_trust(num);
+            }
+        }
+
+        switch (trust) {
+            case X509_TRUST_TRUSTED:
+                return 1;
+            case X509_TRUST_REJECTED:
+                /* Callback already issued */
+                return 0;
+            case X509_TRUST_UNTRUSTED:
+            default:
+                num = chain.size();
+                if (num > depth) {
+                    return verify_cb_cert(null, num - 1, V_ERR_CERT_CHAIN_TOO_LONG);
+                }
+                if (ss && num == 1)
+                    return verify_cb_cert(null, num - 1, V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT);
+                if (ss) {
+                    return verify_cb_cert(null, num - 1, V_ERR_SELF_SIGNED_CERT_IN_CHAIN);
+                }
+                if (num_untrusted < num) {
+                    return verify_cb_cert(null, num - 1, V_ERR_UNABLE_TO_GET_ISSUER_CERT);
+                }
+                return verify_cb_cert(null, num-1, V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+        }
+    }
+
+    /*
+     * Given a STACK_OF(X509) find the issuer of cert (if any)
+     *
+     * x509_vfy.c: static int build_chain(X509_STORE_CTX *ctx)
+     */
+    private X509AuxCertificate find_issuer(List<X509AuxCertificate> sk, X509AuxCertificate x) throws Exception {
+        X509AuxCertificate rv = null;
+
+        for (int i = 0; i < sk.size(); i++) {
+            X509AuxCertificate issuer = sk.get(i);
+            if (check_issued(x, issuer)) {
+                rv = issuer;
+                if (x509_check_cert_time(ctx, rv, -1))
+                    break;
+            }
+        }
+        return rv;
+    }
+
+    /*
+     * Given a possible certificate and issuer check them
+     *
+     * x509_vfy.c: static int check_issued(X509_STORE_CTX *ctx, X509 *x, X509 *issuer)
+     */
+    private boolean check_issued(X509AuxCertificate x, X509AuxCertificate issuer) throws Exception {
+        int ret;
+        if (x == issuer) return checkIssued.call(this, x, x) != 0; // cert_self_signed(x)
+        ret = checkIfIssuedBy(issuer, x);
+        if (ret == V_OK) {
+            /* Special case: single self signed certificate */
+            boolean ss = checkIssued.call(this, x, x) != 0; // cert_self_signed(x)
+            if (ss && chain.size() == 1) return true;
+
+            //for (int i = 0; i < chain.size(); i++) {
+            //    X509AuxCertificate ch = chain.get(i);
+            //    if (ch == issuer || ch.equals(issuer)) {
+            //        ret = V_ERR_PATH_LOOP;
+            //        break;
+            //    }
+            //}
+        }
+
+        return (ret == V_OK);
+    }
+
     private final static Set<String> CRITICAL_EXTENSIONS = new HashSet<String>(8);
     static {
         CRITICAL_EXTENSIONS.add("2.16.840.1.113730.1.1"); // netscape cert type, NID 71
@@ -970,9 +1299,6 @@ public class StoreContext {
         return 1;
     }
 
-    /**
-     * c: X509_check_trust
-     */
     public int checkTrust() throws Exception {
         int i,ok;
         X509AuxCertificate x;
@@ -1098,6 +1424,22 @@ public class StoreContext {
             pcrl[0] = bestCrl;
         }
         return 0;
+    }
+
+    /*
+     * Inform the verify callback of an error.
+     * If B<x> is not NULL it is the error cert, otherwise use the chain cert at
+     * B<depth>.
+     * If B<err> is not X509_V_OK, that's the error value, otherwise leave
+     * unchanged (presumably set by the caller).
+     *
+     * Returns 0 to abort verification with an error, non-zero to continue.
+     */
+    private int verify_cb_cert(X509AuxCertificate x, int depth, int err) throws Exception {
+        this.errorDepth = depth;
+        this.currentCertificate = x != null ? x : chain.get(depth);
+        if (err != V_OK) this.error = err;
+        return verifyCallback.call(this, 0); // ctx->verify_cb(0, ctx)
     }
 
     final static Store.GetIssuerFunction getFirstIssuer = new Store.GetIssuerFunction() {

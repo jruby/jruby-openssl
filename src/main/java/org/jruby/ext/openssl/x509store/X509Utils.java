@@ -423,7 +423,7 @@ public abstract class X509Utils {
     /* Caller error */
     public static final int	V_ERR_INVALID_CALL = 69;
     /* Issuer lookup error */
-    //public static final int	V_ERR_STORE_LOOKUP = 70;
+    public static final int	V_ERR_STORE_LOOKUP = 70;
     /* Certificate transparency */
     //public static final int	V_ERR_NO_VALID_SCTS = 71;
 
@@ -459,7 +459,7 @@ public abstract class X509Utils {
      * chain. Alternate chain checking was introduced in 1.1.0. Setting this flag
      * will force the behaviour to match that of previous versions.
      */
-    //public static final int V_FLAG_NO_ALT_CHAINS = 0x100000;
+    public static final int V_FLAG_NO_ALT_CHAINS = 0x100000;
 
 
     /* Internal use: mask of policy related options */
