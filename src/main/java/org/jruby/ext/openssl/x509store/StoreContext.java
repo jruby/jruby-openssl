@@ -37,6 +37,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -90,9 +91,10 @@ public class StoreContext {
     Store.CleanupFunction cleanup;
 
     public boolean isValid;
-    public int lastUntrusted;
 
-    public List<X509AuxCertificate> chain; //List<X509AuxCertificate>
+    private int lastUntrusted;
+    private ArrayList<X509AuxCertificate> chain;
+
     public PolicyTree tree;
 
     public int explicitPolicy;
@@ -638,38 +640,76 @@ public class StoreContext {
      * c: X509_verify_cert
      */
     public int verifyCertificate() throws Exception {
-        X509AuxCertificate x, xtmp = null, chain_ss = null;
-        //X509_NAME xn;
-        int bad_chain = 0, depth, i, num;
+        X509AuxCertificate x, xtmp = null, xtmp2, chain_ss = null;
+        boolean bad_chain = false;
+        int ok = 0;
+        boolean retry;
+        int trust = X509Utils.X509_TRUST_UNTRUSTED;
+        int err;
 
-        if ( certificate == null ) {
+        if (certificate == null) {
             X509Error.addError(X509Utils.X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
+            this.error = X509Utils.V_ERR_INVALID_CALL;
             return -1;
         }
 
-        // first we make sure the chain we are going to build is
-        // present and that the first entry is in place
+        if (chain != null) {
+            /*
+             * This X509_STORE_CTX has already been used to verify a cert. We
+             * cannot do another one.
+             */
+            X509Error.addError(ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+            this.error = X509_V_ERR_INVALID_CALL;
+            return -1;
+        }
 
-        if ( chain == null ) {
+        /*
+         * first we make sure the chain we are going to build is present and that
+         * the first entry is in place
+         */
+        //if (chain == null) {
             chain = new ArrayList<X509AuxCertificate>();
             chain.add(certificate);
-            lastUntrusted = 1;
-        }
+        //}
+        lastUntrusted = 1;
 
-        // We use a temporary STACK so we can chop and hack at it
+        /* We use a temporary STACK so we can chop and hack at it */
+        LinkedList<X509AuxCertificate> sktmp = untrusted != null ?
+                new LinkedList<>(untrusted) : null;
 
-        List<X509AuxCertificate> sktmp = null;
-        if ( untrusted != null ) {
-            sktmp = new ArrayList<X509AuxCertificate>(untrusted);
-        }
-        num = chain.size();
+        int num = chain.size();
         x = chain.get(num - 1);
-        depth = verifyParameter.depth;
+        int depth = getParam().depth;
+
         for(;;) {
+            /* If we have enough, we break */
             if ( depth < num ) break;
 
+            /* If we are self signed, we break */
             if ( checkIssued.call(this, x, x) != 0 ) break;
 
+            /*
+             * If asked see if we can find issuer in trusted store first
+             */
+            if ((getParam().flags & V_FLAG_TRUSTED_FIRST) != 0) {
+                X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
+                ok = getIssuer.call(this, p_xtmp, x);
+                xtmp = p_xtmp[0];
+                if (ok < 0) {
+                    ctx->error = X509_V_ERR_STORE_LOOKUP;
+                    return ok; // goto err;
+                }
+                /*
+                 * If successful for now free up cert so it will be picked up
+                 * again later.
+                 */
+                if (ok > 0) {
+                    xtmp = null;
+                    break;
+                }
+            }
+
+            /* If we were passed a cert chain, use it first */
             if ( sktmp != null ) {
                 xtmp = findIssuer(sktmp, x);
                 if ( xtmp != null ) {
@@ -678,77 +718,146 @@ public class StoreContext {
                     lastUntrusted++;
                     x = xtmp;
                     num++;
+                    /*
+                     * reparse the full chain for the next one
+                     */
                     continue;
                 }
             }
             break;
         }
 
-        // at this point, chain should contain a list of untrusted
-        // certificates.  We now need to add at least one trusted one,
-        // if possible, otherwise we complain.
+        /* Remember how many untrusted certs we have */
+        int j = num;
+        /*
+         * at this point, chain should contain a list of untrusted certificates.
+         * We now need to add at least one trusted one, if possible, otherwise we
+         * complain.
+         */
 
-        // Examine last certificate in chain and see if it is self signed.
-
-        i = chain.size();
-        x = chain.get(i - 1);
-
-        if ( checkIssued.call(this, x, x) != 0 ) {
-            // we have a self signed certificate
-            if ( chain.size() == 1 ) {
-                // We have a single self signed certificate: see if
-                // we can find it in the store. We must have an exact
-                // match to avoid possible impersonation.
-                X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
-                int ok = getIssuer.call(this, p_xtmp, x);
-                xtmp = p_xtmp[0];
-                if ( ok <= 0 || ! x.equals(xtmp) ) {
-                    error = X509Utils.V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
-                    currentCertificate = x;
-                    errorDepth = i-1;
-                    bad_chain = 1;
-                    ok = verifyCallback.call(this, ZERO);
-                    if ( ok == 0 ) return ok;
+        do {
+            /*
+             * Examine last certificate in chain and see if it is self signed.
+             */
+            int i = chain.size();
+            x = chain.get(i - 1);
+            if ( checkIssued.call(this, x, x) != 0 ) { // cert_self_signed(x)
+                /* we have a self signed certificate */
+                if ( chain.size() == 1 ) {
+                    /*
+                     * We have a single self signed certificate: see if we can
+                     * find it in the store. We must have an exact match to avoid
+                     * possible impersonation.
+                     */
+                    X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
+                    ok = getIssuer.call(this, p_xtmp, x);
+                    xtmp = p_xtmp[0];
+                    if ( ok <= 0 || ! x.equals(xtmp) ) {
+                        error = X509Utils.V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
+                        currentCertificate = x;
+                        errorDepth = i - 1;
+                        bad_chain = true;
+                        ok = verifyCallback.call(this, ZERO);
+                        if ( ok == 0 ) return ok; // goto err; TODO
+                    } else {
+                        /*
+                         * We have a match: replace certificate with store
+                         * version so we get any trust settings.
+                         */
+                        x = xtmp;
+                        chain.set(i - 1, x);
+                        lastUntrusted = 0;
+                    }
                 } else {
-                    // We have a match: replace certificate with store version
-                    // so we get any trust settings.
-                    x = xtmp;
-                    chain.set(i-1,x);
-                    lastUntrusted = 0;
+                    /*
+                     * extract and save self signed certificate for later use
+                     */
+                    chain_ss = chain.remove(chain.size() - 1);
+                    lastUntrusted--;
+                    num--;
+                    j--;
+                    x = chain.get(num - 1);
                 }
-            } else {
-                // extract and save self signed certificate for later use
-                chain_ss = chain.remove(chain.size()-1);
-                lastUntrusted--;
-                num--;
-                x = chain.get(num-1);
             }
-        }
-        // We now lookup certs from the certificate store
-        for(;;) {
-            // If we have enough, we break
-            if ( depth < num ) break;
-            //xn = new X509_NAME(x.getIssuerX500Principal());
-            // If we are self signed, we break
-            if ( checkIssued.call(this, x, x) != 0 ) break;
+            /* We now lookup certs from the certificate store */
+            for(;;) {
+                /* If we have enough, we break */
+                if ( depth < num ) break;
+                /* If we are self signed, we break */
+                if ( checkIssued.call(this, x, x) != 0 ) break;
+                X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
+                ok = getIssuer.call(this, p_xtmp, x);
+                xtmp = p_xtmp[0];
 
-            X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
-            int ok = getIssuer.call(this, p_xtmp, x);
-            xtmp = p_xtmp[0];
+                if ( ok < 0 ) {
+                    error = X509_V_ERR_STORE_LOOKUP;
+                    return ok; // goto err; TODO double check
+                }
 
-            if ( ok < 0 ) return ok;
-            if ( ok == 0 ) break;
+                if ( ok == 0 ) break;
 
-            x = xtmp;
-            chain.add(x);
-            num++;
-        }
+                x = xtmp;
+                chain.add(x);
+                num++;
+            }
 
-        /* we now have our chain, lets check it... */
+            /* we now have our chain, lets check it... */
+            if ((trust = checkTrust()) == X509Utils.X509_TRUST_REJECTED) { // TODO check_trust
+                /* Callback already issued */
+                ok = 0;
+                return ok; // goto err;
+            }
 
-        //xn = new X509_NAME(x.getIssuerX500Principal());
-        /* Is last certificate looked up self signed? */
-        if ( checkIssued.call(this, x, x) == 0 ) {
+            /*
+             * If it's not explicitly trusted then check if there is an alternative
+             * chain that could be used. We only do this if we haven't already
+             * checked via TRUSTED_FIRST and the user hasn't switched off alternate
+             * chain checking
+             */
+            retry = false;
+            if (trust != X509Utils.X509_TRUST_TRUSTED
+                    && !(getParam().flags & X509Utils.V_FLAG_TRUSTED_FIRST)
+                    && !(getParam().flags & X509Utils.V_FLAG_NO_ALT_CHAINS)) {
+                while (j-- > 1) {
+                    xtmp2 = chain.get(j - 1);
+
+                    X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
+                    ok = getIssuer.call(this, p_xtmp, xtmp2);
+                    xtmp = p_xtmp[0];
+
+                    if (ok < 0) {
+                        error = X509_V_ERR_STORE_LOOKUP;
+                        return ok; // goto err;
+                    }
+                    /* Check if we found an alternate chain */
+                    if (ok > 0) {
+                        /*
+                         * Free up the found cert we'll add it again later
+                         */
+                        xtmp = null;
+
+                        /*
+                         * Dump all the certs above this point - we've found an
+                         * alternate chain
+                         */
+                        while (num > j) {
+                            chain.remove(chain.size() - 1);
+                            num--;
+                        }
+                        lastUntrusted = chain.size();
+                        retry = true;
+                        break;
+                    }
+                }
+            }
+        } while(retry); ////
+
+        /*
+         * If not explicitly trusted then indicate error unless it's a single
+         * self signed certificate in which case we've indicated an error already
+         * and set bad_chain == 1
+         */
+        if (trust != X509_TRUST_TRUSTED && !bad_chain) {
             if ( chain_ss == null || checkIssued.call(this, x, chain_ss) == 0 ) {
                 if(lastUntrusted >= num) {
                     error = X509Utils.V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
@@ -762,27 +871,48 @@ public class StoreContext {
                 lastUntrusted = num;
                 currentCertificate = chain_ss;
                 error = X509Utils.V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
+                chain_ss = null;
             }
+
             errorDepth = num - 1;
-            bad_chain = 1;
-            int ok = verifyCallback.call(this, ZERO);
-            if ( ok == 0 ) return ok;
+            bad_chain = true;
+            ok = verifyCallback.call(this, ZERO);
+            if ( ok == 0 ) return ok; // goto err;
         }
 
-        // We have the chain complete: now we need to check its purpose
-        int ok = checkChainExtensions();
-        if ( ok == 0 ) return ok;
+        /* We have the chain complete: now we need to check its purpose */
+        ok = checkChainExtensions();
+        if ( ok == 0 ) return ok; // goto err;
 
-        /* TODO: Check name constraints (from 1.0.0) */
+        /* TODO Check name constraints */
+        //ok = check_name_constraints(ctx);
+        //if ( ok == 0 ) return ok; // goto err;
 
-        // The chain extensions are OK: check trust
-        if ( verifyParameter.trust > 0 ) ok = checkTrust();
-        if ( ok == 0 ) return ok;
+        ok = check_id(ctx);
+        if ( ok == 0 ) return ok; // goto err;
 
-        // Check revocation status: we do this after copying parameters
-        // because they may be needed for CRL signature verification.
+        /* We may as well copy down any DSA parameters that are required */
+        X509_get_pubkey_parameters(NULL, ctx->chain);
+
+//        // The chain extensions are OK: check trust
+//        if ( verifyParameter.trust > 0 ) ok = checkTrust();
+//        if ( ok == 0 ) return ok;
+
+        /*
+         * Check revocation status: we do this after copying parameters because
+         * they may be needed for CRL signature verification.
+         */
+
         ok = checkRevocation.call(this);
-        if ( ok == 0 ) return ok;
+        if ( ok == 0 ) return ok; // goto err;
+
+        err = X509_chain_check_suiteb(&ctx->error_depth, NULL, ctx->chain, ctx->param->flags);
+        if (err != X509Utils.V_OK) {
+            error = err;
+            currentCertificate = chain.get(errorDepth);
+            ok = verifyCallback.call(this, ZERO);
+            if ( ok == 0 ) return ok; // goto err;
+        }
 
         /* At this point, we have a chain and need to verify it */
         if ( verify != null && verify != Store.VerifyFunction.EMPTY ) {
@@ -790,13 +920,19 @@ public class StoreContext {
         } else {
             ok = internalVerify.call(this);
         }
-        if ( ok == 0 ) return ok;
+        if ( ok == 0 ) return ok; // goto err;
 
         /* TODO: RFC 3779 path validation, now that CRL check has been done (from 1.0.0) */
 
         /* If we get this far evaluate policies */
-        if ( bad_chain == 0 && (verifyParameter.flags & X509Utils.V_FLAG_POLICY_CHECK) != 0 ) {
+        if (!bad_chain && (getParam().flags & X509Utils.V_FLAG_POLICY_CHECK) != 0) {
             ok = checkPolicy.call(this);
+        }
+        if ( ok == 0 ) return ok; // goto err;
+
+        /* Safety net, error returns must set ctx->error */
+        if (ok <= 0 && error == X509Utils.V_OK) {
+            error = X509_V_ERR_UNSPECIFIED;
         }
         return ok;
     }
@@ -845,7 +981,7 @@ public class StoreContext {
         }
         catch (SecurityException e) { /* ignore if we can't use System.getenv */ }
 
-        for ( int i = 0; i < lastUntrusted; i++ ) {
+        for (int i = 0; i < lastUntrusted; i++ ) {
             int ret;
             x = chain.get(i);
             if ( (verifyParameter.flags & X509Utils.V_FLAG_IGNORE_CRITICAL) == 0 && unhandledCritical(x) ) {
@@ -941,7 +1077,7 @@ public class StoreContext {
     /**
      * c: X509_check_trust
      */
-    public int checkTrust() throws Exception {
+    public int checkTrust() throws Exception { // TODO check_trust returns X509_TRUST_REJECTED ?!
         int i,ok;
         X509AuxCertificate x;
         i = chain.size()-1;
