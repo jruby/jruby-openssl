@@ -73,13 +73,7 @@ public class StoreContext {
         this.store = store;
     }
 
-    public static interface CheckPolicyFunction extends Function1<StoreContext> {
-        public static final CheckPolicyFunction EMPTY = new CheckPolicyFunction(){
-            public int call(StoreContext context) {
-                return -1;
-            }
-        };
-    }
+    interface CheckPolicyFunction extends Function1<StoreContext> {}
 
     Store.VerifyFunction verify;
     Store.VerifyCallbackFunction verifyCallback;
@@ -610,7 +604,7 @@ public class StoreContext {
     /**
      * c: X509_STORE_get_by_subject (it gets X509_STORE_CTX as the first parameter)
      */
-    public int getBySubject(int type,Name name,X509Object[] ret) throws Exception {
+    public int getBySubject(int type, Name name, X509Object[] ret) throws Exception {
         Store c = store;
 
         X509Object tmp = X509Object.retrieveBySubject(c.getObjects(),type,name);
@@ -619,7 +613,7 @@ public class StoreContext {
             for(int i=currentMethod; i<certificateMethods.size(); i++) {
                 Lookup lu = certificateMethods.get(i);
                 X509Object[] stmp = new X509Object[1];
-                int j = lu.bySubject(type,name,stmp);
+                int j = lu.bySubject(type, name, stmp);
                 if ( j < 0 ) {
                     currentMethod = i;
                     return j;
