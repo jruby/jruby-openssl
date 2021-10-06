@@ -89,8 +89,11 @@ public class StoreContext {
     public boolean isValid;
     public int lastUntrusted;
 
-    public List<X509AuxCertificate> chain; //List<X509AuxCertificate>
-    public PolicyTree tree;
+
+    private int num_untrusted;
+
+    private ArrayList<X509AuxCertificate> chain;
+    private PolicyTree tree;
 
     public int explicitPolicy;
 
@@ -905,7 +908,7 @@ public class StoreContext {
              * would be a-priori too long.
              */
             if ((search & S_DOTRUSTED) != 0) {
-                i = num = chain.size();
+                int i = num = chain.size();
                 if ((search & S_DOALTERNATE) != 0) {
                     /*
                      * As high up the chain as we can, look for an alternative
@@ -1057,7 +1060,7 @@ public class StoreContext {
                  * Once we run out of untrusted issuers, we stop looking for more
                  * and start looking only in the trust store if enabled.
                  */
-                xtmp = (ss || depth < num) ? null : find_issuer(ctx, sktmp, x);
+                xtmp = (ss || depth < num) ? null : find_issuer(sktmp, x);
                 if (xtmp == null) {
                     search &= ~S_DOUNTRUSTED;
                     if (may_trusted) search |= S_DOTRUSTED;
@@ -1108,7 +1111,7 @@ public class StoreContext {
                 if (num_untrusted < num) {
                     return verify_cb_cert(null, num - 1, V_ERR_UNABLE_TO_GET_ISSUER_CERT);
                 }
-                return verify_cb_cert(null, num-1, V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+                return verify_cb_cert(null, num - 1, V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
         }
     }
 
@@ -1291,6 +1294,191 @@ public class StoreContext {
             }
         }
         return 1;
+    }
+
+    /*
+     * Check EE or CA certificate purpose.  For trusted certificates explicit local
+     * auxiliary trust can be used to override EKU-restrictions.
+     *
+     * x509_vfy.c: static int check_purpose(X509_STORE_CTX *ctx, X509 *x, int purpose, int depth, int must_be_ca)
+     */
+    private int check_purpose(X509AuxCertificate x, int purpose, int depth, byte must_be_ca) throws Exception {
+        int tr_ok = X509_TRUST_UNTRUSTED;
+
+        /*
+         * For trusted certificates we want to see whether any auxiliary trust
+         * settings trump the purpose constraints.
+         *
+         * This is complicated by the fact that the trust ordinals in
+         * ctx->param->trust are entirely independent of the purpose ordinals in
+         * ctx->param->purpose!
+         *
+         * What connects them is their mutual initialization via calls from
+         * X509_STORE_CTX_set_default() into X509_VERIFY_PARAM_lookup() which sets
+         * related values of both param->trust and param->purpose.  It is however
+         * typically possible to infer associated trust values from a purpose value
+         * via the X509_PURPOSE API.
+         *
+         * Therefore, we can only check for trust overrides when the purpose we're
+         * checking is the same as ctx->param->purpose and ctx->param->trust is
+         * also set.
+         */
+        if (depth >= num_untrusted && purpose == getParam().purpose) {
+            tr_ok = Trust.checkTrust(x, getParam().trust, X509_TRUST_NO_SS_COMPAT); // X509_check_trust
+        }
+
+        switch (tr_ok) {
+            case X509_TRUST_TRUSTED:
+                return 1;
+            case X509_TRUST_REJECTED:
+                break;
+            default:
+                // TODO X509_check_purpose(x, purpose, must_be_ca) passing down must_be_ca == -1
+                switch (Purpose.checkPurpose(x, verifyParameter.purpose, must_be_ca > 0 ? 1 : 0)) { // X509_check_purpose(x, purpose, must_be_ca)
+                    case 1:
+                        return 1;
+                    case 0:
+                        break;
+                    default:
+                        if ((getParam().flags & V_FLAG_X509_STRICT) == 0) return 1;
+                }
+                break;
+        }
+
+        return verify_cb_cert(x, depth, V_ERR_INVALID_PURPOSE);
+    }
+
+    /*
+     * Check a certificate chains extensions for consistency with the supplied purpose
+     *
+     * static int check_chain_extensions(X509_STORE_CTX *ctx)
+     */
+    private int check_chain_extensions() throws Exception {
+        byte must_be_ca, int plen = 0;
+        X509AuxCertificate x;
+        int proxy_path_length = 0;
+        int purpose;
+        boolean allow_proxy_certs;
+        int num = chain.size();
+
+        /*-
+         *  must_be_ca can have 1 of 3 values:
+         * -1: we accept both CA and non-CA certificates, to allow direct
+         *     use of self-signed certificates (which are marked as CA).
+         * 0:  we only accept non-CA certificates.  This is currently not
+         *     used, but the possibility is present for future extensions.
+         * 1:  we only accept CA certificates.  This is currently used for
+         *     all certificates in the chain except the leaf certificate.
+         */
+        must_be_ca = -1;
+
+        /* CRL path validation */
+        //if (ctx->parent) { // todo this.parent not implemented
+        //    allow_proxy_certs = 0;
+        //    purpose = X509_PURPOSE_CRL_SIGN;
+        //} else {
+            allow_proxy_certs = (getParam().flags & V_FLAG_ALLOW_PROXY_CERTS) != 0;
+            purpose = getParam().purpose;
+        //}
+
+        for (int i = 0; i < num; i++) {
+            int ret;
+            x = chain.get(i);
+            if ((getParam().flags & V_FLAG_IGNORE_CRITICAL) == 0 && unhandledCritical(x)) {
+                if (verify_cb_cert(x, i, V_ERR_UNHANDLED_CRITICAL_EXTENSION) == 0)
+                    return 0;
+            }
+            if (allow_proxy_certs == false && x.getExtensionValue("1.3.6.1.5.5.7.1.14") != null) { // && (x->ex_flags & EXFLAG_PROXY)
+                if (verify_cb_cert(x, i, V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED) == 0)
+                    return 0;
+            }
+            ret = Purpose.checkCA(x); // X509_check_ca(x)
+            switch (must_be_ca) {
+                case -1:
+                    if ((getParam().flags & V_FLAG_X509_STRICT) != 0 && ret != 1 && ret != 0) {
+                        ret = 0;
+                        this.error = V_ERR_INVALID_CA;
+                    } else {
+                        ret = 1;
+                    }
+                    break;
+                case 0:
+                    if (ret != 0) {
+                        ret = 0;
+                        this.error = V_ERR_INVALID_NON_CA;
+                    } else {
+                        ret = 1;
+                    }
+                    break;
+                default:
+                    /* X509_V_FLAG_X509_STRICT is implicit for intermediate CAs */
+                    if ((ret == 0) || ((i + 1 < num || (getParam().flags & V_FLAG_X509_STRICT) != 0)
+                            && (ret != 1))) {
+                        ret = 0;
+                        this.error = V_ERR_INVALID_CA;
+                    } else
+                        ret = 1;
+                    break;
+            }
+
+            if (ret == 0 && verify_cb_cert(x, i, V_OK) == 0)
+                return 0;
+            /* check_purpose() makes the callback as needed */
+            if (purpose > 0 && check_purpose(x, purpose, i, must_be_ca) == 0)
+                return 0;
+            /* Check pathlen if not self issued */
+            final int ex_pathlen = x.getBasicConstraints();
+            if ((i > 1) && ex_pathlen != Integer.MAX_VALUE // !(x->ex_flags & EXFLAG_SI)
+                    && ex_pathlen != -1
+                    && (plen > (ex_pathlen + proxy_path_length + 1))) {
+                if (verify_cb_cert(x, i, V_ERR_PATH_LENGTH_EXCEEDED) == 0)
+                    return 0;
+            }
+
+            /* Increment path length if not self issued */
+            if (!isSelfIssued(x)) plen++;
+
+            /*
+             * If this certificate is a proxy certificate, the next certificate
+             * must be another proxy certificate or a EE certificate.  If not,
+             * the next certificate must be a CA certificate.
+             */
+            final byte[] ex_proxyCertInfo =  x.getExtensionValue("1.3.6.1.5.5.7.1.14"); // id-pe-proxyCertInfo(14)
+            if (ex_proxyCertInfo != null) { // x->ex_flags & EXFLAG_PROXY
+                ASN1Sequence pci = (ASN1Sequence) new ASN1InputStream(ex_proxyCertInfo).readObject();
+                if (pci.size() > 0 && pci.getObjectAt(0) instanceof ASN1Integer) {
+                    int ex_pcpathlen = ((ASN1Integer) pci.getObjectAt(0)).getValue().intValue();
+                    /*
+                     * RFC3820, 4.1.3 (b)(1) stipulates that if pCPathLengthConstraint
+                     * is less than max_path_length, the former should be copied to
+                     * the latter, and 4.1.4 (a) stipulates that max_path_length
+                     * should be verified to be larger than zero and decrement it.
+                     *
+                     * Because we're checking the certs in the reverse order, we start
+                     * with verifying that proxy_path_length isn't larger than pcPLC,
+                     * and copy the latter to the former if it is, and finally,
+                     * increment proxy_path_length.
+                     */
+                    if (ex_pcpathlen != -1) {
+                        if (proxy_path_length > ex_pcpathlen) {
+                            if (verify_cb_cert(x, i, V_ERR_PROXY_PATH_LENGTH_EXCEEDED) == 0)
+                                return 0;
+                        }
+                        proxy_path_length = ex_pcpathlen;
+                    }
+                }
+                proxy_path_length++;
+                must_be_ca = 0;
+            } else {
+                must_be_ca = 1;
+            }
+        }
+        return 1;
+    }
+
+    private boolean isSelfIssued(final X509AuxCertificate x) throws Exception {
+        // (x->ex_flags & EXFLAG_SI))
+        return checkIssued.call(this, x, x) != 0; // TODO self-signed == self-issued?
     }
 
     public int checkTrust() throws Exception {
