@@ -1496,10 +1496,81 @@ public class StoreContext {
         return verifyCallback.call(this, ZERO);
     }
 
+    /*
+     * x509_vfy.c: check_trust(X509_STORE_CTX *ctx, int num_untrusted)
+     */
+    private int check_trust(int num_untrusted) throws Exception {
+        int i;
+        final int num = chain.size();
+        int trust;
+
+        /*
+         * Check trusted certificates in chain at depth num_untrusted and up.
+         * Note, that depths 0..num_untrusted-1 may also contain trusted
+         * certificates, but the caller is expected to have already checked those,
+         * and wants to incrementally check just any added since.
+         */
+        for (i = num_untrusted; i < num; i++) {
+            X509AuxCertificate x = chain.get(i);
+            trust = Trust.checkTrust(x, getParam().trust, 0);
+            /* If explicitly trusted return trusted */
+            if (trust == X509_TRUST_TRUSTED)
+                return X509_TRUST_TRUSTED; // goto trusted;
+            if (trust == X509_TRUST_REJECTED)
+                return check_trust_rejected(x, i); // goto rejected;
+        }
+
+        /*
+         * If we are looking at a trusted certificate, and accept partial chains,
+         * the chain is PKIX trusted.
+         */
+        if (num_untrusted < num) {
+            if ((getParam().flags & V_FLAG_PARTIAL_CHAIN) != 0)
+                return X509_TRUST_TRUSTED; // goto trusted;
+            return X509_TRUST_UNTRUSTED;
+        }
+
+        if (num_untrusted == num && (getParam().flags & V_FLAG_PARTIAL_CHAIN) != 0) {
+            /*
+             * Last-resort call with no new trusted certificates, check the leaf
+             * for a direct trust store match.
+             */
+            i = 0;
+            X509AuxCertificate x = chain.get(i);
+            X509AuxCertificate mx = lookup_cert_match(x);
+            if (mx == null) return X509_TRUST_UNTRUSTED;
+
+            /*
+             * Check explicit auxiliary trust/reject settings.  If none are set,
+             * we'll accept X509_TRUST_UNTRUSTED when not self-signed.
+             */
+            trust = Trust.checkTrust(mx, getParam().trust, 0);
+            if (trust == X509_TRUST_REJECTED) {
+                return check_trust_rejected(x, i); // goto rejected;
+            }
+
+            /* Replace leaf with trusted match */
+            chain.set(0, mx);
+            this.num_untrusted = 0;
+            return X509_TRUST_TRUSTED; // goto trusted;
+        }
+
+        /*
+         * If no trusted certs in chain at all return untrusted and allow
+         * standard (no issuer cert) etc errors to be indicated.
+         */
+        return X509_TRUST_UNTRUSTED;
+    }
+
+    private int check_trust_rejected(X509AuxCertificate x, int i) throws Exception {
+        if (verify_cb_cert(x, i, V_ERR_CERT_REJECTED) == 0) return X509_TRUST_REJECTED;
+        return X509_TRUST_UNTRUSTED;
+    }
+
     /**
      * c: check_cert_time
      */
-    public int checkCertificateTime(X509AuxCertificate x) throws Exception {
+    boolean checkCertificateTime(X509AuxCertificate x) throws Exception {
         final Date pTime;
         if ( (verifyParameter.flags & X509Utils.V_FLAG_USE_CHECK_TIME) != 0 ) {
             pTime = this.verifyParameter.checkTime;
@@ -1511,17 +1582,17 @@ public class StoreContext {
             error = X509Utils.V_ERR_CERT_NOT_YET_VALID;
             currentCertificate = x;
             if ( verifyCallback.call(this, ZERO) == 0 ) {
-                return 0;
+                return false;
             }
         }
         if ( ! x.getNotAfter().after(pTime) ) {
             error = X509Utils.V_ERR_CERT_HAS_EXPIRED;
             currentCertificate = x;
             if ( verifyCallback.call(this, ZERO) == 0 ) {
-                return 0;
+                return false;
             }
         }
-        return 1;
+        return true;
     }
 
     /**
@@ -1721,7 +1792,7 @@ public class StoreContext {
                 }
 
                 xs.setValid(true);
-                ok = context.checkCertificateTime(xs);
+                ok = context.checkCertificateTime(xs) ? 1 : 0;
                 if ( ok == 0 ) return ok;
 
                 context.currentIssuer = xi;
