@@ -37,6 +37,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -688,10 +689,8 @@ public class StoreContext {
 
         // We use a temporary STACK so we can chop and hack at it
 
-        List<X509AuxCertificate> sktmp = null;
-        if ( untrusted != null ) {
-            sktmp = new ArrayList<X509AuxCertificate>(untrusted);
-        }
+        LinkedList<X509AuxCertificate> sktmp = untrusted != null ? new LinkedList<>(untrusted) : null;
+
         num = chain.size();
         x = chain.get(num - 1);
         depth = verifyParameter.depth;
@@ -848,8 +847,7 @@ public class StoreContext {
         int trust = X509_TRUST_UNTRUSTED;
         int alt_untrusted = 0;
         int depth;
-        int ok = 0;
-        int i;
+        int ok;
 
         /*
          * Set up search policy, untrusted if possible, trusted-first if enabled.
@@ -873,7 +871,7 @@ public class StoreContext {
          * typically the content of the peer's certificate message) so can make
          * multiple passes over it, while free to remove elements as we go.
          */
-        ArrayList<X509AuxCertificate> sktmp = untrusted != null ? new ArrayList<>(untrusted) : null;
+        LinkedList<X509AuxCertificate> sktmp = untrusted != null ? new LinkedList<>(untrusted) : null;
 
         depth = verifyParameter.depth;
 
@@ -1123,12 +1121,10 @@ public class StoreContext {
     private X509AuxCertificate find_issuer(List<X509AuxCertificate> sk, X509AuxCertificate x) throws Exception {
         X509AuxCertificate rv = null;
 
-        for (int i = 0; i < sk.size(); i++) {
-            X509AuxCertificate issuer = sk.get(i);
+        for (X509AuxCertificate issuer : sk) {
             if (check_issued(x, issuer)) {
                 rv = issuer;
-                if (x509_check_cert_time(ctx, rv, -1))
-                    break;
+                if (checkCertificateTime(rv)) break;
             }
         }
         return rv;
