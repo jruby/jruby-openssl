@@ -46,6 +46,9 @@ import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.jruby.ext.openssl.SecurityHelper;
 
+import static org.jruby.ext.openssl.x509store.X509Error.addError;
+import static org.jruby.ext.openssl.x509store.X509Utils.*;
+
 /**
  * c: X509_STORE_CTX
  *
@@ -105,6 +108,8 @@ public class StoreContext {
     X509AuxCertificate currentCertificate;
     X509AuxCertificate currentIssuer;
     X509CRL currentCRL;
+    //int current_crl_score;
+    //int current_reasons;
 
     List<Object> extraData;
 
@@ -642,14 +647,13 @@ public class StoreContext {
     public int verifyCertificate() throws Exception {
         X509AuxCertificate x, xtmp = null, xtmp2, chain_ss = null;
         boolean bad_chain = false;
-        int ok = 0;
+        int ok;
         boolean retry;
-        int trust = X509Utils.X509_TRUST_UNTRUSTED;
-        int err;
+        int trust = X509_TRUST_UNTRUSTED;
 
         if (certificate == null) {
-            X509Error.addError(X509Utils.X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
-            this.error = X509Utils.V_ERR_INVALID_CALL;
+            addError(X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
+            this.error = V_ERR_INVALID_CALL;
             return -1;
         }
 
@@ -658,8 +662,8 @@ public class StoreContext {
              * This X509_STORE_CTX has already been used to verify a cert. We
              * cannot do another one.
              */
-            X509Error.addError(ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-            this.error = X509_V_ERR_INVALID_CALL;
+            addError(ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+            this.error = V_ERR_INVALID_CALL;
             return -1;
         }
 
@@ -696,7 +700,7 @@ public class StoreContext {
                 ok = getIssuer.call(this, p_xtmp, x);
                 xtmp = p_xtmp[0];
                 if (ok < 0) {
-                    ctx->error = X509_V_ERR_STORE_LOOKUP;
+                    error = V_ERR_STORE_LOOKUP;
                     return ok; // goto err;
                 }
                 /*
@@ -753,12 +757,12 @@ public class StoreContext {
                     ok = getIssuer.call(this, p_xtmp, x);
                     xtmp = p_xtmp[0];
                     if ( ok <= 0 || ! x.equals(xtmp) ) {
-                        error = X509Utils.V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
+                        error = V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
                         currentCertificate = x;
                         errorDepth = i - 1;
                         bad_chain = true;
                         ok = verifyCallback.call(this, ZERO);
-                        if ( ok == 0 ) return ok; // goto err; TODO
+                        if ( ok == 0 ) return ok; // goto err;
                     } else {
                         /*
                          * We have a match: replace certificate with store
@@ -790,7 +794,7 @@ public class StoreContext {
                 xtmp = p_xtmp[0];
 
                 if ( ok < 0 ) {
-                    error = X509_V_ERR_STORE_LOOKUP;
+                    error = V_ERR_STORE_LOOKUP;
                     return ok; // goto err; TODO double check
                 }
 
@@ -802,7 +806,7 @@ public class StoreContext {
             }
 
             /* we now have our chain, lets check it... */
-            if ((trust = checkTrust()) == X509Utils.X509_TRUST_REJECTED) { // TODO check_trust
+            if ((trust = checkTrust()) == X509_TRUST_REJECTED) {
                 /* Callback already issued */
                 ok = 0;
                 return ok; // goto err;
@@ -815,9 +819,9 @@ public class StoreContext {
              * chain checking
              */
             retry = false;
-            if (trust != X509Utils.X509_TRUST_TRUSTED
-                    && !(getParam().flags & X509Utils.V_FLAG_TRUSTED_FIRST)
-                    && !(getParam().flags & X509Utils.V_FLAG_NO_ALT_CHAINS)) {
+            if (trust != X509_TRUST_TRUSTED
+                    && (getParam().flags & V_FLAG_TRUSTED_FIRST) == 0
+                    && (getParam().flags & V_FLAG_NO_ALT_CHAINS) == 0) {
                 while (j-- > 1) {
                     xtmp2 = chain.get(j - 1);
 
@@ -826,7 +830,7 @@ public class StoreContext {
                     xtmp = p_xtmp[0];
 
                     if (ok < 0) {
-                        error = X509_V_ERR_STORE_LOOKUP;
+                        error = V_ERR_STORE_LOOKUP;
                         return ok; // goto err;
                     }
                     /* Check if we found an alternate chain */
@@ -850,7 +854,7 @@ public class StoreContext {
                     }
                 }
             }
-        } while(retry); ////
+        } while(retry);
 
         /*
          * If not explicitly trusted then indicate error unless it's a single
@@ -860,9 +864,9 @@ public class StoreContext {
         if (trust != X509_TRUST_TRUSTED && !bad_chain) {
             if ( chain_ss == null || checkIssued.call(this, x, chain_ss) == 0 ) {
                 if(lastUntrusted >= num) {
-                    error = X509Utils.V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
+                    error = V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
                 } else {
-                    error = X509Utils.V_ERR_UNABLE_TO_GET_ISSUER_CERT;
+                    error = V_ERR_UNABLE_TO_GET_ISSUER_CERT;
                 }
                 currentCertificate = x;
             } else {
@@ -870,7 +874,7 @@ public class StoreContext {
                 num++;
                 lastUntrusted = num;
                 currentCertificate = chain_ss;
-                error = X509Utils.V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
+                error = V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
                 chain_ss = null;
             }
 
@@ -888,15 +892,9 @@ public class StoreContext {
         //ok = check_name_constraints(ctx);
         //if ( ok == 0 ) return ok; // goto err;
 
-        ok = check_id(ctx);
-        if ( ok == 0 ) return ok; // goto err;
-
-        /* We may as well copy down any DSA parameters that are required */
-        X509_get_pubkey_parameters(NULL, ctx->chain);
-
-//        // The chain extensions are OK: check trust
-//        if ( verifyParameter.trust > 0 ) ok = checkTrust();
-//        if ( ok == 0 ) return ok;
+        /* TODO not implemented - VerifyParameter needs to support id */
+        //ok = check_id(ctx);
+        //if ( ok == 0 ) return ok; // goto err;
 
         /*
          * Check revocation status: we do this after copying parameters because
@@ -906,8 +904,8 @@ public class StoreContext {
         ok = checkRevocation.call(this);
         if ( ok == 0 ) return ok; // goto err;
 
-        err = X509_chain_check_suiteb(&ctx->error_depth, NULL, ctx->chain, ctx->param->flags);
-        if (err != X509Utils.V_OK) {
+        int err = chain_check_suiteb(this.errorDepth, null, this.chain, getParam().flags);
+        if (err != V_OK) {
             error = err;
             currentCertificate = chain.get(errorDepth);
             ok = verifyCallback.call(this, ZERO);
@@ -925,14 +923,14 @@ public class StoreContext {
         /* TODO: RFC 3779 path validation, now that CRL check has been done (from 1.0.0) */
 
         /* If we get this far evaluate policies */
-        if (!bad_chain && (getParam().flags & X509Utils.V_FLAG_POLICY_CHECK) != 0) {
+        if (!bad_chain && (getParam().flags & V_FLAG_POLICY_CHECK) != 0) {
             ok = checkPolicy.call(this);
         }
         if ( ok == 0 ) return ok; // goto err;
 
         /* Safety net, error returns must set ctx->error */
-        if (ok <= 0 && error == X509Utils.V_OK) {
-            error = X509_V_ERR_UNSPECIFIED;
+        if (ok <= 0 && error == V_OK) {
+            error = V_ERR_UNSPECIFIED;
         }
         return ok;
     }
@@ -1077,24 +1075,72 @@ public class StoreContext {
     /**
      * c: X509_check_trust
      */
-    public int checkTrust() throws Exception { // TODO check_trust returns X509_TRUST_REJECTED ?!
-        int i,ok;
+    public int checkTrust() throws Exception {
+        int i, ok;
         X509AuxCertificate x;
         i = chain.size()-1;
         x = chain.get(i);
         ok = Trust.checkTrust(x, verifyParameter.trust, 0);
-        if ( ok == X509Utils.X509_TRUST_TRUSTED ) {
-            return 1;
-        }
+        if (ok == X509_TRUST_TRUSTED) return X509_TRUST_TRUSTED;
         errorDepth = 1;
         currentCertificate = x;
-        if ( ok == X509Utils.X509_TRUST_REJECTED ) {
-            error = X509Utils.V_ERR_CERT_REJECTED;
+        if (ok == X509_TRUST_REJECTED) {
+            error = V_ERR_CERT_REJECTED;
+
+            ok = verifyCallback.call(this, ZERO);
+            if (ok == 0) return X509_TRUST_REJECTED;
         } else {
-            error = X509Utils.V_ERR_CERT_UNTRUSTED;
+            error = V_ERR_CERT_UNTRUSTED;
         }
-        return verifyCallback.call(this, ZERO);
+        return X509_TRUST_UNTRUSTED;
     }
+
+//    private int check_trust() throws Exception {
+//        int i, ok;
+//        X509AuxCertificate x;
+//
+//        /* Check all trusted certificates in chain */
+//        for (i = this.lastUntrusted; i < this.chain.size(); i++) {
+//            x = chain.get(i);
+//            ok = Trust.checkTrust(x, getParam().trust, 0);
+//            /* If explicitly trusted return trusted */
+//            if (ok == X509_TRUST_TRUSTED) return X509_TRUST_TRUSTED;
+//            /*
+//             * If explicitly rejected notify callback and reject if not
+//             * overridden.
+//             */
+//            if (ok == X509_TRUST_REJECTED) {
+//                this.errorDepth = i;
+//                this.currentCertificate = x;
+//                this.error = V_ERR_CERT_REJECTED;
+//                ok = verifyCallback.call(this, ZERO);
+//                if (ok == 0) return X509_TRUST_REJECTED;
+//            }
+//        }
+//        /*
+//         * If we accept partial chains and have at least one trusted certificate
+//         * return success.
+//         */
+//        if ((getParam().flags & V_FLAG_PARTIAL_CHAIN) != 0) {
+//            X509AuxCertificate mx;
+//            if (this.lastUntrusted < this.chain.size()) {
+//                return X509_TRUST_TRUSTED;
+//            }
+//            x = chain.get(0);
+//            mx = lookup_cert_match(ctx, x);
+//            if (mx != null) {
+//                this.chain.set(0, mx);
+//                this.lastUntrusted = 0;
+//                return X509_TRUST_TRUSTED;
+//            }
+//        }
+//
+//        /*
+//         * If no trusted certs in chain at all return untrusted and allow
+//         * standard (no issuer cert) etc errors to be indicated.
+//         */
+//        return X509_TRUST_UNTRUSTED;
+//    }
 
     /**
      * c: check_cert_time
@@ -1124,6 +1170,8 @@ public class StoreContext {
         return 1;
     }
 
+    //private static final int CRLDP_ALL_REASONS = 0x807f;
+
     /**
      * c: check_cert
      */
@@ -1133,22 +1181,51 @@ public class StoreContext {
         int ok, cnum;
         cnum = errorDepth;
         x = chain.get(cnum);
-        currentCertificate = x;
-        ok = getCRL.call(this, crl, x);
-        if ( ok == 0 ) {
-            error = X509Utils.V_ERR_UNABLE_TO_GET_CRL;
-            ok = verifyCallback.call(this, ZERO);
-            currentCRL = null;
-            return ok;
-        }
-        currentCRL = crl[0];
-        ok = checkCRL.call(this, crl[0]);
-        if ( ok == 0 ) {
-            currentCRL = null;
-            return ok;
-        }
-        ok = certificateCRL.call(this, crl[0], x);
-        currentCRL = null;
+        this.currentCertificate = x;
+        this.currentIssuer = null;
+        //this.current_crl_score = 0;
+        //this.current_reasons = 0;
+
+        //while (this.current_reasons != CRLDP_ALL_REASONS) {
+            //int last_reasons = this.current_reasons;
+            /* Try to retrieve relevant CRL */
+            ok = getCRL.call(this, crl, x);
+            /*
+             * If error looking up CRL, nothing we can do except notify callback
+             */
+            if (ok == 0) {
+                this.error = V_ERR_UNABLE_TO_GET_CRL;
+                ok = verifyCallback.call(this, ZERO);
+                this.currentCRL = null; // goto err;
+                return ok;
+            }
+            this.currentCRL = crl[0];
+            ok = checkCRL.call(this, crl[0]);
+            if (ok == 0) {
+                this.currentCRL = null; // goto err;
+                return ok;
+            }
+            //ok = 1;
+            /* Don't look in full CRL if delta reason is removefromCRL */
+            //if (ok != 2) {
+                ok = certificateCRL.call(this, crl[0], x);
+                if (ok == 0) {
+                    this.currentCRL = null; // goto err;
+                    return ok;
+                }
+            //}
+            /*
+             * If reasons not updated we wont get anywhere by another iteration,
+             * so exit loop.
+             */
+            //if (last_reasons == this.current_reasons) {
+            //    this.error = V_ERR_UNABLE_TO_GET_CRL;
+            //    ok = verifyCallback.call(this, ZERO);
+            //    break; // goto err;
+            //}
+        //}
+
+        this.currentCRL = null;
         return ok;
     }
 
@@ -1179,6 +1256,13 @@ public class StoreContext {
 
         currentCRL = null;
         return 1;
+    }
+
+    /*
+     * x509_cmp.c: int X509_chain_check_suiteb(int *perror_depth, X509 *x, STACK_OF(X509) *chain, unsigned long flags)
+     */
+    private static int chain_check_suiteb(int perror_depth, X509AuxCertificate x, List<X509AuxCertificate> chain, long flags) {
+        return 0;
     }
 
     /**
@@ -1325,24 +1409,24 @@ public class StoreContext {
     };
 
     /**
-     * c: check_revocation
+     * x509_vfy.c: static int check_revocation(X509_STORE_CTX *ctx)
      */
     final static Store.CheckRevocationFunction defaultCheckRevocation = new Store.CheckRevocationFunction() {
-        public int call(final StoreContext context) throws Exception {
-            if ( (context.verifyParameter.flags & X509Utils.V_FLAG_CRL_CHECK) == 0 ) {
+        public int call(final StoreContext ctx) throws Exception {
+            if ( (ctx.getParam().flags & X509Utils.V_FLAG_CRL_CHECK) == 0 ) {
                 return 1;
             }
             final int last;
-            if ( (context.verifyParameter.flags & X509Utils.V_FLAG_CRL_CHECK_ALL) != 0 ) {
-                last = context.chain.size() - 1;
+            if ( (ctx.verifyParameter.flags & X509Utils.V_FLAG_CRL_CHECK_ALL) != 0 ) {
+                last = ctx.chain.size() - 1;
             }
             else {
                 last = 0;
             }
             int ok;
-            for ( int i=0; i<=last; i++ ) {
-                context.errorDepth = i;
-                ok = context.checkCertificate();
+            for ( int i = 0; i<=last; i++ ) {
+                ctx.errorDepth = i;
+                ok = ctx.checkCertificate();
                 if ( ok == 0 ) return 0;
             }
             return 1;

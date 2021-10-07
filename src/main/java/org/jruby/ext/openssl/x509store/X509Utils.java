@@ -365,6 +365,7 @@ public abstract class X509Utils {
     public static final int X509_L_ADD_DIR = 2;
 
     public static final int V_OK = 0;
+    public static final int V_ERR_UNSPECIFIED = 1;
     public static final int	V_ERR_UNABLE_TO_GET_ISSUER_CERT = 2;
     public static final int	V_ERR_UNABLE_TO_GET_CRL = 3;
     public static final int	V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE = 4;
@@ -413,25 +414,50 @@ public abstract class X509Utils {
 
     public static final int	V_ERR_APPLICATION_VERIFICATION = 50;
 
-    public static final int	V_FLAG_CB_ISSUER_CHECK = 0x1;
+    /* security level errors */
+    //public static final int V_ERR_EE_KEY_TOO_SMALL = 66;
+    //public static final int V_ERR_CA_KEY_TOO_SMALL = 67;
+    //public static final int V_ERR_CA_MD_TOO_WEAK = 68;
+    /* Caller error */
+    public static final int	V_ERR_INVALID_CALL = 69;
+    /* Issuer lookup error */
+    public static final int	V_ERR_STORE_LOOKUP = 70;
+    /* Certificate transparency */
+    //public static final int V_ERR_NO_VALID_SCTS = 71;
+
+    /* Certificate verify flags */
+    public static final int	V_FLAG_CB_ISSUER_CHECK = 0x0 /* Deprecated */;
     public static final int	V_FLAG_USE_CHECK_TIME = 0x2;
     public static final int	V_FLAG_CRL_CHECK = 0x4;
     public static final int	V_FLAG_CRL_CHECK_ALL = 0x8;
     public static final int	V_FLAG_IGNORE_CRITICAL = 0x10;
-    public static final int	V_FLAG_STRICT = 0x20;
-    public static final int	V_FLAG_X509_STRICT = 0x20;
+    public static final int	V_FLAG_X509_STRICT  = 0x20;
     public static final int	V_FLAG_ALLOW_PROXY_CERTS = 0x40;
     public static final int V_FLAG_POLICY_CHECK = 0x80;
     public static final int V_FLAG_EXPLICIT_POLICY = 0x100;
     public static final int	V_FLAG_INHIBIT_ANY = 0x200;
     public static final int V_FLAG_INHIBIT_MAP = 0x400;
     public static final int V_FLAG_NOTIFY_POLICY = 0x800;
+    // NOTE: these aren't implemented:
+    /* Extended CRL features such as indirect CRLs, alternate CRL signing keys */
+    //public static final int V_FLAG_EXTENDED_CRL_SUPPORT = 0x1000;
+    /* Delta CRL support */
+    //public static final int V_FLAG_USE_DELTAS = 0x2000;
+    /* Check self-signed CA signature */
+    //public static final int V_FLAG_CHECK_SS_SIGNATURE = 0x4000;
+    /* Use trusted store first */
+    public static final int V_FLAG_TRUSTED_FIRST = 0x8000;
 
-    public static final int VP_FLAG_DEFAULT = 0x1;
-    public static final int VP_FLAG_OVERWRITE = 0x2;
-    public static final int VP_FLAG_RESET_FLAGS = 0x4;
-    public static final int VP_FLAG_LOCKED = 0x8;
-    public static final int VP_FLAG_ONCE = 0x10;
+    // ...
+
+    /* Allow partial chains if at least one certificate is in trusted store */
+    public static final int V_FLAG_PARTIAL_CHAIN = 0x80000;
+    /*
+     * If the initial chain is not trusted, do not attempt to build an alternative
+     * chain. Alternate chain checking was introduced in 1.1.0. Setting this flag
+     * will force the behaviour to match that of previous versions.
+     */
+    public static final int V_FLAG_NO_ALT_CHAINS = 0x100000;
 
     /* Internal use: mask of policy related options */
     public static final int V_FLAG_POLICY_MASK = (V_FLAG_POLICY_CHECK |
