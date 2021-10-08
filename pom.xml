@@ -60,34 +60,34 @@ DO NOT MODIFIY - GENERATED CODE
     </snapshotRepository>
   </distributionManagement>
   <properties>
-    <bc.versions>1.68</bc.versions>
+    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
+    <polyglot.dump.readonly>false</polyglot.dump.readonly>
+    <bc.versions>1.69</bc.versions>
+    <invoker.test>${bc.versions}</invoker.test>
+    <mavengem-wagon.version>1.0.3</mavengem-wagon.version>
+    <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
     <mavengem.wagon.version>1.0.3</mavengem.wagon.version>
-    <jruby.switches>-W0</jruby.switches>
-    <jruby.version>9.1.17.0</jruby.version>
+    <jruby.version>9.2.9.0</jruby.version>
     <jruby.plugins.version>1.1.8</jruby.plugins.version>
     <invoker.skip>${maven.test.skip}</invoker.skip>
-    <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
-    <mavengem-wagon.version>1.0.3</mavengem-wagon.version>
-    <jruby.versions>9.1.17.0</jruby.versions>
-    <polyglot.dump.readonly>false</polyglot.dump.readonly>
-    <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
-    <invoker.test>${bc.versions}</invoker.test>
+    <jruby.switches>-W0</jruby.switches>
+    <jruby.versions>9.2.9.0</jruby.versions>
   </properties>
   <dependencies>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
-      <version>1.68</version>
+      <version>1.69</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
-      <version>1.68</version>
+      <version>1.69</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bctls-jdk15on</artifactId>
-      <version>1.68</version>
+      <version>1.69</version>
     </dependency>
     <dependency>
       <groupId>org.jruby</groupId>
