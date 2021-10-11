@@ -238,6 +238,11 @@ public class SSLSocket extends RubyObject {
     @JRubyMethod(name = "context")
     public final SSLContext context() { return this.sslContext; }
 
+    @JRubyMethod(name = "alpn_protocol")
+    public final RubyString alpn_protocol(final ThreadContext context) {
+        return RubyString.newString(context.runtime, this.engine.getApplicationProtocol());
+    }
+
     @JRubyMethod(name = "sync")
     public IRubyObject sync(final ThreadContext context) {
         final CallSite[] sites = getMetaClass().getExtraCallSites();
@@ -285,6 +290,7 @@ public class SSLSocket extends RubyObject {
             if ( ! initialHandshake ) {
                 SSLEngine engine = ossl_ssl_setup(context);
                 engine.setUseClientMode(true);
+                sslContext.setApplicationProtocols(engine);
                 engine.beginHandshake();
                 handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
@@ -359,6 +365,7 @@ public class SSLSocket extends RubyObject {
                         engine.setNeedClientAuth(true);
                     }
                 }
+                sslContext.setApplicationProtocols(engine);
                 engine.beginHandshake();
                 handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
