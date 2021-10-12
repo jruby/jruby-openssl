@@ -60,8 +60,6 @@ public class StoreContext {
 
     private final Store store;
 
-    private int currentMethod;
-
     X509AuxCertificate certificate;
     List<X509AuxCertificate> untrusted;
     List<X509CRL> crls;
@@ -208,7 +206,6 @@ public class StoreContext {
      */
     public int init(X509AuxCertificate cert, List<X509AuxCertificate> chain) {
         int ret = 1;
-        this.currentMethod = 0;
         this.certificate = cert;
         this.untrusted = chain;
         this.crls = null;
@@ -605,31 +602,24 @@ public class StoreContext {
         return verifyParameter.inherit(p);
     }
 
-    /**
-     * c: X509_STORE_get_by_subject (it gets X509_STORE_CTX as the first parameter)
+    /*
+     * int X509_STORE_CTX_get_by_subject(X509_STORE_CTX *vs, X509_LOOKUP_TYPE type,
+     *                                   X509_NAME *name, X509_OBJECT *ret)
      */
     public int getBySubject(int type, Name name, X509Object[] ret) throws Exception {
-        Store c = store;
+        final Store store = this.store;
 
-        X509Object tmp = X509Object.retrieveBySubject(c.getObjects(),type,name);
-        if ( tmp == null ) {
-            List<Lookup> certificateMethods = c.getCertificateMethods();
-            for(int i=currentMethod; i<certificateMethods.size(); i++) {
-                Lookup lu = certificateMethods.get(i);
+        X509Object tmp = X509Object.retrieveBySubject(store.getObjects(), type, name);
+        if (tmp == null || type == X509_LU_CRL) {
+            for (Lookup lu : store.getCertificateMethods()) {
                 X509Object[] stmp = new X509Object[1];
                 int j = lu.bySubject(type, name, stmp);
-                if ( j < 0 ) {
-                    currentMethod = i;
-                    return j;
-                }
-                else if( j > 0 ) {
+                if (j != 0) {
                     tmp = stmp[0];
                     break;
                 }
             }
-            currentMethod = 0;
-
-            if ( tmp == null ) return 0;
+            if (tmp == null) return 0;
         }
         ret[0] = tmp;
         return 1;
