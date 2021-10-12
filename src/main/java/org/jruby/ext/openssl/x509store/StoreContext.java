@@ -2018,12 +2018,20 @@ public class StoreContext {
         }
     };
 
+    /*
+     * c: static int check_policy(X509_STORE_CTX *ctx)
+     */
+    private int check_policy() throws Exception {
+        // NOTE: NOT IMPLEMENTED
+        return 1;
+    }
+
     /**
      * c: check_policy
      */
     final static CheckPolicyFunction defaultCheckPolicy = new CheckPolicyFunction() {
         public int call(StoreContext context) throws Exception {
-            return 1;
+            return context.check_policy();
         }
     };
 }// X509_STORE_CTX
