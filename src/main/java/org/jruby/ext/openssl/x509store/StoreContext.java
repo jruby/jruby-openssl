@@ -822,6 +822,47 @@ public class StoreContext {
         return ok;
     }
 
+    /*
+     @ @note: based OpenSSL 1.1.1
+     *
+     * c: static int verify_chain(X509_STORE_CTX *ctx)
+     */
+    int verify_chain() throws Exception {
+        int err;
+        int ok;
+
+        /*
+         * Before either returning with an error, or continuing with CRL checks,
+         * instantiate chain public key parameters.
+         */
+        if ((ok = build_chain()) == 0 ||
+            (ok = check_chain_extensions()) == 0 // ||
+            //(ok = check_auth_level(ctx)) == 0 ||
+            //(ok = check_id()) == 0 || 1)
+            );
+        if (ok == 0 || (ok = check_revocation()) == 0)
+            return ok;
+
+        //err = X509_chain_check_suiteb(&ctx->error_depth, NULL, ctx->chain, ctx->param->flags);
+        //if (err != V_OK) {
+        //    if ((ok = verify_cb_cert(null, this.errorDepth, err)) == 0)
+        //        return ok;
+        //}
+
+        /* Verify chain signatures and expiration times */
+        ok = verify != null ? verify.call(this) : internalVerify.call(this);
+        if (ok == 0) return ok;
+
+        //if ((ok = check_name_constraints(ctx)) == 0)
+        //    return ok;
+
+        /* If we get this far evaluate policies */
+        if ((getParam().flags & V_FLAG_POLICY_CHECK) != 0) {
+            ok = check_policy();
+        }
+        return ok;
+    }
+
     private static final short S_DOUNTRUSTED = (1 << 0); /* Search untrusted chain */
     private static final short S_DOTRUSTED = (1 << 1);   /* Search trusted store */
     private static final short S_DOALTERNATE = (1 << 2); /* Retry with pruned alternate chain */
