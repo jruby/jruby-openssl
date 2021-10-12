@@ -257,6 +257,20 @@ public class VerifyParameter {
         return 1;
     }
 
+    @Override
+    public String toString() {
+        return "VerifyParameter{" +
+                "name='" + name + '\'' +
+                ", checkTime=" + checkTime +
+                ", inheritFlags=" + inheritFlags +
+                ", flags=" + flags +
+                ", purpose=" + purpose +
+                ", trust=" + trust +
+                ", depth=" + depth +
+                ", policies=" + policies +
+                '}';
+    }
+
     public static VerifyParameter lookup(String name) {
         for(VerifyParameter v : parameterTable) {
             if(name.equals(v.name)) {
@@ -283,7 +297,7 @@ public class VerifyParameter {
                             "default",	/* X509 default parameters */
                             0,		/* Check time */
                             0,		/* internal flags */
-                            0,		/* flags */
+                            X509Utils.V_FLAG_TRUSTED_FIRST,	 /* flags */
                             0,		/* purpose */
                             0,		/* trust */
                             100,	/* depth */
@@ -294,30 +308,30 @@ public class VerifyParameter {
                             0,				/* Check time */
                             0,				/* internal flags */
                             0,				/* flags */
-                            X509Utils.X509_PURPOSE_SMIME_SIGN,	/* purpose */
-                            X509Utils.X509_TRUST_EMAIL,		/* trust */
+                            X509Utils.X509_PURPOSE_SMIME_SIGN, /* purpose */
+                            X509Utils.X509_TRUST_EMAIL, /* trust */
                             -1,				/* depth */
-                            null				/* policies */
+                            null            /* policies */
                             ),
         new VerifyParameter(
-                            "ssl_client",			/* SSL/TLS client parameters */
+                            "ssl_client",	/* SSL/TLS client parameters */
                             0,				/* Check time */
                             0,				/* internal flags */
                             0,				/* flags */
                             X509Utils.X509_PURPOSE_SSL_CLIENT,	/* purpose */
                             X509Utils.X509_TRUST_SSL_CLIENT,		/* trust */
                             -1,				/* depth */
-                            null				/* policies */
+                            null			/* policies */
                             ),
         new VerifyParameter(
-                            "ssl_server",			/* SSL/TLS server parameters */
+                            "ssl_server",	/* SSL/TLS server parameters */
                             0,				/* Check time */
                             0,				/* internal flags */
                             0,				/* flags */
                             X509Utils.X509_PURPOSE_SSL_SERVER,	/* purpose */
                             X509Utils.X509_TRUST_SSL_SERVER,		/* trust */
                             -1,				/* depth */
-                            null				/* policies */
+                            null			/* policies */
                             )};
 
     private final static List<VerifyParameter> parameterTable = new ArrayList<VerifyParameter>();
