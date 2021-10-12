@@ -103,6 +103,8 @@ public class StoreContext {
 
     List<Object> extraData;
 
+    private StoreContext parent; // NOTE: not implemented - dummy null for now
+
     public Store getStore() {
         return store;
     }
@@ -1359,13 +1361,13 @@ public class StoreContext {
         must_be_ca = -1;
 
         /* CRL path validation */
-        //if (ctx->parent) { // todo this.parent not implemented
-        //    allow_proxy_certs = 0;
-        //    purpose = X509_PURPOSE_CRL_SIGN;
-        //} else {
+        if (parent != null) { // NOT IMPLEMENTED: always null
+            allow_proxy_certs = false;
+            purpose = X509_PURPOSE_CRL_SIGN;
+        } else {
             allow_proxy_certs = (getParam().flags & V_FLAG_ALLOW_PROXY_CERTS) != 0;
             purpose = getParam().purpose;
-        //}
+        }
 
         for (int i = 0; i < num; i++) {
             int ret;
@@ -1844,28 +1846,32 @@ public class StoreContext {
         }
     };
 
-    /**
-     * c: check_revocation
+    /*
+     * c: static int check_revocation(X509_STORE_CTX *ctx)
      */
+    private int check_revocation() throws Exception {
+        if ( (getParam().flags & V_FLAG_CRL_CHECK) == 0 ) {
+            return 1;
+        }
+        final int last;
+        if ( (getParam().flags & V_FLAG_CRL_CHECK_ALL) != 0 ) {
+            last = chain.size() - 1;
+        } else {
+            /* If checking CRL paths this isn't the EE certificate */
+            if (parent != null) return 1; // NOT IMPLEMENTED: always null
+            last = 0;
+        }
+        for ( int i=0; i<=last; i++ ) {
+            errorDepth = i;
+            int ok = checkCertificate(); // check_cert(ctx);
+            if (ok == 0) return 0;
+        }
+        return 1;
+    }
+
     final static Store.CheckRevocationFunction defaultCheckRevocation = new Store.CheckRevocationFunction() {
         public int call(final StoreContext context) throws Exception {
-            if ( (context.verifyParameter.flags & X509Utils.V_FLAG_CRL_CHECK) == 0 ) {
-                return 1;
-            }
-            final int last;
-            if ( (context.verifyParameter.flags & X509Utils.V_FLAG_CRL_CHECK_ALL) != 0 ) {
-                last = context.chain.size() - 1;
-            }
-            else {
-                last = 0;
-            }
-            int ok;
-            for ( int i=0; i<=last; i++ ) {
-                context.errorDepth = i;
-                ok = context.checkCertificate();
-                if ( ok == 0 ) return 0;
-            }
-            return 1;
+            return context.check_revocation();
         }
     };
 
