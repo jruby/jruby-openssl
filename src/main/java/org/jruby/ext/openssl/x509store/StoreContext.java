@@ -90,9 +90,9 @@ public class StoreContext {
     private int num_untrusted; // lastUntrusted in the chain
 
     private ArrayList<X509AuxCertificate> chain;
-    private PolicyTree tree;
 
-    public int explicitPolicy;
+    private PolicyTree tree;
+    private int explicitPolicy;
 
     public int error;
     public int errorDepth;
