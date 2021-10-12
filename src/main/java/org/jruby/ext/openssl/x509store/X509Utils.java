@@ -446,7 +446,7 @@ public abstract class X509Utils {
     /* Delta CRL support */
     //public static final int V_FLAG_USE_DELTAS = 0x2000;
     /* Check self-signed CA signature */
-    //public static final int V_FLAG_CHECK_SS_SIGNATURE = 0x4000;
+    public static final int V_FLAG_CHECK_SS_SIGNATURE = 0x4000;
     /* Use trusted store first */
     public static final int V_FLAG_TRUSTED_FIRST = 0x8000;
 
@@ -460,6 +460,8 @@ public abstract class X509Utils {
      * will force the behaviour to match that of previous versions.
      */
     public static final int V_FLAG_NO_ALT_CHAINS = 0x100000;
+    /* Do not check certificate/CRL validity against current time */
+    public static final int V_FLAG_NO_CHECK_TIME = 0x200000;
 
 
     /* Internal use: mask of policy related options */
@@ -525,12 +527,20 @@ public abstract class X509Utils {
     public static final int X509_TRUST_OBJECT_SIGN = 5;
     public static final int X509_TRUST_OCSP_SIGN = 6;
     public static final int X509_TRUST_OCSP_REQUEST = 7;
+    public static final int X509_TRUST_TSA = 8;
 
     public static final int X509_TRUST_MIN = 1;
-    public static final int X509_TRUST_MAX = 7;
+    public static final int X509_TRUST_MAX = 8;
 
-    public static final int X509_TRUST_DYNAMIC = 1;
-    public static final int X509_TRUST_DYNAMIC_NAME = 2;
+    /* trust_flags values */
+    public static final int X509_TRUST_DYNAMIC = (1 << 0);
+    public static final int X509_TRUST_DYNAMIC_NAME = (1 << 1);
+    /* No compat trust if self-signed, preempts "DO_SS" */
+    public static final int X509_TRUST_NO_SS_COMPAT = (1 << 2);
+    /* Compat trust if no explicit accepted trust EKUs */
+    public static final int X509_TRUST_DO_SS_COMPAT = (1 << 3);
+    /* Accept "anyEKU" as a wildcard rejection OID and as a wildcard trust OID */
+    public static final int X509_TRUST_OK_ANY_EKU = (1 << 4);
 
     public static final int X509_TRUST_TRUSTED = 1;
     public static final int X509_TRUST_REJECTED = 2;

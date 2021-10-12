@@ -73,7 +73,7 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
 
     final X509Aux aux;
 
-    private boolean valid = false;
+    boolean verified = false; // opt: avoids doing internal_verify twice
     private int ex_flags = 0;
 
     public X509AuxCertificate(Certificate wrap) throws IOException, CertificateException {
@@ -105,17 +105,9 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
 
     final X509AuxCertificate cloneForCache() {
         final X509AuxCertificate clone = clone();
-        clone.valid = false;
+        clone.verified = false;
         clone.ex_flags = 0;
         return clone;
-    }
-
-    public boolean isValid() {
-        return valid;
-    }
-
-    public void setValid(boolean v) {
-        this.valid = v;
     }
 
     public int getExFlags() {
