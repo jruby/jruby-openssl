@@ -86,10 +86,8 @@ public class StoreContext {
     Store.CleanupFunction cleanup;
 
     public boolean isValid;
-    public int lastUntrusted;
 
-
-    private int num_untrusted;
+    private int num_untrusted; // lastUntrusted in the chain
 
     private ArrayList<X509AuxCertificate> chain;
     private PolicyTree tree;
@@ -209,7 +207,7 @@ public class StoreContext {
         this.certificate = cert;
         this.untrusted = chain;
         this.crls = null;
-        this.lastUntrusted = 0;
+        this.num_untrusted = 0;
         this.otherContext = null;
         this.isValid = false;
         this.chain = null;
@@ -696,7 +694,7 @@ public class StoreContext {
                 if ( xtmp != null ) {
                     chain.add(xtmp);
                     sktmp.remove(xtmp);
-                    lastUntrusted++;
+                    num_untrusted++;
                     x = xtmp;
                     num++;
                     continue;
@@ -735,12 +733,12 @@ public class StoreContext {
                     // so we get any trust settings.
                     x = xtmp;
                     chain.set(i-1,x);
-                    lastUntrusted = 0;
+                    num_untrusted = 0;
                 }
             } else {
                 // extract and save self signed certificate for later use
                 chain_ss = chain.remove(chain.size()-1);
-                lastUntrusted--;
+                num_untrusted--;
                 num--;
                 x = chain.get(num-1);
             }
@@ -771,7 +769,7 @@ public class StoreContext {
         /* Is last certificate looked up self signed? */
         if ( checkIssued.call(this, x, x) == 0 ) {
             if ( chain_ss == null || checkIssued.call(this, x, chain_ss) == 0 ) {
-                if (lastUntrusted >= num) {
+                if (num_untrusted >= num) {
                     error = X509Utils.V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
                 } else {
                     error = X509Utils.V_ERR_UNABLE_TO_GET_ISSUER_CERT;
@@ -780,7 +778,7 @@ public class StoreContext {
             } else {
                 chain.add(chain_ss);
                 num++;
-                lastUntrusted = num;
+                num_untrusted = num;
                 currentCertificate = chain_ss;
                 error = X509Utils.V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
             }
@@ -1191,7 +1189,7 @@ public class StoreContext {
         }
         catch (SecurityException e) { /* ignore if we can't use System.getenv */ }
 
-        for ( int i = 0; i < lastUntrusted; i++ ) {
+        for ( int i = 0; i < num_untrusted; i++ ) { // lastUntrusted
             int ret;
             x = chain.get(i);
             if ( (verifyParameter.flags & X509Utils.V_FLAG_IGNORE_CRITICAL) == 0 && unhandledCritical(x) ) {
