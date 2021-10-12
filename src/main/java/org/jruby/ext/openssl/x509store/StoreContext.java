@@ -627,20 +627,22 @@ public class StoreContext {
 
     /**
      * c: X509_verify_cert
+    /*
+     * c: int X509_verify_cert(X509_STORE_CTX *ctx)
      */
     public int verifyCertificate() throws Exception {
-        if ( certificate == null ) {
+        if (certificate == null) {
             addError(X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
-            this.error = X509Utils.V_ERR_INVALID_CALL;
+            this.error = V_ERR_INVALID_CALL;
             return -1;
         }
 
-        if ( chain != null ) {
+        if (chain != null) {
             /*
              * This X509_STORE_CTX has already been used to verify a cert. We cannot do another one.
              */
             addError(ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-            this.error = X509Utils.V_ERR_INVALID_CALL;
+            this.error = V_ERR_INVALID_CALL;
             return -1;
         }
 
@@ -648,13 +650,13 @@ public class StoreContext {
          * first we make sure the chain we are going to build is present and that
          * the first entry is in place
          */
-        if ( chain == null ) {
+        //if (chain == null) {
             chain = new ArrayList<X509AuxCertificate>(8);
             chain.add(certificate);
-            lastUntrusted = 1;
-        }
+            num_untrusted = 1;
+        //}
 
-        // TODO not implemented:
+        // NOTE: NOT IMPLEMENTED
         /* If the peer's public key is too weak, we can stop early. */
 
         int ret = verifyChain();
