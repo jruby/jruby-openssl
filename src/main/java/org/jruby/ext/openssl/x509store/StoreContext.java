@@ -625,8 +625,67 @@ public class StoreContext {
         return 1;
     }
 
-    /**
-     * c: X509_verify_cert
+    /*
+     * STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm)
+     */
+    List<X509AuxCertificate> X509_STORE_CTX_get1_certs(final Name nm) {
+        if (store == null) return null;
+
+//        X509_STORE_lock(store);
+//        idx = x509_object_idx_cnt(store->objs, X509_LU_X509, nm, &cnt);
+//        if (idx < 0) {
+//            /*
+//             * Nothing found in cache: do lookup to possibly add new objects to
+//             * cache
+//             */
+//            X509_OBJECT *xobj = X509_OBJECT_new();
+//
+//            X509_STORE_unlock(store);
+//
+//            if (xobj == NULL)
+//                return NULL;
+//            if (!X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509, nm, xobj)) {
+//                X509_OBJECT_free(xobj);
+//                return NULL;
+//            }
+//            X509_OBJECT_free(xobj);
+//            X509_STORE_lock(store);
+//            idx = x509_object_idx_cnt(store->objs, X509_LU_X509, nm, &cnt);
+//            if (idx < 0) {
+//                X509_STORE_unlock(store);
+//                return NULL;
+//            }
+//        }
+
+//        sk = sk_X509_new_null();
+//        for (i = 0; i < cnt; i++, idx++) {
+//            obj = sk_X509_OBJECT_value(store->objs, idx);
+//            x = obj->data.x509;
+//            if (!X509_up_ref(x)) {
+//                X509_STORE_unlock(store);
+//                sk_X509_pop_free(sk, X509_free);
+//                return NULL;
+//            }
+//            if (!sk_X509_push(sk, x)) {
+//                X509_STORE_unlock(store);
+//                X509_free(x);
+//                sk_X509_pop_free(sk, X509_free);
+//                return NULL;
+//            }
+//        }
+//        X509_STORE_unlock(store);
+//        return sk;
+
+        ArrayList<X509AuxCertificate> sk = new ArrayList<X509AuxCertificate>();
+        for (X509Object obj : store.getObjects()) {
+            if (obj.type() == X509_LU_X509 && obj.isName(nm)) {
+                sk.add(((Certificate) obj).cert);
+            }
+        }
+
+        return sk;
+    }
+
     /*
      * c: int X509_verify_cert(X509_STORE_CTX *ctx)
      */
@@ -1716,6 +1775,24 @@ public class StoreContext {
             pcrl[0] = bestCrl;
         }
         return 0;
+    }
+
+    /* Given a certificate try and find an exact match in the store */
+
+    private X509AuxCertificate lookup_cert_match(X509AuxCertificate x) {
+        /* Lookup all certs with matching subject name */
+        List<X509AuxCertificate> certs = lookup_certs(new Name(x.getSubjectX500Principal()));
+        if (certs == null) return null;
+        /* Look for exact match */
+        for (X509AuxCertificate xtmp : certs) {
+            if (xtmp.equals(x)) // !X509_cmp(xtmp, x)
+                break;
+        }
+        return null; // xtmp = null
+    }
+
+    private List<X509AuxCertificate> lookup_certs(final Name name) {
+        return X509_STORE_CTX_get1_certs(name);
     }
 
     /*
