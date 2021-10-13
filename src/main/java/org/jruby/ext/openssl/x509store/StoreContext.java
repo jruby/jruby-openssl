@@ -307,18 +307,6 @@ public class StoreContext {
         extraData = null;
     }
 
-    /**
-     * c: find_issuer
-     */
-    public X509AuxCertificate findIssuer(final List<X509AuxCertificate> certs, final X509AuxCertificate cert) throws Exception {
-        for ( X509AuxCertificate issuer : certs ) {
-            if ( checkIssued.call(this, cert, issuer) != 0 ) {
-                return issuer;
-            }
-        }
-        return null;
-    }
-
     public List<Object> getExtraData() {
         if ( this.extraData != null ) return this.extraData;
         ArrayList<Object> extraData = new ArrayList<Object>(8);
@@ -965,7 +953,7 @@ public class StoreContext {
          */
         LinkedList<X509AuxCertificate> sktmp = untrusted != null ? new LinkedList<>(untrusted) : null;
 
-        depth = verifyParameter.depth;
+        depth = getParam().depth;
 
         /*
          * Still absurdly large, but arithmetically safe, a lower hard upper bound
@@ -1203,6 +1191,16 @@ public class StoreContext {
                 }
                 return verify_cb_cert(null, num - 1, V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
         }
+    }
+
+    @Deprecated // legacy find_issuer
+    public X509AuxCertificate findIssuer(final List<X509AuxCertificate> certs, final X509AuxCertificate cert) throws Exception {
+        for ( X509AuxCertificate issuer : certs ) {
+            if ( checkIssued.call(this, cert, issuer) != 0 ) {
+                return issuer;
+            }
+        }
+        return null;
     }
 
     /*
@@ -1569,7 +1567,8 @@ public class StoreContext {
         return checkIssued.call(this, x, x) != 0; // TODO self-signed == self-issued?
     }
 
-    public int checkTrust() throws Exception {
+    @Deprecated // legacy check_trust
+    private int checkTrust() throws Exception {
         int i,ok;
         X509AuxCertificate x;
         i = chain.size()-1;
