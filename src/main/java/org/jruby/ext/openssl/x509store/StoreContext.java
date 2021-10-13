@@ -937,7 +937,7 @@ public class StoreContext {
     int build_chain() throws Exception {
         int num = chain.size();
         X509AuxCertificate cert = chain.get(num - 1);
-        boolean ss = checkIssued.call(this, cert, cert) != 0; // cert_self_signed(cert)
+        boolean ss = cert_self_signed(cert);
         short search;
         boolean may_trusted = false;
         boolean may_alternate = false;
@@ -1067,7 +1067,7 @@ public class StoreContext {
                      */
                     if (ss == false) {
                         chain.add(x = xtmp);
-                        ss = checkIssued.call(this, x, x) != 0; // cert_self_signed(x)
+                        ss = cert_self_signed(x);
                     } else if (num == num_untrusted) {
                         /*
                          * We have a self-signed certificate that has the same
@@ -1169,7 +1169,7 @@ public class StoreContext {
 
                 x = xtmp;
                 num_untrusted++;
-                ss = checkIssued.call(this, xtmp, xtmp) != 0; // cert_self_signed(xtmp)
+                ss = cert_self_signed(xtmp);
 
             }
         }
@@ -1505,7 +1505,8 @@ public class StoreContext {
                 return 0;
             /* Check pathlen if not self issued */
             final int ex_pathlen = x.getBasicConstraints();
-            if ((i > 1) && ex_pathlen != Integer.MAX_VALUE // !(x->ex_flags & EXFLAG_SI)
+            if ((i > 1) && (x.getExFlags() & EXFLAG_SI) == 0
+                    && ex_pathlen != Integer.MAX_VALUE
                     && ex_pathlen != -1
                     && (plen > (ex_pathlen + proxy_path_length + 1))) {
                 if (verify_cb_cert(x, i, V_ERR_PATH_LENGTH_EXCEEDED) == 0)
@@ -1513,14 +1514,14 @@ public class StoreContext {
             }
 
             /* Increment path length if not self issued */
-            if (!isSelfIssued(x)) plen++;
+            if ((x.getExFlags() & EXFLAG_SI) == 0) plen++;
 
             /*
              * If this certificate is a proxy certificate, the next certificate
              * must be another proxy certificate or a EE certificate.  If not,
              * the next certificate must be a CA certificate.
              */
-            final byte[] ex_proxyCertInfo =  x.getExtensionValue("1.3.6.1.5.5.7.1.14"); // id-pe-proxyCertInfo(14)
+            final byte[] ex_proxyCertInfo = x.getExtensionValue("1.3.6.1.5.5.7.1.14"); // id-pe-proxyCertInfo(14)
             if (ex_proxyCertInfo != null) { // x->ex_flags & EXFLAG_PROXY
                 ASN1Sequence pci = (ASN1Sequence) new ASN1InputStream(ex_proxyCertInfo).readObject();
                 if (pci.size() > 0 && pci.getObjectAt(0) instanceof ASN1Integer) {
