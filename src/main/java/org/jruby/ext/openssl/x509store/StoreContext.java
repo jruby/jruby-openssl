@@ -907,7 +907,7 @@ public class StoreContext {
         //}
 
         /* Verify chain signatures and expiration times */
-        ok = verify != null ? verify.call(this) : internalVerify.call(this);
+        ok = verify != null ? verify.call(this) : internal_verify();
         if (ok == 0) return ok;
 
         //if ((ok = check_name_constraints(ctx)) == 0)
@@ -1871,105 +1871,161 @@ public class StoreContext {
     /*
      * c: static int internal_verify(X509_STORE_CTX *ctx)
      */
-    final static Store.VerifyFunction internalVerify = new Store.VerifyFunction() {
-        public int call(final StoreContext ctx) throws Exception {
-            int n = ctx.chain.size() - 1;
-            X509AuxCertificate xi = ctx.chain.get(n);
-            X509AuxCertificate xs;
+    private int internal_verify() throws Exception {
+        int n = chain.size() - 1;
+        X509AuxCertificate xi = chain.get(n);
+        X509AuxCertificate xs;
 
-            if (ctx.checkIssued.call(ctx, xi, xi) != 0) {
+        if (check_issued(xi, xi)) {
+            xs = xi;
+        } else {
+            if ((getParam().flags & V_FLAG_PARTIAL_CHAIN) != 0) {
                 xs = xi;
-            } else {
-                if ((ctx.getParam().flags & V_FLAG_PARTIAL_CHAIN) != 0) {
-                    xs = xi;
-                    // goto check_cert;
-                    if (!check_cert(ctx, xi, xs, n)) {
-                        return 0;
-                    }
-                    if (--n >= 0) {
-                        xi = xs;
-                        // xs = ctx.chain.get(n);
-                    }
-                    // goto end
-                }
-                if (n <= 0) {
-                    return ctx.verify_cb_cert(xi, 0, V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE);
-                }
-
-                n--;
-                ctx.errorDepth = n;
-                xs = ctx.chain.get(n);
-            }
-
-            /*
-             * Do not clear ctx->error=0, it must be "sticky", only the user's callback
-             * is allowed to reset errors (at its own peril).
-             */
-            while ( n >= 0 ) {
-                /*
-                 * Skip signature check for self signed certificates unless explicitly
-                 * asked for.  It doesn't add any security and just wastes time.  If
-                 * the issuer's public key is unusable, report the issuer certificate
-                 * and its depth (rather than the depth of the subject).
-                 */
-                if (xs != xi || (ctx.getParam().flags & V_FLAG_CHECK_SS_SIGNATURE) != 0) {
-                    PublicKey pkey = xi.getPublicKey();
-                    if (pkey == null) {
-                        if (ctx.verify_cb_cert(xi, xi != xs ? n+1 : n, V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY) == 0)
-                            return 0;
-                    } else if (!X509_verify(xs, pkey)) {
-                        if (ctx.verify_cb_cert(xs, n, V_ERR_CERT_SIGNATURE_FAILURE) == 0)
-                            return 0;
-                    }
-                }
-
-                // check_cert :
-                if (!check_cert(ctx, xi, xs, n)) {
+                // goto check_cert;
+                if (!internal_verify_check_cert(this, xi, xs, n)) {
                     return 0;
                 }
                 if (--n >= 0) {
                     xi = xs;
-                    xs = ctx.chain.get(n);
+                    // xs = ctx.chain.get(n);
                 }
-                // end
+                // goto end
             }
-            return 1;
+            if (n <= 0) {
+                return verify_cb_cert(xi, 0, V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE);
+            }
+
+            n--;
+            errorDepth = n;
+            xs = chain.get(n);
         }
 
-        // goto check_cert:
-        private boolean check_cert(final StoreContext ctx, X509AuxCertificate xi, X509AuxCertificate xs, int n)
-            throws Exception {
-            /* Calls verify callback as needed */
-            if (!ctx.x509_check_cert_time(xs, n))
-                return false;
-
+        /*
+         * Do not clear ctx->error=0, it must be "sticky", only the user's callback
+         * is allowed to reset errors (at its own peril).
+         */
+        while ( n >= 0 ) {
             /*
-             * Signal success at this depth.  However, the previous error (if any)
-             * is retained.
+             * Skip signature check for self signed certificates unless explicitly
+             * asked for.  It doesn't add any security and just wastes time.  If
+             * the issuer's public key is unusable, report the issuer certificate
+             * and its depth (rather than the depth of the subject).
              */
-            ctx.currentIssuer = xi;
-            ctx.currentCertificate = xs;
-            ctx.errorDepth = n;
-            if (ctx.verifyCallback.call(ctx, 1) == 0)
-                return false;
+            if (xs != xi || (getParam().flags & V_FLAG_CHECK_SS_SIGNATURE) != 0) {
+                PublicKey pkey = xi.getPublicKey();
+                if (pkey == null) {
+                    if (verify_cb_cert(xi, xi != xs ? n+1 : n, V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY) == 0)
+                        return 0;
+                } else if (!X509_verify(xs, pkey)) {
+                    if (verify_cb_cert(xs, n, V_ERR_CERT_SIGNATURE_FAILURE) == 0)
+                        return 0;
+                }
+            }
 
-            return true; // do not halt yet but :
-            //if (--n >= 0) {
-            //    xi = xs;
-            //    xs = ctx.chain.get(n);
-            //}
+            // check_cert :
+            if (!internal_verify_check_cert(this, xi, xs, n)) {
+                return 0;
+            }
+            if (--n >= 0) {
+                xi = xs;
+                xs = chain.get(n);
+            }
+            // end
         }
+        return 1;
+    }
 
-        private boolean X509_verify(X509AuxCertificate xs, PublicKey pkey) {
-            if (xs.verified) return true;
+    // goto check_cert:
+    private static boolean internal_verify_check_cert(
+            final StoreContext ctx, X509AuxCertificate xi, X509AuxCertificate xs, int n)
+            throws Exception {
+        /* Calls verify callback as needed */
+        if (!ctx.x509_check_cert_time(xs, n))
+            return false;
 
-            try {
-                xs.verify(pkey);
+        /*
+         * Signal success at this depth.  However, the previous error (if any)
+         * is retained.
+         */
+        ctx.currentIssuer = xi;
+        ctx.currentCertificate = xs;
+        ctx.errorDepth = n;
+        if (ctx.verifyCallback.call(ctx, 1) == 0)
+            return false;
+
+        return true; // do not halt yet but :
+        //if (--n >= 0) {
+        //    xi = xs;
+        //    xs = ctx.chain.get(n);
+        //}
+    }
+
+    private static boolean X509_verify(X509AuxCertificate xs, PublicKey pkey) {
+        if (xs.verified) return true;
+
+        try {
+            xs.verify(pkey);
+        } catch (Exception e) {
+            return false;
+        }
+        return xs.verified = true;
+    }
+
+    @Deprecated // legacy internal_verify
+    final static Store.VerifyFunction internalVerify = new Store.VerifyFunction() {
+        public int call(final StoreContext context) throws Exception {
+            Store.VerifyCallbackFunction verifyCallback = context.verifyCallback;
+
+            int n = context.chain.size();
+            context.errorDepth = n - 1;
+            n--;
+            X509AuxCertificate xi = context.chain.get(n);
+            X509AuxCertificate xs = null;
+            int ok;
+
+            if (context.checkIssued.call(context, xi, xi) != 0) {
+                xs = xi;
+            } else {
+                if (n <= 0) {
+                    context.error = X509Utils.V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
+                    context.currentCertificate = xi;
+                    ok = verifyCallback.call(context, ZERO);
+                    return ok;
+                } else {
+                    n--;
+                    context.errorDepth = n;
+                    xs = context.chain.get(n);
+                }
             }
-            catch (Exception e) {
-                return false;
+
+            while (n >= 0) {
+                context.errorDepth = n;
+                if (!X509_verify(xs, xi.getPublicKey())) {
+                    context.error = X509Utils.V_ERR_CERT_SIGNATURE_FAILURE;
+                    context.currentCertificate = xs;
+                    ok = verifyCallback.call(context, ZERO);
+                    if (ok == 0) return ok;
+                }
+
+                //ok = context.checkCertificateTime(xs);
+                //if (ok == 0) return ok;
+                //
+                //context.currentIssuer = xi;
+                //context.currentCertificate = xs;
+                //ok = verifyCallback.call(context, 1);
+                //if (ok == 0) return ok;
+                if (!internal_verify_check_cert(context, xi, xs, n)) {
+                    return 0;
+                }
+
+                n--;
+                if (n >= 0) {
+                    xi = xs;
+                    xs = context.chain.get(n);
+                }
             }
-            return xs.verified = true;
+            ok = 1;
+            return ok;
         }
     };
 
