@@ -229,11 +229,11 @@ public class StoreContext {
             this.cleanup = null;
         }
 
-        this.checkIssued = defaultCheckIssued;
+        this.checkIssued = VERIFY_LEGACY ? check_issued_legacy : check_issued;
         this.getIssuer = getFirstIssuer;
         this.verifyCallback = nullCallback;
-        this.verify = internalVerify;
-        this.checkRevocation = defaultCheckRevocation;
+        this.verify = null;
+        this.checkRevocation = StoreContext.check_revocation;
         this.getCRL = defaultGetCRL;
         this.checkCRL = defaultCheckCRL;
         this.certificateCRL = defaultCertificateCRL;
@@ -266,7 +266,7 @@ public class StoreContext {
         }
 
         // store->check_policy
-        this.checkPolicy = defaultCheckPolicy;
+        this.checkPolicy = StoreContext.check_policy;
         // store->lookup_certs
         // store->lookup_crls
 
@@ -303,7 +303,7 @@ public class StoreContext {
      * c: X509_STORE_CTX_cleanup
      */
     public void cleanup() throws Exception {
-        if (cleanup != null && cleanup != Store.CleanupFunction.EMPTY) {
+        if (cleanup != null) {
             cleanup.call(this);
         }
         verifyParameter = null;
@@ -902,7 +902,7 @@ public class StoreContext {
             //(ok = check_auth_level(ctx)) == 0 ||
             //(ok = check_id()) == 0 || 1)
             );
-        if (ok == 0 || (ok = check_revocation()) == 0)
+        if (ok == 0 || (ok = checkRevocation.call(this)) == 0)
             return ok;
 
         //err = X509_chain_check_suiteb(&ctx->error_depth, NULL, ctx->chain, ctx->param->flags);
@@ -920,7 +920,7 @@ public class StoreContext {
 
         /* If we get this far evaluate policies */
         if ((getParam().flags & V_FLAG_POLICY_CHECK) != 0) {
-            ok = check_policy();
+            ok = checkPolicy.call(this);
         }
         return ok;
     }
@@ -1227,38 +1227,12 @@ public class StoreContext {
         X509AuxCertificate rv = null;
 
         for (X509AuxCertificate issuer : sk) {
-            if (check_issued(x, issuer)) {
+            if (checkIssued.call(this, x, issuer) != 0) {
                 rv = issuer;
                 if (x509_check_cert_time(rv, -1)) break;
             }
         }
         return rv;
-    }
-
-    /*
-     * Given a possible certificate and issuer check them
-     *
-     * x509_vfy.c: static int check_issued(X509_STORE_CTX *ctx, X509 *x, X509 *issuer)
-     */
-    private boolean check_issued(X509AuxCertificate x, X509AuxCertificate issuer) throws Exception {
-        int ret;
-        if (x == issuer) return checkIssued.call(this, x, x) != 0; // cert_self_signed(x)
-        ret = checkIfIssuedBy(issuer, x);
-        if (ret == V_OK) {
-            /* Special case: single self signed certificate */
-            boolean ss = checkIssued.call(this, x, x) != 0; // cert_self_signed(x)
-            if (ss && chain.size() == 1) return true;
-
-            //for (int i = 0; i < chain.size(); i++) {
-            //    X509AuxCertificate ch = chain.get(i);
-            //    if (ch == issuer || ch.equals(issuer)) {
-            //        ret = V_ERR_PATH_LOOP;
-            //        break;
-            //    }
-            //}
-        }
-
-        return (ret == V_OK);
     }
 
     private final static Set<String> CRITICAL_EXTENSIONS = new HashSet<String>(8);
@@ -1577,9 +1551,13 @@ public class StoreContext {
         return 1;
     }
 
-    private boolean isSelfIssued(final X509AuxCertificate x) throws Exception {
-        // (x->ex_flags & EXFLAG_SI))
-        return checkIssued.call(this, x, x) != 0; // TODO self-signed == self-issued?
+    /* Return 1 is a certificate is self signed */
+    private boolean cert_self_signed(X509AuxCertificate x) throws CertificateException, IOException {
+        Purpose.checkPurpose(x, -1, 0);
+        if ((x.getExFlags() & EXFLAG_SS) != 0) {
+            return true;
+        }
+        return false;
     }
 
     @Deprecated // legacy check_trust
@@ -1845,10 +1823,37 @@ public class StoreContext {
         }
     };
 
-    /**
-     * c: check_issued
+    /*
+     * Given a possible certificate and issuer check them
+     *
+     * x509_vfy.c: static int check_issued(X509_STORE_CTX *ctx, X509 *x, X509 *issuer)
      */
-    final static Store.CheckIssuedFunction defaultCheckIssued = new Store.CheckIssuedFunction() {
+
+    // TODO logic mismtach - check store.checkIssued logic or always use legacy
+
+    final static Store.CheckIssuedFunction check_issued = new Store.CheckIssuedFunction() {
+        public int call(StoreContext ctx, X509AuxCertificate x, X509AuxCertificate issuer) throws Exception {
+            int ret;
+            if (x == issuer) return ctx.cert_self_signed(x) ? 1 : 0;
+            ret = checkIfIssuedBy(issuer, x);
+            if (ret == V_OK) {
+                /* Special case: single self signed certificate */
+                if (ctx.cert_self_signed(x) && ctx.chain.size() == 1) return 1;
+
+                //for (int i = 0; i < chain.size(); i++) {
+                //    X509AuxCertificate ch = chain.get(i);
+                //    if (ch == issuer || ch.equals(issuer)) {
+                //        ret = V_ERR_PATH_LOOP;
+                //        break;
+                //    }
+                //}
+            }
+
+            return (ret == V_OK) ? 1 : 0;
+        }
+    };
+
+    final static Store.CheckIssuedFunction check_issued_legacy = new Store.CheckIssuedFunction() {
         public int call(StoreContext context, X509AuxCertificate cert, X509AuxCertificate issuer) throws Exception {
             int ret = X509Utils.checkIfIssuedBy(issuer, cert);
             if ( ret == X509Utils.V_OK ) return 1;
@@ -1881,7 +1886,7 @@ public class StoreContext {
         X509AuxCertificate xi = chain.get(n);
         X509AuxCertificate xs;
 
-        if (check_issued(xi, xi)) {
+        if (checkIssued.call(this, xi, xi) != 0) {
             xs = xi;
         } else {
             if ((getParam().flags & V_FLAG_PARTIAL_CHAIN) != 0) {
@@ -2037,29 +2042,25 @@ public class StoreContext {
     /*
      * c: static int check_revocation(X509_STORE_CTX *ctx)
      */
-    private int check_revocation() throws Exception {
-        if ( (getParam().flags & V_FLAG_CRL_CHECK) == 0 ) {
+    final static Store.CheckRevocationFunction check_revocation = new Store.CheckRevocationFunction() {
+        public int call(final StoreContext ctx) throws Exception {
+            if ( (ctx.getParam().flags & V_FLAG_CRL_CHECK) == 0 ) {
+                return 1;
+            }
+            final int last;
+            if ( (ctx.getParam().flags & V_FLAG_CRL_CHECK_ALL) != 0 ) {
+                last = ctx.chain.size() - 1;
+            } else {
+                /* If checking CRL paths this isn't the EE certificate */
+                if (ctx.parent != null) return 1; // NOT IMPLEMENTED: always null
+                last = 0;
+            }
+            for ( int i=0; i<=last; i++ ) {
+                ctx.errorDepth = i;
+                int ok = ctx.checkCertificate(); // check_cert(ctx);
+                if (ok == 0) return 0;
+            }
             return 1;
-        }
-        final int last;
-        if ( (getParam().flags & V_FLAG_CRL_CHECK_ALL) != 0 ) {
-            last = chain.size() - 1;
-        } else {
-            /* If checking CRL paths this isn't the EE certificate */
-            if (parent != null) return 1; // NOT IMPLEMENTED: always null
-            last = 0;
-        }
-        for ( int i=0; i<=last; i++ ) {
-            errorDepth = i;
-            int ok = checkCertificate(); // check_cert(ctx);
-            if (ok == 0) return 0;
-        }
-        return 1;
-    }
-
-    final static Store.CheckRevocationFunction defaultCheckRevocation = new Store.CheckRevocationFunction() {
-        public int call(final StoreContext context) throws Exception {
-            return context.check_revocation();
         }
     };
 
@@ -2168,17 +2169,11 @@ public class StoreContext {
     /*
      * c: static int check_policy(X509_STORE_CTX *ctx)
      */
-    private int check_policy() throws Exception {
-        // NOTE: NOT IMPLEMENTED
-        return 1;
-    }
-
-    /**
-     * c: check_policy
-     */
-    final static CheckPolicyFunction defaultCheckPolicy = new CheckPolicyFunction() {
+    final static CheckPolicyFunction check_policy = new CheckPolicyFunction() {
         public int call(StoreContext context) throws Exception {
-            return context.check_policy();
+            // NOTE: NOT IMPLEMENTED
+            return 1;
         }
     };
+
 }// X509_STORE_CTX
