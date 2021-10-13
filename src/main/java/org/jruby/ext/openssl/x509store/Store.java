@@ -53,62 +53,21 @@ public class Store implements X509TrustManager {
 
     public interface VerifyFunction extends Function1<StoreContext> { }
 
-    public static interface VerifyCallbackFunction extends Function2<StoreContext, Integer> {
-        public static final VerifyCallbackFunction EMPTY = new VerifyCallbackFunction(){
-            public int call(StoreContext context, Integer outcome) {
-                return -1;
-            }
-        };
-    }
-    static interface GetIssuerFunction extends Function3<StoreContext, X509AuxCertificate[], X509AuxCertificate> {
-        public static final GetIssuerFunction EMPTY = new GetIssuerFunction(){
-            public int call(StoreContext context, X509AuxCertificate[] issuer, X509AuxCertificate cert) {
-                return -1;
-            }
-        };
-    }
-    static interface CheckIssuedFunction extends Function3<StoreContext, X509AuxCertificate, X509AuxCertificate> {
-        public static final CheckIssuedFunction EMPTY = new CheckIssuedFunction(){
-            public int call(StoreContext context, X509AuxCertificate cert, X509AuxCertificate issuer) throws Exception {
-                return -1;
-            }
-        };
-    }
-    static interface CheckRevocationFunction extends Function1<StoreContext> {
-        public static final CheckRevocationFunction EMPTY = new CheckRevocationFunction(){
-            public int call(StoreContext context) {
-                return -1;
-            }
-        };
-    }
-    static interface GetCRLFunction extends Function3<StoreContext, java.security.cert.X509CRL[], X509AuxCertificate> {
-        public static final GetCRLFunction EMPTY = new GetCRLFunction(){
-            public int call(StoreContext context, java.security.cert.X509CRL[] crls, X509AuxCertificate cert) {
-                return -1;
-            }
-        };
-    }
-    static interface CheckCRLFunction extends Function2<StoreContext, java.security.cert.X509CRL> {
-        public static final CheckCRLFunction EMPTY = new CheckCRLFunction(){
-            public int call(StoreContext context, java.security.cert.X509CRL crl) {
-                return -1;
-            }
-        };
-    }
-    static interface CertificateCRLFunction extends Function3<StoreContext, java.security.cert.X509CRL, X509AuxCertificate> {
-        public static final CertificateCRLFunction EMPTY = new CertificateCRLFunction(){
-            public int call(StoreContext context, java.security.cert.X509CRL crl, X509AuxCertificate cert) {
-                return -1;
-            }
-        };
-    }
-    static interface CleanupFunction extends Function1<StoreContext> {
-        public static final CleanupFunction EMPTY = new CleanupFunction(){
-            public int call(StoreContext context) {
-                return -1;
-            }
-        };
-    }
+    public interface VerifyCallbackFunction extends Function2<StoreContext, Integer> { }
+
+    interface GetIssuerFunction extends Function3<StoreContext, X509AuxCertificate[], X509AuxCertificate> { }
+
+    interface CheckIssuedFunction extends Function3<StoreContext, X509AuxCertificate, X509AuxCertificate> { }
+
+    interface CheckRevocationFunction extends Function1<StoreContext> {  }
+
+    interface GetCRLFunction extends Function3<StoreContext, java.security.cert.X509CRL[], X509AuxCertificate> { }
+
+    interface CheckCRLFunction extends Function2<StoreContext, java.security.cert.X509CRL> { }
+
+    interface CertificateCRLFunction extends Function3<StoreContext, java.security.cert.X509CRL, X509AuxCertificate> { }
+
+    interface CleanupFunction extends Function1<StoreContext> { }
 
     // @Deprecated int cache = 1; // not-used
 
@@ -121,15 +80,15 @@ public class Store implements X509TrustManager {
     public final VerifyParameter verifyParameter;
 
     VerifyFunction verify;
-    VerifyCallbackFunction verifyCallback = VerifyCallbackFunction.EMPTY;
+    VerifyCallbackFunction verifyCallback;
 
-    GetIssuerFunction getIssuer = GetIssuerFunction.EMPTY;
-    CheckIssuedFunction checkIssued = CheckIssuedFunction.EMPTY;
-    CheckRevocationFunction checkRevocation = CheckRevocationFunction.EMPTY;
-    GetCRLFunction getCRL = GetCRLFunction.EMPTY;
-    CheckCRLFunction checkCRL = CheckCRLFunction.EMPTY;
-    CertificateCRLFunction certificateCRL = CertificateCRLFunction.EMPTY;
-    CleanupFunction cleanup = CleanupFunction.EMPTY;
+    GetIssuerFunction getIssuer;
+    CheckIssuedFunction checkIssued;
+    CheckRevocationFunction checkRevocation;
+    GetCRLFunction getCRL;
+    CheckCRLFunction checkCRL;
+    CertificateCRLFunction certificateCRL;
+    CleanupFunction cleanup;
 
     private final List<Object> extraData;
 
@@ -162,10 +121,6 @@ public class Store implements X509TrustManager {
      */
     public void setVerifyFunction(VerifyFunction func) {
         verify = func;
-    }
-
-    public VerifyCallbackFunction getVerifyCallback() {
-        return verifyCallback;
     }
 
     /**

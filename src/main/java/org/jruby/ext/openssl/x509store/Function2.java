@@ -33,11 +33,5 @@ package org.jruby.ext.openssl.x509store;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 interface Function2<T, U> {
-    static class Empty implements Function2 {
-        public int call(Object arg0, Object arg1) {
-            return -1;
-        }
-    }
-    public static final Function2.Empty EMPTY = new Empty();
     int call(T arg0, U arg1) throws Exception;
 }// Function2

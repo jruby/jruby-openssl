@@ -213,35 +213,20 @@ public class StoreContext {
         this.otherContext = null;
         this.isValid = false;
         this.chain = null;
-        this.error = 0;
+        this.error = V_OK;
         this.explicitPolicy = 0;
         this.errorDepth = 0;
         this.currentCertificate = null;
         this.currentIssuer = null;
+        this.currentCRL = null;
         this.tree = null;
+        this.parent = null;
 
-        this.verifyParameter = new VerifyParameter();
-
+        /* store->cleanup is always 0 in OpenSSL, if set must be idempotent */
         if ( store != null ) {
-            ret = verifyParameter.inherit(store.verifyParameter);
+            this.cleanup = store.cleanup;
         } else {
-            verifyParameter.flags |= X509Utils.X509_VP_FLAG_DEFAULT | X509Utils.X509_VP_FLAG_ONCE;
-        }
-
-        if ( store != null ) {
-            verifyCallback = store.getVerifyCallback();
-            cleanup = store.cleanup;
-        } else {
-            cleanup = Store.CleanupFunction.EMPTY;
-        }
-
-        if ( ret != 0 ) {
-            ret = verifyParameter.inherit(VerifyParameter.lookup("default"));
-        }
-
-        if ( ret == 0 ) {
-            X509Error.addError(X509Utils.ERR_R_MALLOC_FAILURE);
-            return 0;
+            this.cleanup = null;
         }
 
         this.checkIssued = defaultCheckIssued;
@@ -254,33 +239,53 @@ public class StoreContext {
         this.certificateCRL = defaultCertificateCRL;
 
         if ( store != null ) {
-            if ( store.checkIssued != null && store.checkIssued != Store.CheckIssuedFunction.EMPTY ) {
+            if ( store.checkIssued != null ) {
                 this.checkIssued = store.checkIssued;
             }
-            if ( store.getIssuer != null && store.getIssuer != Store.GetIssuerFunction.EMPTY ) {
+            if ( store.getIssuer != null ) {
                 this.getIssuer = store.getIssuer;
             }
-            if ( store.verifyCallback != null && store.verifyCallback != Store.VerifyCallbackFunction.EMPTY ) {
+            if ( store.verifyCallback != null ) {
                 this.verifyCallback = store.verifyCallback;
             }
             if ( store.verify != null ) {
                 this.verify = store.verify;
             }
-            if ( store.checkRevocation != null && store.checkRevocation != Store.CheckRevocationFunction.EMPTY) {
+            if ( store.checkRevocation != null ) {
                 this.checkRevocation = store.checkRevocation;
             }
-            if ( store.getCRL != null && store.getCRL != Store.GetCRLFunction.EMPTY) {
+            if ( store.getCRL != null ) {
                 this.getCRL = store.getCRL;
             }
-            if( store.checkCRL != null && store.checkCRL != Store.CheckCRLFunction.EMPTY) {
+            if( store.checkCRL != null ) {
                 this.checkCRL = store.checkCRL;
             }
-            if ( store.certificateCRL != null && store.certificateCRL != Store.CertificateCRLFunction.EMPTY) {
+            if ( store.certificateCRL != null ) {
                 this.certificateCRL = store.certificateCRL;
             }
         }
 
+        // store->check_policy
         this.checkPolicy = defaultCheckPolicy;
+        // store->lookup_certs
+        // store->lookup_crls
+
+        this.verifyParameter = new VerifyParameter();
+
+        if ( store != null ) {
+            ret = verifyParameter.inherit(store.verifyParameter);
+        } else {
+            verifyParameter.flags |= X509Utils.X509_VP_FLAG_DEFAULT | X509Utils.X509_VP_FLAG_ONCE;
+        }
+
+        if ( ret != 0 ) {
+            ret = verifyParameter.inherit(VerifyParameter.lookup("default"));
+        }
+
+        if ( ret == 0 ) {
+            X509Error.addError(X509Utils.ERR_R_MALLOC_FAILURE);
+            return 0;
+        }
 
         // getExtraData();
         return 1;
