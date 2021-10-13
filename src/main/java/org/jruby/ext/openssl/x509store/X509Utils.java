@@ -197,11 +197,11 @@ public abstract class X509Utils {
         }
     }
 
-    private static ASN1Primitive get(DEROctetString str) throws IOException {
+    static ASN1Primitive get(DEROctetString str) throws IOException {
         return get( str.getOctets() );
     }
 
-    private static ASN1Primitive get(final byte[] input) throws IOException {
+    static ASN1Primitive get(final byte[] input) throws IOException {
         return new ASN1InputStream(input).readObject();
     }
 
@@ -624,19 +624,22 @@ public abstract class X509Utils {
     public static final int ERR_R_DISABLED=(5|ERR_R_FATAL);
 
     public static final int EXFLAG_BCONS=0x1;
-    public static final int EXFLAG_KUSAGE=0x2;
+    //public static final int EXFLAG_KUSAGE=0x2;
     public static final int EXFLAG_XKUSAGE=0x4;
-    public static final int EXFLAG_NSCERT=0x8;
+    //public static final int EXFLAG_NSCERT=0x8;
 
     public static final int EXFLAG_CA=0x10;
-    public static final int EXFLAG_SS=0x20;
+    public static final int EXFLAG_SI=0x20; /* self-issued, maybe not self-signed */
     public static final int EXFLAG_V1=0x40;
-    public static final int EXFLAG_INVALID=0x80;
-    public static final int EXFLAG_SET=0x100;
-    public static final int EXFLAG_CRITICAL=0x200;
-    public static final int EXFLAG_PROXY=0x400;
+    //public static final int EXFLAG_INVALID=0x80;
+    /* EXFLAG_SET is set to indicate that some values have been precomputed */
+    //public static final int EXFLAG_SET=0x100;
+    //public static final int EXFLAG_CRITICAL=0x200;
+    //public static final int EXFLAG_PROXY=0x400;
 
-    public static final int EXFLAG_INVALID_POLICY=0x400;
+    //public static final int EXFLAG_INVALID_POLICY=0x800;
+    //public static final int EXFLAG_FRESHEST=0x1000;
+    public static final int EXFLAG_SS=0x2000; /* cert is apparently self-signed */
 
     public static final int XKU_SSL_SERVER=0x1;
     public static final int XKU_SSL_CLIENT=0x2;

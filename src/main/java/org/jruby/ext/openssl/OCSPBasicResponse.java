@@ -530,6 +530,9 @@ public class OCSPBasicResponse extends RubyObject {
         catch (CertificateParsingException e) {
             throw newOCSPError(getRuntime(), e);
         }
+        catch (IOException e) {
+            throw newOCSPError(getRuntime(), e);
+        }
     }
 
     private boolean matchIssuerId(X509Cert signerCA, CertificateID certId, List<SingleResp> singleResponses) throws IOException {
