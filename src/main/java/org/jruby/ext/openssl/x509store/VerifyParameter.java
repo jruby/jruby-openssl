@@ -257,6 +257,20 @@ public class VerifyParameter {
         return 1;
     }
 
+    @Override
+    public String toString() {
+        return "VerifyParameter{" +
+                "name='" + name + '\'' +
+                ", checkTime=" + checkTime +
+                ", inheritFlags=" + inheritFlags +
+                ", flags=" + flags +
+                ", purpose=" + purpose +
+                ", trust=" + trust +
+                ", depth=" + depth +
+                ", policies=" + policies +
+                '}';
+    }
+
     public static VerifyParameter lookup(String name) {
         for(VerifyParameter v : parameterTable) {
             if(name.equals(v.name)) {
