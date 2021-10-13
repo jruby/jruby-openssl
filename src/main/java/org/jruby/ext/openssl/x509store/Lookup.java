@@ -81,7 +81,7 @@ public class Lookup {
         this.runtime = runtime;
 
         final LookupMethod.NewItemFunction newItem = method.newItem;
-        if ( newItem != null && newItem != Function1.EMPTY ) {
+        if ( newItem != null ) {
             final int result;
             try {
                 result = newItem.call(this);
@@ -364,7 +364,7 @@ public class Lookup {
      * c: X509_LOOKUP_free
      */
     public void free() throws Exception {
-        if ( method != null && method.free != null && method.free != Function1.EMPTY ) {
+        if ( method != null && method.free != null ) {
             method.free.call(this);
         }
     }
@@ -374,7 +374,7 @@ public class Lookup {
      */
     public int init() throws Exception {
         if ( method == null ) return 0;
-        if ( method.init != null && method.init != Function1.EMPTY ) {
+        if ( method.init != null ) {
             return method.init.call(this);
         }
         return 1;
@@ -427,7 +427,7 @@ public class Lookup {
     public int shutdown() throws Exception {
         if ( method == null ) return 0;
 
-        if ( method.shutdown != null && method.shutdown != Function1.EMPTY ) {
+        if ( method.shutdown != null ) {
             return method.shutdown.call(this);
         }
         return 1;

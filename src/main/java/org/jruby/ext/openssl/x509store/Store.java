@@ -51,13 +51,8 @@ import org.jruby.ext.openssl.OpenSSL;
  */
 public class Store implements X509TrustManager {
 
-    public static interface VerifyFunction extends Function1<StoreContext> {
-        public static final VerifyFunction EMPTY = new VerifyFunction(){
-            public int call(StoreContext context) {
-                return -1;
-            }
-        };
-    }
+    public interface VerifyFunction extends Function1<StoreContext> { }
+
     public static interface VerifyCallbackFunction extends Function2<StoreContext, Integer> {
         public static final VerifyCallbackFunction EMPTY = new VerifyCallbackFunction(){
             public int call(StoreContext context, Integer outcome) {
@@ -125,7 +120,7 @@ public class Store implements X509TrustManager {
 
     public final VerifyParameter verifyParameter;
 
-    VerifyFunction verify = VerifyFunction.EMPTY;
+    VerifyFunction verify;
     VerifyCallbackFunction verifyCallback = VerifyCallbackFunction.EMPTY;
 
     GetIssuerFunction getIssuer = GetIssuerFunction.EMPTY;
@@ -160,10 +155,6 @@ public class Store implements X509TrustManager {
 
     public VerifyParameter getVerifyParameter() {
         return verifyParameter;
-    }
-
-    public VerifyFunction getVerifyFunction() {
-        return verify;
     }
 
     /**

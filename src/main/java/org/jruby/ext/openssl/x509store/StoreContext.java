@@ -263,7 +263,7 @@ public class StoreContext {
             if ( store.verifyCallback != null && store.verifyCallback != Store.VerifyCallbackFunction.EMPTY ) {
                 this.verifyCallback = store.verifyCallback;
             }
-            if ( store.verify != null && store.verify != Store.VerifyFunction.EMPTY) {
+            if ( store.verify != null ) {
                 this.verify = store.verify;
             }
             if ( store.checkRevocation != null && store.checkRevocation != Store.CheckRevocationFunction.EMPTY) {
@@ -863,7 +863,7 @@ public class StoreContext {
         if ( ok == 0 ) return ok;
 
         /* At this point, we have a chain and need to verify it */
-        if ( verify != null && verify != Store.VerifyFunction.EMPTY ) {
+        if ( verify != null ) {
             ok = verify.call(this);
         } else {
             ok = internalVerify.call(this);
