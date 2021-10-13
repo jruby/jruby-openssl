@@ -719,10 +719,20 @@ public class StoreContext {
         return ret;
     }
 
-    /**
-     * c: verify_chain
-     */
+    private static final boolean VERIFY_LEGACY = Boolean.getBoolean("verify_legacy");
+
     private int verifyChain() throws Exception {
+        if (VERIFY_LEGACY) return verify_chain_legacy();
+        return verify_chain();
+    }
+
+    /*
+     @ @note: based on pre OpenSSL 1.0 code
+     *
+     * c: static int verify_chain(X509_STORE_CTX *ctx)
+     */
+    @SuppressWarnings("deprecation")
+    int verify_chain_legacy() throws Exception {
         X509AuxCertificate x, xtmp = null, chain_ss = null;
         int bad_chain = 0, depth, i, num;
 
