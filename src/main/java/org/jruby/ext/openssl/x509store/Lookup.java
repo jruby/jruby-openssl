@@ -128,7 +128,7 @@ public class Lookup {
     public int control(final int cmd, final String argc, final long argl, final String[] ret) throws Exception {
         if ( method == null ) return -1;
 
-        if ( method.control != null && method.control != Function5.EMPTY ) {
+        if ( method.control != null ) {
             return method.control.call(this, Integer.valueOf(cmd), argc, Long.valueOf(argl), ret);
         }
         return 1;
@@ -384,7 +384,7 @@ public class Lookup {
      * c: X509_LOOKUP_by_subject
      */
     public int bySubject(final int type, final Name name, final X509Object[] ret) throws Exception {
-        if ( method == null || method.getBySubject == null || method.getBySubject == Function4.EMPTY ) {
+        if ( method == null || method.getBySubject == null ) {
             return X509_LU_FAIL;
         }
         if ( skip ) return 0;
@@ -395,7 +395,7 @@ public class Lookup {
      * c: X509_LOOKUP_by_issuer_serial
      */
     public int byIssuerSerialNumber(final int type, final Name name, final BigInteger serial, final X509Object[] ret) throws Exception {
-        if ( method == null || method.getByIssuerSerialNumber == null || method.getByIssuerSerialNumber == Function5.EMPTY ) {
+        if ( method == null || method.getByIssuerSerialNumber == null ) {
             return X509_LU_FAIL;
         }
         return method.getByIssuerSerialNumber.call(this, Integer.valueOf(type), name, serial, ret);
@@ -405,7 +405,7 @@ public class Lookup {
      * c: X509_LOOKUP_by_fingerprint
      */
     public int byFingerprint(final int type, final String bytes, final X509Object[] ret) throws Exception {
-        if ( method == null || method.getByFingerprint == null || method.getByFingerprint == Function4.EMPTY ) {
+        if ( method == null || method.getByFingerprint == null ) {
             return X509_LU_FAIL;
         }
         return method.getByFingerprint.call(this, Integer.valueOf(type), bytes, ret);
@@ -415,7 +415,7 @@ public class Lookup {
      * c: X509_LOOKUP_by_alias
      */
     public int byAlias(final int type, final String alias, final X509Object[] ret) throws Exception {
-        if ( method == null || method.getByAlias == null || method.getByAlias == Function4.EMPTY ) {
+        if ( method == null || method.getByAlias == null ) {
             return X509_LU_FAIL;
         }
         return method.getByAlias.call(this, Integer.valueOf(type), alias, ret);
