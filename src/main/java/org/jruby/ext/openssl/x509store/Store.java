@@ -69,6 +69,10 @@ public class Store implements X509TrustManager {
 
     interface CleanupFunction extends Function1<StoreContext> { }
 
+    interface LookupCerts {
+        List<X509AuxCertificate> call(StoreContext ctx, Name name) throws Exception;
+    }
+
     // @Deprecated int cache = 1; // not-used
 
     private static final X509Object[] NULL_OBJECTS = new X509Object[0];
@@ -89,6 +93,8 @@ public class Store implements X509TrustManager {
     CheckCRLFunction checkCRL;
     CertificateCRLFunction certificateCRL;
     CleanupFunction cleanup;
+
+    LookupCerts lookup_certs; // NOTE: for now always null here
 
     private final List<Object> extraData;
 

@@ -87,6 +87,8 @@ public class StoreContext {
     CheckPolicyFunction checkPolicy;
     Store.CleanupFunction cleanup;
 
+    Store.LookupCerts lookup_certs;
+
     public boolean isValid;
 
     private int num_untrusted; // lastUntrusted in the chain
@@ -267,10 +269,18 @@ public class StoreContext {
             }
         }
 
+        if (store != null && store.lookup_certs != null) {
+            this.lookup_certs = store.lookup_certs;
+        } else {
+            this.lookup_certs = new Store.LookupCerts() {
+                public List<X509AuxCertificate> call(StoreContext ctx, Name name) throws Exception {
+                    return ctx.get1_certs(name);
+                }
+            };
+        }
+
         // store->check_policy
         this.checkPolicy = StoreContext.check_policy;
-        // store->lookup_certs
-        // store->lookup_crls
 
         this.verifyParameter = new VerifyParameter();
 
@@ -623,61 +633,36 @@ public class StoreContext {
     /*
      * STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx, X509_NAME *nm)
      */
-    List<X509AuxCertificate> X509_STORE_CTX_get1_certs(final Name nm) {
+    List<X509AuxCertificate> get1_certs(final Name nm) throws Exception {
         if (store == null) return null;
 
-//        X509_STORE_lock(store);
-//        idx = x509_object_idx_cnt(store->objs, X509_LU_X509, nm, &cnt);
-//        if (idx < 0) {
-//            /*
-//             * Nothing found in cache: do lookup to possibly add new objects to
-//             * cache
-//             */
-//            X509_OBJECT *xobj = X509_OBJECT_new();
-//
-//            X509_STORE_unlock(store);
-//
-//            if (xobj == NULL)
-//                return NULL;
-//            if (!X509_STORE_CTX_get_by_subject(ctx, X509_LU_X509, nm, xobj)) {
-//                X509_OBJECT_free(xobj);
-//                return NULL;
-//            }
-//            X509_OBJECT_free(xobj);
-//            X509_STORE_lock(store);
-//            idx = x509_object_idx_cnt(store->objs, X509_LU_X509, nm, &cnt);
-//            if (idx < 0) {
-//                X509_STORE_unlock(store);
-//                return NULL;
-//            }
-//        }
+        // NOTE: very rough draft that resembles OpenSSL bits
 
-//        sk = sk_X509_new_null();
-//        for (i = 0; i < cnt; i++, idx++) {
-//            obj = sk_X509_OBJECT_value(store->objs, idx);
-//            x = obj->data.x509;
-//            if (!X509_up_ref(x)) {
-//                X509_STORE_unlock(store);
-//                sk_X509_pop_free(sk, X509_free);
-//                return NULL;
-//            }
-//            if (!sk_X509_push(sk, x)) {
-//                X509_STORE_unlock(store);
-//                X509_free(x);
-//                sk_X509_pop_free(sk, X509_free);
-//                return NULL;
-//            }
-//        }
-//        X509_STORE_unlock(store);
-//        return sk;
+        List<X509AuxCertificate> sk = matchCachedCertObjectsFromStore(nm);
 
+        if (sk.isEmpty()) {
+            /*
+             * Nothing found in cache: do lookup to possibly add new objects to cache
+             */
+            boolean found = false;
+            for (Lookup lu : store.getCertificateMethods()) {
+                X509Object[] stmp = new X509Object[1];
+                if (lu.bySubject(X509_LU_X509, nm, stmp) != 0) found = true;
+            }
+            if (!found) return sk;
+        }
+
+        sk = matchCachedCertObjectsFromStore(nm);
+        return sk;
+    }
+
+    private List<X509AuxCertificate> matchCachedCertObjectsFromStore(final Name name) {
         ArrayList<X509AuxCertificate> sk = new ArrayList<X509AuxCertificate>();
         for (X509Object obj : store.getObjects()) {
-            if (obj.type() == X509_LU_X509 && obj.isName(nm)) {
+            if (obj.type() == X509_LU_X509 && obj.isName(name)) {
                 sk.add(((Certificate) obj).cert);
             }
         }
-
         return sk;
     }
 
@@ -1774,20 +1759,15 @@ public class StoreContext {
 
     /* Given a certificate try and find an exact match in the store */
 
-    private X509AuxCertificate lookup_cert_match(X509AuxCertificate x) {
+    private X509AuxCertificate lookup_cert_match(X509AuxCertificate x) throws Exception {
         /* Lookup all certs with matching subject name */
-        List<X509AuxCertificate> certs = lookup_certs(new Name(x.getSubjectX500Principal()));
+        List<X509AuxCertificate> certs = lookup_certs.call(this, new Name(x.getSubjectX500Principal()));
         if (certs == null) return null;
         /* Look for exact match */
         for (X509AuxCertificate xtmp : certs) {
-            if (xtmp.equals(x)) // !X509_cmp(xtmp, x)
-                break;
+            if (xtmp.equals(x)) return xtmp;
         }
         return null; // xtmp = null
-    }
-
-    private List<X509AuxCertificate> lookup_certs(final Name name) {
-        return X509_STORE_CTX_get1_certs(name);
     }
 
     /*
