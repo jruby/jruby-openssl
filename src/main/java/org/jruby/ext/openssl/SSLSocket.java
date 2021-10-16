@@ -1043,15 +1043,15 @@ public class SSLSocket extends RubyObject {
         if ( engine == null ) return runtime.getNil();
 
         try {
-            javax.security.cert.Certificate[] certs = engine.getSession().getPeerCertificateChain();
+            Certificate[] certs = engine.getSession().getPeerCertificates();
             IRubyObject[] cert_chain = new IRubyObject[ certs.length ];
             for ( int i = 0; i < certs.length; i++ ) {
                 cert_chain[i] = X509Cert.wrap(context, certs[i]);
             }
             return runtime.newArrayNoCopy(cert_chain);
         }
-        catch (javax.security.cert.CertificateEncodingException e) {
-            throw X509Cert.newCertificateError(getRuntime(), e);
+        catch (CertificateEncodingException e) {
+            throw X509Cert.newCertificateError(runtime, e);
         }
         catch (SSLPeerUnverifiedException e) {
             if (runtime.isVerbose() || OpenSSL.isDebug(runtime)) {
