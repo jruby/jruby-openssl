@@ -208,10 +208,10 @@ public class StoreContext {
     /**
      * c: X509_STORE_CTX_init
      */
-    public int init(X509AuxCertificate cert, List<X509AuxCertificate> chain) {
+    public int init(X509AuxCertificate cert, List<X509AuxCertificate> untrusted_chain) {
         int ret = 1;
         this.certificate = cert;
-        this.untrusted = chain;
+        this.untrusted = untrusted_chain;
         this.crls = null;
         this.num_untrusted = 0;
         this.otherContext = null;
