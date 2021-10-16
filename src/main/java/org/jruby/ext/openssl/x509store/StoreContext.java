@@ -41,6 +41,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1InputStream;
@@ -137,7 +138,7 @@ public class StoreContext {
     /**
      * c: X509_STORE_CTX_get1_issuer
      */
-    int getFirstIssuer(final X509AuxCertificate[] issuers, final X509AuxCertificate x) throws Exception {
+    int getFirstIssuer(final X509AuxCertificate[] _issuer, final X509AuxCertificate x) throws Exception {
         final Name xn = new Name( x.getIssuerX500Principal() );
         final X509Object[] s_obj = new X509Object[1];
         int ok = store == null ? 0 : getBySubject(X509Utils.X509_LU_X509, xn, s_obj);
@@ -151,33 +152,96 @@ public class StoreContext {
             }
             return 0;
         }
-
+        /* If certificate matches all OK */
         X509Object obj = s_obj[0];
         if ( checkIssued.call(this, x, ((Certificate) obj).cert) != 0 ) {
-            issuers[0] = ((Certificate) obj).cert;
-            return 1;
+            X509AuxCertificate issuer = ((Certificate) obj).cert;
+            if (x509_check_cert_time(issuer, -1)) {
+                _issuer[0] = issuer;
+                return 1;
+            }
         }
 
         List<X509Object> objects = store.getObjects();
         int idx = X509Object.indexBySubject(objects, X509Utils.X509_LU_X509, xn);
         if ( idx == -1 ) return 0;
 
+        int ret = 0;
         /* Look through all matching certificates for a suitable issuer */
         for ( int i = idx; i < objects.size(); i++ ) {
             final X509Object pobj = objects.get(i);
             if ( pobj.type() != X509Utils.X509_LU_X509 ) {
-                return 0;
+                break; // return 0
             }
             final X509AuxCertificate x509 = ((Certificate) pobj).cert;
             if ( ! xn.equalTo( x509.getSubjectX500Principal() ) ) {
-                return 0;
+                break; // return 0
             }
             if ( checkIssued.call(this, x, x509) != 0 ) {
-                issuers[0] = x509;
-                return 1;
+                _issuer[0] = x509;
+                ret = 1;
+                /*
+                 * If times check, exit with match, otherwise keep looking.
+                 * Leave last match in issuer so we return nearest
+                 * match if no certificate time is OK.
+                 */
+                if (x509_check_cert_time(x509, -1)) break; // return 1;
             }
         }
-        return 0;
+        return ret;
+    }
+
+    // NOTE: not based on OpenSSL - self invented (till JOSSL 1.1.1 port)
+    private int getValidIssuers(final X509AuxCertificate x, final List<X509AuxCertificate> _issuers)
+        throws Exception {
+        final Name xn = new Name( x.getIssuerX500Principal() );
+        final X509Object[] s_obj = new X509Object[1];
+        int ok = store == null ? 0 : getBySubject(X509Utils.X509_LU_X509, xn, s_obj);
+        if ( ok != X509Utils.X509_LU_X509 ) {
+            if ( ok == X509Utils.X509_LU_RETRY ) {
+                X509Error.addError(X509Utils.X509_R_SHOULD_RETRY);
+                return -1;
+            }
+            else if ( ok != X509Utils.X509_LU_FAIL ) {
+                return -1;
+            }
+            return 0;
+        }
+        int ret = 0;
+        /* If certificate matches all OK */
+        X509Object obj = s_obj[0];
+        if ( checkIssued.call(this, x, ((Certificate) obj).cert) != 0 ) {
+            X509AuxCertificate issuer = ((Certificate) obj).cert;
+            if (x509_check_cert_time(issuer, -1)) {
+                _issuers.add(issuer);
+                ret = 1;
+            }
+        }
+
+        List<X509Object> objects = store.getObjects();
+
+        int idx = X509Object.indexBySubject(objects, X509Utils.X509_LU_X509, xn);
+        if ( idx == -1 ) return ret;
+
+        /* Look through all matching certificates for a suitable issuer */
+        for ( int i = idx; i < objects.size(); i++ ) {
+            final X509Object pobj = objects.get(i);
+            if ( pobj.type() != X509Utils.X509_LU_X509 ) {
+                continue;
+            }
+            final X509AuxCertificate x509 = ((Certificate) pobj).cert;
+            if ( ! xn.equalTo( x509.getSubjectX500Principal() ) ) {
+                continue;
+            }
+
+            if ( checkIssued.call(this, x, x509) != 0 ) {
+                if (x509_check_cert_time(x509, -1)) {
+                    _issuers.add(x509);
+                    ret = 1;
+                }
+            }
+        }
+        return ret;
     }
 
     public static List<X509AuxCertificate> ensureAux(final Collection<X509Certificate> input) {
@@ -728,9 +792,26 @@ public class StoreContext {
         X509AuxCertificate x, xtmp = null, chain_ss = null;
         int bad_chain = 0, depth, i, num;
 
+        System.out.println("" + getParam());
+
         // We use a temporary STACK so we can chop and hack at it
 
         LinkedList<X509AuxCertificate> sktmp = untrusted != null ? new LinkedList<>(untrusted) : null;
+
+        if (untrusted != null) {
+            System.out.println("untrusted(" + untrusted.size() + "): " + untrusted.stream().map((c) -> c.getSubjectDN().toString() + "[" + c.getIssuerDN() + "]").collect(java.util.stream.Collectors.joining(" - ")));
+
+            ListIterator<X509AuxCertificate> iter = sktmp.listIterator();
+            while (iter.hasNext()) {
+                X509AuxCertificate c = iter.next();
+                if (!x509_check_cert_time(c, -1)) {
+                    iter.remove();
+                }
+            }
+
+            System.out.println("sktmp(" + sktmp.size() + "): " + sktmp.stream().map((c) -> c.getSubjectDN().toString() + "[" + c.getIssuerDN() + "]").collect(java.util.stream.Collectors.joining(" - ")));
+        }
+        else System.out.println("untrusted: null");
 
         num = chain.size();
         x = chain.get(num - 1);
@@ -741,7 +822,9 @@ public class StoreContext {
             if ( checkIssued.call(this, x, x) != 0 ) break;
 
             if ( sktmp != null ) {
-                xtmp = findIssuer(sktmp, x);
+                xtmp = findIssuer(sktmp, x, true);
+                System.out.println(" findIssuer: " + (xtmp == null ? null : (xtmp.getSubjectDN() + "[" + xtmp.getIssuerDN() + "]")));
+
                 if ( xtmp != null ) {
                     chain.add(xtmp);
                     sktmp.remove(xtmp);
@@ -794,29 +877,69 @@ public class StoreContext {
                 x = chain.get(num-1);
             }
         }
+
+        System.out.println(" getIssuer: " + getIssuer);
+
         // We now lookup certs from the certificate store
-        for(;;) {
-            // If we have enough, we break
-            if ( depth < num ) break;
-            //xn = new X509_NAME(x.getIssuerX500Principal());
-            // If we are self signed, we break
-            if ( checkIssued.call(this, x, x) != 0 ) break;
+        // JOSSL specific re-invention with semi alternate chain search
+        if (checkIssued.call(this, x, x) == 0) {
+            final int[] p_num = new int[] { num };
 
-            X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
-            int ok = getIssuer.call(this, p_xtmp, x);
-            xtmp = p_xtmp[0];
+            if (getIssuer == getFirstIssuer) {
+                LinkedList<X509AuxCertificate> xtmps = new LinkedList<>();
+                int ok = getValidIssuers(x, xtmps);
+                if ( ok < 0 ) return ok; // error
+                if ( ok != 0 ) { // at least one issuer for given name
+                    while (!xtmps.isEmpty()) {
+                        chain.add(x = xtmps.removeFirst());
+                        p_num[0] = num + 1;
 
-            if ( ok < 0 ) return ok;
-            if ( ok == 0 ) break;
+                        ok = finishChain(x, depth, p_num);
+                        if ( ok < 0 ) return ok; // error
+                        if ( ok == 1 ) {
+                            x = chain.get(chain.size() - 1);
+                            if (x509_check_cert_time(x, -1)) break;
+                        }
+                        // we're going to retry thus reset chain back:
+                        int added = p_num[0] - num;
+                        while (added-- > 0) chain.remove(chain.size() - 1);
+                    }
+                }
+            } else {
+                int ok = finishChain(x, depth, p_num);
+                if ( ok < 0 ) return ok; // error
+            }
 
-            x = xtmp;
-            chain.add(x);
-            num++;
+            if (p_num[0] != num) {
+                x = chain.get(chain.size() - 1);
+            }
+            num = p_num[0];
         }
+
+        // We now lookup certs from the certificate store
+//        for(;;) {
+//            // If we have enough, we break
+//            if ( depth < num ) break;
+//            // If we are self signed, we break
+//            if ( checkIssued.call(this, x, x) != 0 ) break;
+//
+//            X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
+//            int ok = getIssuer.call(this, p_xtmp, x);
+//            xtmp = p_xtmp[0];
+//
+//            if ( ok < 0 ) return ok;
+//            if ( ok == 0 ) break;
+//
+//            x = xtmp;
+//
+//            System.out.println(" chain.add next: " + (xtmp == null ? null : (xtmp.getSubjectDN() + "[" + xtmp.getIssuerDN() + "]")));
+//
+//            chain.add(x);
+//            num++;
+//        }
 
         /* we now have our chain, lets check it... */
 
-        //xn = new X509_NAME(x.getIssuerX500Principal());
         /* Is last certificate looked up self signed? */
         if ( checkIssued.call(this, x, x) == 0 ) {
             if ( chain_ss == null || checkIssued.call(this, x, chain_ss) == 0 ) {
@@ -869,6 +992,31 @@ public class StoreContext {
             ok = checkPolicy.call(this);
         }
         return ok;
+    }
+
+    // JOSSL specific re-invention with semi alternate chain search
+    private int finishChain(X509AuxCertificate x, final int depth, final int[] _num)
+        throws Exception {
+        X509AuxCertificate[] p_xtmp = new X509AuxCertificate[] { null };
+        int num = _num[0];
+        for(;;) {
+            // If we have enough, we break
+            if ( depth < num ) break;
+            // If we are self signed, we break
+            if ( checkIssued.call(this, x, x) != 0 ) break;
+
+            int ok = getIssuer.call(this, p_xtmp, x);
+            if ( ok < 0 ) return ok; // error
+            if ( ok == 0 ) return 0; // no issuer for given name
+
+            x = p_xtmp[0];
+
+            chain.add(x);
+            num++;
+        }
+
+        _num[0] = num;
+        return 1;
     }
 
     /*
@@ -1196,10 +1344,13 @@ public class StoreContext {
     }
 
     @Deprecated // legacy find_issuer
-    public X509AuxCertificate findIssuer(final List<X509AuxCertificate> certs, final X509AuxCertificate cert) throws Exception {
+    public X509AuxCertificate findIssuer(final List<X509AuxCertificate> certs,
+        final X509AuxCertificate cert, final boolean check_time) throws Exception {
         for ( X509AuxCertificate issuer : certs ) {
             if ( checkIssued.call(this, cert, issuer) != 0 ) {
-                return issuer;
+
+                if (!check_time || x509_check_cert_time(issuer, -1)) return issuer;
+                //return issuer;
             }
         }
         return null;
@@ -1797,7 +1948,7 @@ public class StoreContext {
      */
     final static Store.GetIssuerFunction getIssuerStack = new Store.GetIssuerFunction() {
         public int call(StoreContext context, X509AuxCertificate[] issuer, X509AuxCertificate x) throws Exception {
-            issuer[0] = context.findIssuer(context.otherContext, x);
+            issuer[0] = context.findIssuer(context.otherContext, x, false);
             if ( issuer[0] != null ) {
                 return 1;
             } else {
