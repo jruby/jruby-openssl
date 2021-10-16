@@ -427,6 +427,10 @@ public abstract class X509Utils {
     public static final int V_FLAG_INHIBIT_MAP = 0x400;
     public static final int V_FLAG_NOTIFY_POLICY = 0x800;
 
+
+    /* Do not check certificate/CRL validity against current time */
+    public static final int V_FLAG_NO_CHECK_TIME = 0x200000;
+
     public static final int VP_FLAG_DEFAULT = 0x1;
     public static final int VP_FLAG_OVERWRITE = 0x2;
     public static final int VP_FLAG_RESET_FLAGS = 0x4;
