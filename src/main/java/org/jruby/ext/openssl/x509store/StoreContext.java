@@ -156,10 +156,10 @@ public class StoreContext {
         X509Object obj = s_obj[0];
         if ( checkIssued.call(this, x, ((Certificate) obj).cert) != 0 ) {
             X509AuxCertificate issuer = ((Certificate) obj).cert;
-            //if (x509_check_cert_time(issuer, -1)) { TODO back
+            if (x509_check_cert_time(issuer, -1)) {
                 _issuer[0] = issuer;
                 return 1;
-            //}
+            }
         }
 
         List<X509Object> objects = store.getObjects();
@@ -172,12 +172,10 @@ public class StoreContext {
             final X509Object pobj = objects.get(i);
             if ( pobj.type() != X509Utils.X509_LU_X509 ) {
                 break; // return 0
-                //return 0;
             }
             final X509AuxCertificate x509 = ((Certificate) pobj).cert;
             if ( ! xn.equalTo( x509.getSubjectX500Principal() ) ) {
                 break; // return 0
-                //return 0;
             }
             if ( checkIssued.call(this, x, x509) != 0 ) {
                 _issuer[0] = x509;
@@ -187,8 +185,7 @@ public class StoreContext {
                  * Leave last match in issuer so we return nearest
                  * match if no certificate time is OK.
                  */
-                //if (x509_check_cert_time(x509, -1)) break; // return 1; TODO back
-                return 1;
+                if (x509_check_cert_time(x509, -1)) break;
             }
         }
         return ret;
