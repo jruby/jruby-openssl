@@ -191,8 +191,8 @@ public class StoreContext {
         return ret;
     }
 
-    // NOTE: not based on OpenSSL - self invented (till JOSSL 1.1.1 port)
-    private int getValidIssuers(final X509AuxCertificate x, final List<X509AuxCertificate> _issuers)
+    // NOTE: JOSSL specific - semi alternate chain search (drop once OpenSSL 1.1.1 verify ported)
+    private int getValidIssuersOrFirst(final X509AuxCertificate x, final List<X509AuxCertificate> _issuers)
         throws Exception {
         final Name xn = new Name( x.getIssuerX500Principal() );
         final X509Object[] s_obj = new X509Object[1];
@@ -223,6 +223,10 @@ public class StoreContext {
         int idx = X509Object.indexBySubject(objects, X509Utils.X509_LU_X509, xn);
         if ( idx == -1 ) return ret;
 
+        // Leave last match in issuer so we return nearest match if no certificate time is OK.
+        // NOTE: due store.error reporting compatibility (with plain-old getFirstIssuer)
+        X509AuxCertificate firstTimeCheckFailed = null;
+
         /* Look through all matching certificates for a suitable issuer */
         for ( int i = idx; i < objects.size(); i++ ) {
             final X509Object pobj = objects.get(i);
@@ -238,8 +242,15 @@ public class StoreContext {
                 if (x509_check_cert_time(x509, -1)) {
                     _issuers.add(x509);
                     ret = 1;
+                } else {
+                    if (firstTimeCheckFailed == null) firstTimeCheckFailed = x509;
+                    ret = 1;
                 }
             }
+        }
+
+        if (firstTimeCheckFailed != null && _issuers.isEmpty()) {
+            _issuers.add(firstTimeCheckFailed);
         }
         return ret;
     }
@@ -790,17 +801,17 @@ public class StoreContext {
             }
         }
         // We now lookup certs from the certificate store
-        // JOSSL specific re-invention with semi alternate chain search
-        if (false && checkIssued.call(this, x, x) == 0) { // TODO
-            final int[] p_num = new int[] { num };
 
+        // NOTE: JOSSL specific - semi alternate chain search (drop once OpenSSL 1.1.1 verify ported)
+        if ( checkIssued.call(this, x, x) == 0 ) {
+            final int[] p_num = new int[] { num };
             if (getIssuer == getFirstIssuer) {
-                LinkedList<X509AuxCertificate> xtmps = new LinkedList<>();
-                int ok = getValidIssuers(x, xtmps);
+                ArrayList<X509AuxCertificate> xtmps = new ArrayList<>(4);
+                int ok = getValidIssuersOrFirst(x, xtmps);
                 if ( ok < 0 ) return ok; // error
                 if ( ok != 0 ) { // at least one issuer for given name
-                    while (!xtmps.isEmpty()) {
-                        chain.add(x = xtmps.removeFirst());
+                    for (int t = 0; t < xtmps.size(); t++) {
+                        chain.add(x = xtmps.get(t));
                         p_num[0] = num + 1;
 
                         ok = finishChain(x, depth, p_num);
@@ -809,9 +820,12 @@ public class StoreContext {
                             x = chain.get(chain.size() - 1);
                             if (x509_check_cert_time(x, -1)) break;
                         }
-                        // we're going to retry thus reset chain back:
-                        int added = p_num[0] - num;
-                        while (added-- > 0) chain.remove(chain.size() - 1);
+
+                        if (t < xtmps.size() - 1) {
+                            // did not break - going to retry thus reset chain back :
+                            int added = p_num[0] - num;
+                            while (added-- > 0) chain.remove(chain.size() - 1);
+                        }
                     }
                 }
             } else {
@@ -823,25 +837,6 @@ public class StoreContext {
                 x = chain.get(chain.size() - 1);
             }
             num = p_num[0];
-        }
-        // We now lookup certs from the certificate store
-        for(;;) {
-            // If we have enough, we break
-            if ( depth < num ) break;
-            //xn = new X509_NAME(x.getIssuerX500Principal());
-            // If we are self signed, we break
-            if ( checkIssued.call(this, x, x) != 0 ) break;
-
-            X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
-            int ok = getIssuer.call(this, p_xtmp, x);
-            xtmp = p_xtmp[0];
-
-            if ( ok < 0 ) return ok;
-            if ( ok == 0 ) break;
-
-            x = xtmp;
-            chain.add(x);
-            num++;
         }
 
         /* we now have our chain, lets check it... */
@@ -901,7 +896,7 @@ public class StoreContext {
         return ok;
     }
 
-    // JOSSL specific re-invention with semi alternate chain search
+    // NOTE: JOSSL specific - semi alternate chain search (drop once OpenSSL 1.1.1 verify ported)
     private int finishChain(X509AuxCertificate x, final int depth, final int[] _num)
         throws Exception {
         X509AuxCertificate[] p_xtmp = new X509AuxCertificate[] { null };
