@@ -1113,7 +1113,6 @@ public class StoreContext {
 
         int i = x.getNotBefore().compareTo(pTime);
         if (i >= 0 && depth < 0) {
-
             return false;
         }
         if (i == 0 && verify_cb_cert(x, depth, V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD) == 0) {
@@ -1124,8 +1123,7 @@ public class StoreContext {
         }
 
         i = x.getNotAfter().compareTo(pTime);
-        if (i >= 0 && depth < 0) {
-
+        if (i <= 0 && depth < 0) {
             return false;
         }
         if (i == 0 && verify_cb_cert(x, depth, V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD) == 0) {
