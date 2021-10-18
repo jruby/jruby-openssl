@@ -792,26 +792,9 @@ public class StoreContext {
         X509AuxCertificate x, xtmp = null, chain_ss = null;
         int bad_chain = 0, depth, i, num;
 
-        System.out.println("" + getParam());
-
         // We use a temporary STACK so we can chop and hack at it
 
         LinkedList<X509AuxCertificate> sktmp = untrusted != null ? new LinkedList<>(untrusted) : null;
-
-        if (untrusted != null) {
-            System.out.println("untrusted(" + untrusted.size() + "): " + untrusted.stream().map((c) -> c.getSubjectDN().toString() + "[" + c.getIssuerDN() + "]").collect(java.util.stream.Collectors.joining(" - ")));
-
-            ListIterator<X509AuxCertificate> iter = sktmp.listIterator();
-            while (iter.hasNext()) {
-                X509AuxCertificate c = iter.next();
-                if (!x509_check_cert_time(c, -1)) {
-                    iter.remove();
-                }
-            }
-
-            System.out.println("sktmp(" + sktmp.size() + "): " + sktmp.stream().map((c) -> c.getSubjectDN().toString() + "[" + c.getIssuerDN() + "]").collect(java.util.stream.Collectors.joining(" - ")));
-        }
-        else System.out.println("untrusted: null");
 
         num = chain.size();
         x = chain.get(num - 1);
@@ -895,7 +878,6 @@ public class StoreContext {
             chain.add(x);
             num++;
         }
-
 
         /* we now have our chain, lets check it... */
 
