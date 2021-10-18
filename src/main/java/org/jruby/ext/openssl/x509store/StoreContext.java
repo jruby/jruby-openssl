@@ -823,8 +823,6 @@ public class StoreContext {
 
             if ( sktmp != null ) {
                 xtmp = findIssuer(sktmp, x, true);
-                System.out.println(" findIssuer: " + (xtmp == null ? null : (xtmp.getSubjectDN() + "[" + xtmp.getIssuerDN() + "]")));
-
                 if ( xtmp != null ) {
                     chain.add(xtmp);
                     sktmp.remove(xtmp);
@@ -878,65 +876,26 @@ public class StoreContext {
             }
         }
 
-        System.out.println(" getIssuer: " + getIssuer);
-
         // We now lookup certs from the certificate store
-        // JOSSL specific re-invention with semi alternate chain search
-        if (checkIssued.call(this, x, x) == 0) {
-            final int[] p_num = new int[] { num };
+        for(;;) {
+            // If we have enough, we break
+            if ( depth < num ) break;
+            // If we are self signed, we break
+            if ( checkIssued.call(this, x, x) != 0 ) break;
 
-            if (getIssuer == getFirstIssuer) {
-                LinkedList<X509AuxCertificate> xtmps = new LinkedList<>();
-                int ok = getValidIssuers(x, xtmps);
-                if ( ok < 0 ) return ok; // error
-                if ( ok != 0 ) { // at least one issuer for given name
-                    while (!xtmps.isEmpty()) {
-                        chain.add(x = xtmps.removeFirst());
-                        p_num[0] = num + 1;
+            X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
+            int ok = getIssuer.call(this, p_xtmp, x);
+            xtmp = p_xtmp[0];
 
-                        ok = finishChain(x, depth, p_num);
-                        if ( ok < 0 ) return ok; // error
-                        if ( ok == 1 ) {
-                            x = chain.get(chain.size() - 1);
-                            if (x509_check_cert_time(x, -1)) break;
-                        }
-                        // we're going to retry thus reset chain back:
-                        int added = p_num[0] - num;
-                        while (added-- > 0) chain.remove(chain.size() - 1);
-                    }
-                }
-            } else {
-                int ok = finishChain(x, depth, p_num);
-                if ( ok < 0 ) return ok; // error
-            }
+            if ( ok < 0 ) return ok;
+            if ( ok == 0 ) break;
 
-            if (p_num[0] != num) {
-                x = chain.get(chain.size() - 1);
-            }
-            num = p_num[0];
+            x = xtmp;
+
+            chain.add(x);
+            num++;
         }
 
-        // We now lookup certs from the certificate store
-//        for(;;) {
-//            // If we have enough, we break
-//            if ( depth < num ) break;
-//            // If we are self signed, we break
-//            if ( checkIssued.call(this, x, x) != 0 ) break;
-//
-//            X509AuxCertificate[] p_xtmp = new X509AuxCertificate[]{ xtmp };
-//            int ok = getIssuer.call(this, p_xtmp, x);
-//            xtmp = p_xtmp[0];
-//
-//            if ( ok < 0 ) return ok;
-//            if ( ok == 0 ) break;
-//
-//            x = xtmp;
-//
-//            System.out.println(" chain.add next: " + (xtmp == null ? null : (xtmp.getSubjectDN() + "[" + xtmp.getIssuerDN() + "]")));
-//
-//            chain.add(x);
-//            num++;
-//        }
 
         /* we now have our chain, lets check it... */
 
@@ -992,31 +951,6 @@ public class StoreContext {
             ok = checkPolicy.call(this);
         }
         return ok;
-    }
-
-    // JOSSL specific re-invention with semi alternate chain search
-    private int finishChain(X509AuxCertificate x, final int depth, final int[] _num)
-        throws Exception {
-        X509AuxCertificate[] p_xtmp = new X509AuxCertificate[] { null };
-        int num = _num[0];
-        for(;;) {
-            // If we have enough, we break
-            if ( depth < num ) break;
-            // If we are self signed, we break
-            if ( checkIssued.call(this, x, x) != 0 ) break;
-
-            int ok = getIssuer.call(this, p_xtmp, x);
-            if ( ok < 0 ) return ok; // error
-            if ( ok == 0 ) return 0; // no issuer for given name
-
-            x = p_xtmp[0];
-
-            chain.add(x);
-            num++;
-        }
-
-        _num[0] = num;
-        return 1;
     }
 
     /*
