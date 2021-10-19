@@ -234,20 +234,20 @@ public class Store implements X509TrustManager {
     }
 
     /**
-     * c: X509_STORE_add_cert
+     * int X509_STORE_add_cert(X509_STORE *ctx, X509 *x)
      */
     public int addCertificate(final X509Certificate cert) {
         if ( cert == null ) return 0;
 
-        final Certificate certObj = new Certificate(StoreContext.ensureAux(cert));
+        final Certificate obj = new Certificate(StoreContext.ensureAux(cert));
 
-        final X509Object[] objects = this.objects;
-        if ( matchedObject(objects, certObj) ) {
-            X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-            return 0;
+        synchronized (this) {
+            final X509Object[] objects = this.objects;
+            if ( matchedObject(objects, obj) ) {
+                return 1;
+            }
+            return addObject(obj); // 1
         }
-
-        return addObject(certObj, objects.length);
     }
 
     /**
@@ -256,15 +256,15 @@ public class Store implements X509TrustManager {
     public int addCRL(final java.security.cert.CRL crl) {
         if ( crl == null ) return 0;
 
-        final CRL crlObj = new CRL(crl);
+        final CRL obj = new CRL(crl);
 
-        final X509Object[] objects = this.objects;
-        if ( matchedObject(objects, crlObj) ) {
-            X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-            return 0;
+        synchronized (this) {
+            final X509Object[] objects = this.objects;
+            if ( matchedObject(objects, obj) ) {
+                return 1;
+            }
+            return addObject(obj); // 1
         }
-
-        return addObject(crlObj, objects.length);
     }
 
     private static boolean matchedObject(final X509Object[] objects, final X509Object xObject) {
@@ -274,34 +274,12 @@ public class Store implements X509TrustManager {
         return false;
     }
 
-    private synchronized int addObject(final X509Object xObject, final int prevLength) {
-        final int length = objects.length;
-        if ( length != prevLength ) { // something added concurrently
-            if ( matchedObject(objects, xObject) ) {
-                X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-                return 0;
-            }
-        }
-        X509Object[] newObjects = new X509Object[length + 1];
+    private int addObject(final X509Object xObject) {
+        final int len = this.objects.length;
 
-        int idx = length;
-        if (xObject instanceof Certificate) {
-            final X500Principal p1 = ((Certificate) xObject).cert.getIssuerX500Principal();
-            final Name n1 = new Name(p1);
-
-            for (idx = 0; idx < objects.length; idx++) {
-                X509Object xMember  = objects[idx];
-                if (xMember instanceof Certificate) {
-                    X500Principal p2 = ((Certificate) xMember).cert.getIssuerX500Principal();
-                    if (n1.equalTo(p2)) break;
-                }
-            }
-        }
-
-        System.arraycopy(objects, 0, newObjects, 0, idx);
-        System.arraycopy(objects, idx, newObjects, idx + 1, length-idx);
-        newObjects[idx] = xObject;
-        objects = newObjects;
+        X509Object[] objects = Arrays.copyOf(this.objects, len + 1);
+        objects[len] = xObject;
+        this.objects = objects;
         return 1;
     }
 
