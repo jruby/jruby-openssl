@@ -135,14 +135,27 @@ public class StoreContext {
         return getExtraData(0);
     }
 
-    /**
-     * c: X509_STORE_CTX_get1_issuer
+    /*-
+     * Try to get issuer certificate from store. Due to limitations
+     * of the API this can only retrieve a single certificate matching
+     * a given subject name. However it will fill the cache with all
+     * matching certificates, so we can examine the cache for all
+     * matches.
+     *
+     * Return values are:
+     *  1 lookup successful.
+     *  0 certificate not found.
+     * -1 some other error.
+     *
+     * int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x)
      */
     int getFirstIssuer(final X509AuxCertificate[] _issuer, final X509AuxCertificate x) throws Exception {
+        int ok;
+        // _issuer[0] = null;
         final Name xn = new Name( x.getIssuerX500Principal() );
         final X509Object[] s_obj = new X509Object[1];
-        int ok = store == null ? 0 : getBySubject(X509Utils.X509_LU_X509, xn, s_obj);
-        if ( ok != X509Utils.X509_LU_X509 ) {
+        ok = store == null ? 0 : getBySubject(X509_LU_X509, xn, s_obj);
+        if (ok != 1) {
             if ( ok == X509Utils.X509_LU_RETRY ) {
                 X509Error.addError(X509Utils.X509_R_SHOULD_RETRY);
                 return -1;
@@ -170,7 +183,8 @@ public class StoreContext {
         /* Look through all matching certificates for a suitable issuer */
         for ( int i = idx; i < objects.size(); i++ ) {
             final X509Object pobj = objects.get(i);
-            if ( pobj.type() != X509Utils.X509_LU_X509 ) {
+            /* See if we've run past the matches */
+            if (pobj.type() != X509_LU_X509) {
                 break; // return 0
             }
             final X509AuxCertificate x509 = ((Certificate) pobj).cert;
@@ -695,6 +709,8 @@ public class StoreContext {
     public int getBySubject(int type, Name name, X509Object[] ret) throws Exception {
         final Store store = this.store;
 
+        if (store == null) return 0;
+
         X509Object tmp = X509Object.retrieveBySubject(store.getObjects(), type, name);
         if (tmp == null || type == X509_LU_CRL) {
             for (Lookup lu : store.getCertificateMethods()) {
@@ -966,10 +982,10 @@ public class StoreContext {
          * instantiate chain public key parameters.
          */
         if ((ok = build_chain()) == 0 ||
-            (ok = check_chain_extensions()) == 0 // ||
+            (ok = check_chain_extensions()) == 0 ||
             //(ok = check_auth_level(ctx)) == 0 ||
-            //(ok = check_id()) == 0 || 1)
-            );
+            //(ok = check_id()) == 0 ||
+            true);
         if (ok == 0 || (ok = checkRevocation.call(this)) == 0)
             return ok;
 
@@ -1011,6 +1027,9 @@ public class StoreContext {
         int alt_untrusted = 0;
         int depth;
         int ok;
+
+        /* Our chain starts with a single untrusted element. */
+        assert num == 1 && num_untrusted == num;
 
         /*
          * Set up search policy, untrusted if possible, trusted-first if enabled.
@@ -1069,7 +1088,7 @@ public class StoreContext {
              * would be a-priori too long.
              */
             if ((search & S_DOTRUSTED) != 0) {
-                int i = num = chain.size();
+                num = chain.size(); int i = num;
                 if ((search & S_DOALTERNATE) != 0) {
                     /*
                      * As high up the chain as we can, look for an alternative
@@ -1143,7 +1162,6 @@ public class StoreContext {
                          */
                         if (!x.equals(xtmp)) {
                             /* Self-signed untrusted mimic. */
-                            xtmp = null;
                             ok = 0;
                         } else {
                             num_untrusted = --num;
@@ -1234,9 +1252,10 @@ public class StoreContext {
                 chain.add(xtmp);
 
                 x = xtmp;
-                num_untrusted++;
+                ++num_untrusted;
                 ss = cert_self_signed(xtmp);
 
+                trust = X509_TRUST_UNTRUSTED; // switch (trust = check_dane_issuer(...))
             }
         }
         // sk_X509_free(sktmp)
@@ -1264,8 +1283,9 @@ public class StoreContext {
                 if (num > depth) {
                     return verify_cb_cert(null, num - 1, V_ERR_CERT_CHAIN_TOO_LONG);
                 }
-                if (ss && num == 1)
+                if (ss && num == 1) {
                     return verify_cb_cert(null, num - 1, V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT);
+                }
                 if (ss) {
                     return verify_cb_cert(null, num - 1, V_ERR_SELF_SIGNED_CERT_IN_CHAIN);
                 }
@@ -1281,9 +1301,7 @@ public class StoreContext {
         final X509AuxCertificate cert, final boolean check_time) throws Exception {
         for ( X509AuxCertificate issuer : certs ) {
             if ( checkIssued.call(this, cert, issuer) != 0 ) {
-
                 if (!check_time || x509_check_cert_time(issuer, -1)) return issuer;
-                //return issuer;
             }
         }
         return null;
@@ -1479,7 +1497,6 @@ public class StoreContext {
             case X509_TRUST_REJECTED:
                 break;
             default:
-                // TODO X509_check_purpose(x, purpose, must_be_ca) passing down must_be_ca == -1
                 switch (Purpose.checkPurpose(x, verifyParameter.purpose, must_be_ca > 0 ? 1 : 0)) { // X509_check_purpose(x, purpose, must_be_ca)
                     case 1:
                         return 1;
