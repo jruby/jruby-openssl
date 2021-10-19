@@ -35,6 +35,8 @@ import java.util.Iterator;
 
 import org.bouncycastle.asn1.ASN1Primitive;
 
+import static org.jruby.ext.openssl.x509store.X509Utils.*;
+
 /**
  * c: X509_VERIFY_PARAM
  *
@@ -294,44 +296,44 @@ public class VerifyParameter {
 
     private final static VerifyParameter[] defaultTable = new VerifyParameter[] {
         new VerifyParameter(
-                            "default",	/* X509 default parameters */
-                            0,		/* Check time */
-                            0,		/* internal flags */
-                            0,		/* flags */
-                            0,		/* purpose */
-                            0,		/* trust */
-                            100,	/* depth */
-                            null	/* policies */
+                            "default",	          /* X509 default parameters */
+                            0,		              /* Check time */
+                            0,		              /* internal flags */
+                            V_FLAG_TRUSTED_FIRST,     /* flags */
+                            0,		              /* purpose */
+                            0,		              /* trust */
+                            100,	                  /* depth */
+                            null	              /* policies */
                             ),
         new VerifyParameter(
-                            "pkcs7",			/* SSL/TLS client parameters */
-                            0,				/* Check time */
-                            0,				/* internal flags */
-                            0,				/* flags */
-                            X509Utils.X509_PURPOSE_SMIME_SIGN,	/* purpose */
-                            X509Utils.X509_TRUST_EMAIL,		/* trust */
-                            -1,				/* depth */
-                            null				/* policies */
+                            "pkcs7",			      /* S/MIME sign parameters */
+                            0,				      /* Check time */
+                            0,				      /* internal flags */
+                            0,				      /* flags */
+                            X509_PURPOSE_SMIME_SIGN,  /* purpose */
+                            X509_TRUST_EMAIL,		  /* trust */
+                            -1,				      /* depth */
+                            null				  /* policies */
                             ),
         new VerifyParameter(
-                            "ssl_client",			/* SSL/TLS client parameters */
-                            0,				/* Check time */
-                            0,				/* internal flags */
-                            0,				/* flags */
-                            X509Utils.X509_PURPOSE_SSL_CLIENT,	/* purpose */
-                            X509Utils.X509_TRUST_SSL_CLIENT,		/* trust */
-                            -1,				/* depth */
-                            null				/* policies */
+                            "ssl_client",          /* SSL/TLS client parameters */
+                            0,                     /* Check time */
+                            0,                    /* internal flags */
+                            0,				      /* flags */
+                            X509_PURPOSE_SSL_CLIENT,  /* purpose */
+                            X509_TRUST_SSL_CLIENT,    /* trust */
+                            -1,                    /* depth */
+                            null                  /* policies */
                             ),
         new VerifyParameter(
-                            "ssl_server",			/* SSL/TLS server parameters */
-                            0,				/* Check time */
-                            0,				/* internal flags */
-                            0,				/* flags */
-                            X509Utils.X509_PURPOSE_SSL_SERVER,	/* purpose */
-                            X509Utils.X509_TRUST_SSL_SERVER,		/* trust */
-                            -1,				/* depth */
-                            null				/* policies */
+                            "ssl_server",           /* SSL/TLS server parameters */
+                            0,                      /* Check time */
+                            0,                     /* internal flags */
+                            0,                      /* flags */
+                            X509_PURPOSE_SSL_SERVER,   /* purpose */
+                            X509_TRUST_SSL_SERVER,     /* trust */
+                            -1,                     /* depth */
+                            null                   /* policies */
                             )};
 
     private final static List<VerifyParameter> parameterTable = new ArrayList<VerifyParameter>();
