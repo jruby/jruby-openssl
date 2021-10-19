@@ -81,7 +81,7 @@ public class Store implements X509TrustManager {
     private volatile X509Object[] objects = NULL_OBJECTS;
     private volatile Lookup[] certLookups = NULL_LOOKUP;
 
-    public final VerifyParameter verifyParameter;
+    final VerifyParameter verifyParameter;
 
     VerifyFunction verify;
     VerifyCallbackFunction verifyCallback;
@@ -116,10 +116,6 @@ public class Store implements X509TrustManager {
 
     public List<Lookup> getCertificateMethods() {
         return Arrays.asList(certLookups);
-    }
-
-    public VerifyParameter getVerifyParameter() {
-        return verifyParameter;
     }
 
     /**
@@ -195,6 +191,10 @@ public class Store implements X509TrustManager {
      */
     public int setTrust(int trust) {
         return verifyParameter.setTrust(trust);
+    }
+
+    public VerifyParameter getParam() {
+        return verifyParameter;
     }
 
     /**

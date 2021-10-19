@@ -945,7 +945,7 @@ public class SSLContext extends RubyObject {
             // for verify_cb
             storeContext.setExtraData(1, store.getExtraData(1));
             if ( purpose != null ) storeContext.setDefault(purpose);
-            storeContext.verifyParameter.inherit(store.verifyParameter);
+            storeContext.getParam().inherit(store.getParam());
             return storeContext;
         }
 
