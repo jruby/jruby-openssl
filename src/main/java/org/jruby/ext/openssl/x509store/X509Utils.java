@@ -519,7 +519,7 @@ public abstract class X509Utils {
     public static final int X509_PURPOSE_MIN = 1;
     public static final int X509_PURPOSE_MAX = 8;
 
-    public static final int X509_TRUST_DEFAULT = -1;
+    public static final int X509_TRUST_DEFAULT = 0; /* Only valid in purpose settings */
 
     public static final int X509_TRUST_COMPAT = 1;
     public static final int X509_TRUST_SSL_CLIENT = 2;

@@ -1621,6 +1621,7 @@ public class StoreContext {
         return false;
     }
 
+    // NOTE: does not execute by default due: if ( verifyParameter.trust > 0 ) ...
     @Deprecated // legacy check_trust
     private int checkTrust() throws Exception {
         int i,ok;
@@ -1628,8 +1629,9 @@ public class StoreContext {
         i = chain.size()-1;
         x = chain.get(i);
         ok = Trust.checkTrust(x, verifyParameter.trust, 0);
+
         if ( ok == X509Utils.X509_TRUST_TRUSTED ) {
-            return 1;
+            return 1; // X509_TRUST_TRUSTED
         }
         errorDepth = 1;
         currentCertificate = x;
@@ -1644,7 +1646,7 @@ public class StoreContext {
     /*
      * x509_vfy.c: check_trust(X509_STORE_CTX *ctx, int num_untrusted)
      */
-    private int check_trust(int num_untrusted) throws Exception {
+    private int check_trust(final int num_untrusted) throws Exception {
         int i;
         final int num = chain.size();
         int trust;
