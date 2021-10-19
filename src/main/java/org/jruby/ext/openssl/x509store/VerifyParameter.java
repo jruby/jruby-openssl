@@ -88,12 +88,12 @@ public class VerifyParameter {
     /**
      * c: X509_VERIFY_PARAM_inherit
      */
-    public int inherit(VerifyParameter src) {
+    public void inherit(VerifyParameter src) {
         long inh_flags;
         boolean to_d, to_o;
 
-        if(src == null) {
-            return 1;
+        if (src == null) {
+            return;
         }
 
 
@@ -102,7 +102,7 @@ public class VerifyParameter {
             this.inheritFlags = 0;
         }
         if((inh_flags & X509Utils.X509_VP_FLAG_LOCKED) != 0) {
-            return 1;
+            return;
         }
         to_d = ((inh_flags & X509Utils.X509_VP_FLAG_DEFAULT) != 0);
         to_o = ((inh_flags & X509Utils.X509_VP_FLAG_OVERWRITE) != 0);
@@ -128,18 +128,18 @@ public class VerifyParameter {
 
         this.flags |= src.flags;
 
-        if(to_o || ((src.policies != null && (to_d || this.policies == null)))) {
+        if (to_o || ((src.policies != null && (to_d || this.policies == null)))) {
             setPolicies(src.policies);
         }
-        return 1;
+        return;
     }
 
     /**
      * c: X509_VERIFY_PARAM_set1
      */
-    public int set(VerifyParameter from) {
+    void set(VerifyParameter from) {
         inheritFlags |= X509Utils.X509_VP_FLAG_DEFAULT;
-        return inherit(from);
+        inherit(from);
     }
 
     /**

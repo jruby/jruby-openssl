@@ -270,10 +270,15 @@ public class StoreContext {
     }
 
     /**
-     * c: X509_STORE_CTX_init
+     * int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *cert,
+     *                         STACK_OF(X509) *chain)
+     *
+     * @param cert the certificate (to be verified)
+     * @param untrusted_chain the (untrusted) chain of certs returned by the server
+     * @return 1
      */
     public int init(X509AuxCertificate cert, List<X509AuxCertificate> untrusted_chain) {
-        int ret = 1;
+        // int ret = 1;
         this.certificate = cert;
         this.untrusted = untrusted_chain;
         this.crls = null;
@@ -349,21 +354,27 @@ public class StoreContext {
         this.verifyParameter = new VerifyParameter();
 
         if ( store != null ) {
-            ret = verifyParameter.inherit(store.verifyParameter);
+            verifyParameter.inherit(store.verifyParameter);
         } else {
-            verifyParameter.flags |= X509Utils.X509_VP_FLAG_DEFAULT | X509Utils.X509_VP_FLAG_ONCE;
+            verifyParameter.inheritFlags |= X509_VP_FLAG_DEFAULT | X509_VP_FLAG_ONCE;
         }
 
-        if ( ret != 0 ) {
-            ret = verifyParameter.inherit(VerifyParameter.lookup("default"));
+        verifyParameter.inherit(VerifyParameter.lookup("default"));
+
+        /*
+         * XXX: For now, continue to inherit trust from VPM, but infer from the
+         * purpose if this still yields the default value.
+         */
+        if (verifyParameter.trust == X509_TRUST_DEFAULT) {
+            int idx = Purpose.getByID(verifyParameter.purpose);
+            Purpose xp = Purpose.getFirst(idx);
+
+            if (xp != null) {
+                verifyParameter.trust = xp.trust; // X509_PURPOSE_get_trust
+            }
         }
 
-        if ( ret == 0 ) {
-            X509Error.addError(X509Utils.ERR_R_MALLOC_FAILURE);
-            return 0;
-        }
-
-        // getExtraData();
+        // getExtraData(); // CRYPTO_new_ex_data
         return 1;
     }
 
@@ -671,10 +682,10 @@ public class StoreContext {
     /**
      * c: X509_STORE_CTX_set_default
      */
-    public int setDefault(String name) {
+    public void setDefault(String name) {
         VerifyParameter p = VerifyParameter.lookup(name);
-        if ( p == null ) return 0;
-        return verifyParameter.inherit(p);
+        if ( p == null ) return; // return 0
+        verifyParameter.inherit(p); // return 1
     }
 
     /*

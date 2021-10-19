@@ -200,8 +200,8 @@ public class Store implements X509TrustManager {
     /**
      * c: X509_STORE_set1_param
      */
-    public int setParam(VerifyParameter param) {
-        return verifyParameter.set(param);
+    public void setParam(VerifyParameter param) {
+        verifyParameter.set(param);
     }
 
     /**
