@@ -488,14 +488,16 @@ public class StoreContext {
     }
 
     /**
-     * c: X509_STORE_CTX_set_purpose
+     * int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose)
+     * @return 0 || 1
      */
     public int setPurpose(int purpose) {
         return purposeInherit(0, purpose, 0);
     }
 
     /**
-     * c: X509_STORE_CTX_set_trust
+     * int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust)
+     * @return 0 || 1
      */
     public int setTrust(int trust) {
         return purposeInherit(0, 0, trust);
@@ -569,46 +571,50 @@ public class StoreContext {
         }
     } */
 
-    /**
-     * c: X509_STORE_CTX_purpose_inherit
+    /*
+     * int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,
+     *                                    int purpose, int trust)
      */
-    public int purposeInherit(int defaultPurpose,int purpose, int trust) {
+    private int purposeInherit(final int def_purpose, int purpose, int trust) {
         int idx;
-        if(purpose == 0) {
-            purpose = defaultPurpose;
+        /* If purpose not set use default */
+        if (purpose == 0) {
+            purpose = def_purpose;
         }
-        if(purpose != 0) {
-            idx = Purpose.getByID(purpose);
-            if(idx == -1) {
+        /* If we have a purpose then check it is valid */
+        if (purpose != 0) {
+            idx = Purpose.getByID(purpose); // X509_PURPOSE_get_by_id
+            if (idx == -1) {
                 X509Error.addError(X509Utils.X509_R_UNKNOWN_PURPOSE_ID);
                 return 0;
             }
-            Purpose ptmp = Purpose.getFirst(idx);
-            if(ptmp.trust == X509Utils.X509_TRUST_DEFAULT) {
-                idx = Purpose.getByID(defaultPurpose);
-                if(idx == -1) {
+            Purpose ptmp = Purpose.getFirst(idx); // X509_PURPOSE_get0
+            if (ptmp.trust == X509Utils.X509_TRUST_DEFAULT) {
+                idx = Purpose.getByID(def_purpose);
+                if (idx == -1) {
                     X509Error.addError(X509Utils.X509_R_UNKNOWN_PURPOSE_ID);
                     return 0;
                 }
-                ptmp = Purpose.getFirst(idx);
+                ptmp = Purpose.getFirst(idx); // X509_PURPOSE_get0
             }
-            if(trust == 0) {
+            /* If trust not set then get from purpose default */
+            if (trust == 0) {
                 trust = ptmp.trust;
             }
         }
-        if(trust != 0) {
-            idx = Trust.getByID(trust);
-            if(idx == -1) {
+        if (trust != 0) {
+            idx = Trust.getByID(trust); // X509_TRUST_get_by_id
+            if (idx == -1) {
                 X509Error.addError(X509Utils.X509_R_UNKNOWN_TRUST_ID);
                 return 0;
             }
         }
 
-        if(purpose != 0 && verifyParameter.purpose == 0) {
-            verifyParameter.purpose = purpose;
+        if (purpose != 0 && getParam().purpose == 0) {
+            getParam().purpose = purpose;
         }
-        if(trust != 0 && verifyParameter.trust == 0) {
-            verifyParameter.trust = trust;
+        if (trust != 0 && getParam().trust == 0) {
+            getParam().trust = trust;
         }
         return 1;
     }
