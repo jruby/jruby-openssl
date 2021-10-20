@@ -2386,8 +2386,9 @@ public class StoreContext {
                 }
             }
 
-            ok = context.checkCRLTime(crl, 1);
-            if ( ok == 0 ) return ok;
+            //ok = context.checkCRLTime(crl, 1);
+            //if ( ok == 0 ) return ok;
+            if (!context.check_crl_time(crl, true)) return 0;
 
             return 1;
         }
