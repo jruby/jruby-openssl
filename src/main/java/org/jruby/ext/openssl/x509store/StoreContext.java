@@ -1515,7 +1515,7 @@ public class StoreContext {
             case X509_TRUST_REJECTED:
                 break;
             default:
-                switch (Purpose.checkPurpose(x, verifyParameter.purpose, must_be_ca > 0 ? 1 : 0)) { // X509_check_purpose(x, purpose, must_be_ca)
+                switch (Purpose.checkPurpose(x, getParam().purpose, must_be_ca > 0 ? 1 : 0)) { // X509_check_purpose(x, purpose, must_be_ca)
                     case 1:
                         return 1;
                     case 0:
