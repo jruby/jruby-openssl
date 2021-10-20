@@ -754,6 +754,20 @@ public class StoreContext {
         return sk;
     }
 
+    /* Get issuer, without duplicate suppression */
+    private int get_issuer(X509AuxCertificate[] issuer, X509AuxCertificate cert) throws Exception {
+        final ArrayList saved_chain = this.chain;
+        int ok;
+
+        this.chain = null;
+        try {
+            ok = this.getIssuer.call(this, issuer, cert);
+        } finally {
+            this.chain = saved_chain;
+        }
+        return ok;
+    }
+
     private List<X509AuxCertificate> matchCachedCertObjectsFromStore(final Name name) {
         ArrayList<X509AuxCertificate> sk = new ArrayList<X509AuxCertificate>();
         for (X509Object obj : store.getObjects()) {
