@@ -1998,13 +1998,10 @@ public class StoreContext {
      *
      * x509_vfy.c: static int check_issued(X509_STORE_CTX *ctx, X509 *x, X509 *issuer)
      */
-
-    // TODO logic mismtach - check store.checkIssued logic or always use legacy
-
     final static Store.CheckIssuedFunction check_issued = new Store.CheckIssuedFunction() {
         public int call(StoreContext ctx, X509AuxCertificate x, X509AuxCertificate issuer) throws Exception {
             int ret;
-            if (x == issuer) return ctx.cert_self_signed(x) ? 1 : 0;
+            if (x.equals(issuer)) return ctx.cert_self_signed(x) ? 1 : 0;
             ret = checkIfIssuedBy(issuer, x);
             if (ret == V_OK) {
                 /* Special case: single self signed certificate */
