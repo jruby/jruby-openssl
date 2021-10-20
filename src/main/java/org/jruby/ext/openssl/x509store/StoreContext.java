@@ -1812,6 +1812,10 @@ public class StoreContext {
         cnum = errorDepth;
         x = chain.get(cnum);
         currentCertificate = x;
+        currentIssuer = null;
+
+        if (x.getExtensionValue("1.3.6.1.5.5.7.1.14") != null) return 1; // (x.getExFlags() & EXFLAG_PROXY) != 0
+
         ok = getCRL.call(this, crl, x);
         if ( ok == 0 ) {
             error = X509Utils.V_ERR_UNABLE_TO_GET_CRL;
