@@ -374,6 +374,9 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
 -----END CERTIFICATE-----
   EOF
 
+  require 'time'
+  VERIFY_EXPIRED_TIME = Time.parse("2021/10/20 09:10:00")
+
   def test_cert_verify_expired1_lets_encrypt_cross_signed_root
     # reproducer for https://github.com/jruby/jruby-openssl/issues/236
     #
@@ -392,6 +395,7 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
     ]
 
     cert_store = OpenSSL::X509::Store.new
+    cert_store.time = VERIFY_EXPIRED_TIME
     root_bundle.each { |cert| cert_store.add_cert cert }
 
     # the endpoint will send the leaf node + these two intermediate certs
@@ -449,6 +453,7 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
     ]
 
     cert_store = OpenSSL::X509::Store.new
+    cert_store.time = VERIFY_EXPIRED_TIME
     root_bundle.each { |cert| cert_store.add_cert cert }
 
     # cross-signed cert is sent from the server :
@@ -484,6 +489,7 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
     ]
 
     cert_store = OpenSSL::X509::Store.new
+    cert_store.time = VERIFY_EXPIRED_TIME
     root_bundle.each { |cert| cert_store.add_cert cert }
 
     chain = [
@@ -501,6 +507,15 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
                   "/C=US/O=Let's Encrypt/CN=R3",
                   "/C=US/O=Internet Security Research Group/CN=ISRG Root X1"],
                  cert_store.chain.map { |cert| cert.subject.to_s }
+
+    cert_store = OpenSSL::X509::Store.new
+    cert_store.time = VERIFY_EXPIRED_TIME
+    cert_store.add_cert root_bundle[1] # only the expired one
+
+    ok = cert_store.verify(LEAF_CERTIFICATE, chain)
+
+    assert !ok
+    assert_equal 'unable to get issuer certificate', cert_store.error_string
   end
 
 end
