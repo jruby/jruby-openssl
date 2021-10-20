@@ -1506,7 +1506,8 @@ public class StoreContext {
          * also set.
          */
         if (depth >= num_untrusted && purpose == getParam().purpose) {
-            tr_ok = Trust.checkTrust(x, getParam().trust, X509_TRUST_NO_SS_COMPAT); // X509_check_trust
+            // TODO JOSSL auxiliary settings aren't properly implemented ...
+            //tr_ok = Trust.checkTrust(x, getParam().trust, X509_TRUST_NO_SS_COMPAT); // X509_check_trust
         }
 
         switch (tr_ok) {
