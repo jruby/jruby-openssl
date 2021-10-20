@@ -636,7 +636,7 @@ public abstract class X509Utils {
     /* EXFLAG_SET is set to indicate that some values have been precomputed */
     //public static final int EXFLAG_SET=0x100;
     //public static final int EXFLAG_CRITICAL=0x200;
-    //public static final int EXFLAG_PROXY=0x400;
+    public static final int EXFLAG_PROXY=0x400;
 
     //public static final int EXFLAG_INVALID_POLICY=0x800;
     //public static final int EXFLAG_FRESHEST=0x1000;

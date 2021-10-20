@@ -1551,7 +1551,7 @@ public class StoreContext {
                 if (verify_cb_cert(x, i, V_ERR_UNHANDLED_CRITICAL_EXTENSION) == 0)
                     return 0;
             }
-            if (allow_proxy_certs == false && x.getExtensionValue("1.3.6.1.5.5.7.1.14") != null) { // && (x->ex_flags & EXFLAG_PROXY)
+            if (allow_proxy_certs == false && (x.getExFlags() & EXFLAG_PROXY) != 0) {
                 if (verify_cb_cert(x, i, V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED) == 0)
                     return 0;
             }

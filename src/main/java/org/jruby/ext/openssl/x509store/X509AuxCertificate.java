@@ -181,6 +181,10 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
             flags |= X509Utils.EXFLAG_XKUSAGE;
         }
 
+        if (getExtensionValue("1.3.6.1.5.5.7.1.14") != null) {
+            flags |= X509Utils.EXFLAG_PROXY;
+        }
+
         return flags;
     }
 
