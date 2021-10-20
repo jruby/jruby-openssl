@@ -47,6 +47,7 @@ import java.util.Set;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.jruby.ext.openssl.OpenSSL;
 import org.jruby.ext.openssl.SecurityHelper;
 
 import static org.jruby.ext.openssl.x509store.X509Error.addError;
@@ -1135,6 +1136,7 @@ public class StoreContext {
                      */
                     if ((search & S_DOALTERNATE) != 0) {
                         if (!(num > i && i > 0 && ss == false)) { // ossl_assert
+                            OpenSSL.debug(this + " assert failure (num > i && i > 0 && ss == false)");
                             addError(ERR_R_INTERNAL_ERROR);
                             trust = X509_TRUST_REJECTED;
                             this.error = V_ERR_UNSPECIFIED;
@@ -1184,6 +1186,7 @@ public class StoreContext {
                      */
                     if (ok != 0) {
                         if (!(num_untrusted <= num)) { // ossl_assert
+                            OpenSSL.debug(this + " assert failure (num_untrusted <= num)");
                             addError(ERR_R_INTERNAL_ERROR);
                             trust = X509_TRUST_REJECTED;
                             this.error = V_ERR_UNSPECIFIED;
@@ -1227,6 +1230,7 @@ public class StoreContext {
             if ((search & S_DOUNTRUSTED) != 0) {
                 num = chain.size();
                 if (!(num == num_untrusted)) { // ossl_assert
+                    OpenSSL.debug(this + " assert failure (num == num_untrusted)");
                     addError(ERR_R_INTERNAL_ERROR);
                     trust = X509_TRUST_REJECTED;
                     this.error = V_ERR_UNSPECIFIED;
