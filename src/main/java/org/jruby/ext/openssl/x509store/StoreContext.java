@@ -2185,13 +2185,6 @@ public class StoreContext {
                     if (ok == 0) return ok;
                 }
 
-                //ok = context.checkCertificateTime(xs);
-                //if (ok == 0) return ok;
-                //
-                //context.currentIssuer = xi;
-                //context.currentCertificate = xs;
-                //ok = verifyCallback.call(context, 1);
-                //if (ok == 0) return ok;
                 if (!internal_verify_check_cert(context, xi, xs, n)) {
                     return 0;
                 }
