@@ -322,7 +322,7 @@ public class StoreContext {
         this.verify = null;
         this.checkRevocation = StoreContext.check_revocation;
         this.getCRL = defaultGetCRL;
-        this.checkCRL = defaultCheckCRL;
+        this.checkCRL = check_crl_legacy;
         this.certificateCRL = defaultCertificateCRL;
 
         if ( store != null ) {
@@ -1812,10 +1812,56 @@ public class StoreContext {
         return ok;
     }
 
-    /**
-     * c: check_crl_time
-     */
-    public int checkCRLTime(X509CRL crl, int notify) throws Exception {
+    /* Check CRL times against values in X509_STORE_CTX */
+    private boolean check_crl_time(X509CRL crl, final boolean notify) throws Exception {
+        final Date pTime;
+
+        if (notify) this.currentCRL = crl;
+
+        if ((getParam().flags & V_FLAG_USE_CHECK_TIME) != 0) {
+            pTime = getParam().checkTime;
+        } else if ((getParam().flags & V_FLAG_NO_CHECK_TIME) != 0) {
+            return true;
+        } else {
+            pTime = Calendar.getInstance().getTime();
+        }
+
+        int i = crl.getThisUpdate().compareTo(pTime);
+        if (i == 0) {
+            if (!notify) return false;
+            if (verify_cb_crl(V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD) == 0)
+                return false;
+        }
+
+        if (i > 0) {
+            if (!notify) return false;
+            if (verify_cb_crl(V_ERR_CRL_NOT_YET_VALID) == 0)
+                return false;
+        }
+
+        if (crl.getNextUpdate() != null) {
+            i = crl.getNextUpdate().compareTo(pTime);
+
+            if (i == 0) {
+                if (!notify) return false;
+                if (verify_cb_crl(V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD) == 0)
+                    return false;
+            }
+            /* Ignore expiry of base CRL is delta is valid */
+            if ((i < 0) /*&& !(ctx->current_crl_score & CRL_SCORE_TIME_DELTA)*/) {
+                if (!notify) return false;
+                if (verify_cb_crl(V_ERR_CRL_HAS_EXPIRED) == 0)
+                    return false;
+            }
+        }
+
+        if (notify) this.currentCRL = null;
+
+        return true;
+    }
+
+    @Deprecated // legacy check_crl_time
+    private int checkCRLTime(X509CRL crl, int notify) throws Exception {
         currentCRL = crl;
         final Date pTime;
         if ((getParam().flags & V_FLAG_USE_CHECK_TIME) != 0) {
@@ -1890,6 +1936,18 @@ public class StoreContext {
         this.errorDepth = depth;
         this.currentCertificate = x != null ? x : chain.get(depth);
         if (err != V_OK) this.error = err;
+        return verifyCallback.call(this, 0); // ctx->verify_cb(0, ctx)
+    }
+
+    /*-
+     * Inform the verify callback of an error, CRL-specific variant.  Here, the
+     * error depth and certificate are already set, we just specify the error
+     * number.
+     *
+     * Returns 0 to abort verification with an error, non-zero to continue.
+     */
+    private int verify_cb_crl(int err) throws Exception {
+        this.error = err;
         return verifyCallback.call(this, 0); // ctx->verify_cb(0, ctx)
     }
 
@@ -2180,10 +2238,94 @@ public class StoreContext {
         }
     };
 
-    /**
-     * c: check_crl
-     */
-    final static Store.CheckCRLFunction defaultCheckCRL = new Store.CheckCRLFunction() {
+    // TODO unused due incomplete - needs score support to pass test_x509store.rb tests?
+    /* Check CRL validity */
+    private int check_crl(X509CRL crl) throws Exception {
+        final X509AuxCertificate issuer;
+        int cnum = this.errorDepth;
+        int chnum = this.chain.size() - 1;
+
+        /* if we have an alternative CRL issuer cert use that */
+        if (this.currentIssuer != null)
+            issuer = this.currentIssuer;
+            /*
+             * Else find CRL issuer: if not last certificate then issuer is next
+             * certificate in chain.
+             */
+        else if (cnum < chnum)
+            issuer = this.chain.get(cnum + 1);
+        else {
+            issuer = this.chain.get(chnum);
+            /* If not self signed, can't check signature */
+            if (this.checkIssued.call(this, issuer, issuer) == 0 &&
+                    verify_cb_crl(V_ERR_UNABLE_TO_GET_CRL_ISSUER) == 0)
+                return 0;
+        }
+
+        if (issuer == null) {
+            return 1;
+        }
+
+        /*
+         * Skip most tests for deltas because they have already been done
+         */
+        //if (!crl->base_crl_number) {
+            /* Check for cRLSign bit if keyUsage present */
+            if (issuer.getKeyUsage() != null && !issuer.getKeyUsage()[6]) {
+                if (verify_cb_crl(V_ERR_KEYUSAGE_NO_CRL_SIGN) == 0) return 0;
+            }
+
+            //if (!(ctx->current_crl_score & CRL_SCORE_SCOPE) &&
+            //        !verify_cb_crl(ctx, X509_V_ERR_DIFFERENT_CRL_SCOPE))
+            //    return 0;
+            //
+            //if (!(ctx->current_crl_score & CRL_SCORE_SAME_PATH) &&
+            //        check_crl_path(ctx, ctx->current_issuer) <= 0 &&
+            //        !verify_cb_crl(ctx, X509_V_ERR_CRL_PATH_VALIDATION_ERROR))
+            //    return 0;
+            //
+            //if ((crl->idp_flags & IDP_INVALID) &&
+            //        !verify_cb_crl(ctx, X509_V_ERR_INVALID_EXTENSION))
+            //    return 0;
+        //}
+
+        //if (!(ctx->current_crl_score & CRL_SCORE_TIME) &&
+        //        !check_crl_time(ctx, crl, 1))
+        //    return 0;
+        if (!check_crl_time(crl, true)) return 0;
+
+        /* Attempt to get issuer certificate public key */
+        final PublicKey ikey = issuer.getPublicKey(); // X509_get0_pubkey(issuer)
+
+        if (ikey == null && verify_cb_crl(V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY) == 0) {
+            return 0;
+        }
+
+        if (ikey != null) {
+            //int rv = X509_CRL_check_suiteb(crl, ikey, ctx->param->flags);
+            //
+            //if (rv != V_OK && verify_cb_crl(rv) == 0) {
+            //    return 0;
+            //}
+            /* Verify CRL signature */
+            try {
+                SecurityHelper.verify(crl, ikey); // X509_CRL_verify
+            }
+            catch (GeneralSecurityException ex) {
+                if (verify_cb_crl(V_ERR_CRL_SIGNATURE_FAILURE) == 0) return 0;
+            }
+        }
+        return 1;
+    }
+
+    /* Check CRL validity */
+    final static Store.CheckCRLFunction check_crl = new Store.CheckCRLFunction() {
+        public int call(final StoreContext ctx, final X509CRL crl) throws Exception {
+            return ctx.check_crl(crl);
+        }
+    };
+
+    final static Store.CheckCRLFunction check_crl_legacy = new Store.CheckCRLFunction() {
         public int call(final StoreContext context, final X509CRL crl) throws Exception {
             final int errorDepth = context.errorDepth;
             final int lastInChain = context.chain.size() - 1;
