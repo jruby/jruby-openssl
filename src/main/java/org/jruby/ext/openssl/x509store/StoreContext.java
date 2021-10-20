@@ -1660,8 +1660,8 @@ public class StoreContext {
 
     /* Return 1 is a certificate is self signed */
     private boolean cert_self_signed(X509AuxCertificate x) throws CertificateException, IOException {
-        Purpose.checkPurpose(x, -1, 0);
-        if ((x.getExFlags() & EXFLAG_SS) != 0) {
+        // Purpose.checkPurpose(x, -1, 0);
+        if ((x.getExFlags() & EXFLAG_SI) != 0) { // TODO EXFLAG_SS
             return true;
         }
         return false;
