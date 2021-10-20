@@ -206,10 +206,10 @@ public abstract class X509Utils {
         return new ASN1InputStream(input).readObject();
     }
 
-    /**
-     * c: X509_check_issued
+    /*
+     * c: X509_check_issued + x509_likely_issued + x509_signing_allowed
      */
-    public static int checkIfIssuedBy(final X509AuxCertificate issuer,
+    static int checkIfIssuedBy(final X509AuxCertificate issuer,
         final X509AuxCertificate subject) throws IOException {
 
         if ( ! issuer.getSubjectX500Principal().equals(subject.getIssuerX500Principal()) ) {
