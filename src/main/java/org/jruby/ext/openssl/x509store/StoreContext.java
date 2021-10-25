@@ -41,7 +41,6 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1InputStream;
@@ -49,6 +48,7 @@ import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.jruby.ext.openssl.OpenSSL;
 import org.jruby.ext.openssl.SecurityHelper;
+import org.jruby.util.SafePropertyAccessor;
 
 import static org.jruby.ext.openssl.x509store.X509Error.addError;
 import static org.jruby.ext.openssl.x509store.X509Utils.*;
