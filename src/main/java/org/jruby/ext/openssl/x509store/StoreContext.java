@@ -64,13 +64,14 @@ public class StoreContext {
 
     private final Store store;
 
-    X509AuxCertificate certificate;
+    X509AuxCertificate cert;
     List<X509AuxCertificate> untrusted;
     List<X509CRL> crls;
 
-    public VerifyParameter verifyParameter;
+    private VerifyParameter verifyParameter;
+    private List<Object> extraData;
 
-    public List<X509AuxCertificate> otherContext;
+    private List<X509AuxCertificate> otherContext;
 
     public StoreContext(final Store store) {
         this.store = store;
@@ -93,21 +94,19 @@ public class StoreContext {
 
     public boolean isValid;
 
-    private int num_untrusted; // lastUntrusted in the chain
+    private int num_untrusted; // last_untrusted (OpenSSL 1.0.2) in the chain
 
     private ArrayList<X509AuxCertificate> chain;
 
     private PolicyTree tree;
-    private int explicitPolicy;
+    private int explicit_policy;
 
-    public int error;
-    public int errorDepth;
+    int error;
+    int error_depth;
 
-    X509AuxCertificate currentCertificate;
-    X509AuxCertificate currentIssuer;
-    X509CRL currentCRL;
-
-    List<Object> extraData;
+    X509AuxCertificate current_cert;
+    X509AuxCertificate current_issuer;
+    X509CRL current_crl;
 
     private StoreContext parent; // NOTE: not implemented - dummy null for now
 
@@ -294,7 +293,7 @@ public class StoreContext {
      */
     public int init(X509AuxCertificate cert, List<X509AuxCertificate> untrusted_chain) {
         // int ret = 1;
-        this.certificate = cert;
+        this.cert = cert;
         this.untrusted = untrusted_chain;
         this.crls = null;
         this.num_untrusted = 0;
@@ -302,11 +301,11 @@ public class StoreContext {
         this.isValid = false;
         this.chain = null;
         this.error = V_OK;
-        this.explicitPolicy = 0;
-        this.errorDepth = 0;
-        this.currentCertificate = null;
-        this.currentIssuer = null;
-        this.currentCRL = null;
+        this.explicit_policy = 0;
+        this.error_depth = 0;
+        this.current_cert = null;
+        this.current_issuer = null;
+        this.current_crl = null;
         this.tree = null;
         this.parent = null;
 
@@ -455,18 +454,18 @@ public class StoreContext {
      * c: X509_STORE_CTX_get_error_depth
      */
     public int getErrorDepth() {
-        return errorDepth;
+        return error_depth;
     }
 
     /**
      * c: X509_STORE_CTX_get_current_cert
      */
     public X509AuxCertificate getCurrentCertificate() {
-        return currentCertificate;
+        return current_cert;
     }
 
     public X509CRL getCurrentCRL() {
-        return currentCRL;
+        return current_crl;
     }
 
     /**
@@ -488,11 +487,11 @@ public class StoreContext {
      * c: X509_STORE_CTX_set_cert
      */
     public void setCertificate(X509AuxCertificate x) {
-        this.certificate = x;
+        this.cert = x;
     }
 
     public void setCertificate(X509Certificate x) {
-        this.certificate = ensureAux(x);
+        this.cert = ensureAux(x);
     }
 
     /**
@@ -677,7 +676,7 @@ public class StoreContext {
      * c: X509_STORE_CTX_get_explicit_policy
      */
     public int getExplicitPolicy() {
-        return explicitPolicy;
+        return explicit_policy;
     }
 
     /**
@@ -782,7 +781,7 @@ public class StoreContext {
      * c: int X509_verify_cert(X509_STORE_CTX *ctx)
      */
     public int verifyCertificate() throws Exception {
-        if (certificate == null) {
+        if (cert == null) {
             addError(X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
             this.error = V_ERR_INVALID_CALL;
             return -1;
@@ -803,7 +802,7 @@ public class StoreContext {
          */
         //if (chain == null) {
             chain = new ArrayList<X509AuxCertificate>(8);
-            chain.add(certificate);
+            chain.add(cert);
             num_untrusted = 1;
         //}
 
@@ -890,8 +889,8 @@ public class StoreContext {
                 xtmp = p_xtmp[0];
                 if ( ok <= 0 || ! x.equals(xtmp) ) {
                     error = X509Utils.V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
-                    currentCertificate = x;
-                    errorDepth = i-1;
+                    current_cert = x;
+                    error_depth = i-1;
                     bad_chain = 1;
                     ok = verifyCallback.call(this, ZERO);
                     if ( ok == 0 ) return ok;
@@ -941,15 +940,15 @@ public class StoreContext {
                 } else {
                     error = X509Utils.V_ERR_UNABLE_TO_GET_ISSUER_CERT;
                 }
-                currentCertificate = x;
+                current_cert = x;
             } else {
                 chain.add(chain_ss);
                 num++;
                 num_untrusted = num;
-                currentCertificate = chain_ss;
+                current_cert = chain_ss;
                 error = X509Utils.V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
             }
-            errorDepth = num - 1;
+            error_depth = num - 1;
             bad_chain = 1;
             int ok = verifyCallback.call(this, ZERO);
             if ( ok == 0 ) return ok;
@@ -1394,15 +1393,15 @@ public class StoreContext {
             x = chain.get(i);
             if ( (verifyParameter.flags & X509Utils.V_FLAG_IGNORE_CRITICAL) == 0 && unhandledCritical(x) ) {
                 error = X509Utils.V_ERR_UNHANDLED_CRITICAL_EXTENSION;
-                errorDepth = i;
-                currentCertificate = x;
+                error_depth = i;
+                current_cert = x;
                 ok = verifyCallback.call(this, ZERO);
                 if ( ok == 0 ) return ok;
             }
             if ( allow_proxy_certs == 0 && x.getExtensionValue("1.3.6.1.5.5.7.1.14") != null ) {
                 error = X509Utils.V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED;
-                errorDepth = i;
-                currentCertificate = x;
+                error_depth = i;
+                current_cert = x;
                 ok = verifyCallback.call(this, ZERO);
                 if ( ok == 0 ) return ok;
             }
@@ -1435,8 +1434,8 @@ public class StoreContext {
                 break;
             }
             if(ret == 0) {
-                errorDepth = i;
-                currentCertificate = x;
+                error_depth = i;
+                current_cert = x;
                 ok = verifyCallback.call(this, ZERO);
                 if ( ok == 0 ) return ok;
             }
@@ -1444,8 +1443,8 @@ public class StoreContext {
                 ret = Purpose.checkPurpose(x,verifyParameter.purpose, must_be_ca > 0 ? 1 : 0);
                 if(ret == 0 || ((verifyParameter.flags & X509Utils.V_FLAG_X509_STRICT) != 0 && ret != 1)) {
                     error = X509Utils.V_ERR_INVALID_PURPOSE;
-                    errorDepth = i;
-                    currentCertificate = x;
+                    error_depth = i;
+                    current_cert = x;
                     ok = verifyCallback.call(this, ZERO);
                     if(ok == 0) {
                         return ok;
@@ -1455,8 +1454,8 @@ public class StoreContext {
 
             if(i > 1 && x.getBasicConstraints() != -1 && x.getBasicConstraints() != Integer.MAX_VALUE && (i > (x.getBasicConstraints() + proxy_path_length + 1))) {
                 error = X509Utils.V_ERR_PATH_LENGTH_EXCEEDED;
-                errorDepth = i;
-                currentCertificate = x;
+                error_depth = i;
+                current_cert = x;
                 ok = verifyCallback.call(this, ZERO);
                 if ( ok == 0 ) return ok;
             }
@@ -1467,8 +1466,8 @@ public class StoreContext {
                     int pcpathlen = ((ASN1Integer)pci.getObjectAt(0)).getValue().intValue();
                     if(i > pcpathlen) {
                         error = X509Utils.V_ERR_PROXY_PATH_LENGTH_EXCEEDED;
-                        errorDepth = i;
-                        currentCertificate = x;
+                        error_depth = i;
+                        current_cert = x;
                         ok = verifyCallback.call(this, ZERO);
                         if ( ok == 0 ) return ok;
                     }
@@ -1684,8 +1683,8 @@ public class StoreContext {
         if ( ok == X509Utils.X509_TRUST_TRUSTED ) {
             return 1; // X509_TRUST_TRUSTED
         }
-        errorDepth = 1;
-        currentCertificate = x;
+        error_depth = 1;
+        current_cert = x;
         if ( ok == X509Utils.X509_TRUST_REJECTED ) {
             error = X509Utils.V_ERR_CERT_REJECTED;
         } else {
@@ -1814,10 +1813,10 @@ public class StoreContext {
         final X509CRL[] crl = new X509CRL[1];
         X509AuxCertificate x;
         int ok, cnum;
-        cnum = errorDepth;
+        cnum = error_depth;
         x = chain.get(cnum);
-        currentCertificate = x;
-        currentIssuer = null;
+        current_cert = x;
+        current_issuer = null;
 
         if (x.getExtensionValue("1.3.6.1.5.5.7.1.14") != null) return 1; // (x.getExFlags() & EXFLAG_PROXY) != 0
 
@@ -1825,17 +1824,17 @@ public class StoreContext {
         if ( ok == 0 ) {
             error = X509Utils.V_ERR_UNABLE_TO_GET_CRL;
             ok = verifyCallback.call(this, ZERO);
-            currentCRL = null;
+            current_crl = null;
             return ok;
         }
-        currentCRL = crl[0];
+        current_crl = crl[0];
         ok = checkCRL.call(this, crl[0]);
         if ( ok == 0 ) {
-            currentCRL = null;
+            current_crl = null;
             return ok;
         }
         ok = certificateCRL.call(this, crl[0], x);
-        currentCRL = null;
+        current_crl = null;
         return ok;
     }
 
@@ -1843,7 +1842,7 @@ public class StoreContext {
     private boolean check_crl_time(X509CRL crl, final boolean notify) throws Exception {
         final Date pTime;
 
-        if (notify) this.currentCRL = crl;
+        if (notify) this.current_crl = crl;
 
         if ((getParam().flags & V_FLAG_USE_CHECK_TIME) != 0) {
             pTime = getParam().checkTime;
@@ -1882,14 +1881,14 @@ public class StoreContext {
             }
         }
 
-        if (notify) this.currentCRL = null;
+        if (notify) this.current_crl = null;
 
         return true;
     }
 
     @Deprecated // legacy check_crl_time
     private int checkCRLTime(X509CRL crl, int notify) throws Exception {
-        currentCRL = crl;
+        current_crl = crl;
         final Date pTime;
         if ((getParam().flags & V_FLAG_USE_CHECK_TIME) != 0) {
             pTime = getParam().checkTime;
@@ -1910,7 +1909,7 @@ public class StoreContext {
             }
         }
 
-        currentCRL = null;
+        current_crl = null;
         return 1;
     }
 
@@ -1960,8 +1959,8 @@ public class StoreContext {
      * Returns 0 to abort verification with an error, non-zero to continue.
      */
     private int verify_cb_cert(X509AuxCertificate x, int depth, int err) throws Exception {
-        this.errorDepth = depth;
-        this.currentCertificate = x != null ? x : chain.get(depth);
+        this.error_depth = depth;
+        this.current_cert = x != null ? x : chain.get(depth);
         if (err != V_OK) this.error = err;
         return verifyCallback.call(this, 0); // ctx->verify_cb(0, ctx)
     }
@@ -2034,8 +2033,8 @@ public class StoreContext {
                 return 0;
             }
             context.error = ret;
-            context.currentCertificate = cert;
-            context.currentIssuer = issuer;
+            context.current_cert = cert;
+            context.current_issuer = issuer;
 
             return context.verifyCallback.call(context, ZERO);
         }
@@ -2078,7 +2077,7 @@ public class StoreContext {
             }
 
             n--;
-            errorDepth = n;
+            error_depth = n;
             xs = chain.get(n);
         }
 
@@ -2129,9 +2128,9 @@ public class StoreContext {
          * Signal success at this depth.  However, the previous error (if any)
          * is retained.
          */
-        ctx.currentIssuer = xi;
-        ctx.currentCertificate = xs;
-        ctx.errorDepth = n;
+        ctx.current_issuer = xi;
+        ctx.current_cert = xs;
+        ctx.error_depth = n;
         if (ctx.verifyCallback.call(ctx, 1) == 0)
             return false;
 
@@ -2159,7 +2158,7 @@ public class StoreContext {
             Store.VerifyCallbackFunction verifyCallback = context.verifyCallback;
 
             int n = context.chain.size();
-            context.errorDepth = n - 1;
+            context.error_depth = n - 1;
             n--;
             X509AuxCertificate xi = context.chain.get(n);
             X509AuxCertificate xs = null;
@@ -2170,21 +2169,21 @@ public class StoreContext {
             } else {
                 if (n <= 0) {
                     context.error = X509Utils.V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
-                    context.currentCertificate = xi;
+                    context.current_cert = xi;
                     ok = verifyCallback.call(context, ZERO);
                     return ok;
                 } else {
                     n--;
-                    context.errorDepth = n;
+                    context.error_depth = n;
                     xs = context.chain.get(n);
                 }
             }
 
             while (n >= 0) {
-                context.errorDepth = n;
+                context.error_depth = n;
                 if (!X509_verify(xs, xi.getPublicKey())) {
                     context.error = X509Utils.V_ERR_CERT_SIGNATURE_FAILURE;
-                    context.currentCertificate = xs;
+                    context.current_cert = xs;
                     ok = verifyCallback.call(context, ZERO);
                     if (ok == 0) return ok;
                 }
@@ -2221,7 +2220,7 @@ public class StoreContext {
                 last = 0;
             }
             for ( int i=0; i<=last; i++ ) {
-                ctx.errorDepth = i;
+                ctx.error_depth = i;
                 int ok = ctx.checkCertificate(); // check_cert(ctx);
                 if (ok == 0) return 0;
             }
@@ -2259,12 +2258,12 @@ public class StoreContext {
     /* Check CRL validity */
     private int check_crl(X509CRL crl) throws Exception {
         final X509AuxCertificate issuer;
-        int cnum = this.errorDepth;
+        int cnum = this.error_depth;
         int chnum = this.chain.size() - 1;
 
         /* if we have an alternative CRL issuer cert use that */
-        if (this.currentIssuer != null)
-            issuer = this.currentIssuer;
+        if (this.current_issuer != null)
+            issuer = this.current_issuer;
             /*
              * Else find CRL issuer: if not last certificate then issuer is next
              * certificate in chain.
@@ -2344,7 +2343,7 @@ public class StoreContext {
 
     final static Store.CheckCRLFunction check_crl_legacy = new Store.CheckCRLFunction() {
         public int call(final StoreContext context, final X509CRL crl) throws Exception {
-            final int errorDepth = context.errorDepth;
+            final int errorDepth = context.error_depth;
             final int lastInChain = context.chain.size() - 1;
 
             int ok;
