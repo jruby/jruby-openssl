@@ -1,3 +1,19 @@
+## 0.11.0
+
+NOTE: This release aims to adapt the certificate verification logic to be aligned 
+with OpenSSL 1.1.1 as a resolution to issues due *DST Root CA X3* expiration, more
+details at: https://letsencrypt.org/docs/dst-root-ca-x3-expiration-september-2021/ 
+
+The port is expected to be superior compared to the simple legacy verification,
+however in case of issues the previous algorithm is still around and can be toggled 
+using `JRUBY_OPTS="-J-Djruby.openssl.x509.store.verify=legacy"` system property.
+
+* **OpenSSL 1.1.1 cert verification port** (fixes #236) (#239)
+ - as a side-effect part of the PR to "allow multiple certs with same SubjectDN" 
+   (#198) got reverted, this has been causing verification regressions (since 0.10.5) 
+   for some users (#232) and is expected to be fixed   
+* [fix] replace deprecated getPeerCertificateChain (#231)
+
 ## 0.10.7
 
 * [feat] upgrade BC library to 1.68
