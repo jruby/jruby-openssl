@@ -1319,7 +1319,7 @@ public class StoreContext {
     }
 
     @Deprecated // legacy find_issuer
-    public X509AuxCertificate findIssuer(final List<X509AuxCertificate> certs,
+    private X509AuxCertificate findIssuer(final List<X509AuxCertificate> certs,
         final X509AuxCertificate cert, final boolean check_time) throws Exception {
         for ( X509AuxCertificate issuer : certs ) {
             if ( checkIssued.call(this, cert, issuer) != 0 ) {
