@@ -378,4 +378,68 @@ class TestX509Store < TestCase
     assert_equal(false, store.verify(ee2_cert))
   end
 
+  def test_verify_same_subject_ca
+
+    puts JOpenSSL::VERSION if defined? JRUBY_VERSION
+
+    @rsa1 = OpenSSL::PKey::RSA.generate 2048
+    @rsa2 = OpenSSL::PKey::RSA.generate 2048
+    @rsa3 = OpenSSL::PKey::RSA.generate 2048
+    @rsa4 = OpenSSL::PKey::RSA.generate 2048
+    @dsa1 = OpenSSL::PKey::DSA.generate 512
+    @dsa2 = OpenSSL::PKey::DSA.generate 512
+    @ca_same = OpenSSL::X509::Name.parse("/DC=com/DC=same-name/CN=CA")
+    @ca_other = OpenSSL::X509::Name.parse("/DC=co/DC=anotherOne/CN=CA")
+    @ee1 = OpenSSL::X509::Name.parse("/DC=com/DC=example/CN=ServerCert1")
+    @ee2 = OpenSSL::X509::Name.parse("/DC=com/DC=example/CN=ServerCert2")
+    @ee4 = OpenSSL::X509::Name.parse("/DC=com/DC=example/CN=ServerCert4")
+
+    now = Time.at(Time.now.to_i)
+    not_before = now - 365 * 24 * 60 * 60
+    not_after = now + 24 * 60 * 60
+    ca_exts1 = [
+        ["basicConstraints","CA:TRUE",true],
+        ["keyUsage","cRLSign,keyCertSign",true],
+    ]
+    ca_exts2 = [
+        ["basicConstraints","CA:TRUE",true],
+        ["keyUsage","keyCertSign",true],
+    ]
+    ee_exts = [
+        ["keyUsage","keyEncipherment,digitalSignature",true],
+    ]
+    ca1_cert = issue_cert(@ca_same, @rsa1, 1, not_before, now - 60 * 60, ca_exts1,
+                          nil, nil, OpenSSL::Digest::SHA1.new)
+    ca2_cert = issue_cert(@ca_same, @rsa2, 2, not_before, not_after, ca_exts2,
+                          nil, nil, OpenSSL::Digest::SHA1.new)
+    ca3_cert = issue_cert(@ca_other, @rsa3, 3, not_before, not_after, ca_exts1,
+                          nil, nil, OpenSSL::Digest::SHA1.new)
+    ca4_cert = issue_cert(@ca_same, @rsa4, 4, not_before, not_after, ca_exts1,
+                          nil, nil, OpenSSL::Digest::SHA1.new)
+    ee1_cert = issue_cert(@ee1, @dsa1, 10, now - 60, now + 1800, ee_exts,
+                          ca1_cert, @rsa1, OpenSSL::Digest::SHA1.new)
+    ee2_cert = issue_cert(@ee2, @dsa2, 20, now - 60, now + 1800, ee_exts,
+                          ca2_cert, @rsa2, OpenSSL::Digest::SHA1.new)
+    ee4_cert = issue_cert(@ee4, @dsa2, 20, now - 60, now + 1800, ee_exts,
+                          ca4_cert, @rsa4, OpenSSL::Digest::SHA1.new)
+
+    cert_store = OpenSSL::X509::Store.new
+    cert_store.add_cert ca1_cert
+    cert_store.add_cert ca2_cert
+    cert_store.add_cert ca3_cert
+    cert_store.add_cert ca4_cert
+
+    ok = cert_store.verify(ee1_cert)
+    assert_equal 'certificate signature failure', cert_store.error_string
+    assert_equal false, ok
+
+    ok = cert_store.verify(ee2_cert)
+    assert_equal 'ok', cert_store.error_string
+    assert_equal true, ok
+
+    ok = cert_store.verify(ee4_cert)
+    assert_equal 'certificate signature failure', cert_store.error_string
+    assert_equal false, ok # OpenSSL 1.1.1 behavior
+  end
+
 end
