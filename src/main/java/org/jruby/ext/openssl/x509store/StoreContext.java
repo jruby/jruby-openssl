@@ -823,7 +823,11 @@ public class StoreContext {
         return ret;
     }
 
-    private static final boolean VERIFY_LEGACY = Boolean.getBoolean("verify_legacy");
+    private static final boolean VERIFY_LEGACY;
+    static {
+        String verify = SafePropertyAccessor.getProperty("jruby.openssl.x509.store.verify");
+        VERIFY_LEGACY = "legacy".equals(verify);
+    }
 
     private int verifyChain() throws Exception {
         if (VERIFY_LEGACY) return verify_chain_legacy();
