@@ -317,4 +317,205 @@ class TestSSL < TestCase
     end
   end
 
+  LEAF_CERTIFICATE = OpenSSL::X509::Certificate.new <<-EOF
+-----BEGIN CERTIFICATE-----
+MIIFKDCCBBCgAwIBAgISBP+uKglvwxGq302F+yCqxvnXMA0GCSqGSIb3DQEBCwUA
+MDIxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MQswCQYDVQQD
+EwJSMzAeFw0yMTA4MTEwOTAxMzdaFw0yMTExMDkwOTAxMzVaMBwxGjAYBgNVBAMT
+EWdlb2lwLmVsYXN0aWMuZGV2MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
+AQEAtazxd/2FWW1O5evHkDnPi4vcZJDFxs8V0tlI2ppf/OTymlBHMbzBE3BsUEP7
+SkT+6kPnqQoy85S66zT4f2XyQfSWUZJeMPMcODl5P0SXEBlKv+ElRYvrsUpuc0ZH
+ZTIM3+ueUY5M3Xmo9ao+I5evahr4Pf1laRWhHRLzFdKiMn7r1/qXf+PzKqZlzLng
+cULtVpCTZlOk7CwrsAxwTYdFe1Z0b2ebKs793Ghag2V3D2YtCMuqLa1GP1sBsFRT
+v1XPehXb5UOWffp3RJnUoG3n7K5cPI6G+fUAGRF3wxKuH+PYyW6/irb5+v4CVVSi
+z+f29zDYeOc+baWGWFfymktslwIDAQABo4ICTDCCAkgwDgYDVR0PAQH/BAQDAgWg
+MB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNVHRMBAf8EAjAAMB0G
+A1UdDgQWBBQ23ntd4n192uVjxt9C0B18QYWMyzAfBgNVHSMEGDAWgBQULrMXt1hW
+y65QCUDmH6+dixTCxjBVBggrBgEFBQcBAQRJMEcwIQYIKwYBBQUHMAGGFWh0dHA6
+Ly9yMy5vLmxlbmNyLm9yZzAiBggrBgEFBQcwAoYWaHR0cDovL3IzLmkubGVuY3Iu
+b3JnLzAcBgNVHREEFTATghFnZW9pcC5lbGFzdGljLmRldjBMBgNVHSAERTBDMAgG
+BmeBDAECATA3BgsrBgEEAYLfEwEBATAoMCYGCCsGAQUFBwIBFhpodHRwOi8vY3Bz
+LmxldHNlbmNyeXB0Lm9yZzCCAQQGCisGAQQB1nkCBAIEgfUEgfIA8AB1AH0+8viP
+/4hVaCTCwMqeUol5K8UOeAl/LmqXaJl+IvDXAAABezSpB0oAAAQDAEYwRAIgC5B1
+huzXAJCbtfWO5GGMVj930XNoNPGQj6o8yJfMQnMCIBdlncSV2rymFbZG7Q2PSAim
+7/PkW/2qD3Vt8Ald8u3DAHcARJRlLrDuzq/EQAfYqP4owNrmgr7YyzG1P9MzlrW2
+gagAAAF7NKkJHAAABAMASDBGAiEAnWU3nUNjdHdrE62v0y45WDLj6eyfXkIxAh9Z
+GAA2wJACIQDtKZNFze3mAj7pE6m3AZMfnq4N0VvO2Ahr0HbpN/xWzDANBgkqhkiG
+9w0BAQsFAAOCAQEABWFFyolbYnyqDA8ckU0Lm7btCM78CeljjKxVCGTqhlntJhhH
+NBJcRArzCBkres7Z4yySiJ1vSUXNVvGITVCi2d/zJ5SxBDoT5v8IjEb98KH//9u3
+Jb1CfuEADhnEUXjyf4GeIiTHtdKX36jGwTRO3YIa52G6HONbOnQBgcwn8FpYJdIj
+3C58o5AxWRcVVQbaCFxjGcCLSUSQsJxzilsYE+xVqc+d5GftG3Nmy6l3Ht84693n
+UwMrb/rlsQC163gtdVEN/GFCeLU+UfFGuSeCmUM3SmAIVfD/yjLvisVpf70pV0Jg
+p1Px196NI71smu8LxrhX78ErTrR4GpDkx4W+uw==
+-----END CERTIFICATE-----
+  EOF
+
+
+  EXPIRED_DST_ROOT_CA_X3 = OpenSSL::X509::Certificate.new <<-EOF
+-----BEGIN CERTIFICATE-----
+MIIDSjCCAjKgAwIBAgIQRK+wgNajJ7qJMDmGLvhAazANBgkqhkiG9w0BAQUFADA/
+MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT
+DkRTVCBSb290IENBIFgzMB4XDTAwMDkzMDIxMTIxOVoXDTIxMDkzMDE0MDExNVow
+PzEkMCIGA1UEChMbRGlnaXRhbCBTaWduYXR1cmUgVHJ1c3QgQ28uMRcwFQYDVQQD
+Ew5EU1QgUm9vdCBDQSBYMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
+AN+v6ZdQCINXtMxiZfaQguzH0yxrMMpb7NnDfcdAwRgUi+DoM3ZJKuM/IUmTrE4O
+rz5Iy2Xu/NMhD2XSKtkyj4zl93ewEnu1lcCJo6m67XMuegwGMoOifooUMM0RoOEq
+OLl5CjH9UL2AZd+3UWODyOKIYepLYYHsUmu5ouJLGiifSKOeDNoJjj4XLh7dIN9b
+xiqKqy69cK3FCxolkHRyxXtqqzTWMIn/5WgTe1QLyNau7Fqckh49ZLOMxt+/yUFw
+7BZy1SbsOFU5Q9D8/RhcQPGX69Wam40dutolucbY38EVAjqr2m7xPi71XAicPNaD
+aeQQmxkqtilX4+U9m5/wAl0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNV
+HQ8BAf8EBAMCAQYwHQYDVR0OBBYEFMSnsaR7LHH62+FLkHX/xBVghYkQMA0GCSqG
+SIb3DQEBBQUAA4IBAQCjGiybFwBcqR7uKGY3Or+Dxz9LwwmglSBd49lZRNI+DT69
+ikugdB/OEIKcdBodfpga3csTS7MgROSR6cz8faXbauX+5v3gTt23ADq1cEmv8uXr
+AvHRAosZy5Q6XkjEGB5YGV8eAlrwDPGxrancWYaLbumR9YbK+rlmM6pZW87ipxZz
+R8srzJmwN0jP41ZL9c8PDHIyh8bwRLtTcm1D9SZImlJnt1ir/md2cXjbDaJWFBM5
+JDGFoqgCWjBH4d1QB7wCCZAA62RjYJsWvIjJEubSfZGL+T0yjWW06XyxV3bqxbYo
+Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
+-----END CERTIFICATE-----
+  EOF
+
+  require 'time'
+  VERIFY_EXPIRED_TIME = Time.parse("2021/10/20 09:10:00")
+
+  def test_cert_verify_expired1_lets_encrypt_cross_signed_root
+    # reproducer for https://github.com/jruby/jruby-openssl/issues/236
+    #
+    # In this reproducer we have a leaf certificate with two possible chains:
+    # a) leaf -> intermediate cert A -> ISRG Root X1 cross-signed by (expired) DST ROOT CA X3 -> (expired) DST ROOT CA X3
+    # b) leaf -> intermediate cert B -> ISRG Root X1
+    # JRuby will produce chain a) causing an error, while CRuby produces a valid chain b)
+
+    root_bundle = [
+        # Expired DST ROOT CA X3
+        EXPIRED_DST_ROOT_CA_X3,
+        # active ISRG Root X1
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/isrgrootx1.pem', __FILE__))),
+        # ISRG Root X1 cross-signed by (expired) DST ROOT CA X3
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/isrg-root-x1-cross-signed.pem', __FILE__)))
+    ]
+
+    cert_store = OpenSSL::X509::Store.new
+    cert_store.time = VERIFY_EXPIRED_TIME
+    root_bundle.each { |cert| cert_store.add_cert cert }
+
+    # the endpoint will send the leaf node + these two intermediate certs
+    chain = [
+        # Intermediate cert from expired CA
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/lets-encrypt-r3-cross-signed.pem', __FILE__))),
+        # Valid Intermediate cert
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/lets-encrypt-r3.pem', __FILE__))),
+    ]
+
+    # let's try to validate the leaf+chain against the root bundle
+    ok = cert_store.verify(LEAF_CERTIFICATE, chain)
+
+    # pp cert_store.chain if $VERBOSE
+
+    assert_equal true, ok
+    assert_equal 'ok', cert_store.error_string
+    assert_equal ["/CN=geoip.elastic.dev",
+                  "/C=US/O=Let's Encrypt/CN=R3",
+                  "/C=US/O=Internet Security Research Group/CN=ISRG Root X1"],
+                 cert_store.chain.map { |cert| cert.subject.to_s }
+
+    # 0.10.7
+    # [#<OpenSSL::X509::Certificate
+    #     subject=#<OpenSSL::X509::Name CN=geoip.elastic.dev>,
+    #         issuer=#<OpenSSL::X509::Name CN=R3,O=Let's Encrypt,C=US>,
+    #             serial=#<OpenSSL::BN 435452651231011312001825766803379554023895>,
+    #                 not_before=2021-08-11 09:01:37 UTC,
+    #     not_after=2021-11-09 09:01:35 UTC>,
+    # #<OpenSSL::X509::Certificate
+    #     subject=#<OpenSSL::X509::Name CN=R3,O=Let's Encrypt,C=US>,
+    #         issuer=#<OpenSSL::X509::Name CN=DST Root CA X3,O=Digital Signature Trust Co.>,
+    #             serial=#<OpenSSL::BN 85078157426496920958827089468591623647>,
+    #                 not_before=2020-10-07 19:21:40 UTC,
+    #     not_after=2021-09-29 19:21:40 UTC>,
+    # #<OpenSSL::X509::Certificate
+    #     subject=#<OpenSSL::X509::Name CN=DST Root CA X3,O=Digital Signature Trust Co.>,
+    #         issuer=#<OpenSSL::X509::Name CN=DST Root CA X3,O=Digital Signature Trust Co.>,
+    #             serial=#<OpenSSL::BN 91299735575339953335919266965803778155>,
+    #                 not_before=2000-09-30 21:12:19 UTC,
+    #     not_after=2021-09-30 14:01:15 UTC>]
+    # 10
+    # certificate has expired
+  end
+
+  def test_cert_verify_expired2_lets_encrypt_cross_signed_intermediate
+
+    root_bundle = [
+        # Expired DST ROOT CA X3
+        EXPIRED_DST_ROOT_CA_X3,
+        # active ISRG Root X1
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/isrgrootx1.pem', __FILE__))),
+        # ISRG Root X1 cross-signed by DST ROOT CA X3 (which is expired)
+        #OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/isrg-root-x1-cross-signed.pem', __FILE__)))
+    ]
+
+    cert_store = OpenSSL::X509::Store.new
+    cert_store.time = VERIFY_EXPIRED_TIME
+    root_bundle.each { |cert| cert_store.add_cert cert }
+
+    # cross-signed cert is sent from the server :
+    chain = [
+        #LEAF_CERTIFICATE,
+        # Valid Intermediate cert
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/lets-encrypt-r3.pem', __FILE__))),
+        # ISRG Root X1 cross-signed by DST ROOT CA X3
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/isrg-root-x1-cross-signed.pem', __FILE__)))
+    ]
+
+    ok = cert_store.verify(LEAF_CERTIFICATE, chain)
+
+    # pp cert_store.chain if $VERBOSE
+
+    assert_equal ["/CN=geoip.elastic.dev",
+                  "/C=US/O=Let's Encrypt/CN=R3",
+                  "/C=US/O=Internet Security Research Group/CN=ISRG Root X1"],
+                 cert_store.chain.map { |cert| cert.subject.to_s }
+
+    assert_equal true, ok # fails in JOSSL 0.10.7 error: 10 (certificate has expired)
+    assert_equal 'ok', cert_store.error_string
+  end
+
+  def test_cert_verify_expired0_lets_encrypt # base_line
+    root_bundle = [
+        # Expired DST ROOT CA X3
+        #EXPIRED_DST_ROOT_CA_X3, # should be fine since we do not have the expired around
+        # active ISRG Root X1
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/isrgrootx1.pem', __FILE__))),
+        # ISRG Root X1 cross-signed by (expired) DST ROOT CA X3
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/isrg-root-x1-cross-signed.pem', __FILE__)))
+    ]
+
+    cert_store = OpenSSL::X509::Store.new
+    cert_store.time = VERIFY_EXPIRED_TIME
+    root_bundle.each { |cert| cert_store.add_cert cert }
+
+    chain = [
+        # Intermediate cert from expired CA
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/lets-encrypt-r3-cross-signed.pem', __FILE__))),
+        # Valid Intermediate cert
+        OpenSSL::X509::Certificate.new(File.read(File.expand_path('../letsencrypt/lets-encrypt-r3.pem', __FILE__))),
+    ]
+
+    ok = cert_store.verify(LEAF_CERTIFICATE, chain)
+
+    assert ok # works in JOSSL 0.10.7
+    assert_equal 'ok', cert_store.error_string
+    assert_equal ["/CN=geoip.elastic.dev",
+                  "/C=US/O=Let's Encrypt/CN=R3",
+                  "/C=US/O=Internet Security Research Group/CN=ISRG Root X1"],
+                 cert_store.chain.map { |cert| cert.subject.to_s }
+
+    cert_store = OpenSSL::X509::Store.new
+    cert_store.time = VERIFY_EXPIRED_TIME
+    cert_store.add_cert root_bundle[1] # only the expired one
+
+    ok = cert_store.verify(LEAF_CERTIFICATE, chain)
+
+    assert !ok
+    assert_equal 'unable to get issuer certificate', cert_store.error_string
+  end
+
 end

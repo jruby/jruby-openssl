@@ -945,7 +945,7 @@ public class SSLContext extends RubyObject {
             // for verify_cb
             storeContext.setExtraData(1, store.getExtraData(1));
             if ( purpose != null ) storeContext.setDefault(purpose);
-            storeContext.verifyParameter.inherit(store.verifyParameter);
+            storeContext.getParam().inherit(store.getParam());
             return storeContext;
         }
 
@@ -1109,14 +1109,14 @@ public class SSLContext extends RubyObject {
                 ok = storeContext.verifyCertificate();
             }
             catch (Exception e) {
-                internalContext.setLastVerifyResult(storeContext.error);
-                if ( storeContext.error == X509Utils.V_OK ) {
+                internalContext.setLastVerifyResult(storeContext.getError());
+                if ( storeContext.getError() == X509Utils.V_OK ) {
                     internalContext.setLastVerifyResult(X509Utils.V_ERR_CERT_REJECTED);
                 }
                 throw new CertificateException("certificate verify failed", e);
             }
 
-            internalContext.setLastVerifyResult(storeContext.error);
+            internalContext.setLastVerifyResult(storeContext.getError());
             if ( ok == 0 ) {
                 throw new CertificateException("certificate verify failed");
             }

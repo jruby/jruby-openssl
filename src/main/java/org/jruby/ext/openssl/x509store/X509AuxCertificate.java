@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.ByteArrayInputStream;
 import java.math.BigInteger;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Collection;
 import java.util.List;
@@ -52,9 +53,15 @@ import java.security.cert.CertificateFactory;
 import javax.security.auth.x500.X500Principal;
 
 import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DEROctetString;
+import org.bouncycastle.asn1.DERTaggedObject;
+import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.Certificate;
+import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
 import org.bouncycastle.jce.provider.X509CertificateObject;
 
 import org.jruby.ext.openssl.SecurityHelper;
@@ -73,8 +80,8 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
 
     final X509Aux aux;
 
-    private boolean valid = false;
-    private int ex_flags = 0;
+    boolean verified = false; // opt: avoids doing internal_verify twice
+    private int ex_flags = -1;
 
     public X509AuxCertificate(Certificate wrap) throws IOException, CertificateException {
         super();
@@ -105,25 +112,80 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
 
     final X509AuxCertificate cloneForCache() {
         final X509AuxCertificate clone = clone();
-        clone.valid = false;
-        clone.ex_flags = 0;
+        clone.verified = false;
+        clone.ex_flags = -1;
         return clone;
     }
 
-    public boolean isValid() {
-        return valid;
-    }
-
-    public void setValid(boolean v) {
-        this.valid = v;
-    }
-
-    public int getExFlags() {
+    public int getExFlags() throws IOException {
+        if (ex_flags == -1) {
+            //try {
+                ex_flags = computeExFlags();
+            //} catch (IOException e) {
+            //    throw new IllegalStateException(e);
+            //}
+        }
         return ex_flags;
     }
 
-    public void setExFlags(int ex_flags) {
-        this.ex_flags = ex_flags;
+    // NOTE: not all EXFLAGS are implemented!
+    private int computeExFlags() throws IOException {
+        int flags = 0;
+
+        /* V1 should mean no extensions ... */
+        if (getVersion() == 1) {
+            flags |= X509Utils.EXFLAG_V1;
+        }
+
+        if (getExtensionValue("2.5.29.19") != null) { // BASIC_CONSTRAINTS
+            if (getBasicConstraints() != -1) { // is CA
+                flags |= X509Utils.EXFLAG_CA;
+            }
+            flags |= X509Utils.EXFLAG_BCONS;
+        }
+
+        if (getSubjectX500Principal().equals(getIssuerX500Principal())) {
+            flags |= X509Utils.EXFLAG_SI; /* Cert is self-issued */
+
+            // TODO duplicate code from X509Utils.checkIfIssuedBy
+            if (getExtensionValue("2.5.29.35") != null) { //authorityKeyID
+                Object key = X509Utils.get(getExtensionValue("2.5.29.35"));
+                if (!(key instanceof ASN1Sequence)) key = X509Utils.get((DEROctetString) key);
+
+                final ASN1Sequence seq = (ASN1Sequence) key;
+                final AuthorityKeyIdentifier akid;
+                if (seq.size() == 1 && (seq.getObjectAt(0) instanceof ASN1OctetString)) {
+                    akid = AuthorityKeyIdentifier.getInstance(new DLSequence(new DERTaggedObject(0, seq.getObjectAt(0))));
+                } else {
+                    akid = AuthorityKeyIdentifier.getInstance(seq);
+                }
+
+                if (akid.getKeyIdentifier() != null) {
+                    if (getExtensionValue("2.5.29.14") != null) {
+                        DEROctetString der = (DEROctetString) X509Utils.get(getExtensionValue("2.5.29.14"));
+                        SubjectKeyIdentifier skid = SubjectKeyIdentifier.getInstance(X509Utils.get(der.getOctets()));
+                        if (skid.getKeyIdentifier() != null) {
+                            if (Arrays.equals(akid.getKeyIdentifier(), skid.getKeyIdentifier())) { /* SKID matches AKID */
+                                /* .. and the signature alg matches the PUBKEY alg: */
+                                if (getSigAlgName().equals(getPublicKey().getAlgorithm())) {
+                                    flags |= X509Utils.EXFLAG_SS; /* indicate self-signed */
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (getKeyUsage() != null) {
+            flags |= X509Utils.EXFLAG_XKUSAGE;
+        }
+
+        if (getExtensionValue("1.3.6.1.5.5.7.1.14") != null) {
+            flags |= X509Utils.EXFLAG_PROXY;
+        }
+
+        return flags;
     }
 
     // DELEGATES :

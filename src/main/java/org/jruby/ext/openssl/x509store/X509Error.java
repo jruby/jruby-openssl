@@ -100,11 +100,16 @@ public class X509Error {
         }
     }
 
-    private static ThreadLocal<Map<Integer, String>> errors = new ThreadLocal<Map<Integer, String>>();
+    private static final ThreadLocal<Map<Integer, String>> errors = new ThreadLocal<Map<Integer, String>>();
 
     public static void addError(int reason) {
         getErrors().put(reason, getMessage(reason));
     }
+
+    // define X509err(f, r) ERR_raise_data(ERR_LIB_X509, (r), NULL)
+    //public static void addError(int f, int r) {
+    //    getErrors().put(r, getMessage(r));
+    //}
 
     public static void clearErrors() {
         synchronized (errors) {
@@ -144,7 +149,8 @@ public class X509Error {
 
     private static Map<Integer, String> newErrorsMap() {
         Map<Integer, String> map = new LinkedHashMap<Integer, String>(8);
-        errors.set(map); return map;
+        errors.set(map);
+        return map;
     }
 
 }// Err

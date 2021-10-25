@@ -144,12 +144,13 @@ class TestX509Store < TestCase
 
     cert_store = OpenSSL::X509::Store.new
     assert cert_store.add_cert(root_ca) == cert_store
-    begin
+    # NOTE: logic reverted in JOSSL 0.11.0 to match C-OpenSSL (just adds certificates wout checks)
+    #begin
       cert_store.add_cert(root_ca)
-      fail 'added same cert twice'
-    rescue OpenSSL::X509::StoreError => e
-      assert_equal 'cert already in hash table', e.message
-    end
+      #fail 'added same cert twice'
+    #rescue OpenSSL::X509::StoreError => e
+      #assert_equal 'cert already in hash table', e.message
+    #end
   end
 
   def test_adding_pem_to_store_like_rubygems
@@ -235,7 +236,17 @@ class TestX509Store < TestCase
     assert_not_equal(OpenSSL::X509::V_OK, store.error)
 
     store.add_cert(ca1_cert)
-    assert_equal(true, store.verify(ca2_cert))
+    verify = store.verify(ca1_cert)
+    # TODO only works when cert_self_signed is reduced to do a EXFLAG_SI instead of EXFLAG_SS
+    assert_equal ["/DC=org/DC=ruby-lang/CN=CA1"],
+                 store.chain.map { |cert| cert.subject.to_s }
+    assert_equal(true, verify)
+
+    verify = store.verify(ca2_cert)
+    assert_equal ["/DC=org/DC=ruby-lang/CN=CA2", "/DC=org/DC=ruby-lang/CN=CA1"],
+                 store.chain.map { |cert| cert.subject.to_s }
+    assert_equal(true, verify)
+
     assert_equal(OpenSSL::X509::V_OK, store.error)
     assert_equal("ok", store.error_string)
     chain = store.chain
@@ -306,9 +317,18 @@ class TestX509Store < TestCase
     store.add_crl(crl1)   # revoke no cert
     store.add_crl(crl2)   # revoke ee2_cert
     assert_equal(true,  store.verify(ca1_cert))
+    assert_equal ["/DC=org/DC=ruby-lang/CN=CA1"],
+                 store.chain.map { |cert| cert.subject.to_s }
+
     assert_equal(true,  store.verify(ca2_cert))
-    assert_equal(true,  store.verify(ee1_cert, [ca2_cert]))
-    assert_equal(false, store.verify(ee2_cert, [ca2_cert]))
+    assert_equal ["/DC=org/DC=ruby-lang/CN=CA2", "/DC=org/DC=ruby-lang/CN=CA1"],
+                 store.chain.map { |cert| cert.subject.to_s }
+
+    verify = store.verify(ee1_cert, [ca2_cert])
+    assert_equal(true,  verify)
+
+    verify = store.verify(ee2_cert, [ca2_cert])
+    assert_equal(false, verify)
 
     store = OpenSSL::X509::Store.new
     store.purpose = OpenSSL::X509::PURPOSE_ANY
@@ -316,15 +336,29 @@ class TestX509Store < TestCase
     store.add_cert(ca1_cert)
     store.add_crl(crl1_2) # revoke ca2_cert
     store.add_crl(crl2)   # revoke ee2_cert
-    assert_equal(true,  store.verify(ca1_cert))
-    assert_equal(false, store.verify(ca2_cert))
+
+    verify = store.verify(ca1_cert)
+    assert_equal ["/DC=org/DC=ruby-lang/CN=CA1"],
+                 store.chain.map { |cert| cert.subject.to_s }
+    assert_equal(true, verify)
+
+    verify = store.verify(ca2_cert)
+    assert_equal ["/DC=org/DC=ruby-lang/CN=CA2", "/DC=org/DC=ruby-lang/CN=CA1"],
+                 store.chain.map { |cert| cert.subject.to_s }
+    assert_equal(false, verify)
+
     assert_equal(true,  store.verify(ee1_cert, [ca2_cert]),
                  "This test is expected to be success with OpenSSL 0.9.7c or later.")
     assert_equal(false, store.verify(ee2_cert, [ca2_cert]))
 
-    store.flags =
-        OpenSSL::X509::V_FLAG_CRL_CHECK|OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
-    assert_equal(true,  store.verify(ca1_cert))
+    store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK | OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
+
+    verify = store.verify(ca1_cert)
+    assert_equal ["/DC=org/DC=ruby-lang/CN=CA1"],
+                 store.chain.map { |cert| cert.subject.to_s }
+    puts "verify(ca1_cert) #{verify} - store.error: #{store.error} (#{store.error_string})"
+    assert_equal(true,  verify)
+
     assert_equal(false, store.verify(ca2_cert))
     assert_equal(false, store.verify(ee1_cert, [ca2_cert]))
     assert_equal(false, store.verify(ee2_cert, [ca2_cert]))

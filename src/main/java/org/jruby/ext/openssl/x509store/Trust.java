@@ -27,9 +27,14 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.x509store;
 
+import org.jruby.ext.openssl.impl.ASN1Registry;
+
+import java.io.IOException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.jruby.ext.openssl.x509store.X509Utils.*;
 
 /**
  * c: X509_TRUST
@@ -38,7 +43,9 @@ import java.util.List;
  */
 public class Trust {
 
-    static interface Checker<T> extends Function3<T, X509AuxCertificate, Integer> {}
+    interface Checker<T> {
+        int call(T arg0, X509AuxCertificate x, int flags) throws Exception;
+    }
 
     public int trust;
     public int flags;
@@ -70,18 +77,24 @@ public class Trust {
 
     private final static List<Trust> trustable = new ArrayList<Trust>();
 
+    private static final String OID_anyExtendedKeyUsage = ASN1Registry.nid2oid(ASN1Registry.NID_anyExtendedKeyUsage);
+
     /**
      * c: X509_check_trust
      */
     public static int checkTrust(X509AuxCertificate x, int id, int flags) throws Exception {
-        if ( id == -1 ) return 1;
+        /* We get this as a default value */
+        if (id == X509_TRUST_DEFAULT) {
+            // return obj_trust(NID_anyExtendedKeyUsage, x, flags | X509_TRUST_DO_SS_COMPAT);
+            return objTrust.call(OID_anyExtendedKeyUsage, x, flags | X509_TRUST_DO_SS_COMPAT);
+        }
 
         int idx = getByID(id);
         if (idx == -1) {
-            return defaultTrust.call(Integer.toString(id), x, Integer.valueOf(flags));
+            return defaultTrust.call(Integer.toString(id), x, flags);
         }
-        Trust pt = getFirst(idx);
-        return pt.checkTrust.call(pt, x, Integer.valueOf(flags));
+        Trust pt = get0(idx);
+        return pt.checkTrust.call(pt, x, flags);
     }
 
     /**
@@ -94,11 +107,11 @@ public class Trust {
     /**
      * c: X509_TRUST_get0
      */
-    public static Trust getFirst(int idx) {
-        if(idx < 0) {
+    private static Trust get0(int idx) {
+        if (idx < 0) {
             return null;
         }
-        if(idx < trstandard.length) {
+        if (idx < trstandard.length) {
             return trstandard[idx];
         }
         return trustable.get(idx - trstandard.length);
@@ -145,7 +158,7 @@ public class Trust {
             trtmp = new Trust();
             trtmp.flags = X509Utils.X509_TRUST_DYNAMIC;
         } else {
-            trtmp = getFirst(idx);
+            trtmp = get0(idx);
         }
         trtmp.name = name;
         trtmp.flags &= X509Utils.X509_TRUST_DYNAMIC;
@@ -191,15 +204,27 @@ public class Trust {
     /**
      * c: trust_compat
      */
+    private static int trust_compat(X509AuxCertificate x, int flags)
+        throws CertificateException, IOException {
+        /* Call for side-effect of computing hash and caching extensions */
+        if (Purpose.checkPurpose(x, -1, 0) != 1) // X509_check_purpose
+            return X509_TRUST_UNTRUSTED;
+        // TODO flip to using EXFLAG_SS once legacy (verify) compatibility is dropped
+        //if ((flags & X509_TRUST_NO_SS_COMPAT) == 0 && (x.getExFlags() & EXFLAG_SS) != 0)
+        if ((flags & X509_TRUST_NO_SS_COMPAT) == 0 &&
+                x.getIssuerX500Principal().equals( x.getSubjectX500Principal() )) // self signed
+            return X509_TRUST_TRUSTED;
+        return X509_TRUST_UNTRUSTED;
+    }
+
     final static Checker<Trust> trustCompatibe = new Checker<Trust>() {
-        public int call(final Trust trust,
-            final X509AuxCertificate x, final Integer flags) throws CertificateException {
-            Purpose.checkPurpose(x,-1,0);
-            if ( x.getIssuerX500Principal().equals( x.getSubjectX500Principal() ) ) { // self signed
-                return X509Utils.X509_TRUST_TRUSTED;
-            } else {
-                return X509Utils.X509_TRUST_UNTRUSTED;
-            }
+        public int call(Trust trust, X509AuxCertificate x, int flags) throws Exception {
+            return trust_compat(x, flags);
+        }
+
+        @Override
+        public String toString() {
+            return "trustCompatibe"; // only for debugging
         }
     };
 
@@ -207,13 +232,17 @@ public class Trust {
      * c: trust_1oidany
      */
     final static Checker<Trust> trust1OIDAny = new Checker<Trust>() {
-        public int call(final Trust trust,
-            final X509AuxCertificate x, final Integer flags) throws Exception {
+        public int call(Trust trust, X509AuxCertificate x, int flags) throws Exception {
             final X509Aux aux = x.aux;
             if ( aux != null && ( aux.trust.size() > 0 || aux.reject.size() > 0 ) ) {
                 return objTrust.call(trust.arg1, x, flags);
             }
             return trustCompatibe.call(trust, x, flags);
+        }
+
+        @Override
+        public String toString() {
+            return "trust1OIDAny"; // only for debugging
         }
     };
 
@@ -221,12 +250,16 @@ public class Trust {
      * c: trust_1oid
      */
     final static Checker<Trust> trust1OID = new Checker<Trust>() {
-        public int call(final Trust trust,
-            final X509AuxCertificate x, final Integer flags) throws Exception {
+        public int call(Trust trust, X509AuxCertificate x, int flags) throws Exception {
             if ( x.aux != null ) {
                 return objTrust.call(trust.arg1, x, flags);
             }
             return X509Utils.X509_TRUST_UNTRUSTED;
+        }
+
+        @Override
+        public String toString() {
+            return "trust1OID"; // only for debugging
         }
     };
 
@@ -234,23 +267,54 @@ public class Trust {
      * c: obj_trust
      */
     final static Checker<String> objTrust = new Checker<String>() {
-        public int call(final String id,
-            final X509AuxCertificate x, final Integer flags) {
+        public int call(final String id, X509AuxCertificate x, int flags) throws Exception {
             final X509Aux aux = x.aux;
-            if ( aux == null ) {
-                return X509Utils.X509_TRUST_UNTRUSTED;
-            }
-            for ( String rejectId : aux.reject ) {
-                if ( rejectId.equals(id) ) {
-                    return X509Utils.X509_TRUST_REJECTED;
+
+            if ( aux != null && aux.reject != null ) {
+                for ( String oid : aux.reject ) {
+                    if (oid.equals(id) || (oid.equals(OID_anyExtendedKeyUsage) &&
+                            (flags & X509_TRUST_OK_ANY_EKU) != 0)) {
+                        return X509_TRUST_REJECTED;
+                    }
                 }
             }
-            for ( String trustId : aux.trust ) {
-                if ( trustId.equals(id) ) {
-                    return X509Utils.X509_TRUST_TRUSTED;
+
+            if ( aux != null && aux.trust != null ) {
+                for ( String oid : aux.trust ) {
+                    if (oid.equals(id) || (oid.equals(OID_anyExtendedKeyUsage) &&
+                            (flags & X509_TRUST_OK_ANY_EKU) != 0)) {
+                        return X509_TRUST_TRUSTED;
+                    }
                 }
+                /*
+                 * Reject when explicit trust EKU are set and none match.
+                 *
+                 * Returning untrusted is enough for for full chains that end in
+                 * self-signed roots, because when explicit trust is specified it
+                 * suppresses the default blanket trust of self-signed objects.
+                 *
+                 * But for partial chains, this is not enough, because absent a similar
+                 * trust-self-signed policy, non matching EKUs are indistinguishable
+                 * from lack of EKU constraints.
+                 *
+                 * Therefore, failure to match any trusted purpose must trigger an
+                 * explicit reject.
+                 */
+                return X509_TRUST_REJECTED;
             }
-            return X509Utils.X509_TRUST_UNTRUSTED;
+
+            if ((flags & X509_TRUST_DO_SS_COMPAT) == 0)
+                return X509_TRUST_UNTRUSTED;
+
+            /*
+             * Not rejected, and there is no list of accepted uses, try compat.
+             */
+            return trust_compat(x, flags);
+        }
+
+        @Override
+        public String toString() {
+            return "objTrust"; // only for debugging
         }
     };
 

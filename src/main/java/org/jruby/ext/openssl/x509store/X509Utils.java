@@ -105,110 +105,111 @@ public abstract class X509Utils {
      */
     public static String verifyCertificateErrorString(final int error) {
         switch (error) {
-        case V_OK: return("ok");
-        case V_ERR_UNABLE_TO_GET_ISSUER_CERT:
+            case V_OK:
+                return("ok");
+            case V_ERR_UNABLE_TO_GET_ISSUER_CERT:
                 return("unable to get issuer certificate");
-        case V_ERR_UNABLE_TO_GET_CRL:
+            case V_ERR_UNABLE_TO_GET_CRL:
                 return("unable to get certificate CRL");
-        case V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE:
+            case V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE:
                 return("unable to decrypt certificate's signature");
-        case V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE:
+            case V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE:
                 return("unable to decrypt CRL's signature");
-        case V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY:
+            case V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY:
                 return("unable to decode issuer public key");
-        case V_ERR_CERT_SIGNATURE_FAILURE:
+            case V_ERR_CERT_SIGNATURE_FAILURE:
                 return("certificate signature failure");
-        case V_ERR_CRL_SIGNATURE_FAILURE:
+            case V_ERR_CRL_SIGNATURE_FAILURE:
                 return("CRL signature failure");
-        case V_ERR_CERT_NOT_YET_VALID:
+            case V_ERR_CERT_NOT_YET_VALID:
                 return("certificate is not yet valid");
-        case V_ERR_CRL_NOT_YET_VALID:
+            case V_ERR_CRL_NOT_YET_VALID:
                 return("CRL is not yet valid");
-        case V_ERR_CERT_HAS_EXPIRED:
+            case V_ERR_CERT_HAS_EXPIRED:
                 return("certificate has expired");
-        case V_ERR_CRL_HAS_EXPIRED:
+            case V_ERR_CRL_HAS_EXPIRED:
                 return("CRL has expired");
-        case V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+            case V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
                 return("format error in certificate's notBefore field");
-        case V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+            case V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
                 return("format error in certificate's notAfter field");
-        case V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD:
+            case V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD:
                 return("format error in CRL's lastUpdate field");
-        case V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD:
+            case V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD:
                 return("format error in CRL's nextUpdate field");
-        case V_ERR_OUT_OF_MEM:
+            case V_ERR_OUT_OF_MEM:
                 return("out of memory");
-        case V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+            case V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
                 return("self signed certificate");
-        case V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
+            case V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
                 return("self signed certificate in certificate chain");
-        case V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+            case V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
                 return("unable to get local issuer certificate");
-        case V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+            case V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
                 return("unable to verify the first certificate");
-        case V_ERR_CERT_CHAIN_TOO_LONG:
+            case V_ERR_CERT_CHAIN_TOO_LONG:
                 return("certificate chain too long");
-        case V_ERR_CERT_REVOKED:
+            case V_ERR_CERT_REVOKED:
                 return("certificate revoked");
-        case V_ERR_INVALID_CA:
+            case V_ERR_INVALID_CA:
                 return ("invalid CA certificate");
-        case V_ERR_INVALID_NON_CA:
-                return ("invalid non-CA certificate (has CA markings)");
-        case V_ERR_PATH_LENGTH_EXCEEDED:
+            case V_ERR_PATH_LENGTH_EXCEEDED:
                 return ("path length constraint exceeded");
-        case V_ERR_PROXY_PATH_LENGTH_EXCEEDED:
-                return("proxy path length constraint exceeded");
-        case V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED:
-                return("proxy cerificates not allowed, please set the appropriate flag");
-        case V_ERR_INVALID_PURPOSE:
+            case V_ERR_INVALID_PURPOSE:
                 return ("unsupported certificate purpose");
-        case V_ERR_CERT_UNTRUSTED:
+            case V_ERR_CERT_UNTRUSTED:
                 return ("certificate not trusted");
-        case V_ERR_CERT_REJECTED:
+            case V_ERR_CERT_REJECTED:
                 return ("certificate rejected");
-        case V_ERR_APPLICATION_VERIFICATION:
-                return("application verification failure");
-        case V_ERR_SUBJECT_ISSUER_MISMATCH:
+            case V_ERR_SUBJECT_ISSUER_MISMATCH:
                 return("subject issuer mismatch");
-        case V_ERR_AKID_SKID_MISMATCH:
+            case V_ERR_AKID_SKID_MISMATCH:
                 return("authority and subject key identifier mismatch");
-        case V_ERR_AKID_ISSUER_SERIAL_MISMATCH:
+            case V_ERR_AKID_ISSUER_SERIAL_MISMATCH:
                 return("authority and issuer serial number mismatch");
-        case V_ERR_KEYUSAGE_NO_CERTSIGN:
+            case V_ERR_KEYUSAGE_NO_CERTSIGN:
                 return("key usage does not include certificate signing");
-        case V_ERR_UNABLE_TO_GET_CRL_ISSUER:
+            case V_ERR_UNABLE_TO_GET_CRL_ISSUER:
                 return("unable to get CRL issuer certificate");
-        case V_ERR_UNHANDLED_CRITICAL_EXTENSION:
+            case V_ERR_UNHANDLED_CRITICAL_EXTENSION:
                 return("unhandled critical extension");
-        case V_ERR_KEYUSAGE_NO_CRL_SIGN:
+            case V_ERR_KEYUSAGE_NO_CRL_SIGN:
                 return("key usage does not include CRL signing");
-        case V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE:
-                return("key usage does not include digital signature");
-        case V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION:
+            case V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION:
                 return("unhandled critical CRL extension");
-        case V_ERR_INVALID_EXTENSION:
+            case V_ERR_INVALID_NON_CA:
+                return ("invalid non-CA certificate (has CA markings)");
+            case V_ERR_PROXY_PATH_LENGTH_EXCEEDED:
+                return("proxy path length constraint exceeded");
+            case V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE:
+                return("key usage does not include digital signature");
+            case V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED:
+                return("proxy cerificates not allowed, please set the appropriate flag");
+            case V_ERR_INVALID_EXTENSION:
                 return("invalid or inconsistent certificate extension");
-        case V_ERR_INVALID_POLICY_EXTENSION:
+            case V_ERR_INVALID_POLICY_EXTENSION:
                 return("invalid or inconsistent certificate policy extension");
-        case V_ERR_NO_EXPLICIT_POLICY:
+            case V_ERR_NO_EXPLICIT_POLICY:
                 return("no explicit policy");
+            case V_ERR_APPLICATION_VERIFICATION:
+                return("application verification failure");
         default:
                 return "error number " + error;
         }
     }
 
-    private static ASN1Primitive get(DEROctetString str) throws IOException {
+    static ASN1Primitive get(DEROctetString str) throws IOException {
         return get( str.getOctets() );
     }
 
-    private static ASN1Primitive get(final byte[] input) throws IOException {
+    static ASN1Primitive get(final byte[] input) throws IOException {
         return new ASN1InputStream(input).readObject();
     }
 
-    /**
-     * c: X509_check_issued
+    /*
+     * c: X509_check_issued + x509_likely_issued + x509_signing_allowed
      */
-    public static int checkIfIssuedBy(final X509AuxCertificate issuer,
+    static int checkIfIssuedBy(final X509AuxCertificate issuer,
         final X509AuxCertificate subject) throws IOException {
 
         if ( ! issuer.getSubjectX500Principal().equals(subject.getIssuerX500Principal()) ) {
@@ -365,6 +366,7 @@ public abstract class X509Utils {
     public static final int X509_L_ADD_DIR = 2;
 
     public static final int V_OK = 0;
+    public static final int V_ERR_UNSPECIFIED = 1;
     public static final int	V_ERR_UNABLE_TO_GET_ISSUER_CERT = 2;
     public static final int	V_ERR_UNABLE_TO_GET_CRL = 3;
     public static final int	V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE = 4;
@@ -413,25 +415,55 @@ public abstract class X509Utils {
 
     public static final int	V_ERR_APPLICATION_VERIFICATION = 50;
 
-    public static final int	V_FLAG_CB_ISSUER_CHECK = 0x1;
+    // ...
+
+    /* security level errors */
+    //public static final int	V_ERR_EE_KEY_TOO_SMALL = 66;
+    //public static final int	V_ERR_CA_KEY_TOO_SMALL = 67;
+    //public static final int	V_ERR_CA_MD_TOO_WEAK = 68;
+    /* Caller error */
+    public static final int	V_ERR_INVALID_CALL = 69;
+    /* Issuer lookup error */
+    public static final int	V_ERR_STORE_LOOKUP = 70;
+    /* Certificate transparency */
+    //public static final int	V_ERR_NO_VALID_SCTS = 71;
+
+    /* Certificate verify flags */
+    public static final int	V_FLAG_CB_ISSUER_CHECK = 0x0 /* Deprecated */;
     public static final int	V_FLAG_USE_CHECK_TIME = 0x2;
     public static final int	V_FLAG_CRL_CHECK = 0x4;
     public static final int	V_FLAG_CRL_CHECK_ALL = 0x8;
     public static final int	V_FLAG_IGNORE_CRITICAL = 0x10;
-    public static final int	V_FLAG_STRICT = 0x20;
-    public static final int	V_FLAG_X509_STRICT = 0x20;
+    public static final int	V_FLAG_X509_STRICT  = 0x20;
     public static final int	V_FLAG_ALLOW_PROXY_CERTS = 0x40;
     public static final int V_FLAG_POLICY_CHECK = 0x80;
     public static final int V_FLAG_EXPLICIT_POLICY = 0x100;
     public static final int	V_FLAG_INHIBIT_ANY = 0x200;
     public static final int V_FLAG_INHIBIT_MAP = 0x400;
     public static final int V_FLAG_NOTIFY_POLICY = 0x800;
+    // NOTE: these aren't implemented:
+    /* Extended CRL features such as indirect CRLs, alternate CRL signing keys */
+    //public static final int V_FLAG_EXTENDED_CRL_SUPPORT = 0x1000;
+    /* Delta CRL support */
+    //public static final int V_FLAG_USE_DELTAS = 0x2000;
+    /* Check self-signed CA signature */
+    public static final int V_FLAG_CHECK_SS_SIGNATURE = 0x4000;
+    /* Use trusted store first */
+    public static final int V_FLAG_TRUSTED_FIRST = 0x8000;
 
-    public static final int VP_FLAG_DEFAULT = 0x1;
-    public static final int VP_FLAG_OVERWRITE = 0x2;
-    public static final int VP_FLAG_RESET_FLAGS = 0x4;
-    public static final int VP_FLAG_LOCKED = 0x8;
-    public static final int VP_FLAG_ONCE = 0x10;
+    // ...
+
+    /* Allow partial chains if at least one certificate is in trusted store */
+    public static final int V_FLAG_PARTIAL_CHAIN = 0x80000;
+    /*
+     * If the initial chain is not trusted, do not attempt to build an alternative
+     * chain. Alternate chain checking was introduced in 1.1.0. Setting this flag
+     * will force the behaviour to match that of previous versions.
+     */
+    public static final int V_FLAG_NO_ALT_CHAINS = 0x100000;
+    /* Do not check certificate/CRL validity against current time */
+    public static final int V_FLAG_NO_CHECK_TIME = 0x200000;
+
 
     /* Internal use: mask of policy related options */
     public static final int V_FLAG_POLICY_MASK = (V_FLAG_POLICY_CHECK |
@@ -487,7 +519,7 @@ public abstract class X509Utils {
     public static final int X509_PURPOSE_MIN = 1;
     public static final int X509_PURPOSE_MAX = 8;
 
-    public static final int X509_TRUST_DEFAULT = -1;
+    public static final int X509_TRUST_DEFAULT = 0; /* Only valid in purpose settings */
 
     public static final int X509_TRUST_COMPAT = 1;
     public static final int X509_TRUST_SSL_CLIENT = 2;
@@ -496,12 +528,20 @@ public abstract class X509Utils {
     public static final int X509_TRUST_OBJECT_SIGN = 5;
     public static final int X509_TRUST_OCSP_SIGN = 6;
     public static final int X509_TRUST_OCSP_REQUEST = 7;
+    public static final int X509_TRUST_TSA = 8;
 
     public static final int X509_TRUST_MIN = 1;
-    public static final int X509_TRUST_MAX = 7;
+    public static final int X509_TRUST_MAX = 8;
 
-    public static final int X509_TRUST_DYNAMIC = 1;
-    public static final int X509_TRUST_DYNAMIC_NAME = 2;
+    /* trust_flags values */
+    public static final int X509_TRUST_DYNAMIC = (1 << 0);
+    public static final int X509_TRUST_DYNAMIC_NAME = (1 << 1);
+    /* No compat trust if self-signed, preempts "DO_SS" */
+    public static final int X509_TRUST_NO_SS_COMPAT = (1 << 2);
+    /* Compat trust if no explicit accepted trust EKUs */
+    public static final int X509_TRUST_DO_SS_COMPAT = (1 << 3);
+    /* Accept "anyEKU" as a wildcard rejection OID and as a wildcard trust OID */
+    public static final int X509_TRUST_OK_ANY_EKU = (1 << 4);
 
     public static final int X509_TRUST_TRUSTED = 1;
     public static final int X509_TRUST_REJECTED = 2;
@@ -585,19 +625,22 @@ public abstract class X509Utils {
     public static final int ERR_R_DISABLED=(5|ERR_R_FATAL);
 
     public static final int EXFLAG_BCONS=0x1;
-    public static final int EXFLAG_KUSAGE=0x2;
+    //public static final int EXFLAG_KUSAGE=0x2;
     public static final int EXFLAG_XKUSAGE=0x4;
-    public static final int EXFLAG_NSCERT=0x8;
+    //public static final int EXFLAG_NSCERT=0x8;
 
     public static final int EXFLAG_CA=0x10;
-    public static final int EXFLAG_SS=0x20;
+    public static final int EXFLAG_SI=0x20; /* self-issued, maybe not self-signed */
     public static final int EXFLAG_V1=0x40;
-    public static final int EXFLAG_INVALID=0x80;
-    public static final int EXFLAG_SET=0x100;
-    public static final int EXFLAG_CRITICAL=0x200;
+    //public static final int EXFLAG_INVALID=0x80;
+    /* EXFLAG_SET is set to indicate that some values have been precomputed */
+    //public static final int EXFLAG_SET=0x100;
+    //public static final int EXFLAG_CRITICAL=0x200;
     public static final int EXFLAG_PROXY=0x400;
 
-    public static final int EXFLAG_INVALID_POLICY=0x400;
+    //public static final int EXFLAG_INVALID_POLICY=0x800;
+    //public static final int EXFLAG_FRESHEST=0x1000;
+    public static final int EXFLAG_SS=0x2000; /* cert is apparently self-signed */
 
     public static final int XKU_SSL_SERVER=0x1;
     public static final int XKU_SSL_CLIENT=0x2;

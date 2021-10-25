@@ -51,68 +51,26 @@ import org.jruby.ext.openssl.OpenSSL;
  */
 public class Store implements X509TrustManager {
 
-    public static interface VerifyFunction extends Function1<StoreContext> {
-        public static final VerifyFunction EMPTY = new VerifyFunction(){
-            public int call(StoreContext context) {
-                return -1;
-            }
-        };
-    }
-    public static interface VerifyCallbackFunction extends Function2<StoreContext, Integer> {
-        public static final VerifyCallbackFunction EMPTY = new VerifyCallbackFunction(){
-            public int call(StoreContext context, Integer outcome) {
-                return -1;
-            }
-        };
-    }
-    static interface GetIssuerFunction extends Function3<StoreContext, X509AuxCertificate[], X509AuxCertificate> {
-        public static final GetIssuerFunction EMPTY = new GetIssuerFunction(){
-            public int call(StoreContext context, X509AuxCertificate[] issuer, X509AuxCertificate cert) {
-                return -1;
-            }
-        };
-    }
-    static interface CheckIssuedFunction extends Function3<StoreContext, X509AuxCertificate, X509AuxCertificate> {
-        public static final CheckIssuedFunction EMPTY = new CheckIssuedFunction(){
-            public int call(StoreContext context, X509AuxCertificate cert, X509AuxCertificate issuer) throws Exception {
-                return -1;
-            }
-        };
-    }
-    static interface CheckRevocationFunction extends Function1<StoreContext> {
-        public static final CheckRevocationFunction EMPTY = new CheckRevocationFunction(){
-            public int call(StoreContext context) {
-                return -1;
-            }
-        };
-    }
-    static interface GetCRLFunction extends Function3<StoreContext, java.security.cert.X509CRL[], X509AuxCertificate> {
-        public static final GetCRLFunction EMPTY = new GetCRLFunction(){
-            public int call(StoreContext context, java.security.cert.X509CRL[] crls, X509AuxCertificate cert) {
-                return -1;
-            }
-        };
-    }
-    static interface CheckCRLFunction extends Function2<StoreContext, java.security.cert.X509CRL> {
-        public static final CheckCRLFunction EMPTY = new CheckCRLFunction(){
-            public int call(StoreContext context, java.security.cert.X509CRL crl) {
-                return -1;
-            }
-        };
-    }
-    static interface CertificateCRLFunction extends Function3<StoreContext, java.security.cert.X509CRL, X509AuxCertificate> {
-        public static final CertificateCRLFunction EMPTY = new CertificateCRLFunction(){
-            public int call(StoreContext context, java.security.cert.X509CRL crl, X509AuxCertificate cert) {
-                return -1;
-            }
-        };
-    }
-    static interface CleanupFunction extends Function1<StoreContext> {
-        public static final CleanupFunction EMPTY = new CleanupFunction(){
-            public int call(StoreContext context) {
-                return -1;
-            }
-        };
+    public interface VerifyFunction extends Function1<StoreContext> { }
+
+    public interface VerifyCallbackFunction extends Function2<StoreContext, Integer> { }
+
+    interface GetIssuerFunction extends Function3<StoreContext, X509AuxCertificate[], X509AuxCertificate> { }
+
+    interface CheckIssuedFunction extends Function3<StoreContext, X509AuxCertificate, X509AuxCertificate> { }
+
+    interface CheckRevocationFunction extends Function1<StoreContext> {  }
+
+    interface GetCRLFunction extends Function3<StoreContext, java.security.cert.X509CRL[], X509AuxCertificate> { }
+
+    interface CheckCRLFunction extends Function2<StoreContext, java.security.cert.X509CRL> { }
+
+    interface CertificateCRLFunction extends Function3<StoreContext, java.security.cert.X509CRL, X509AuxCertificate> { }
+
+    interface CleanupFunction extends Function1<StoreContext> { }
+
+    interface LookupCerts {
+        List<X509AuxCertificate> call(StoreContext ctx, Name name) throws Exception;
     }
 
     // @Deprecated int cache = 1; // not-used
@@ -123,18 +81,20 @@ public class Store implements X509TrustManager {
     private volatile X509Object[] objects = NULL_OBJECTS;
     private volatile Lookup[] certLookups = NULL_LOOKUP;
 
-    public final VerifyParameter verifyParameter;
+    final VerifyParameter verifyParameter;
 
-    VerifyFunction verify = VerifyFunction.EMPTY;
-    VerifyCallbackFunction verifyCallback = VerifyCallbackFunction.EMPTY;
+    VerifyFunction verify;
+    VerifyCallbackFunction verifyCallback;
 
-    GetIssuerFunction getIssuer = GetIssuerFunction.EMPTY;
-    CheckIssuedFunction checkIssued = CheckIssuedFunction.EMPTY;
-    CheckRevocationFunction checkRevocation = CheckRevocationFunction.EMPTY;
-    GetCRLFunction getCRL = GetCRLFunction.EMPTY;
-    CheckCRLFunction checkCRL = CheckCRLFunction.EMPTY;
-    CertificateCRLFunction certificateCRL = CertificateCRLFunction.EMPTY;
-    CleanupFunction cleanup = CleanupFunction.EMPTY;
+    GetIssuerFunction getIssuer;
+    CheckIssuedFunction checkIssued;
+    CheckRevocationFunction checkRevocation;
+    GetCRLFunction getCRL;
+    CheckCRLFunction checkCRL;
+    CertificateCRLFunction certificateCRL;
+    CleanupFunction cleanup;
+
+    LookupCerts lookup_certs; // NOTE: for now always null here
 
     private final List<Object> extraData;
 
@@ -158,23 +118,11 @@ public class Store implements X509TrustManager {
         return Arrays.asList(certLookups);
     }
 
-    public VerifyParameter getVerifyParameter() {
-        return verifyParameter;
-    }
-
-    public VerifyFunction getVerifyFunction() {
-        return verify;
-    }
-
     /**
      * c: X509_STORE_set_verify_func
      */
     public void setVerifyFunction(VerifyFunction func) {
         verify = func;
-    }
-
-    public VerifyCallbackFunction getVerifyCallback() {
-        return verifyCallback;
     }
 
     /**
@@ -245,11 +193,15 @@ public class Store implements X509TrustManager {
         return verifyParameter.setTrust(trust);
     }
 
+    public VerifyParameter getParam() {
+        return verifyParameter;
+    }
+
     /**
      * c: X509_STORE_set1_param
      */
-    public int setParam(VerifyParameter param) {
-        return verifyParameter.set(param);
+    public void setParam(VerifyParameter param) {
+        verifyParameter.set(param);
     }
 
     /**
@@ -282,20 +234,20 @@ public class Store implements X509TrustManager {
     }
 
     /**
-     * c: X509_STORE_add_cert
+     * int X509_STORE_add_cert(X509_STORE *ctx, X509 *x)
      */
     public int addCertificate(final X509Certificate cert) {
         if ( cert == null ) return 0;
 
-        final Certificate certObj = new Certificate(StoreContext.ensureAux(cert));
+        final Certificate obj = new Certificate(StoreContext.ensureAux(cert));
 
-        final X509Object[] objects = this.objects;
-        if ( matchedObject(objects, certObj) ) {
-            X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-            return 0;
+        synchronized (this) {
+            final X509Object[] objects = this.objects;
+            if ( matchedObject(objects, obj) ) {
+                return 1;
+            }
+            return addObject(obj); // 1
         }
-
-        return addObject(certObj, objects.length);
     }
 
     /**
@@ -304,15 +256,15 @@ public class Store implements X509TrustManager {
     public int addCRL(final java.security.cert.CRL crl) {
         if ( crl == null ) return 0;
 
-        final CRL crlObj = new CRL(crl);
+        final CRL obj = new CRL(crl);
 
-        final X509Object[] objects = this.objects;
-        if ( matchedObject(objects, crlObj) ) {
-            X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-            return 0;
+        synchronized (this) {
+            final X509Object[] objects = this.objects;
+            if ( matchedObject(objects, obj) ) {
+                return 1;
+            }
+            return addObject(obj); // 1
         }
-
-        return addObject(crlObj, objects.length);
     }
 
     private static boolean matchedObject(final X509Object[] objects, final X509Object xObject) {
@@ -322,34 +274,12 @@ public class Store implements X509TrustManager {
         return false;
     }
 
-    private synchronized int addObject(final X509Object xObject, final int prevLength) {
-        final int length = objects.length;
-        if ( length != prevLength ) { // something added concurrently
-            if ( matchedObject(objects, xObject) ) {
-                X509Error.addError(X509_R_CERT_ALREADY_IN_HASH_TABLE);
-                return 0;
-            }
-        }
-        X509Object[] newObjects = new X509Object[length + 1];
+    private int addObject(final X509Object xObject) {
+        final int len = this.objects.length;
 
-        int idx = length;
-        if (xObject instanceof Certificate) {
-            final X500Principal p1 = ((Certificate) xObject).cert.getIssuerX500Principal();
-            final Name n1 = new Name(p1);
-
-            for (idx = 0; idx < objects.length; idx++) {
-                X509Object xMember  = objects[idx];
-                if (xMember instanceof Certificate) {
-                    X500Principal p2 = ((Certificate) xMember).cert.getIssuerX500Principal();
-                    if (n1.equalTo(p2)) break;
-                }
-            }
-        }
-
-        System.arraycopy(objects, 0, newObjects, 0, idx);
-        System.arraycopy(objects, idx, newObjects, idx + 1, length-idx);
-        newObjects[idx] = xObject;
-        objects = newObjects;
+        X509Object[] objects = Arrays.copyOf(this.objects, len + 1);
+        objects[len] = xObject;
+        this.objects = objects;
         return 1;
     }
 
