@@ -87,13 +87,12 @@ plugin :clean do
                  'failOnError' =>  'false' )
 end
 
-jar 'org.jruby:jruby-core', '1.7.20', :scope => :provided
+jar 'org.jruby:jruby-core', '9.1.11.0', :scope => :provided
 jar 'junit:junit', '[4.13.1,)', :scope => :test
 
-# 9.1.17.0 is Java 7 compatible (till supporting JRuby 1.7)
 # NOTE: to build on Java 11 - installing gems fails (due old jossl) with:
 #  load error: jopenssl/load -- java.lang.StringIndexOutOfBoundsException
-MVN_JRUBY_VERSION = ENV_JAVA['java.version'].to_i >= 9 ? '9.2.9.0' : '9.1.17.0'
+MVN_JRUBY_VERSION = ENV_JAVA['java.version'].to_i >= 9 ? '9.2.19.0' : '9.1.17.0'
 
 jruby_plugin! :gem do
   # when installing dependent gems we want to use the built in openssl not the one from this lib directory
@@ -107,7 +106,7 @@ plugin :deploy, '2.8.1' do
   execute_goals( :deploy, :skip => false )
 end
 
-supported_bc_versions = %w{ 1.58 1.59 1.60 1.61 1.62 1.63 1.64 1.65 }
+supported_bc_versions = %w{ 1.60 1.61 1.62 1.63 1.64 1.65 1.66 1.67 1.68 }
 
 default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
@@ -151,8 +150,8 @@ invoker_run_options = {
       'runit.dir' => '${runit.dir}' }
 }
 
-jruby_9_K_versions  = %w{ 9.0.5.0 9.1.2.0 9.1.8.0 9.1.12.0 9.1.16.0 9.1.17.0 }
-jruby_9_K_versions += %w{ 9.2.0.0 9.2.5.0 9.2.6.0 9.2.7.0 9.2.8.0 9.2.9.0 }
+jruby_9_K_versions  = %w{ 9.1.2.0 9.1.8.0 9.1.12.0 9.1.16.0 9.1.17.0 }
+jruby_9_K_versions += %w{ 9.2.0.0 9.2.5.0 9.2.10.0 9.2.17.0 9.2.19.0 }
 
 jruby_9_K_versions.each { |version|
 profile :id => "test-#{version}" do
