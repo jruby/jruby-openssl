@@ -1,0 +1,43 @@
+name: JOSSL Unit Tests
+
+on: [push, pull_request]
+
+env:
+  JAVA_OPTS: '-XX:+TieredCompilation -XX:TieredStopAtLevel=1'
+
+jobs:
+
+  maven-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java-version: [ 8, 11, 15 ]
+        ruby-version: [ jruby-9.2.19.0 ]
+      fail-fast: false
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: set up java ${{ matrix.java-version }}
+        uses: actions/setup-java@v1.4.3
+        with:
+          java-version: ${{ matrix.java-version }}
+
+      - name: set up ${{ matrix.ruby-version }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - name: install bundler
+        run: jruby -S gem install bundler -v "~>2.2.28"
+
+      - name: bundle install
+        run: jruby -S bundle install
+
+      - name: rake test_prepare
+        run: jruby -rbundler/setup -S rake test_prepare
+
+      - name: rake test
+        run: jruby -rbundler/setup -S rake test
