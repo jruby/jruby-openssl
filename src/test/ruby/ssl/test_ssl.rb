@@ -98,32 +98,6 @@ class TestSSL < TestCase
     }
   end
 
-  def test_ssl_version_tlsv1
-    ctx_proc = Proc.new do |ctx|
-      ctx.ssl_version = "TLSv1"
-    end
-    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
-      sock = TCPSocket.new("127.0.0.1", port)
-      ssl = OpenSSL::SSL::SSLSocket.new(sock)
-      ssl.connect
-      assert_equal("TLSv1", ssl.ssl_version)
-      ssl.close
-    end
-  end
-
-  def test_ssl_version_tlsv1_1
-    ctx_proc = Proc.new do |ctx|
-      ctx.ssl_version = "TLSv1_1"
-    end
-    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
-      sock = TCPSocket.new("127.0.0.1", port)
-      ssl = OpenSSL::SSL::SSLSocket.new(sock)
-      ssl.connect
-      assert_equal("TLSv1.1", ssl.ssl_version)
-      ssl.close
-    end
-  end
-
   def test_ssl_version_tlsv1_2
     ctx_proc = Proc.new do |ctx|
       ctx.ssl_version = "TLSv1_2"
@@ -147,11 +121,7 @@ class TestSSL < TestCase
     [OpenSSL::SSL::TLS1_VERSION, nil,   MAX_SSL_VERSION, "(TLSv1,)"],
     [OpenSSL::SSL::TLS1_1_VERSION, nil, MAX_SSL_VERSION, "(TLSv1.1,)"],
     [OpenSSL::SSL::TLS1_2_VERSION, nil, MAX_SSL_VERSION, "(TLSv1.2,)"],
-    [nil, OpenSSL::SSL::TLS1_VERSION,   "TLSv1",         "(,TLSv1)"],
-    [nil, OpenSSL::SSL::TLS1_1_VERSION, "TLSv1.1",       "(,TLSv1.1)"],
     [nil, OpenSSL::SSL::TLS1_2_VERSION, "TLSv1.2",       "(,TLSv1.2)"],
-    [OpenSSL::SSL::TLS1_VERSION, OpenSSL::SSL::TLS1_VERSION,   "TLSv1",   "(TLSv1,TLSv1)"],
-    [OpenSSL::SSL::TLS1_VERSION, OpenSSL::SSL::TLS1_1_VERSION, "TLSv1.1", "(TLSv1,TLSv1.1)"],
     [OpenSSL::SSL::TLS1_VERSION, OpenSSL::SSL::TLS1_2_VERSION, "TLSv1.2", "(TLSv1,TLSv1.2)"]
   ].each do |min_version, max_version, expected_version, desc|
     define_method("test_ssl_minmax_#{desc}") do
