@@ -1,7 +1,15 @@
-require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
+require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 module PKCS7Test
   class TestMIME < TestCase
+
+    require 'jopenssl/load'
+
+    java_import 'org.jruby.ext.openssl.impl.BIO'
+    java_import 'org.jruby.ext.openssl.impl.Mime'
+    java_import 'org.jruby.ext.openssl.impl.MimeParam'
+    java_import 'org.jruby.ext.openssl.impl.MimeHeader'
+
     def test_find_header_returns_null_on_nonexisting_header
       headers = []
       assert_nil Mime::DEFAULT.find_header(headers, "foo")

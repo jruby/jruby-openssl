@@ -1,12 +1,10 @@
-require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
+require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 module PKCS7Test
   class TestBIO < TestCase
 
-    def setup; require 'jopenssl/load' end
-
     def test_string_bio_simple
-      bio = BIO::from_string("abc")
+      bio = org.jruby.ext.openssl.impl.BIO::from_string("abc")
       arr = Java::byte[20].new
       read = bio.gets(arr, 10)
       assert_equal 3, read
@@ -14,7 +12,7 @@ module PKCS7Test
     end
 
     def test_string_bio_simple_with_newline
-      bio = BIO::from_string("abc\n")
+      bio = org.jruby.ext.openssl.impl.BIO::from_string("abc\n")
       arr = Java::byte[20].new
       read = bio.gets(arr, 10)
       assert_equal 4, read
@@ -22,7 +20,7 @@ module PKCS7Test
     end
 
     def test_string_bio_simple_with_newline_and_more_data
-      bio = BIO::from_string("abc\nfoo\n\nbar")
+      bio = org.jruby.ext.openssl.impl.BIO::from_string("abc\nfoo\n\nbar")
       arr = Java::byte[20].new
       read = bio.gets(arr, 10)
       assert_equal 4, read

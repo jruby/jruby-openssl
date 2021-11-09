@@ -1,43 +1,4 @@
-require File.expand_path('test_helper', File.dirname(__FILE__))
-
 module PKCS7Test
-
-  PKCS7 = org.jruby.ext.openssl.impl.PKCS7 unless defined?(PKCS7)
-  Attribute = org.jruby.ext.openssl.impl.Attribute unless defined?(Attribute)
-  CipherSpec = org.jruby.ext.openssl.impl.CipherSpec unless defined?(CipherSpec)
-  Digest = org.jruby.ext.openssl.impl.Digest unless defined?(Digest)
-  EncContent = org.jruby.ext.openssl.impl.EncContent unless defined?(EncContent)
-  Encrypt = org.jruby.ext.openssl.impl.Encrypt unless defined?(Encrypt)
-  Envelope = org.jruby.ext.openssl.impl.Envelope unless defined?(Envelope)
-  IssuerAndSerial = org.jruby.ext.openssl.impl.IssuerAndSerial unless defined?(IssuerAndSerial)
-  RecipInfo = org.jruby.ext.openssl.impl.RecipInfo unless defined?(RecipInfo)
-  SignEnvelope = org.jruby.ext.openssl.impl.SignEnvelope unless defined?(SignEnvelope)
-  Signed = org.jruby.ext.openssl.impl.Signed unless defined?(Signed)
-  SMIME = org.jruby.ext.openssl.impl.SMIME unless defined?(SMIME)
-  Mime = org.jruby.ext.openssl.impl.Mime unless defined?(Mime)
-  MimeHeader = org.jruby.ext.openssl.impl.MimeHeader unless defined?(MimeHeader)
-  MimeParam = org.jruby.ext.openssl.impl.MimeParam unless defined?(MimeParam)
-  BIO = org.jruby.ext.openssl.impl.BIO unless defined?(BIO)
-  PKCS7Exception = org.jruby.ext.openssl.impl.PKCS7Exception unless defined?(PKCS7Exception)
-  ASN1Registry = org.jruby.ext.openssl.impl.ASN1Registry unless defined?(ASN1Registry)
-  AlgorithmIdentifier = org.bouncycastle.asn1.x509.AlgorithmIdentifier unless defined?(AlgorithmIdentifier)
-  SignerInfoWithPkey = org.jruby.ext.openssl.impl.SignerInfoWithPkey unless defined?(SignerInfoWithPkey)
-  IssuerAndSerialNumber = org.bouncycastle.asn1.pkcs.IssuerAndSerialNumber unless defined?(IssuerAndSerialNumber)
-  ASN1InputStream = org.bouncycastle.asn1.ASN1InputStream unless defined?(ASN1InputStream)
-  X509AuxCertificate = org.jruby.ext.openssl.x509store.X509AuxCertificate unless defined?(X509AuxCertificate)
-
-  ArrayList = java.util.ArrayList unless defined?(ArrayList)
-  CertificateFactory = java.security.cert.CertificateFactory unless defined?(CertificateFactory)
-  BCP = org.bouncycastle.jce.provider.BouncyCastleProvider unless defined?(BCP)
-  ByteArrayInputStream = java.io.ByteArrayInputStream unless defined?(ByteArrayInputStream)
-  BigInteger = java.math.BigInteger unless defined?(BigInteger)
-  Cipher = javax.crypto.Cipher unless defined?(Cipher)
-
-  ASN1Integer = org.bouncycastle.asn1.ASN1Integer
-  DERSet = org.bouncycastle.asn1.DERSet
-  DEROctetString = org.bouncycastle.asn1.DEROctetString
-  X500Name = org.bouncycastle.asn1.x500.X500Name
-
 
   MimeEnvelopedString = File::read(File.join(File.dirname(__FILE__), 'pkcs7', 'pkcs7_mime_enveloped.message'))
   MimeSignedString = File::read(File.join(File.dirname(__FILE__), 'pkcs7', 'pkcs7_mime_signed.message'))
@@ -76,7 +37,14 @@ WmsAXd0QV5UChfAJ2+Cz5U1bPszvIJGrzfAIoLxHv5rI5rseQzqZdPaFSe4Oehln
 -----END X509 CRL-----
 CRL
 
-  X509Cert = X509AuxCertificate.new(CertificateFactory.getInstance("X.509",BCP.new).generateCertificate(ByteArrayInputStream.new(X509CertString.to_java_bytes)))
-  X509CRL = CertificateFactory.getInstance("X.509",BCP.new).generateCRL(ByteArrayInputStream.new(X509CRLString.to_java_bytes))
+  @@provider = org.bouncycastle.jce.provider.BouncyCastleProvider.new
+
+  X509Cert = org.jruby.ext.openssl.x509store.X509AuxCertificate.new(
+      java.security.cert.CertificateFactory.getInstance(
+          "X.509", @@provider
+      ).generateCertificate(java.io.ByteArrayInputStream.new(X509CertString.to_java_bytes)))
+
+  X509CRL = java.security.cert.CertificateFactory.getInstance("X.509", @@provider).
+      generateCRL(java.io.ByteArrayInputStream.new(X509CRLString.to_java_bytes))
 
 end
