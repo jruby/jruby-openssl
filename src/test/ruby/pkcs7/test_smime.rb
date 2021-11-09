@@ -1,7 +1,18 @@
-require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
+require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 module PKCS7Test
   class TestSMIME < TestCase
+
+    require 'jopenssl/load'
+
+    java_import 'org.jruby.ext.openssl.impl.BIO'
+    java_import 'org.jruby.ext.openssl.impl.Mime'
+    java_import 'org.jruby.ext.openssl.impl.MimeHeader'
+    java_import 'org.jruby.ext.openssl.impl.MimeParam'
+    java_import 'org.jruby.ext.openssl.impl.PKCS7'
+    java_import 'org.jruby.ext.openssl.impl.PKCS7Exception'
+    java_import 'org.jruby.ext.openssl.impl.SMIME'
+
     def test_read_pkcs7_should_raise_error_when_parsing_headers_fails
       bio = BIO.new
       mime = Mime.impl { |name, *args| name == :parseHeaders ? nil : raise }
@@ -20,7 +31,7 @@ module PKCS7Test
       bio = BIO.new
       mime = Mime.impl {}
 
-      headers = ArrayList.new
+      headers = java.util.ArrayList.new
       mime.expects(:parseHeaders).with(bio).returns(headers)
       mime.expects(:findHeader).with(headers, "content-type").returns(nil)
 
@@ -75,7 +86,7 @@ module PKCS7Test
 
       mime = Mime.impl do |name, *args|
         case name
-        when :parseHeaders then ArrayList.new
+        when :parseHeaders then java.util.ArrayList.new
         when :findHeader then
           if args[1] == 'content-type'
             MimeHeader.new(args[1], "application/pkcs7-mime")
@@ -96,7 +107,7 @@ module PKCS7Test
       bio = BIO.new
       mime = Mime.impl do |name, *args|
         case name
-        when :parseHeaders then ArrayList.new
+        when :parseHeaders then java.util.ArrayList.new
         when :findHeader then
           if args[1] == 'content-type'
             MimeHeader.new(args[1], "foo")
@@ -122,7 +133,7 @@ module PKCS7Test
       hdr = MimeHeader.new("content-type", "multipart/signed")
       mime = Mime.impl do |name, *args|
         case name
-        when :parseHeaders then ArrayList.new
+        when :parseHeaders then java.util.ArrayList.new
         when :findHeader then
           if args[1] == 'content-type'
             hdr
@@ -148,7 +159,7 @@ module PKCS7Test
       bio = BIO.new
       mime = Mime.impl {}
 
-      headers = ArrayList.new
+      headers = java.util.ArrayList.new
       hdr = MimeHeader.new("content-type", "multipart/signed")
       mime.expects(:parseHeaders).with(bio).returns(headers)
       mime.expects(:findHeader).with(headers, "content-type").returns(hdr)
@@ -170,7 +181,7 @@ module PKCS7Test
       bio = BIO.new
       mime = Mime.impl {}
 
-      headers = ArrayList.new
+      headers = java.util.ArrayList.new
       mime.expects(:parseHeaders).with(bio).returns(headers)
       mime.expects(:findHeader).with(headers, "content-type").returns(MimeHeader.new("content-type", "application/pkcs7-mime"))
 

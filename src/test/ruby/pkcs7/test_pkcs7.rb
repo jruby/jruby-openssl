@@ -1,8 +1,22 @@
 # coding: US-ASCII
-require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
 
 module PKCS7Test
   class TestPKCS7 < TestCase
+
+    require 'jopenssl/load'
+
+    require File.expand_path('../pkcs7_helper', File.dirname(__FILE__))
+
+    java_import 'org.jruby.ext.openssl.impl.PKCS7'
+    java_import 'org.jruby.ext.openssl.impl.ASN1Registry'
+
+    java_import 'java.math.BigInteger'
+    java_import 'javax.crypto.Cipher'
+
+    java_import 'org.bouncycastle.asn1.x509.AlgorithmIdentifier'
+
+    OctetString = org.bouncycastle.asn1.DEROctetString
+
     def test_is_signed
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signed
@@ -73,7 +87,7 @@ module PKCS7Test
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signed
 
-      sign = Signed.new
+      sign = org.jruby.ext.openssl.impl.Signed.new
       p7.sign = sign
 
       test_p7 = PKCS7.new
@@ -90,7 +104,7 @@ module PKCS7Test
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signed
 
-      sign = Signed.new
+      sign = org.jruby.ext.openssl.impl.Signed.new
       p7.sign = sign
 
       test_p7 = PKCS7.new
@@ -108,7 +122,7 @@ module PKCS7Test
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signed
 
-      sign = Signed.new
+      sign = org.jruby.ext.openssl.impl.Signed.new
       p7.sign = sign
 
       test_p7 = PKCS7.new
@@ -159,8 +173,6 @@ module PKCS7Test
       assert_nil p7.get_encrypted
       assert_nil p7.get_other
     end
-
-    OctetString = org.bouncycastle.asn1.DEROctetString
 
     def test_set_type_data
       p7 = PKCS7.new
@@ -272,7 +284,7 @@ module PKCS7Test
       p7.type = ASN1Registry::NID_pkcs7_enveloped
 
       c = javax.crypto.Cipher.getInstance("RSA")
-      cipher = CipherSpec.new(c, "RSA", 128)
+      cipher = org.jruby.ext.openssl.impl.CipherSpec.new(c, "RSA", 128)
 
       p7.cipher = cipher
 
@@ -285,7 +297,7 @@ module PKCS7Test
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
 
       c = javax.crypto.Cipher.getInstance("RSA")
-      cipher = CipherSpec.new(c, "RSA", 128)
+      cipher = org.jruby.ext.openssl.impl.CipherSpec.new(c, "RSA", 128)
 
       p7.cipher = cipher
 
@@ -343,25 +355,25 @@ module PKCS7Test
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_enveloped
       assert_raise_pkcs7_exception do
-        p7.add_signer(SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil))
+        p7.add_signer(org.jruby.ext.openssl.impl.SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil))
       end
 
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_data
       assert_raise_pkcs7_exception do
-        p7.add_signer(SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil))
+        p7.add_signer(org.jruby.ext.openssl.impl.SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil))
       end
 
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_encrypted
       assert_raise_pkcs7_exception do
-        p7.add_signer(SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil))
+        p7.add_signer(org.jruby.ext.openssl.impl.SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil))
       end
 
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_digest
       assert_raise_pkcs7_exception do
-        p7.add_signer(SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil))
+        p7.add_signer(org.jruby.ext.openssl.impl.SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil))
       end
     end
 
@@ -369,7 +381,7 @@ module PKCS7Test
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signed
 
-      si = SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil)
+      si = org.jruby.ext.openssl.impl.SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil)
       p7.add_signer(si)
 
       assert_equal 1, p7.get_sign.signer_info.size
@@ -381,7 +393,7 @@ module PKCS7Test
       p7 = PKCS7.new
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
 
-      si = SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil)
+      si = org.jruby.ext.openssl.impl.SignerInfoWithPkey.new(nil, nil, nil, nil, nil, nil, nil)
       p7.add_signer(si)
 
       assert_equal 1, p7.get_signed_and_enveloped.signer_info.size
@@ -392,14 +404,14 @@ module PKCS7Test
 
     def create_signer_info_with_algo(algo)
       md5 = AlgorithmIdentifier.new(ASN1Registry.nid2obj(4))
-      SignerInfoWithPkey.new(
-          ASN1Integer.new(BIG_ONE),
-          IssuerAndSerialNumber.new(X500Name.new("C=SE"), BIG_ONE),
+      org.jruby.ext.openssl.impl.SignerInfoWithPkey.new(
+          org.bouncycastle.asn1.ASN1Integer.new(BIG_ONE),
+          org.bouncycastle.asn1.pkcs.IssuerAndSerialNumber.new(org.bouncycastle.asn1.x500.X500Name.new("C=SE"), BIG_ONE),
           algo,
-          DERSet.new,
+          org.bouncycastle.asn1.DERSet.new,
           md5,
-          DEROctetString.new([].to_java(:byte)),
-          DERSet.new
+          org.bouncycastle.asn1.DEROctetString.new([].to_java(:byte)),
+          org.bouncycastle.asn1.DERSet.new
       )
     end
 
@@ -697,12 +709,12 @@ module PKCS7Test
 
     EXISTING_PKCS7_DEF = "0\202\002 \006\t*\206H\206\367\r\001\a\003\240\202\002\0210\202\002\r\002\001\0001\202\001\2700\201\331\002\001\0000B0=1\0230\021\006\n\t\222&\211\223\362,d\001\031\026\003org1\0310\027\006\n\t\222&\211\223\362,d\001\031\026\truby-lang1\v0\t\006\003U\004\003\f\002CA\002\001\0020\r\006\t*\206H\206\367\r\001\001\001\005\000\004\201\200\213kF\330\030\362\237\363$\311\351\207\271+_\310sr\344\233N\200\233)\272\226\343\003\224OOf\372 \r\301{\206\367\241\270\006\240\254\3179F\232\231Q\232\225\347\373\233\032\375\360\035o\371\275p\306\v5Z)\263\037\302|\307\300\327\a\375\023G'Ax\313\346\261\254\227K\026\364\242\337\367\362rk\276\023\217m\326\343F\366I1\263\nLuNf\234\203\261\300\030\232Q\277\231\f0\030\001\332\021\0030\201\331\002\001\0000B0=1\0230\021\006\n\t\222&\211\223\362,d\001\031\026\003org1\0310\027\006\n\t\222&\211\223\362,d\001\031\026\truby-lang1\v0\t\006\003U\004\003\f\002CA\002\001\0030\r\006\t*\206H\206\367\r\001\001\001\005\000\004\201\200\215\223\3428\2440]\0278\016\230,\315\023Tg\325`\376~\353\304\020\243N{\326H\003\005\361q\224OI\310\2324-\341?\355&r\215\233\361\245jF\255R\271\203D\304v\325\265\243\321$\bSh\031i\eS\240\227\362\221\364\232\035\202\f?x\031\223D\004ZHD\355'g\243\037\236mJ\323\210\347\274m\324-\351\332\353#A\273\002\"h\aM\202\347\236\265\aI$@\240bt=<\212\2370L\006\t*\206H\206\367\r\001\a\0010\035\006\t`\206H\001e\003\004\001\002\004\020L?\325\372\\\360\366\372\237|W\333nnI\255\200 \253\234\252\263\006\335\037\320\350{s\352r\337\304\305\216\223k\003\376f\027_\201\035#*\002yM\334"
 
-    EXISTING_PKCS7_1 = PKCS7::from_asn1(ASN1InputStream.new(EXISTING_PKCS7_DEF.to_java_bytes).read_object)
+    EXISTING_PKCS7_1 = PKCS7::from_asn1(org.bouncycastle.asn1.ASN1InputStream.new(EXISTING_PKCS7_DEF.to_java_bytes).read_object)
 
     def test_encrypt_integration_test
       certs = [X509Cert]
-      c = Cipher.get_instance("AES", BCP.new)
-      cipher = CipherSpec.new(c, "AES-128-CBC", 128)
+      c = Cipher.get_instance("AES", org.bouncycastle.jce.provider.BouncyCastleProvider.new)
+      cipher = org.jruby.ext.openssl.impl.CipherSpec.new(c, "AES-128-CBC", 128)
       data = "aaaaa\nbbbbb\nccccc\n".to_java_bytes
       PKCS7::encrypt(certs, data, cipher, PKCS7::BINARY)
     end
@@ -731,7 +743,7 @@ PKCS7STR
     PKCS7_PEM_SECOND_KEY = "=\240W\320\2437K\355\243r\264+\235\313\265\216\273\346\324\365\027\225K\314|R\006\332\200_>C!\212\240\201\276C\234\267U^\302\315a\306\361\255\262\254\243\001I\364\331\214u\372\004\t\2053x%\226G6\251\037\213D\3607}\247\227\002\361rR\234\255\261}n\373L\211Q\361Wr\353K(\e\227\034I\260\027\374\255\352\025\343$\311E\255\360\367\306\304\2408cS\b\337\313\234S\232]\234\002~"
 
     def test_pem_read_pkcs7_bio
-      bio = BIO::mem_buf(EXISTING_PKCS7_PEM.to_java_bytes)
+      bio = org.jruby.ext.openssl.impl.BIO::mem_buf(EXISTING_PKCS7_PEM.to_java_bytes)
       p7 = PKCS7.read_pem(bio)
 
       assert_equal ASN1Registry::NID_pkcs7_enveloped, p7.type
@@ -781,7 +793,7 @@ PKCS7STR
       begin
         yield
         fail 'expected PKCS7Exception to be raised but did not'
-      rescue PKCS7Exception => e
+      rescue org.jruby.ext.openssl.impl.PKCS7Exception => e
         assert e
       end
     end

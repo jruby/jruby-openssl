@@ -3,13 +3,10 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 module PKCS7Test
   class TestAttribute < TestCase
 
-    OctetString = org.bouncycastle.asn1.DEROctetString
-    Attribute = org.jruby.ext.openssl.impl.Attribute
-
     def test_attributes
-      val = OctetString.new("foo".to_java_bytes)
-      val2 = OctetString.new("bar".to_java_bytes)
-      attr = Attribute.create(123, 444, val)
+      val = org.bouncycastle.asn1.DEROctetString.new("foo".to_java_bytes)
+      val2 = org.bouncycastle.asn1.DEROctetString.new("bar".to_java_bytes)
+      attr = org.jruby.ext.openssl.impl.Attribute.create(123, 444, val)
       assert_raise NoMethodError do
         attr.type = 12
       end
@@ -20,12 +17,12 @@ module PKCS7Test
       assert_equal 123, attr.type
       assert_equal val, attr.set.get(0)
 
-      attr2 = Attribute.create(123, 444, val)
+      attr2 = org.jruby.ext.openssl.impl.Attribute.create(123, 444, val)
 
       assert_equal attr, attr2
 
-      assert_not_equal Attribute.create(124, 444, val), attr
-      assert_not_equal Attribute.create(123, 444, val2), attr
+      assert_not_equal org.jruby.ext.openssl.impl.Attribute.create(124, 444, val), attr
+      assert_not_equal org.jruby.ext.openssl.impl.Attribute.create(123, 444, val2), attr
     end
 
   end
