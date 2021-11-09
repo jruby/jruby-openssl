@@ -167,7 +167,7 @@ class TestSSL < TestCase
         ssl.close
       end
     end
-  end if RUBY_VERSION > '2.3' 
+  end
 
   def test_read_nonblock_would_block
     start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
@@ -175,21 +175,13 @@ class TestSSL < TestCase
       ssl = OpenSSL::SSL::SSLSocket.new(sock)
       ssl.connect
 
-      if defined? OpenSSL::SSL::SSLErrorWaitReadable
-        begin
-          ssl.read_nonblock(2)
-          fail 'read would block error not raised!'
-        rescue OpenSSL::SSL::SSLErrorWaitReadable => e
-          assert_equal 'read would block', e.message
-        end
-      else
-        begin
-          ssl.read_nonblock(2)
-          fail 'read would block error not raised!'
-        rescue => e
-          assert_equal 'read would block', e.message
-        end
+      begin
+        ssl.read_nonblock(2)
+        fail 'read would block error not raised!'
+      rescue OpenSSL::SSL::SSLErrorWaitReadable => e
+        assert_equal 'read would block', e.message
       end
+
       if RUBY_VERSION > '2.2'
         result = eval "ssl.read_nonblock(5, 'buff', exception: false)"
         assert_equal :wait_readable, result
@@ -201,34 +193,18 @@ class TestSSL < TestCase
     end
   end
 
-  def test_connect_nonblock_would_block
-    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
+  def test_read_nonblock_without_session
+    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, false) do |server, port|
       sock = TCPSocket.new("127.0.0.1", port)
       ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.sync_close = true
 
-      if defined? OpenSSL::SSL::SSLErrorWaitReadable
-        begin
-          ssl.connect_nonblock
-          fail 'read would block error not raised!'
-        rescue OpenSSL::SSL::SSLErrorWaitReadable => e
-          assert_equal 'read would block', e.message
-        end
-      else
-        begin
-          ssl.connect_nonblock
-          fail 'read would block error not raised!'
-        rescue => e
-          assert_equal 'read would block', e.message
-        end
-      end
-
-      if RUBY_VERSION > '2.2'
-        result = eval "ssl.connect_nonblock(exception: false)"
-        assert_equal :wait_readable, result
-      end
-      result = ssl.connect_nonblock(:exception => false)
-      assert_equal :wait_readable, result
-
+      assert_equal :wait_readable, ssl.read_nonblock(100, exception: false)
+      ssl.write("abc\n")
+      IO.select [ssl]
+      assert_equal('a', ssl.read_nonblock(1))
+      assert_equal("bc\n", ssl.read_nonblock(100))
+      assert_equal :wait_readable, ssl.read_nonblock(100, exception: false)
       ssl.close
     end
   end
