@@ -1,40 +1,27 @@
 #-*- mode: ruby -*-
 
-begin
-  require 'ruby-maven'
-rescue LoadError
-  warn "ruby-maven not available - some tasks will not work " <<
-       "either `gem install ruby-maven' or use mvn instead of rake"
-  desc "Package jopenssl.jar with the compiled classes"
-  task :jar do
-    sh "mvn prepare-package -Dmaven.test.skip=true"
+#Rake::Task[:jar].clear rescue nil
+desc "Package jopenssl.jar with the compiled classes"
+task :jar do
+  sh( './mvnw prepare-package -Dmaven.test.skip=true' )
+end
+namespace :jar do
+  desc "Package jopenssl.jar file (and dependendent jars)"
+  task :all do
+    sh( './mvnw package -Dmaven.test.skip=true' )
   end
-  namespace :jar do
-    desc "Package jopenssl.jar file (and dependendent jars)"
-    task :all do
-      sh "mvn package -Dmaven.test.skip=true"
-    end
-  end
-else
-  #Rake::Task[:jar].clear rescue nil
-  desc "Package jopenssl.jar with the compiled classes"
-  task :jar do
-    RubyMaven.exec( 'prepare-package -Dmaven.test.skip=true' )
-  end
-  namespace :jar do
-    desc "Package jopenssl.jar file (and dependendent jars)"
-    task :all do
-      RubyMaven.exec( 'package -Dmaven.test.skip=true' )
-    end
-  end
-  task :test_prepare do
-    RubyMaven.exec( 'prepare-package -Dmaven.test.skip=true' )
-    RubyMaven.exec( 'test-compile' ) # separate step due -Dmaven.test.skip=true
-  end
+end
+task :test_prepare do
+  sh( './mvnw prepare-package -Dmaven.test.skip=true' )
+  sh( './mvnw test-compile' ) # separate step due -Dmaven.test.skip=true
+end
+
+task :clean do
+  sh( './mvnw clean' )
 end
 
 task :build do
-  RubyMaven.exec('package -Dmaven.test.skip')
+  sh( './mvnw clean package -Dmaven.test.skip=true' )
 end
 
 task :default => :build
