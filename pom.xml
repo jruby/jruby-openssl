@@ -2,7 +2,7 @@
 <!--
 
 
-DO NOT MODIFIY - GENERATED CODE
+DO NOT MODIFY - GENERATED CODE
 
 
 -->
@@ -63,10 +63,10 @@ DO NOT MODIFIY - GENERATED CODE
     <bc.versions>1.68</bc.versions>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <invoker.test>${bc.versions}</invoker.test>
-    <jruby.plugins.version>1.1.8</jruby.plugins.version>
+    <jruby.plugins.version>2.0.1</jruby.plugins.version>
     <jruby.switches>-W0</jruby.switches>
-    <jruby.version>9.1.17.0</jruby.version>
-    <jruby.versions>9.1.17.0</jruby.versions>
+    <jruby.version>9.2.19.0</jruby.version>
+    <jruby.versions>9.2.19.0</jruby.versions>
     <mavengem-wagon.version>1.0.3</mavengem-wagon.version>
     <mavengem.wagon.version>1.0.3</mavengem.wagon.version>
     <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
@@ -94,6 +94,12 @@ DO NOT MODIFIY - GENERATED CODE
       <artifactId>jruby-core</artifactId>
       <version>9.1.11.0</version>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.annotation</groupId>
+      <artifactId>javax.annotation-api</artifactId>
+      <version>1.3.1</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -175,7 +181,7 @@ DO NOT MODIFIY - GENERATED CODE
         <version>${jruby.plugins.version}</version>
         <executions>
           <execution>
-            <id>default-initialize</id>
+            <id>default-package</id>
             <configuration>
               <addProjectClasspath>false</addProjectClasspath>
               <libDirectory>something-which-does-not-exists</libDirectory>
@@ -240,7 +246,7 @@ DO NOT MODIFIY - GENERATED CODE
       </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
+        <version>3.8.1</version>
         <executions>
           <execution>
             <id>compile-populators</id>
@@ -356,28 +362,6 @@ DO NOT MODIFIY - GENERATED CODE
     </plugins>
   </build>
   <profiles>
-    <profile>
-      <id>module-info</id>
-      <activation>
-        <jdk>[9,)</jdk>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.8.1</version>
-            <configuration>
-              <source>9</source>
-              <target>1.8</target>
-              <release>9</release>
-              <includes>
-                <include>module-info.java</include>
-              </includes>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
     <profile>
       <id>test-9.1.2.0</id>
       <build>
