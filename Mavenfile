@@ -45,13 +45,12 @@ plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '1.9' ) do
   execute_goal 'add-source', :phase => 'process-classes', :sources => [ gen_sources ]
 end
 
-plugin( :compiler, '3.1',
+plugin( :compiler, '3.8.1',
         :source => '1.8', :target => java_target,
         :encoding => 'UTF-8', :debug => true,
         :showWarnings => true, :showDeprecation => true,
         :excludes => [ 'module-info.java' ],
         #:jdkToolchain => { :version => '[1.7,11)' },
-
         :generatedSourcesDirectory => gen_sources,
         :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ]) do
 
@@ -69,14 +68,6 @@ plugin( :compiler, '3.1',
                :compilerArgs => [ '', '-XDignore.symbol.file=true' ]
 end
 
-profile 'module-info' do
-  activation { jdk '[9,)' }
-  plugin :compiler, '3.8.1',
-         :source => '9', :target => java_target,
-         :release => '9',
-         :includes => [ 'module-info.java' ]
-end
-
 plugin :clean do
   execute_goals( 'clean', :id => 'default-clean', :phase => 'clean',
                  'filesets' => [
@@ -88,6 +79,8 @@ plugin :clean do
 end
 
 jar 'org.jruby:jruby-core', '9.1.11.0', :scope => :provided
+# for invoker generated classes we need to add javax.annotation when on Java > 8
+jar 'javax.annotation:javax.annotation-api', '1.3.1', :scope => :compile
 jar 'junit:junit', '[4.13.1,)', :scope => :test
 
 # NOTE: to build on Java 11 - installing gems fails (due old jossl) with:
@@ -96,8 +89,7 @@ MVN_JRUBY_VERSION = ENV_JAVA['java.version'].to_i >= 9 ? '9.2.19.0' : '9.1.17.0'
 
 jruby_plugin! :gem do
   # when installing dependent gems we want to use the built in openssl not the one from this lib directory
-  # we compile against jruby-core-1.7.20 and want to keep this out of the plugin execution here
-  execute_goal :id => 'default-initialize', :addProjectClasspath => false, :libDirectory => 'something-which-does-not-exists'
+  execute_goal :id => 'default-package', :addProjectClasspath => false, :libDirectory => 'something-which-does-not-exists'
   execute_goals :id => 'default-push', :skip => true
 end
 
@@ -111,7 +103,7 @@ supported_bc_versions = %w{ 1.60 1.61 1.62 1.63 1.64 1.65 1.66 1.67 1.68 }
 default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
-properties( 'jruby.plugins.version' => '1.1.8',
+properties( 'jruby.plugins.version' => '2.0.1', # 2.0.1
             'jruby.switches' => '-W0', # https://github.com/torquebox/jruby-maven-plugins/issues/94
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
