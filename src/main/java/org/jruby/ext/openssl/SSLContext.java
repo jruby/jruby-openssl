@@ -105,8 +105,8 @@ public class SSLContext extends RubyObject {
     private static final Map<String, Integer> JSSE_TO_VERSION;
 
     static {
-        SSL_VERSION_OSSL2JSSE = new LinkedHashMap<String, String>(20, 1);
-        ENABLED_PROTOCOLS = new HashMap<String, String[]>(8, 1);
+        SSL_VERSION_OSSL2JSSE = new LinkedHashMap<>(32, 1);
+        ENABLED_PROTOCOLS = new HashMap<>(16, 1);
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1", "TLSv1");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_server", "TLSv1");
@@ -127,13 +127,13 @@ public class SSLContext extends RubyObject {
         SSL_VERSION_OSSL2JSSE.put("SSLv23_server", "SSL");
         SSL_VERSION_OSSL2JSSE.put("SSLv23_client", "SSL");
 
-        ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv2", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2" });
+        ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv2", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3" });
 
         // Historically we were ahead of MRI to support TLS
         // ... thus the non-standard names version names :
 
         SSL_VERSION_OSSL2JSSE.put("TLS", "TLS");
-        ENABLED_PROTOCOLS.put("TLS", new String[] { "TLSv1", "TLSv1.1", "TLSv1.2" });
+        ENABLED_PROTOCOLS.put("TLS", new String[] { "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3" });
 
         SSL_VERSION_OSSL2JSSE.put("TLSv1.1", "TLSv1.1");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_1_server", "TLSv1.1");
@@ -144,11 +144,17 @@ public class SSLContext extends RubyObject {
         SSL_VERSION_OSSL2JSSE.put("TLSv1_2", "TLSv1.2"); // supported on MRI 2.x
         ENABLED_PROTOCOLS.put("TLSv1.2", new String[] { "TLSv1.2" });
 
-        SSL_VERSION_OSSL2JSSE.put("TLSv1.2", "TLSv1.2"); // just for completeness
+        SSL_VERSION_OSSL2JSSE.put("TLSv1.2", "TLSv1.2");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_2_server", "TLSv1.2");
         SSL_VERSION_OSSL2JSSE.put("TLSv1_2_client", "TLSv1.2");
 
-        PROTO_VERSION_MAP = new HashMap<String, Integer>();
+        SSL_VERSION_OSSL2JSSE.put("TLSv1.3", "TLSv1.3");
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_3_server", "TLSv1.3");
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_3_client", "TLSv1.3");
+        SSL_VERSION_OSSL2JSSE.put("TLSv1_3", "TLSv1.3");
+        ENABLED_PROTOCOLS.put("TLSv1.3", new String[] { "TLSv1.3" });
+
+        PROTO_VERSION_MAP = new HashMap<>(8, 1);
         PROTO_VERSION_MAP.put("SSL2", SSL.SSL2_VERSION);
         PROTO_VERSION_MAP.put("SSL3", SSL.SSL3_VERSION);
         PROTO_VERSION_MAP.put("TLS1", SSL.TLS1_VERSION);
@@ -156,7 +162,7 @@ public class SSLContext extends RubyObject {
         PROTO_VERSION_MAP.put("TLS1_2", SSL.TLS1_2_VERSION);
         PROTO_VERSION_MAP.put("TLS1_3", SSL.TLS1_3_VERSION);
 
-        JSSE_TO_VERSION = new HashMap<String, Integer>();
+        JSSE_TO_VERSION = new HashMap<>(8, 1);
         JSSE_TO_VERSION.put("SSLv2", SSL.SSL2_VERSION);
         JSSE_TO_VERSION.put("SSLv3", SSL.SSL3_VERSION);
         JSSE_TO_VERSION.put("TLSv1", SSL.TLS1_VERSION);
