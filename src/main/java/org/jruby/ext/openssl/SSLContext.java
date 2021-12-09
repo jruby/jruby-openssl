@@ -207,20 +207,13 @@ public class SSLContext extends RubyObject {
         final Set<String> methodKeys = SSL_VERSION_OSSL2JSSE.keySet();
         final RubyArray methods = runtime.newArray( methodKeys.size() );
         for ( final String method : methodKeys ) {
-            if ( method.equals("SSLv2") || method.startsWith("SSLv2_") ) {
-                continue; // do not report SSLv2, SSLv2_server, SSLv2_client
-            }
             if ( method.indexOf('.') == -1 ) {
                 // do not "officially" report TLSv1.1 and TLSv1.2
                 methods.append( runtime.newSymbol(method) );
             }
         }
         SSLContext.defineConstant("METHODS", methods);
-        // in 1.8.7 as well as 1.9.3 :
-        // [:TLSv1, :TLSv1_server, :TLSv1_client, :SSLv3, :SSLv3_server, :SSLv3_client, :SSLv23, :SSLv23_server, :SSLv23_client]
-        // in 2.0.0 :
-        // [:TLSv1, :TLSv1_server, :TLSv1_client, :TLSv1_2, :TLSv1_2_server, :TLSv1_2_client, :TLSv1_1, :TLSv1_1_server,
-        //  :TLSv1_1_client, :SSLv3, :SSLv3_server, :SSLv3_client, :SSLv23, :SSLv23_server, :SSLv23_client]
+        SSLContext.deprecateConstant(runtime, "METHODS");
 
         SSLContext.setConstant("SESSION_CACHE_OFF", runtime.newFixnum(SESSION_CACHE_OFF));
         SSLContext.setConstant("SESSION_CACHE_CLIENT", runtime.newFixnum(SESSION_CACHE_CLIENT));
