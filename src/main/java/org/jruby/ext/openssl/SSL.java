@@ -180,7 +180,7 @@ public class SSL {
         SSL.setConstant("TLS1_VERSION", runtime.newFixnum(TLS1_VERSION));
         SSL.setConstant("TLS1_1_VERSION", runtime.newFixnum(TLS1_1_VERSION));
         SSL.setConstant("TLS1_2_VERSION", runtime.newFixnum(TLS1_2_VERSION));
-        //SSL.setConstant("TLS1_3_VERSION", runtime.newFixnum(TLS1_3_VERSION));
+        SSL.setConstant("TLS1_3_VERSION", runtime.newFixnum(TLS1_3_VERSION));
 
         SSLContext.createSSLContext(runtime, SSL);
         SSLSocket.createSSLSocket(runtime, SSL);
