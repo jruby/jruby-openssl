@@ -38,6 +38,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.jruby.ext.openssl.SSL.SSL3_VERSION;
+import static org.jruby.ext.openssl.SSL.TLS1_VERSION;
+import static org.jruby.ext.openssl.SSL.TLS1_1_VERSION;
+import static org.jruby.ext.openssl.SSL.TLS1_2_VERSION;
+
 /**
  *
  * @author <a href="mailto:ola.bini@gmail.com">Ola Bini</a>
@@ -149,32 +154,71 @@ public class CipherStrings {
     public final static String SSL_TXT_kRSA = "kRSA";
     public final static String SSL_TXT_kDHr = "kDHr";
     public final static String SSL_TXT_kDHd = "kDHd";
-    public final static String SSL_TXT_kEDH = "kEDH";
+    public final static String SSL_TXT_kEDH = "kEDH"; /* alias for kDHE */
+    public final static String SSL_TXT_kDHE = "kDHE";
+    public final static String SSL_TXT_kEECDH = "kEECDH"; /* alias for kECDHE */
+    public final static String SSL_TXT_kECDHE = "kECDHE";
+
     public final static String SSL_TXT_aRSA = "aRSA";
     public final static String SSL_TXT_aDSS = "aDSS";
     public final static String SSL_TXT_aDH = "aDH";
+    public final static String SSL_TXT_aECDSA = "aECDSA";
+
     public final static String SSL_TXT_DSS = "DSS";
     public final static String SSL_TXT_DH = "DH";
-    public final static String SSL_TXT_EDH = "EDH";
+    public final static String SSL_TXT_DHE = "DHE"; /* same as "kDHE:-ADH" */;
+    public final static String SSL_TXT_EDH = "EDH"; /* alias for DHE */
     public final static String SSL_TXT_ADH = "ADH";
     public final static String SSL_TXT_RSA = "RSA";
+    public final static String SSL_TXT_ECDH = "ECDH";
+    public final static String SSL_TXT_EECDH = "EECDH"; /* alias for ECDHE" */
+    public final static String SSL_TXT_ECDHE = "ECDHE"; /* same as "kECDHE:-AECDH" */
+    public final static String SSL_TXT_AECDH = "AECDH";
+    public final static String SSL_TXT_ECDSA = "ECDSA";
+    //public final static String SSL_TXT_PSK = "PSK";
+    //public final static String SSL_TXT_SRP = "SRP";
+
     public final static String SSL_TXT_DES = "DES";
     public final static String SSL_TXT_3DES = "3DES";
     public final static String SSL_TXT_RC4 = "RC4";
     public final static String SSL_TXT_RC2 = "RC2";
     public final static String SSL_TXT_IDEA = "IDEA";
+    public final static String SSL_TXT_SEED = "SEED";
+    public final static String SSL_TXT_AES128 = "AES128";
+    public final static String SSL_TXT_AES256 = "AES256";
     public final static String SSL_TXT_AES = "AES";
+    public final static String SSL_TXT_AES_GCM = "AESGCM";
+    public final static String SSL_TXT_AES_CCM = "AESCCM";
+    public final static String SSL_TXT_AES_CCM_8 = "AESCCM8";
+    public final static String SSL_TXT_CAMELLIA128 = "CAMELLIA128";
+    public final static String SSL_TXT_CAMELLIA256 = "CAMELLIA256";
+    public final static String SSL_TXT_CAMELLIA = "CAMELLIA";
+    public final static String SSL_TXT_CHACHA20 = "CHACHA20";
+    public final static String SSL_TXT_GOST = "GOST89";
+    public final static String SSL_TXT_ARIA = "ARIA";
+    public final static String SSL_TXT_ARIA_GCM = "ARIAGCM";
+    public final static String SSL_TXT_ARIA128 = "ARIA128";
+    public final static String SSL_TXT_ARIA256 = "ARIA256";
+
     public final static String SSL_TXT_MD5 = "MD5";
     public final static String SSL_TXT_SHA1 = "SHA1";
-    public final static String SSL_TXT_SHA = "SHA";
+    public final static String SSL_TXT_SHA = "SHA";/* same as "SHA1" */
+    public final static String SSL_TXT_SHA256 = "SHA256";
+    public final static String SSL_TXT_SHA384 = "SHA384";
+
     public final static String SSL_TXT_EXP = "EXP";
     public final static String SSL_TXT_EXPORT = "EXPORT";
     public final static String SSL_TXT_EXP40 = "EXPORT40";
     public final static String SSL_TXT_EXP56 = "EXPORT56";
+
     public final static String SSL_TXT_SSLV2 = "SSLv2";
     public final static String SSL_TXT_SSLV3 = "SSLv3";
     public final static String SSL_TXT_TLSV1 = "TLSv1";
+    public final static String SSL_TXT_TLSV1_1 = "TLSv1.1";
+    public final static String SSL_TXT_TLSV1_2 = "TLSv1.2";
+
     public final static String SSL_TXT_ALL = "ALL";
+
     public final static String SSL_TXT_ECC = "ECCdraft";
 
     public final static String SSL_TXT_CMPALL = "COMPLEMENTOFALL";
@@ -184,14 +228,20 @@ public class CipherStrings {
     public final static String SSL_DEFAULT_CIPHER_LIST = "AES:ALL:!aNULL:!eNULL:+RC4:@STRENGTH";
 
     public final static long SSL_MKEY_MASK = 0x000000FFL;
+    /* Bits for algorithm_mkey (key exchange algorithm) */
+    /* RSA key exchange */
     public final static long SSL_kRSA = 0x00000001L;
     public final static long SSL_kDHr = 0x00000002L;
     public final static long SSL_kDHd = 0x00000004L;
     public final static long SSL_kFZA = 0x00000008L;
-    public final static long SSL_kEDH = 0x00000010L;
+    /* tmp DH key no DH cert */
+    public final static long SSL_kDHE = 0x00000010L;
+    public final static long SSL_kEDH = SSL_kDHE; /* synonym */
     public final static long SSL_kKRB5 = 0x00000020L;
     public final static long SSL_kECDH = 0x00000040L;
+    /* ephemeral ECDH */
     public final static long SSL_kECDHE = 0x00000080L;
+    public final static long SSL_kEECDH = SSL_kECDHE; /* synonym */
     public final static long SSL_aNULL = 0x00000800L;
     public final static long SSL_AUTH_MASK = 0x00007F00L;
     public final static long SSL_EDH = (SSL_kEDH|(SSL_AUTH_MASK^SSL_aNULL));
@@ -202,9 +252,7 @@ public class CipherStrings {
     public final static long SSL_aDH = 0x00001000L;
     public final static long SSL_aKRB5 = 0x00002000L;
     public final static long SSL_aECDSA = 0x00004000L;
-    public final static long SSL_eNULL = 0x00200000L;
     public final static long SSL_eFZA = 0x00100000L;
-    public final static long SSL_NULL = (SSL_eNULL);
     public final static long SSL_ADH = (SSL_kEDH|SSL_aNULL);
     public final static long SSL_RSA = (SSL_kRSA|SSL_aRSA);
     public final static long SSL_DH = (SSL_kDHr|SSL_kDHd|SSL_kEDH);
@@ -212,17 +260,54 @@ public class CipherStrings {
     public final static long SSL_FZA = (SSL_aFZA|SSL_kFZA|SSL_eFZA);
     public final static long SSL_KRB5 = (SSL_kKRB5|SSL_aKRB5);
     public final static long SSL_ENC_MASK = 0x043F8000L;
-    public final static long SSL_DES = 0x00008000L;
-    public final static long SSL_3DES = 0x00010000L;
-    public final static long SSL_RC4 = 0x00020000L;
-    public final static long SSL_RC2 = 0x00040000L;
-    public final static long SSL_IDEA = 0x00080000L;
-    public final static long SSL_AES = 0x04000000L;
+
+    /* Bits for algorithm_enc (symmetric encryption) */
+    public final static long SSL_DES = 0x00000001L;
+    public final static long SSL_3DES = 0x00000002L;
+    public final static long SSL_RC4 = 0x00000004L;
+    public final static long SSL_RC2 = 0x00000008L;
+    public final static long SSL_IDEA = 0x00000010L;
+    public final static long SSL_eNULL = 0x00000020L;
+    //public final static long SSL_AES = 0x04000000L;
+    public final static long SSL_AES128 = 0x00000040L;
+    public final static long SSL_AES256 = 0x00000080L;
+    public final static long SSL_CAMELLIA128 = 0x00000100L;
+    public final static long SSL_CAMELLIA256 = 0x00000200L;
+    //public final static long SSL_eGOST2814789CNT = 0x00000400L;
+    public final static long SSL_SEED = 0x00000800L;
+    public final static long SSL_AES128GCM = 0x00001000L;
+    public final static long SSL_AES256GCM = 0x00002000L;
+    public final static long SSL_AES128CCM = 0x00004000L;
+    public final static long SSL_AES256CCM = 0x00008000L;
+    public final static long SSL_AES128CCM8 = 0x00010000L;
+    public final static long SSL_AES256CCM8 = 0x00020000L;
+    //public final static long SSL_eGOST2814789CNT12 = 0x00040000L;
+    public final static long SSL_CHACHA20POLY1305 = 0x00080000L;
+    public final static long SSL_ARIA128GCM = 0x00100000L;
+    public final static long SSL_ARIA256GCM = 0x00200000L;
+
+    public final static long SSL_AESGCM = (SSL_AES128GCM | SSL_AES256GCM);
+    public final static long SSL_AESCCM = (SSL_AES128CCM | SSL_AES256CCM | SSL_AES128CCM8 | SSL_AES256CCM8);
+    public final static long SSL_AES = (SSL_AES128|SSL_AES256|SSL_AESGCM|SSL_AESCCM);
+    public final static long SSL_CAMELLIA = (SSL_CAMELLIA128|SSL_CAMELLIA256);
+    public final static long SSL_CHACHA20 = (SSL_CHACHA20POLY1305);
+    public final static long SSL_ARIAGCM = (SSL_ARIA128GCM | SSL_ARIA256GCM);
+    public final static long SSL_ARIA = (SSL_ARIAGCM);
+
+    /* Bits for algorithm_mac (symmetric authentication) */
+
     public final static long SSL_MAC_MASK = 0x00c00000L;
-    public final static long SSL_MD5 = 0x00400000L;
-    public final static long SSL_SHA1 = 0x00800000L;
+    /* Bits for algorithm_mac (symmetric authentication) */
+    public final static long SSL_MD5 = 0x00400000L; // 0x00000001U
+    public final static long SSL_SHA1 = 0x00800000L; // 0x00000002U
     public final static long SSL_SHA = (SSL_SHA1);
-    public final static long SSL_SSL_MASK = 0x03000000L;
+    //# define SSL_GOST94      0x00000004U
+    //# define SSL_GOST89MAC   0x00000008U
+    // NOTE: retrofitted (from 1.1.1) - expected not to used | and w SSL_MAC_MASK
+    public final static long SSL_SHA256 = 0x00000010L;
+    public final static long SSL_SHA384 = 0x00000020L;
+
+    //public final static long SSL_SSL_MASK = 0x03000000L;
     public final static long SSL_SSLV2 = 0x01000000L;
     public final static long SSL_SSLV3 = 0x02000000L;
     public final static long SSL_TLSV1 = SSL_SSLV3;
@@ -235,9 +320,14 @@ public class CipherStrings {
     public final static long SSL_MICRO = (SSL_EXP40);
     public final static long SSL_EXP56 = 0x00000010L;
     public final static long SSL_MINI = (SSL_EXP56);
-    public final static long SSL_LOW = 0x00000020L;
+
+    // NOTE: can not be adjusted until SSL_NOT_EXP is around!
+    public final static long SSL_LOW = 0x00000020L; // 0x00000002U in OSSL 1.1
     public final static long SSL_MEDIUM = 0x00000040L;
     public final static long SSL_HIGH = 0x00000080L;
+    public final static long SSL_FIPS = 0x00000100L; // 0x00000010U in OSSL 1.1
+    public final static long SSL_NOT_DEFAULT = 0x00000200L; // 0x00000020U in OSSL 1.1
+
     public final static long SSL_ALL = 0xffffffffL;
     public final static long SSL_ALL_CIPHERS = (SSL_MKEY_MASK|SSL_AUTH_MASK|SSL_ENC_MASK|SSL_MAC_MASK);
     public final static long SSL_ALL_STRENGTHS = (SSL_EXP_MASK|SSL_STRONG_MASK);
@@ -373,9 +463,10 @@ public class CipherStrings {
 
     static final class Def implements Comparable<Def>, Cloneable {
 
-        //private final byte valid;
+        final boolean valid; // TODO NOT IMPLEMENTED!
         final String name;
-        //private final long id;
+        private final long id;
+
         final long algorithms;
         private final long algStrength;
         //final long algorithm2;
@@ -384,12 +475,21 @@ public class CipherStrings {
         private final long mask;
         private final long algStrengthMask;
 
+        // OpenSSL 1.1.1
+        private long algorithm_mkey;
+        private long algorithm_auth;
+        private long algorithm_enc;
+        private long algorithm_mac;
+        private int min_tls; // "new" format using SSL.TLS_ constants
+        private int max_tls; // "new" format using SSL.TLS_ constants
+
+        // JOSSL extra
         private volatile String cipherSuite;
 
         Def(int valid, String name, long id, long algorithms, long algo_strength, long algorithm2, int strength_bits, int alg_bits, long mask, long maskStrength) {
-            //this.valid = (byte) valid;
+            this.valid = valid != 0;
             this.name = name;
-            //this.id = id;
+            this.id = id;
             this.algorithms = algorithms;
             this.algStrength = algo_strength;
             //this.algorithm2 = algorithm2;
@@ -400,7 +500,9 @@ public class CipherStrings {
         }
 
         Def(String name, long algorithms, long algo_strength, int strength_bits, int alg_bits, long mask, long maskStrength) {
+            this.valid = true;
             this.name = name;
+            this.id = 0;
             this.algorithms = algorithms;
             this.algStrength = algo_strength;
             this.algStrengthBits = strength_bits;
@@ -408,6 +510,40 @@ public class CipherStrings {
             this.mask = mask;
             this.algStrengthMask = maskStrength;
         }
+
+        Def(int valid, String name, String stdname, /* RFC name */
+            long id, /* uint32_t id, 4 bytes, first is version */
+            /*
+             * changed in 1.0.0: these four used to be portions of a single value
+             * 'algorithms'
+             */
+            long algorithm_mkey, /* key exchange algorithm */
+            long algorithm_auth, /* server authentication */
+            long algorithm_enc,  /* symmetric encryption */
+            long algorithm_mac,  /* symmetric authentication */
+            int min_tls,         /* minimum SSL/TLS protocol version */
+            int max_tls          /* maximum SSL/TLS protocol version */) {
+
+            this.valid = valid != 0;
+            this.name = name;
+            this.id = id;
+
+            this.algorithm_mkey = algorithm_mkey;
+            this.algorithm_auth = algorithm_auth;
+            this.algorithm_enc = algorithm_enc;
+            this.algorithm_mac = algorithm_mac;
+            this.min_tls = min_tls;
+            this.max_tls = max_tls;
+
+            this.algorithms = algorithm_mkey;
+            this.algStrength = 0;
+            this.algStrengthBits = 0;
+            this.algBits = 0;
+
+            this.mask = 0;
+            this.algStrengthMask = 0;
+        }
+
 
         public String getCipherSuite() {
             return cipherSuite;
@@ -629,53 +765,138 @@ public class CipherStrings {
     private final static Map<String, String> SuiteToOSSL;
 
     static {
-        Definitions = new HashMap<String, Def>( 48, 1 );
-        // TODO review base on OpenSSL's static const SSL_CIPHER cipher_aliases[] ?!
-        Definitions.put(SSL_TXT_ALL,new Def(0,SSL_TXT_ALL, 0,SSL_ALL & ~SSL_eNULL, SSL_ALL ,0,0,0,SSL_ALL,SSL_ALL));
-        Definitions.put(SSL_TXT_CMPALL,new Def(0,SSL_TXT_CMPALL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_CMPDEF,new Def(0,SSL_TXT_CMPDEF,0,SSL_ADH, 0,0,0,0,SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_kKRB5,new Def(0,SSL_TXT_kKRB5,0,SSL_kKRB5,0,0,0,0,SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_kRSA,new Def(0,SSL_TXT_kRSA,0,SSL_kRSA,  0,0,0,0,SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_kDHr,new Def(0,SSL_TXT_kDHr,0,SSL_kDHr,  0,0,0,0,SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_kDHd,new Def(0,SSL_TXT_kDHd,0,SSL_kDHd,  0,0,0,0,SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_kEDH,new Def(0,SSL_TXT_kEDH,0,SSL_kEDH,  0,0,0,0,SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_kFZA,new Def(0,SSL_TXT_kFZA,0,SSL_kFZA,  0,0,0,0,SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_DH,new Def(0,SSL_TXT_DH,	0,SSL_DH,    0,0,0,0,SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_ECC,new Def(0,SSL_TXT_ECC,	0,(SSL_kECDH|SSL_kECDHE), 0,0,0,0,SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_EDH,new Def(0,SSL_TXT_EDH,	0,SSL_EDH,   0,0,0,0,SSL_MKEY_MASK|SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_aKRB5,new Def(0,SSL_TXT_aKRB5,0,SSL_aKRB5,0,0,0,0,SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_aRSA,new Def(0,SSL_TXT_aRSA,0,SSL_aRSA,  0,0,0,0,SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_aDSS,new Def(0,SSL_TXT_aDSS,0,SSL_aDSS,  0,0,0,0,SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_aFZA,new Def(0,SSL_TXT_aFZA,0,SSL_aFZA,  0,0,0,0,SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_aNULL,new Def(0,SSL_TXT_aNULL,0,SSL_aNULL,0,0,0,0,SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_aDH,new Def(0,SSL_TXT_aDH, 0,SSL_aDH,   0,0,0,0,SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_DSS,new Def(0,SSL_TXT_DSS,	0,SSL_DSS,   0,0,0,0,SSL_AUTH_MASK,0));
-        Definitions.put(SSL_TXT_DES,new Def(0,SSL_TXT_DES,	0,SSL_DES,   0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_3DES,new Def(0,SSL_TXT_3DES,0,SSL_3DES,  0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_RC4,new Def(0,SSL_TXT_RC4,	0,SSL_RC4,   0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_RC2,new Def(0,SSL_TXT_RC2,	0,SSL_RC2,   0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_IDEA,new Def(0,SSL_TXT_IDEA,0,SSL_IDEA,  0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_eNULL,new Def(0,SSL_TXT_eNULL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_eFZA,new Def(0,SSL_TXT_eFZA,0,SSL_eFZA,  0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_AES,new Def(0,SSL_TXT_AES,	0,SSL_AES,   0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_MD5,new Def(0,SSL_TXT_MD5,	0,SSL_MD5,   0,0,0,0,SSL_MAC_MASK,0));
-        Definitions.put(SSL_TXT_SHA1,new Def(0,SSL_TXT_SHA1,0,SSL_SHA1,  0,0,0,0,SSL_MAC_MASK,0));
-        Definitions.put(SSL_TXT_SHA,new Def(0,SSL_TXT_SHA,	0,SSL_SHA,   0,0,0,0,SSL_MAC_MASK,0));
-        Definitions.put(SSL_TXT_NULL,new Def(0,SSL_TXT_NULL,0,SSL_NULL,  0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_KRB5,new Def(0,SSL_TXT_KRB5,0,SSL_KRB5,  0,0,0,0,SSL_AUTH_MASK|SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_RSA,new Def(0,SSL_TXT_RSA,	0,SSL_RSA,   0,0,0,0,SSL_AUTH_MASK|SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_ADH,new Def(0,SSL_TXT_ADH,	0,SSL_ADH,   0,0,0,0,SSL_AUTH_MASK|SSL_MKEY_MASK,0));
-        Definitions.put(SSL_TXT_FZA,new Def(0,SSL_TXT_FZA,	0,SSL_FZA,   0,0,0,0,SSL_AUTH_MASK|SSL_MKEY_MASK|SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_SSLV2,new Def(0,SSL_TXT_SSLV2, 0,SSL_SSLV2, 0,0,0,0,SSL_SSL_MASK,0));
-        Definitions.put(SSL_TXT_SSLV3,new Def(0,SSL_TXT_SSLV3, 0,SSL_SSLV3, 0,0,0,0,SSL_SSL_MASK,0));
-        Definitions.put(SSL_TXT_TLSV1,new Def(0,SSL_TXT_TLSV1, 0,SSL_TLSV1, 0,0,0,0,SSL_SSL_MASK,0));
-        Definitions.put(SSL_TXT_EXP,new Def(0,SSL_TXT_EXP   ,0, 0,SSL_EXPORT, 0,0,0,0,SSL_EXP_MASK));
-        Definitions.put(SSL_TXT_EXPORT,new Def(0,SSL_TXT_EXPORT,0, 0,SSL_EXPORT, 0,0,0,0,SSL_EXP_MASK));
-        Definitions.put(SSL_TXT_EXP40,new Def(0,SSL_TXT_EXP40, 0, 0, SSL_EXP40, 0,0,0,0,SSL_STRONG_MASK));
-        Definitions.put(SSL_TXT_EXP56,new Def(0,SSL_TXT_EXP56, 0, 0, SSL_EXP56, 0,0,0,0,SSL_STRONG_MASK));
-        Definitions.put(SSL_TXT_LOW,new Def(0,SSL_TXT_LOW,   0, 0,   SSL_LOW, 0,0,0,0,SSL_STRONG_MASK));
-        Definitions.put(SSL_TXT_MEDIUM,new Def(0,SSL_TXT_MEDIUM,0, 0,SSL_MEDIUM, 0,0,0,0,SSL_STRONG_MASK));
-        Definitions.put(SSL_TXT_HIGH,new Def(0,SSL_TXT_HIGH,  0, 0,  SSL_HIGH, 0,0,0,0,SSL_STRONG_MASK));
+        final String NULL = null;
+
+        Object[] cipher_aliases[] = {
+            /* "ALL" doesn't include eNULL (must be specifically enabled) */
+            {0, SSL_TXT_ALL, NULL, 0, 0, 0, ~SSL_eNULL},
+            /* "COMPLEMENTOFALL" */
+            {0, SSL_TXT_CMPALL, NULL, 0, 0, 0, SSL_eNULL},
+
+            /*
+             * "COMPLEMENTOFDEFAULT" (does *not* include ciphersuites not found in ALL!)
+             */
+            {0, SSL_TXT_CMPDEF, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, SSL_NOT_DEFAULT},
+
+            /*
+             * key exchange aliases (some of those using only a single bit here
+             * combine multiple key exchange algs according to the RFCs, e.g. kDHE
+             * combines DHE_DSS and DHE_RSA)
+             */
+            {0, SSL_TXT_kRSA, NULL, 0, SSL_kRSA},
+
+            {0, SSL_TXT_kEDH, NULL, 0, SSL_kDHE},
+            {0, SSL_TXT_kDHE, NULL, 0, SSL_kDHE},
+            {0, SSL_TXT_DH, NULL, 0, SSL_kDHE},
+
+            {0, SSL_TXT_kEECDH, NULL, 0, SSL_kECDHE},
+            {0, SSL_TXT_kECDHE, NULL, 0, SSL_kECDHE},
+            {0, SSL_TXT_ECDH, NULL, 0, SSL_kECDHE},
+
+            //{0, SSL_TXT_kPSK, NULL, 0, SSL_kPSK},
+            //{0, SSL_TXT_kRSAPSK, NULL, 0, SSL_kRSAPSK},
+            //{0, SSL_TXT_kECDHEPSK, NULL, 0, SSL_kECDHEPSK},
+            //{0, SSL_TXT_kDHEPSK, NULL, 0, SSL_kDHEPSK},
+            //{0, SSL_TXT_kSRP, NULL, 0, SSL_kSRP},
+            //{0, SSL_TXT_kGOST, NULL, 0, SSL_kGOST},
+
+            /* server authentication aliases */
+            {0, SSL_TXT_aRSA, NULL, 0, 0, SSL_aRSA},
+            {0, SSL_TXT_aDSS, NULL, 0, 0, SSL_aDSS},
+            {0, SSL_TXT_DSS, NULL, 0, 0, SSL_aDSS},
+            {0, SSL_TXT_aNULL, NULL, 0, 0, SSL_aNULL},
+            {0, SSL_TXT_aECDSA, NULL, 0, 0, SSL_aECDSA},
+            {0, SSL_TXT_ECDSA, NULL, 0, 0, SSL_aECDSA},
+            //{0, SSL_TXT_aPSK, NULL, 0, 0, SSL_aPSK},
+            //{0, SSL_TXT_aGOST01, NULL, 0, 0, SSL_aGOST01},
+            //{0, SSL_TXT_aGOST12, NULL, 0, 0, SSL_aGOST12},
+            //{0, SSL_TXT_aGOST, NULL, 0, 0, SSL_aGOST01 | SSL_aGOST12},
+            //{0, SSL_TXT_aSRP, NULL, 0, 0, SSL_aSRP},
+
+            /* aliases combining key exchange and server authentication */
+            {0, SSL_TXT_EDH, NULL, 0, SSL_kDHE, ~SSL_aNULL},
+            {0, SSL_TXT_DHE, NULL, 0, SSL_kDHE, ~SSL_aNULL},
+            {0, SSL_TXT_EECDH, NULL, 0, SSL_kECDHE, ~SSL_aNULL},
+            {0, SSL_TXT_ECDHE, NULL, 0, SSL_kECDHE, ~SSL_aNULL},
+            {0, SSL_TXT_NULL, NULL, 0, 0, 0, SSL_eNULL},
+            {0, SSL_TXT_RSA, NULL, 0, SSL_kRSA, SSL_aRSA},
+            {0, SSL_TXT_ADH, NULL, 0, SSL_kDHE, SSL_aNULL},
+            {0, SSL_TXT_AECDH, NULL, 0, SSL_kECDHE, SSL_aNULL},
+            //{0, SSL_TXT_PSK, NULL, 0, SSL_PSK},
+            //{0, SSL_TXT_SRP, NULL, 0, SSL_kSRP},
+
+            /* symmetric encryption aliases */
+            {0, SSL_TXT_3DES, NULL, 0, 0, 0, SSL_3DES},
+            {0, SSL_TXT_RC4, NULL, 0, 0, 0, SSL_RC4},
+            {0, SSL_TXT_RC2, NULL, 0, 0, 0, SSL_RC2},
+            {0, SSL_TXT_IDEA, NULL, 0, 0, 0, SSL_IDEA},
+            {0, SSL_TXT_SEED, NULL, 0, 0, 0, SSL_SEED},
+            {0, SSL_TXT_eNULL, NULL, 0, 0, 0, SSL_eNULL},
+            //{0, SSL_TXT_GOST, NULL, 0, 0, 0, SSL_eGOST2814789CNT | SSL_eGOST2814789CNT12},
+            {0, SSL_TXT_AES128, NULL, 0, 0, 0,
+                    SSL_AES128 | SSL_AES128GCM | SSL_AES128CCM | SSL_AES128CCM8},
+            {0, SSL_TXT_AES256, NULL, 0, 0, 0,
+                    SSL_AES256 | SSL_AES256GCM | SSL_AES256CCM | SSL_AES256CCM8},
+            {0, SSL_TXT_AES, NULL, 0, 0, 0, SSL_AES},
+            {0, SSL_TXT_AES_GCM, NULL, 0, 0, 0, SSL_AES128GCM | SSL_AES256GCM},
+            {0, SSL_TXT_AES_CCM, NULL, 0, 0, 0,
+                    SSL_AES128CCM | SSL_AES256CCM | SSL_AES128CCM8 | SSL_AES256CCM8},
+            {0, SSL_TXT_AES_CCM_8, NULL, 0, 0, 0, SSL_AES128CCM8 | SSL_AES256CCM8},
+            {0, SSL_TXT_CAMELLIA128, NULL, 0, 0, 0, SSL_CAMELLIA128},
+            {0, SSL_TXT_CAMELLIA256, NULL, 0, 0, 0, SSL_CAMELLIA256},
+            {0, SSL_TXT_CAMELLIA, NULL, 0, 0, 0, SSL_CAMELLIA},
+            {0, SSL_TXT_CHACHA20, NULL, 0, 0, 0, SSL_CHACHA20},
+
+            {0, SSL_TXT_ARIA, NULL, 0, 0, 0, SSL_ARIA},
+            {0, SSL_TXT_ARIA_GCM, NULL, 0, 0, 0, SSL_ARIA128GCM | SSL_ARIA256GCM},
+            {0, SSL_TXT_ARIA128, NULL, 0, 0, 0, SSL_ARIA128GCM},
+            {0, SSL_TXT_ARIA256, NULL, 0, 0, 0, SSL_ARIA256GCM},
+
+            /* MAC aliases */
+            {0, SSL_TXT_MD5, NULL, 0, 0, 0, 0, SSL_MD5},
+            {0, SSL_TXT_SHA1, NULL, 0, 0, 0, 0, SSL_SHA1},
+            {0, SSL_TXT_SHA, NULL, 0, 0, 0, 0, SSL_SHA1},
+            //{0, SSL_TXT_GOST94, NULL, 0, 0, 0, 0, SSL_GOST94},
+            //{0, SSL_TXT_GOST89MAC, NULL, 0, 0, 0, 0, SSL_GOST89MAC | SSL_GOST89MAC12},
+            {0, SSL_TXT_SHA256, NULL, 0, 0, 0, 0, SSL_SHA256},
+            {0, SSL_TXT_SHA384, NULL, 0, 0, 0, 0, SSL_SHA384},
+            //{0, SSL_TXT_GOST12, NULL, 0, 0, 0, 0, SSL_GOST12_256},
+
+            /* protocol version aliases */
+            {0, SSL_TXT_SSLV3, NULL, 0, 0, 0, 0, 0, SSL3_VERSION},
+            {0, SSL_TXT_TLSV1, NULL, 0, 0, 0, 0, 0, TLS1_VERSION},
+            {0, "TLSv1.0", NULL, 0, 0, 0, 0, 0, TLS1_VERSION},
+            {0, SSL_TXT_TLSV1_2, NULL, 0, 0, 0, 0, 0, TLS1_2_VERSION},
+
+            /* strength classes */
+            {0, SSL_TXT_LOW, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, SSL_LOW},
+            {0, SSL_TXT_MEDIUM, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, SSL_MEDIUM},
+            {0, SSL_TXT_HIGH, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, SSL_HIGH},
+            /* FIPS 140-2 approved ciphersuite */
+            //{0, SSL_TXT_FIPS, NULL, 0, 0, 0, ~SSL_eNULL, 0, 0, 0, 0, 0, SSL_FIPS},
+
+            /* "EDH-" aliases to "DHE-" labels (for backward compatibility) */
+            //{0, SSL3_TXT_EDH_DSS_DES_192_CBC3_SHA, NULL, 0, SSL_kDHE, SSL_aDSS, SSL_3DES, SSL_SHA1, 0, 0, 0, 0, SSL_HIGH | SSL_FIPS},
+            //{0, SSL3_TXT_EDH_RSA_DES_192_CBC3_SHA, NULL, 0, SSL_kDHE, SSL_aRSA, SSL_3DES, SSL_SHA1, 0, 0, 0, 0, SSL_HIGH | SSL_FIPS},
+        };
+
+        Definitions = new HashMap<String, Def>(128);
+
+        for (Object[] a : cipher_aliases) {
+            int valid = (Integer) a[0];
+            String txt_name = (String) a[1];
+            String std_name = (String) a[2];
+            long id = (Integer) a[3];
+            long algorithm_mkey = a.length > 4 ? ((Number) a[4]).longValue() : 0;
+            long algorithm_auth = a.length > 5 ? ((Number) a[5]).longValue() : 0;
+            long algorithm_enc = a.length > 6 ? ((Number) a[6]).longValue() : 0;
+            long algorithm_mac = a.length > 7 ? ((Number) a[7]).longValue() : 0;
+            int min_tls = a.length > 8 ? ((Integer) a[8]) : 0;
+            int max_tls = a.length > 9 ? ((Integer) a[9]) : 0;
+            Definitions.put(txt_name,
+                new Def(valid, txt_name, std_name, id, algorithm_mkey, algorithm_auth, algorithm_enc, algorithm_mac, min_tls, max_tls)
+            );
+        }
 
         final ArrayList<Def> Ciphers = new ArrayList<Def>( 96 );
         /* Cipher 01 */
@@ -2014,10 +2235,10 @@ public class CipherStrings {
         ));
 
         SuiteToOSSL.put("TLS_ECDHE_ECDSA_WITH_NULL_SHA", "ECDHE-ECDSA-NULL-SHA");
-        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_NULL_SHA", "ECDHE-RSA-NULL-SHA");
-        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_NULL_SHA", "ECDH-ECDSA-NULL-SHA");
-        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_NULL_SHA", "ECDH-RSA-NULL-SHA");
-        SuiteToOSSL.put("TLS_ECDH_anon_WITH_NULL_SHA", "AECDH-NULL-SHA");
+        SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_NULL_SHA",   "ECDHE-RSA-NULL-SHA");
+        SuiteToOSSL.put("TLS_ECDH_ECDSA_WITH_NULL_SHA",  "ECDH-ECDSA-NULL-SHA");
+        SuiteToOSSL.put("TLS_ECDH_RSA_WITH_NULL_SHA",    "ECDH-RSA-NULL-SHA");
+        SuiteToOSSL.put("TLS_ECDH_anon_WITH_NULL_SHA",   "AECDH-NULL-SHA");
 
         /* For IBM JRE: suite names start with "SSL_". On Oracle JRE, the suite names start with "TLS_" */
         SuiteToOSSL.put("SSL_DH_anon_WITH_AES_128_CBC_SHA",        "ADH-AES128-SHA");
