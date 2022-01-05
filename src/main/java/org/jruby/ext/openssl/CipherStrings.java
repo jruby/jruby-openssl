@@ -225,7 +225,18 @@ public class CipherStrings {
     public final static String SSL_TXT_CMPDEF = "COMPLEMENTOFDEFAULT";
 
     // "ALL:!aNULL:!eNULL:!SSLv2" is for OpenSSL 1.0.0 GA
-    public final static String SSL_DEFAULT_CIPHER_LIST = "AES:ALL:!aNULL:!eNULL:+RC4:@STRENGTH";
+    //public final static String SSL_DEFAULT_CIPHER_LIST = "AES:ALL:!aNULL:!eNULL:+RC4:@STRENGTH";
+
+    /*
+     * The following cipher list is used by default. It also is substituted when
+     * an application-defined cipher list string starts with 'DEFAULT'.
+     * This applies to ciphersuites for TLSv1.2 and below.
+     */
+    public final static String SSL_DEFAULT_CIPHER_LIST = "ALL:!COMPLEMENTOFDEFAULT:!eNULL";
+    /* This is the default set of TLSv1.3 ciphersuites */
+    public final static String TLS_DEFAULT_CIPHERSUITES = "TLS_AES_256_GCM_SHA384:" +
+                                                          "TLS_CHACHA20_POLY1305_SHA256:" +
+                                                          "TLS_AES_128_GCM_SHA256";
 
     public final static long SSL_MKEY_MASK = 0x000000FFL;
     /* Bits for algorithm_mkey (key exchange algorithm) */
@@ -461,6 +472,7 @@ public class CipherStrings {
     public final static String TLS1_TXT_ECDHE_RSA_WITH_DES_192_CBC3_SHA = "ECDHE-RSA-DES-CBC3-SHA";
     public final static String TLS1_TXT_ECDH_anon_WITH_NULL_SHA = "AECDH-NULL-SHA";
 
+    // struct ssl_cipher_st
     static final class Def implements Comparable<Def>, Cloneable {
 
         final boolean valid; // TODO NOT IMPLEMENTED!
@@ -470,8 +482,8 @@ public class CipherStrings {
         final long algorithms;
         private final long algStrength;
         //final long algorithm2;
-        final int algStrengthBits;
-        final int algBits;
+        final int algStrengthBits; // bits
+        final int algBits; // alg_bits
         private final long mask;
         private final long algStrengthMask;
 
@@ -767,7 +779,7 @@ public class CipherStrings {
     static {
         final String NULL = null;
 
-        Object[] cipher_aliases[] = {
+        Object[] cipher_aliases[] = { // NOTE: copied from OpenSSL 1.1 (ssl_ciph.c)
             /* "ALL" doesn't include eNULL (must be specifically enabled) */
             {0, SSL_TXT_ALL, NULL, 0, 0, 0, ~SSL_eNULL},
             /* "COMPLEMENTOFALL" */
