@@ -192,7 +192,6 @@ public class SSLContext extends RubyObject {
         SSLContext.addReadWriteAttribute(context, "verify_mode");
         SSLContext.addReadWriteAttribute(context, "verify_depth");
         SSLContext.addReadWriteAttribute(context, "verify_callback");
-        SSLContext.addReadWriteAttribute(context, "options");
         SSLContext.addReadWriteAttribute(context, "cert_store");
         SSLContext.addReadWriteAttribute(context, "extra_chain_cert");
         SSLContext.addReadWriteAttribute(context, "client_cert_cb");
@@ -245,6 +244,8 @@ public class SSLContext extends RubyObject {
         super(runtime, _SSLContext(runtime));
     }
 
+    private long options = OP_ALL;
+
     //private transient CipherStrings.Def cipher_list;
     /* same as above but sorted for lookup */
     //private transient CipherStrings.Def cipher_list_by_id;
@@ -269,17 +270,16 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod(required = 0, optional = 1, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(IRubyObject[] args) {
-        if ( args.length > 0 ) set_ssl_version(args[0]);
+        assert this.options == OP_ALL; // self.options |= OpenSSL::SSL::OP_ALL
+        if ( args.length > 0 ) set_ssl_version(args[0]); // self.ssl_version = version if version
         return initializeImpl();
     }
 
-    @Override
+    @Override // NOTE: instance variables (no internal state) on #dup
     public IRubyObject initialize_copy(IRubyObject original) {
-        return super.initialize_copy(original);
-        // NOTE: only instance variables (no internal state) on #dup
-        // final SSLContext that = (SSLContext) original;
-        // this.ciphers = that.ciphers;
-        // return this;
+        SSLContext copy = (SSLContext) super.initialize_copy(original);
+        copy.options = ((SSLContext) original).options;
+        return copy;
     }
 
     final SSLContext initializeImpl() { return this; }
@@ -787,11 +787,23 @@ public class SSLContext extends RubyObject {
     }
 
     private long getOptions() {
-        IRubyObject options = getInstanceVariable("@options");
-        if ( options != null && ! options.isNil() ) {
-            return RubyNumeric.fix2long(options);
+        return options;
+    }
+
+    @JRubyMethod
+    public RubyInteger options(ThreadContext context) {
+        return context.runtime.newFixnum(getOptions());
+    }
+
+    @JRubyMethod(name = "options=")
+    public IRubyObject options_set(final IRubyObject options) {
+        if (options.isNil()) {
+            this.options = OP_ALL;
+        } else {
+            this.options = RubyNumeric.num2long(options);
         }
-        return 0;
+
+        return this;
     }
 
     private static List<X509AuxCertificate> convertToAuxCerts(final ThreadContext context, IRubyObject value) {

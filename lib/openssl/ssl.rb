@@ -132,16 +132,15 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       # used.
       def set_params(params={})
         params = DEFAULT_PARAMS.merge(params)
-        # TODO JRuby: need to support SSLContext#options (since Ruby 2.5)
-        #self.options = params.delete(:options) # set before min_version/max_version
-        params.each { |name, value| self.__send__("#{name}=", value) }
+        self.options = params.delete(:options) # set before min_version/max_version
+        params.each{|name, value| self.__send__("#{name}=", value) }
         if self.verify_mode != OpenSSL::SSL::VERIFY_NONE
           unless self.ca_file or self.ca_path or self.cert_store
             self.cert_store = DEFAULT_CERT_STORE
           end
         end
         return params
-      end unless method_defined? :set_params
+      end
 
       # call-seq:
       #    ctx.min_version = OpenSSL::SSL::TLS1_2_VERSION
@@ -194,29 +193,29 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       # function which sets the SSL method used for connections created from
       # the context. As of Ruby/OpenSSL 2.1, this accessor method is
       # implemented to call #min_version= and #max_version= instead.
-      def ssl_version=(meth)
-        meth = meth.to_s if meth.is_a?(Symbol)
-        if /(?<type>_client|_server)\z/ =~ meth
-          meth = $`
-          if $VERBOSE
-            warn "#{caller(1, 1)[0]}: method type #{type.inspect} is ignored"
-          end
-        end
-        version = METHODS_MAP[meth.intern] or
-          raise ArgumentError, "unknown SSL method `%s'" % meth
-        set_minmax_proto_version(version, version)
-        @min_proto_version = @max_proto_version = version
-      end unless method_defined? :ssl_version=
-
-      METHODS_MAP = {
-        SSLv23: 0,
-        SSLv2: OpenSSL::SSL::SSL2_VERSION,
-        SSLv3: OpenSSL::SSL::SSL3_VERSION,
-        TLSv1: OpenSSL::SSL::TLS1_VERSION,
-        TLSv1_1: OpenSSL::SSL::TLS1_1_VERSION,
-        TLSv1_2: OpenSSL::SSL::TLS1_2_VERSION,
-      }.freeze
-      private_constant :METHODS_MAP
+      # def ssl_version=(meth)
+      #   meth = meth.to_s if meth.is_a?(Symbol)
+      #   if /(?<type>_client|_server)\z/ =~ meth
+      #     meth = $`
+      #     if $VERBOSE
+      #       warn "#{caller(1, 1)[0]}: method type #{type.inspect} is ignored"
+      #     end
+      #   end
+      #   version = METHODS_MAP[meth.intern] or
+      #       raise ArgumentError, "unknown SSL method `%s'" % meth
+      #   set_minmax_proto_version(version, version)
+      #   @min_proto_version = @max_proto_version = version
+      # end
+      #
+      # METHODS_MAP = {
+      #     SSLv23: 0,
+      #     SSLv2: OpenSSL::SSL::SSL2_VERSION,
+      #     SSLv3: OpenSSL::SSL::SSL3_VERSION,
+      #     TLSv1: OpenSSL::SSL::TLS1_VERSION,
+      #     TLSv1_1: OpenSSL::SSL::TLS1_1_VERSION,
+      #     TLSv1_2: OpenSSL::SSL::TLS1_2_VERSION,
+      # }.freeze
+      # private_constant :METHODS_MAP
       
       # METHODS setup from native (JRuby)
       # The list of available SSL/TLS methods. This constant is only provided
