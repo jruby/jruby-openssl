@@ -185,14 +185,57 @@ public class SSLContext extends RubyObject {
         final ThreadContext context = runtime.getCurrentContext();
         SSLContext.addReadWriteAttribute(context, "cert");
         SSLContext.addReadWriteAttribute(context, "key");
+        /*
+         * A certificate or Array of certificates that will be sent to the client.
+         */
         SSLContext.addReadWriteAttribute(context, "client_ca");
+        /*
+         * The path to a file containing a PEM-format CA certificate
+         */
         SSLContext.addReadWriteAttribute(context, "ca_file");
+        /*
+         * The path to a directory containing CA certificates in PEM format.
+         *
+         * Files are looked up by subject's X509 name's hash value.
+         */
         SSLContext.addReadWriteAttribute(context, "ca_path");
         SSLContext.addReadWriteAttribute(context, "timeout");
         SSLContext.addReadWriteAttribute(context, "verify_mode");
+        /*
+         * Number of CA certificates to walk when verifying a certificate chain.
+         */
         SSLContext.addReadWriteAttribute(context, "verify_depth");
+        /*
+         * A callback for additional certificate verification.  The callback is
+         * invoked for each certificate in the chain.
+         *
+         * The callback is invoked with two values.  _preverify_ok_ indicates
+         * indicates if the verification was passed (+true+) or not (+false+).
+         * _store_context_ is an OpenSSL::X509::StoreContext containing the
+         * context used for certificate verification.
+         *
+         * If the callback returns +false+, the chain verification is immediately
+         * stopped and a bad_certificate alert is then sent.
+         */
         SSLContext.addReadWriteAttribute(context, "verify_callback");
+        /*
+         * Whether to check the server certificate is valid for the hostname.
+         *
+         * In order to make this work, verify_mode must be set to VERIFY_PEER and
+         * the server hostname must be given by OpenSSL::SSL::SSLSocket#hostname=.
+         */
+        SSLContext.addReadWriteAttribute(context, "verify_hostname");
+        /*
+         * An OpenSSL::X509::Store used for certificate verification.
+         */
         SSLContext.addReadWriteAttribute(context, "cert_store");
+        /*
+         * An Array of extra X509 certificates to be added to the certificate
+         * chain.
+         *
+         * The _cert_, _key_, and _extra_chain_cert_ attributes are deprecated.
+         * It is recommended to use #add_certificate instead.
+         */
         SSLContext.addReadWriteAttribute(context, "extra_chain_cert");
         SSLContext.addReadWriteAttribute(context, "client_cert_cb");
         SSLContext.addReadWriteAttribute(context, "session_id_context");
