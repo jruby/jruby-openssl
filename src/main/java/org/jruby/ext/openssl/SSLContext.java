@@ -226,18 +226,6 @@ public class SSLContext extends RubyObject {
         SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_STORE", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_STORE));
         SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL));
 
-        // DEFAULT_CERT_STORE = OpenSSL::X509::Store.new
-        // DEFAULT_CERT_STORE.set_default_paths
-        // if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
-        //   DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
-        // end
-        final X509Store DEFAULT_CERT_STORE = X509Store.newStore(runtime);
-        DEFAULT_CERT_STORE.set_default_paths(context);
-        final IRubyObject V_FLAG_CRL_CHECK_ALL = _X509(runtime).getConstantAt("V_FLAG_CRL_CHECK_ALL");
-        if ( V_FLAG_CRL_CHECK_ALL != null ) DEFAULT_CERT_STORE.set_flags(V_FLAG_CRL_CHECK_ALL);
-
-        SSLContext.setConstant("DEFAULT_CERT_STORE", DEFAULT_CERT_STORE);
-
         // DEFAULT_PARAMS = {
         //   :ssl_version => "SSLv23",
         //   :verify_mode => OpenSSL::SSL::VERIFY_PEER,
