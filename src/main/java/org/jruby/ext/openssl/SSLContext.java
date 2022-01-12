@@ -171,6 +171,8 @@ public class SSLContext extends RubyObject {
         JSSE_TO_VERSION.put("TLSv1.3", SSL.TLS1_3_VERSION);
     }
 
+    private static final String[] EMPTY_STRING_ARRAY = new String[0];
+
     private static ObjectAllocator SSLCONTEXT_ALLOCATOR = new ObjectAllocator() {
         public IRubyObject allocate(Ruby runtime, RubyClass klass) {
             return new SSLContext(runtime, klass);
@@ -479,8 +481,15 @@ public class SSLContext extends RubyObject {
     }
 
     @JRubyMethod
-    public RubyArray ciphers(final ThreadContext context) {
-        return matchedCiphers(context);
+    public RubyArray ciphers(final ThreadContext context) { // SSL_CTX_get_ciphers
+        final CipherListCache cached = cipherListCache;
+        if ( protocol.equals(cached.protocol) && ciphers.equals(cached.ciphers) ) {
+            return newSharedArray(context, cached.cipherList);
+        }
+
+        final RubyArray match = matchedCiphers(context);
+        cipherListCache = new CipherListCache(protocol, ciphers, match);
+        return newSharedArray(context, match);
     }
 
     private RubyArray matchedCiphers(final ThreadContext context) {
@@ -507,6 +516,10 @@ public class SSLContext extends RubyObject {
         }
     }
 
+    private static RubyArray newSharedArray(ThreadContext context, RubyArray array) {
+        return array.collect(context, Block.NULL_BLOCK); // shares underlying IRubyObject[] values
+    }
+
     @JRubyMethod(name = "ciphers=")
     public IRubyObject set_ciphers(final ThreadContext context, final IRubyObject ciphers) {
         if ( ciphers.isNil() ) {
@@ -529,28 +542,34 @@ public class SSLContext extends RubyObject {
         else {
             this.ciphers = ciphers.asString().toString();
         }
+
+        if (this.ciphers.equals(CipherStrings.SSL_DEFAULT_CIPHER_LIST)) {
+            this.ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST; // due caching
+        }
+
         if ( matchedCiphers(context).isEmpty() ) {
             throw newSSLError(context.runtime, "no cipher match");
         }
+
         return ciphers;
     }
 
     @JRubyMethod(name = "ssl_version=")
-    public IRubyObject set_ssl_version(IRubyObject version) {
-        final String versionStr;
-        if ( version instanceof RubySymbol ) {
-            versionStr = version.toString();
+    public IRubyObject set_ssl_version(IRubyObject method) {
+        final String version;
+        if ( method instanceof RubySymbol ) {
+            version = method.toString();
         } else {
-            versionStr = version.convertToString().toString();
+            version = method.convertToString().toString();
         }
-        final String protocol = SSL_VERSION_OSSL2JSSE.get(versionStr);
+        final String protocol = SSL_VERSION_OSSL2JSSE.get(version);
         if ( protocol == null ) {
-            throw getRuntime().newArgumentError("unknown SSL method `"+ versionStr +"'");
+            throw getRuntime().newArgumentError("unknown SSL method `"+ version +"'");
         }
         this.protocol = protocol;
-        protocolForServer = ! versionStr.endsWith("_client");
-        protocolForClient = ! versionStr.endsWith("_server");
-        return version;
+        protocolForServer = ! version.endsWith("_client");
+        protocolForClient = ! version.endsWith("_server");
+        return method;
     }
 
     @JRubyMethod(name = "set_minmax_proto_version")
@@ -644,23 +663,23 @@ public class SSLContext extends RubyObject {
         this.verifyResult = verifyResult;
     }
 
-    private static String cachedProtocol = null;
-    private static String[] cachedSupportedCipherSuites;
+    private static CipherListCache cipherListCache = new CipherListCache(null, null, null);
+
+    private static class CipherListCache {
+        final String protocol;
+        final String ciphers;
+
+        final RubyArray cipherList;
+
+        CipherListCache(String protocol, String ciphers, RubyArray cipherList) {
+            this.protocol = protocol;
+            this.ciphers = ciphers;
+            this.cipherList = cipherList;
+        }
+    }
 
     private static String[] getSupportedCipherSuites(final String protocol)
         throws GeneralSecurityException {
-        if ( cachedProtocol == null ) {
-            synchronized(SSLContext.class) {
-                if ( cachedProtocol == null ) {
-                    cachedSupportedCipherSuites = dummySSLEngine(protocol).getSupportedCipherSuites();
-                    cachedProtocol = protocol;
-                    return cachedSupportedCipherSuites;
-                }
-            }
-        }
-
-        if ( protocol.equals(cachedProtocol) ) return cachedSupportedCipherSuites;
-
         return dummySSLEngine(protocol).getSupportedCipherSuites();
     }
 
@@ -683,12 +702,15 @@ public class SSLContext extends RubyObject {
         else {
             engine = internalContext.getSSLContext().createSSLEngine(peerHost, peerPort);
         }
-        engine.setEnabledCipherSuites( getCipherSuites(engine.getSupportedCipherSuites()) );
-        engine.setEnabledProtocols( getEnabledProtocols(engine) );
+        final String[] protocols = getEnabledProtocols(engine);
+        engine.setEnabledProtocols(protocols);
+        engine.setEnabledCipherSuites( getEnabledCipherSuites(engine, protocols) );
+
         return engine;
     }
 
-    private String[] getCipherSuites(final String[] supported) {
+    private String[] getEnabledCipherSuites(final SSLEngine engine, final String[] protocols) {
+        final String[] supported = engine.getSupportedCipherSuites();
         Collection<CipherStrings.Def> cipherDefs = CipherStrings.matchingCiphers(this.ciphers, supported, true);
         final String[] result = new String[ cipherDefs.size() ]; int i = 0;
         for ( CipherStrings.Def def : cipherDefs ) result[ i++ ] = def.getCipherSuite();
@@ -700,7 +722,7 @@ public class SSLContext extends RubyObject {
         if ( enabledProtocols != null ) {
             final long options = getOptions();
             final String[] engineProtocols = engine.getEnabledProtocols();
-            final List<String> protocols = new ArrayList<String>(enabledProtocols.length);
+            final List<String> protocols = new ArrayList<>(enabledProtocols.length);
             for ( final String enabled : enabledProtocols ) {
                 int protocolVersion = JSSE_TO_VERSION.get(enabled);
                 if (minProtocolVersion != 0 && protocolVersion < minProtocolVersion) continue;
@@ -712,13 +734,20 @@ public class SSLContext extends RubyObject {
                 if (((options & OP_NO_TLSv1_1) != 0) && enabled.equals("TLSv1.1")) continue;
                 if (((options & OP_NO_TLSv1_2) != 0) && enabled.equals("TLSv1.2")) continue;
                 if (((options & OP_NO_TLSv1_3) != 0) && enabled.equals("TLSv1.3")) continue;
-                for ( final String allowed : engineProtocols ) {
-                    if ( allowed.equals(enabled) ) protocols.add(allowed);
-                }
+
+                if (arrayContains(engineProtocols, enabled)) protocols.add(enabled);
             }
-            return protocols.toArray( new String[ protocols.size() ] );
+
+            return protocols.toArray(EMPTY_STRING_ARRAY);
         }
-        return new String[0];
+        return EMPTY_STRING_ARRAY;
+    }
+
+    private static boolean arrayContains(final String[] array, final String value) {
+        for (final String elem : array) {
+            if (elem.equals(value)) return true;
+        }
+        return false;
     }
 
     private static final byte[] TLSv1 = { 'T','L','S','v','1' };
