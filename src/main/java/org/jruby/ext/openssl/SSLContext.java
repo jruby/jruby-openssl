@@ -288,8 +288,14 @@ public class SSLContext extends RubyObject {
         super(runtime, _SSLContext(runtime));
     }
 
+    //private transient CipherStrings.Def cipher_list;
+    /* same as above but sorted for lookup */
+    //private transient CipherStrings.Def cipher_list_by_id;
+    /* TLSv1.3 specific ciphersuites */
+    //private transient CipherStrings.Def tls13_ciphersuites;
+
     private String ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
-    private String protocol = "SSL"; // SSLv23 in OpenSSL by default
+    private String protocol = "TLS"; // ctx->method
     private boolean protocolForServer = true;
     private boolean protocolForClient = true;
     private int minProtocolVersion = 0;
@@ -689,7 +695,6 @@ public class SSLContext extends RubyObject {
         return sslContext.createSSLEngine();
     }
 
-    // should keep SSLContext as a member for introducin SSLSession. later...
     final SSLEngine createSSLEngine(String peerHost, int peerPort) {
         final SSLEngine engine;
         // an empty peerHost implies no SNI (RFC 3546) support requested
