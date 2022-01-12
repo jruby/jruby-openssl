@@ -225,37 +225,6 @@ public class SSLContext extends RubyObject {
         SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_LOOKUP", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_LOOKUP));
         SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL_STORE", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL_STORE));
         SSLContext.setConstant("SESSION_CACHE_NO_INTERNAL", runtime.newFixnum(SESSION_CACHE_NO_INTERNAL));
-
-        // DEFAULT_PARAMS = {
-        //   :ssl_version => "SSLv23",
-        //   :verify_mode => OpenSSL::SSL::VERIFY_PEER,
-        //   :ciphers => "ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM:+LOW",
-        //   :options => OpenSSL::SSL::OP_ALL,
-        // }
-        // on MRI 2.1 (should not matter for us) :
-        //  :options => defined?(OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS) ?
-        //    OpenSSL::SSL::OP_ALL & ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS :
-        //    OpenSSL::SSL::OP_ALL
-        final RubyHash DEFAULT_PARAMS = new RubyHash(runtime);
-        IRubyObject ssl_version = StringHelper.newString(runtime, new byte[] { 'S','S','L','v','2','3' });
-        DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("ssl_version"), ssl_version);
-        IRubyObject verify_mode = runtime.newFixnum(VERIFY_PEER);
-        DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("verify_mode"), verify_mode);
-        IRubyObject ciphers = StringHelper.newString(runtime, new byte[] {
-            'A','L','L',':',
-            '!','A','D','H',':',
-            '!','E','X','P','O','R','T',':',
-            '!','S','S','L','v','2',':',
-            'R','C','4','+','R','S','A',':',
-            '+','H','I','G','H',':',
-            '+','M','E','D','I','U','M',':',
-            '+','L','O','W'
-        });
-        DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("ciphers"), ciphers);
-        IRubyObject options = runtime.newFixnum(OP_ALL);
-        DEFAULT_PARAMS.op_aset(context, runtime.newSymbol("options"), options);
-
-        SSLContext.setConstant("DEFAULT_PARAMS", DEFAULT_PARAMS);
     }
 
     static final int SESSION_CACHE_OFF = 0;

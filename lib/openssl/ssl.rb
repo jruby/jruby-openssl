@@ -17,17 +17,11 @@ require "socket"
 module OpenSSL
   module SSL
     class SSLContext
-      unless const_defined? :DEFAULT_PARAMS # JRuby does it in Java
       DEFAULT_PARAMS = { # :nodoc:
         :min_version => OpenSSL::SSL::TLS1_VERSION,
         :verify_mode => OpenSSL::SSL::VERIFY_PEER,
         :verify_hostname => true,
-        :options => -> {
-          opts = OpenSSL::SSL::OP_ALL
-          opts &= ~OpenSSL::SSL::OP_DONT_INSERT_EMPTY_FRAGMENTS
-          opts |= OpenSSL::SSL::OP_NO_COMPRESSION
-          opts
-        }.call
+        :options => OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_COMPRESSION
       }
 
       if !(OpenSSL::OPENSSL_VERSION.start_with?("OpenSSL") &&
@@ -66,7 +60,6 @@ module OpenSSL
             AES256-SHA
           }.join(":"),
         )
-      end
       end
 
       if defined?(OpenSSL::PKey::DH)
