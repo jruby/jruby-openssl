@@ -50,10 +50,10 @@ import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.StoreContext;
 
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
-import static org.jruby.ext.openssl.OpenSSL.warn;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509CRL._CRL;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
+import static org.jruby.ext.openssl.x509store.StoreContext.ossl_ssl_ex_vcb_idx;
 import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorString;
 
 /**
@@ -149,15 +149,19 @@ public class X509StoreContext extends RubyObject {
 
         IRubyObject time = store.getInstanceVariables().getInstanceVariable("@time");
         if ( ! time.isNil() ) set_time(time);
-        this.setInstanceVariable("@verify_callback", store.verify_callback());
-        this.setInstanceVariable("@cert", cert);
+        IRubyObject verify_callback = store.verify_callback_internal();
+        if (verify_callback != null) this.setInstanceVariable("@verify_callback", verify_callback);
+        if (cert != null) this.setInstanceVariable("@cert", cert);
         return this;
     }
 
     @JRubyMethod
     public IRubyObject verify(final ThreadContext context) {
         final Ruby runtime = context.runtime;
-        storeContext.setExtraData(1, getInstanceVariable("@verify_callback"));
+        IRubyObject verify_callback = this.getInstanceVariable("@verify_callback");
+        if (verify_callback != null && !verify_callback.isNil()) {
+            storeContext.setExtraData(ossl_ssl_ex_vcb_idx, verify_callback);
+        }
         try {
             final int result = storeContext.verifyCertificate();
             return result != 0 ? runtime.getTrue() : runtime.getFalse();

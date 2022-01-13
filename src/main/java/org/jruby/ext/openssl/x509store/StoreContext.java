@@ -69,7 +69,7 @@ public class StoreContext {
     List<X509CRL> crls;
 
     private VerifyParameter verifyParameter;
-    private List<Object> extraData;
+    private ArrayList<Object> extraData;
 
     private List<X509AuxCertificate> otherContext;
 
@@ -413,27 +413,33 @@ public class StoreContext {
         extraData = null;
     }
 
-    public List<Object> getExtraData() {
-        if ( this.extraData != null ) return this.extraData;
-        ArrayList<Object> extraData = new ArrayList<Object>(8);
-        extraData.add(null); extraData.add(null); extraData.add(null);
-        extraData.add(null); extraData.add(null); extraData.add(null);
-        return this.extraData = extraData;
-    }
+    /**
+     * index for @verify_callback in ex_data
+     */
+    // NOTE: 0 is reserved for getApplicationData() (X509_STORE_CTX_get_app_data)
+    public static final int ossl_ssl_ex_vcb_idx = 1;
 
     /**
      * c: X509_STORE_CTX_set_ex_data
      */
-    public int setExtraData(int idx, Object data) {
-        getExtraData().set(idx, data);
-        return 1;
+    public final void setExtraData(int idx, Object data) {
+        if (extraData == null) {
+            extraData = new ArrayList<>(Math.max(idx + 1, 2));
+        } else {
+            extraData.ensureCapacity(idx + 1);
+        }
+        while (extraData.size() <= idx) extraData.add(null);
+        extraData.set(idx, data);
+        // return 1;
     }
 
     /**
      * c: X509_STORE_CTX_get_ex_data
      */
-    public Object getExtraData(int idx) {
-        return getExtraData().get(idx);
+    public final Object getExtraData(int idx) {
+        if (extraData == null) return null;
+        if (extraData.size() < idx) return null;
+        return extraData.get(idx);
     }
 
     /**
