@@ -144,7 +144,7 @@ public class X509StoreContext extends RubyObject {
 
         this.storeContext = new StoreContext(store.getStore());
         if ( storeContext.init(_cert, _chain) != 1 ) {
-            throw newStoreError(context.runtime, null);
+            throw newStoreError(context.runtime, (String) null);
         }
 
         IRubyObject time = store.getInstanceVariables().getInstanceVariable("@time");
@@ -165,7 +165,7 @@ public class X509StoreContext extends RubyObject {
         catch (Exception e) {
             debugStackTrace(runtime, e);
             // TODO: define suitable exception for jopenssl and catch it.
-            throw newStoreError(runtime, e.getMessage());
+            throw newStoreError(runtime, e);
         }
     }
 
@@ -184,7 +184,7 @@ public class X509StoreContext extends RubyObject {
             }
         }
         catch (CertificateEncodingException e) {
-            throw newStoreError(runtime, e.getMessage());
+            throw newStoreError(runtime, e);
         }
         return result;
     }
@@ -219,7 +219,7 @@ public class X509StoreContext extends RubyObject {
             return X509Cert.wrap(context, x509.getEncoded());
         }
         catch (CertificateEncodingException e) {
-            throw newStoreError(context.runtime, e.getMessage());
+            throw newStoreError(context.runtime, e);
         }
     }
 
@@ -232,7 +232,7 @@ public class X509StoreContext extends RubyObject {
             return _CRL.newInstance(context, StringHelper.newString(runtime, crl.getEncoded()), Block.NULL_BLOCK);
         }
         catch (CRLException e) {
-            throw newStoreError(runtime, e.getMessage());
+            throw newStoreError(runtime, e);
         }
     }
 
@@ -241,14 +241,13 @@ public class X509StoreContext extends RubyObject {
         try {
             storeContext.cleanup();
         }
-        catch (RuntimeException e) {
+        catch (RaiseException e) {
             throw e;
         }
         catch (Exception e) {
-            debugStackTrace(context.runtime, e);
-            throw newStoreError(context.runtime, e.getMessage());
+            throw newStoreError(context.runtime, e);
         }
-        return context.runtime.getNil();
+        return context.nil;
     }
 
     @JRubyMethod(name = "flags=")
@@ -277,6 +276,12 @@ public class X509StoreContext extends RubyObject {
 
     private static RaiseException newStoreError(Ruby runtime, String message) {
         return Utils.newError(runtime, _X509(runtime).getClass("StoreError"), message);
+    }
+
+    private static RaiseException newStoreError(Ruby runtime, Exception cause) {
+        RaiseException ex = newStoreError(runtime, cause.getMessage());
+        ex.initCause(cause);
+        return ex;
     }
 
 }// X509StoreContext
