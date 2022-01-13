@@ -96,7 +96,7 @@ public class Store implements X509TrustManager {
 
     LookupCerts lookup_certs; // NOTE: for now always null here
 
-    private final List<Object> extraData;
+    private final ArrayList<Object> extraData;
 
     /**
      * c: X509_STORE_new
@@ -104,10 +104,7 @@ public class Store implements X509TrustManager {
     public Store() {
         verifyParameter = new VerifyParameter();
 
-        extraData = new ArrayList<Object>(10);
-        this.extraData.add(null); this.extraData.add(null); this.extraData.add(null);
-        this.extraData.add(null); this.extraData.add(null); this.extraData.add(null);
-        this.extraData.add(null); this.extraData.add(null); this.extraData.add(null);
+        extraData = new ArrayList<>(2);
     }
 
     public List<X509Object> getObjects() {
@@ -148,10 +145,14 @@ public class Store implements X509TrustManager {
     /**
      * c: X509_set_ex_data
      */
-    public int setExtraData(int idx, Object data) {
+    public void setExtraData(int idx, Object data) {
+        assert idx >= 0;
+        assert idx < 10;
         synchronized (extraData) {
+            extraData.ensureCapacity(idx + 1);
+            while (extraData.size() <= idx) extraData.add(null);
             extraData.set(idx, data);
-            return 1;
+            // return 1;
         }
     }
 
@@ -160,6 +161,7 @@ public class Store implements X509TrustManager {
      */
     public Object getExtraData(int idx) {
         synchronized (extraData) {
+            if (extraData.size() <= idx) return null;
             return extraData.get(idx);
         }
     }

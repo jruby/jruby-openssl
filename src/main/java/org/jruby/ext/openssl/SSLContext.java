@@ -82,8 +82,8 @@ import org.jruby.ext.openssl.x509store.X509Utils;
 
 import static org.jruby.ext.openssl.StringHelper.*;
 import static org.jruby.ext.openssl.SSL.*;
-import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
+import static org.jruby.ext.openssl.x509store.StoreContext.ossl_ssl_ex_vcb_idx;
 import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSL.warn;
@@ -434,9 +434,9 @@ public class SSLContext extends RubyObject {
 
         value = getInstanceVariable("@verify_callback");
         if ( value != null && ! value.isNil() ) {
-            store.setExtraData(1, value);
+            store.setExtraData(ossl_ssl_ex_vcb_idx, value);
         } else {
-            store.setExtraData(1, null);
+            store.setExtraData(ossl_ssl_ex_vcb_idx, null);
         }
 
         value = getInstanceVariable("@verify_depth");
@@ -988,7 +988,7 @@ public class SSLContext extends RubyObject {
             if ( storeContext.init(null, null) == 0 ) return null;
 
             // for verify_cb
-            storeContext.setExtraData(1, store.getExtraData(1));
+            storeContext.setExtraData(ossl_ssl_ex_vcb_idx, store.getExtraData(ossl_ssl_ex_vcb_idx));
             if ( purpose != null ) storeContext.setDefault(purpose);
             storeContext.getParam().inherit(store.getParam());
             return storeContext;

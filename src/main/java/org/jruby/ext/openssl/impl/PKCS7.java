@@ -67,6 +67,9 @@ import org.jruby.ext.openssl.x509store.Store;
 import org.jruby.ext.openssl.x509store.StoreContext;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.X509Utils;
+import org.jruby.runtime.builtin.IRubyObject;
+
+import static org.jruby.ext.openssl.x509store.StoreContext.ossl_ssl_ex_vcb_idx;
 
 /** c: PKCS7
  *
@@ -350,7 +353,12 @@ public class PKCS7 {
                 else if ( certContext.init(signer, null) == 0 ) {
                     throw new PKCS7Exception(F_PKCS7_VERIFY, -1);
                 }
-                certContext.setExtraData(1, store.getExtraData(1));
+
+                Object verify_callback = store.getExtraData(ossl_ssl_ex_vcb_idx);
+                if (verify_callback != null) {
+                    certContext.setExtraData(ossl_ssl_ex_vcb_idx, verify_callback);
+                }
+
                 if ( (flags & NOCRL) == 0 ) {
                     certContext.setCRLs((List<X509CRL>) getSign().getCrl());
                 }

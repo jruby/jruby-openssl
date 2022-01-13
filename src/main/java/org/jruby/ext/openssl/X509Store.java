@@ -30,6 +30,7 @@ package org.jruby.ext.openssl;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 import static org.jruby.ext.openssl.OpenSSL.warn;
 import static org.jruby.ext.openssl.X509._X509;
+import static org.jruby.ext.openssl.x509store.StoreContext.ossl_ssl_ex_vcb_idx;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -119,13 +120,18 @@ public class X509Store extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject verify_callback() {
+    public IRubyObject verify_callback(ThreadContext context) {
+        IRubyObject verify_callback = verify_callback_internal();
+        return verify_callback == null ? context.nil : verify_callback;
+    }
+
+    final IRubyObject verify_callback_internal() {
         return this.getInstanceVariable("@verify_callback");
     }
 
     @JRubyMethod(name = "verify_callback=")
     public IRubyObject set_verify_callback(final IRubyObject callback) {
-        store.setExtraData(1, callback);
+        store.setExtraData(ossl_ssl_ex_vcb_idx, callback.isNil() ? null : callback);
         this.setInstanceVariable("@verify_callback", callback);
         return callback;
     }
@@ -235,32 +241,34 @@ public class X509Store extends RubyObject {
     private static Store.VerifyCallbackFunction verifyCallback = new Store.VerifyCallbackFunction() {
 
         public int call(final StoreContext context, final Integer outcome) {
-            int ok = outcome.intValue();
-            IRubyObject proc = (IRubyObject) context.getExtraData(1);
+            int preverify_ok = outcome.intValue();
+
+            IRubyObject proc = (IRubyObject) context.getExtraData(ossl_ssl_ex_vcb_idx);
             if (proc == null) {
-                proc = (IRubyObject) context.getStore().getExtraData(0);
+                proc = (IRubyObject) context.getStore().getExtraData(ossl_ssl_ex_vcb_idx);
+
+                if (proc == null) return preverify_ok;
             }
 
-            if ( proc == null ) return ok;
 
             if ( ! proc.isNil() ) {
                 final Ruby runtime = proc.getRuntime();
                 X509StoreContext store_context = X509StoreContext.newStoreContext(runtime, context);
                 IRubyObject ret = proc.callMethod(runtime.getCurrentContext(), "call",
-                    new IRubyObject[] { runtime.newBoolean(ok != 0), store_context }
+                    new IRubyObject[] { runtime.newBoolean(preverify_ok != 0), store_context }
                 );
                 if (ret.isTrue()) {
                     context.setError(X509Utils.V_OK);
-                    ok = 1;
+                    preverify_ok = 1;
                 }
                 else {
                     if (context.getError() == X509Utils.V_OK) {
                         context.setError(X509Utils.V_ERR_CERT_REJECTED);
                     }
-                    ok = 0;
+                    preverify_ok = 0;
                 }
             }
-            return ok;
+            return preverify_ok;
         }
     };
 
