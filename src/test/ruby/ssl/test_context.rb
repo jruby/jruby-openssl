@@ -10,9 +10,6 @@ class TestSSLContext < TestCase
     assert methods.include?(:'TLSv1_1')
     assert ! methods.include?(:'TLSv1.1')
 
-    assert ! methods.include?(:SSLv2)
-    assert ! methods.include?(:SSLv2_client)
-
     assert methods.include?(:'TLSv1_1_client')
     assert methods.include?(:'TLSv1_1_server')
 
@@ -109,6 +106,7 @@ class TestSSLContext < TestCase
     context = OpenSSL::SSL::SSLContext.new
     context.min_version = OpenSSL::SSL::TLS1_VERSION
     context.max_version = OpenSSL::SSL::TLS1_2_VERSION
+    context.max_version = OpenSSL::SSL::TLS1_3_VERSION
   end if RUBY_VERSION > '2.3'
 
   def test_context_ciphers
@@ -122,19 +120,8 @@ class TestSSLContext < TestCase
     jce_installed = true # always assume installed (Java 8+)
 
     defunct_ciphers = [ # in terms of OpenSSL not reporting them on "ALL" (Ubuntu 16 LTS)
-         jce_installed && "ECDH-ECDSA-AES256-SHA", # (old) backward compatibility
-         jce_installed && "ECDH-RSA-AES256-SHA", # (old) backward compatibility
-         "ECDH-ECDSA-AES128-SHA",
-         "ECDH-RSA-AES128-SHA",
-         #"ECDHE-ECDSA-DES-CBC3-SHA",
-         #"ECDHE-RSA-DES-CBC3-SHA",
-         #"DES-CBC3-SHA", # (old) SSLv3
-         #"ECDH-ECDSA-DES-CBC3-SHA",
-         #"ECDH-RSA-DES-CBC3-SHA",
-         #"EDH-RSA-DES-CBC3-SHA",
-         #"EDH-DSS-DES-CBC3-SHA",
-         jce_installed && "AECDH-AES256-SHA",
-         jce_installed && "ADH-AES256-SHA",
+         jce_installed && "AECDH-AES256-SHA" && nil, # dropped in Java 11
+         jce_installed && "ADH-AES256-SHA" && nil, # dropped in Java 11
          #"AECDH-DES-CBC3-SHA",
          #"ADH-DES-CBC3-SHA",
     ]
@@ -150,8 +137,8 @@ class TestSSLContext < TestCase
         "AES128-SHA",
         "DHE-RSA-AES128-SHA",
         "DHE-DSS-AES128-SHA",
-        "AECDH-AES128-SHA",
-        "ADH-AES128-SHA",
+        "AECDH-AES128-SHA" && nil, # dropped in Java 11
+        "ADH-AES128-SHA" && nil, # dropped
 
         "ECDHE-RSA-AES128-SHA256", "ECDHE-RSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES256-SHA384", "ECDHE-RSA-AES256-GCM-SHA384",
@@ -166,12 +153,14 @@ class TestSSLContext < TestCase
         "DHE-DSS-AES128-GCM-SHA256", "DHE-DSS-AES256-GCM-SHA384",
         "DHE-RSA-AES128-GCM-SHA256", "DHE-RSA-AES256-GCM-SHA384",
         "AES128-GCM-SHA256", "AES256-GCM-SHA384",
+
+        # TLS 1.3
+        'TLS_AES_256_GCM_SHA384'
     ]
 
     expected_ciphers = [
-        "ECDHE-ECDSA-AES128-SHA256",
-        "ECDH-ECDSA-AES128-SHA256",
-        "ECDH-RSA-AES128-SHA256",
+        #"ECDH-ECDSA-AES128-SHA256",
+        #"ECDH-RSA-AES128-SHA256",
         #"ECDH-ECDSA-AES128-SHA",
         #"ECDH-RSA-AES128-SHA",
     ] + defunct_ciphers + shared_ciphers
@@ -182,7 +171,7 @@ class TestSSLContext < TestCase
 
     diff = (expected_ciphers - all_ciphers).compact
     assert_equal [], diff
-  end unless java7? # would need to filter out stuff such as ECDHE-RSA-AES128-GCM-SHA256
+  end
 
   def test_set_ciphers_by_group_name
     context = OpenSSL::SSL::SSLContext.new
@@ -222,7 +211,8 @@ class TestSSLContext < TestCase
     ex = assert_raise(OpenSSL::SSL::SSLError) do
       context.ciphers = []
     end
-    assert_equal "no cipher match", ex.message
+    # MRI: SSL_CTX_set_cipher_list: no cipher match
+    assert_include ex.message, "no cipher match"
   end
 
 end
