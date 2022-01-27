@@ -3748,7 +3748,10 @@ public class ASN1Registry {
     
     public static final String SN_gost89_cnt = "gost89-cnt";
     public static final short NID_gost89_cnt = 814;
-    
+
+    public static final String SN_gost89_cnt_12 = "gost89-cnt-12";
+    public static final short NID_gost89_cnt_12 = 975;
+
     public static final String SN_id_Gost28147_89_MAC = "gost-mac";
     public static final String LN_id_Gost28147_89_MAC = "GOST 28147-89 MAC";
     public static final short NID_id_Gost28147_89_MAC = 815;
@@ -4079,7 +4082,15 @@ public class ASN1Registry {
     public static final String SN_aes_256_cbc_hmac_sha256 = "AES-256-CBC-HMAC-SHA256";
     public static final String LN_aes_256_cbc_hmac_sha256 = "aes-256-cbc-hmac-sha256";
     public static final short NID_aes_256_cbc_hmac_sha256 = 950;
-    
+
+    public static final String SN_chacha20_poly1305 = "ChaCha20-Poly1305";
+    public static final String LN_chacha20_poly1305 = "chacha20-poly1305";
+    public static final short NID_chacha20_poly1305 = 1018;
+
+    public static final String SN_chacha20 = "ChaCha20";
+    public static final String LN_chacha20 = "chacha20";
+    public static final short NID_chacha20 = 1019;
+
     public static final String SN_dhpublicnumber = "dhpublicnumber";
     public static final String LN_dhpublicnumber = "X9.42 DH";
     public static final short NID_dhpublicnumber = 920;
