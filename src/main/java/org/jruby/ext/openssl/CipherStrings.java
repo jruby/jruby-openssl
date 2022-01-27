@@ -284,7 +284,7 @@ public class CipherStrings {
     public final static long SSL_AES256 = 0x00000080L;
     public final static long SSL_CAMELLIA128 = 0x00000100L;
     public final static long SSL_CAMELLIA256 = 0x00000200L;
-    //public final static long SSL_eGOST2814789CNT = 0x00000400L;
+    public final static long SSL_eGOST2814789CNT = 0x00000400L;
     public final static long SSL_SEED = 0x00000800L;
     public final static long SSL_AES128GCM = 0x00001000L;
     public final static long SSL_AES256GCM = 0x00002000L;
@@ -292,7 +292,7 @@ public class CipherStrings {
     public final static long SSL_AES256CCM = 0x00008000L;
     public final static long SSL_AES128CCM8 = 0x00010000L;
     public final static long SSL_AES256CCM8 = 0x00020000L;
-    //public final static long SSL_eGOST2814789CNT12 = 0x00040000L;
+    public final static long SSL_eGOST2814789CNT12 = 0x00040000L;
     public final static long SSL_CHACHA20POLY1305 = 0x00080000L;
     public final static long SSL_ARIA128GCM = 0x00100000L;
     public final static long SSL_ARIA256GCM = 0x00200000L;
@@ -334,14 +334,14 @@ public class CipherStrings {
 
     // NOTE: can not be adjusted until SSL_NOT_EXP is around!
     public final static long SSL_LOW = 0x00000020L; // 0x00000002U in OSSL 1.1
-    public final static long SSL_MEDIUM = 0x00000040L;
-    public final static long SSL_HIGH = 0x00000080L;
+    public final static long SSL_MEDIUM = 0x00000040L; // 0x00000004U in OSSL 1.1
+    public final static long SSL_HIGH = 0x00000080L; // 0x00000008U in OSSL 1.1
     public final static long SSL_FIPS = 0x00000100L; // 0x00000010U in OSSL 1.1
-    public final static long SSL_NOT_DEFAULT = 0x00000200L; // 0x00000020U in OSSL 1.1
+    public final static long SSL_NOT_DEFAULT = 0x00000200L; // 0x00000020U in OSSL 1.1 TODO: kares
 
-    public final static long SSL_ALL = 0xffffffffL;
-    public final static long SSL_ALL_CIPHERS = (SSL_MKEY_MASK|SSL_AUTH_MASK|SSL_ENC_MASK|SSL_MAC_MASK);
-    public final static long SSL_ALL_STRENGTHS = (SSL_EXP_MASK|SSL_STRONG_MASK);
+    //public final static long SSL_ALL = 0xffffffffL;
+    public final static long SSL_ALL_CIPHERS = (SSL_MKEY_MASK|SSL_AUTH_MASK|SSL_ENC_MASK|SSL_MAC_MASK); // TODO drop
+    public final static long SSL_ALL_STRENGTHS = (SSL_EXP_MASK|SSL_STRONG_MASK); // TODO drop
     public final static long SSL_PKEY_RSA_ENC = 0;
     public final static long SSL_PKEY_RSA_SIGN = 1;
     public final static long SSL_PKEY_DSA_SIGN = 2;
