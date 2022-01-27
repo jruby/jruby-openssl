@@ -413,18 +413,26 @@ public class StoreContext {
         extraData = null;
     }
 
+    // NOTE: 0 is reserved for getApplicationData() (X509_STORE_CTX_get_app_data)
+
     /**
      * index for @verify_callback in ex_data
      */
-    // NOTE: 0 is reserved for getApplicationData() (X509_STORE_CTX_get_app_data)
     public static final int ossl_ssl_ex_vcb_idx = 1;
+    /**
+     * index for holding the SSLContext instance in ex_data
+     */
+    public static final int ossl_ssl_ex_ptr_idx = 2; // TODO needs impl
+
+    static final int MAX_EXTRA_DATA_SIZE = 4;
 
     /**
      * c: X509_STORE_CTX_set_ex_data
      */
-    public final void setExtraData(int idx, Object data) {
+    public final void setExtraData(final int idx, final Object data) {
         if (extraData == null) {
-            extraData = new ArrayList<>(Math.max(idx + 1, 2));
+            if (data == null) return;
+            extraData = new ArrayList<>(MAX_EXTRA_DATA_SIZE);
         } else {
             extraData.ensureCapacity(idx + 1);
         }
@@ -436,7 +444,7 @@ public class StoreContext {
     /**
      * c: X509_STORE_CTX_get_ex_data
      */
-    public final Object getExtraData(int idx) {
+    public final Object getExtraData(final int idx) {
         if (extraData == null) return null;
         if (extraData.size() < idx) return null;
         return extraData.get(idx);
