@@ -2318,19 +2318,19 @@ public class CipherStrings {
         SuiteToOSSL.put("SSL_RSA_WITH_AES_256_GCM_SHA384",         "AES256-GCM-SHA384");
         SuiteToOSSL.put("SSL_RSA_WITH_NULL_SHA256",                "NULL-SHA256");
 
-        // left overs supported by Java 7's SSLv3 / TLS v1.2 :
+        // TLS v1.3 (Java 8/11) streaming ciphers :
 
-        //    TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
-        //    TLS_KRB5_WITH_3DES_EDE_CBC_SHA,
-        //    TLS_KRB5_WITH_3DES_EDE_CBC_MD5,
-        //    TLS_KRB5_WITH_RC4_128_SHA,
-        //    TLS_KRB5_WITH_RC4_128_MD5,
-        //    TLS_KRB5_WITH_DES_CBC_SHA,
-        //    TLS_KRB5_WITH_DES_CBC_MD5,
-        //    TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA,
-        //    TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5,
-        //    TLS_KRB5_EXPORT_WITH_RC4_40_SHA,
-        //    TLS_KRB5_EXPORT_WITH_RC4_40_MD5
+        SuiteToOSSL.put("TLS_AES_128_GCM_SHA256", name = "TLS_AES_128_GCM_SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_AES_256_GCM_SHA384", name = "TLS_AES_256_GCM_SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
 
         for ( Def def : Ciphers ) CipherNames.put(def.name, def);
 
