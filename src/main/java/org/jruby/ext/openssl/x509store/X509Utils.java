@@ -193,6 +193,14 @@ public abstract class X509Utils {
                 return("no explicit policy");
             case V_ERR_APPLICATION_VERIFICATION:
                 return("application verification failure");
+            case V_ERR_PATH_LOOP:
+                return("Path Loop");
+            case V_ERR_HOSTNAME_MISMATCH:
+                return("Hostname mismatch");
+            case V_ERR_EMAIL_MISMATCH:
+                return("Email address mismatch");
+            case V_ERR_IP_ADDRESS_MISMATCH:
+                return("IP address mismatch");
         default:
                 return "error number " + error;
         }
@@ -414,6 +422,14 @@ public abstract class X509Utils {
     public static final int	V_ERR_NO_EXPLICIT_POLICY = 43;
 
     public static final int	V_ERR_APPLICATION_VERIFICATION = 50;
+
+    /* Another issuer check debug option */
+    public static final int	V_ERR_PATH_LOOP = 55;
+
+    /* Host, email and IP check errors */
+    public static final int	V_ERR_HOSTNAME_MISMATCH = 62;
+    public static final int	V_ERR_EMAIL_MISMATCH = 63;
+    public static final int	V_ERR_IP_ADDRESS_MISMATCH = 64;
 
     // ...
 
