@@ -20,7 +20,7 @@ module OpenSSL
       DEFAULT_PARAMS = { # :nodoc:
         :min_version => OpenSSL::SSL::TLS1_VERSION,
         :verify_mode => OpenSSL::SSL::VERIFY_PEER,
-        :verify_hostname => true,
+        :verify_hostname => nil, # TODO => true needs JRuby support to call verify_certificate_identity
         :options => OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_COMPRESSION
       }
 
@@ -280,10 +280,10 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
             # NOTE: bellow logic makes little sense JRuby reads exts differently
             # follows GENERAL_NAME_print() in x509v3/v3_alt.c
             # if san.value.size == 4 || san.value.size == 16
-            #   begin
-            #     return true if san.value == IPAddr.new(hostname).hton
-            #   rescue IPAddr::InvalidAddressError
-            #   end
+            #    begin
+            #      return true if $1 == IPAddr.new(hostname).to_s
+            #    rescue IPAddr::InvalidAddressError
+            #    end
             # end
           end
         }
