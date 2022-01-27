@@ -96,6 +96,27 @@ class TestSSL < TestCase
     }
   end
 
+  def test_parallel
+    start_server(OpenSSL::SSL::VERIFY_PEER, true) { |_, port|
+      ssls = []
+      10.times{
+        sock = TCPSocket.new("127.0.0.1", port)
+        ssl = OpenSSL::SSL::SSLSocket.new(sock)
+        ssl.connect
+        ssl.sync_close = true
+        ssls << ssl
+      }
+      str = "x" * 1000 + "\n"
+      ITERATIONS.times{
+        ssls.each{|ssl|
+          ssl.puts(str)
+          assert_equal(str, ssl.gets)
+        }
+      }
+      ssls.each{|ssl| ssl.close }
+    }
+  end
+
   def test_ssl_version_tlsv1_2
     ctx_proc = Proc.new do |ctx|
       ctx.ssl_version = "TLSv1_2"
