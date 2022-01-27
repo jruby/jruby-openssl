@@ -488,9 +488,13 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod
     public RubyArray ciphers(final ThreadContext context) { // SSL_CTX_get_ciphers
-        final CipherListCache cached = cipherListCache;
-        if ( protocol.equals(cached.protocol) && ciphers.equals(cached.ciphers) ) {
-            return newSharedArray(context, cached.cipherList);
+        return matchedCiphersWithCache(context);
+    }
+
+    private RubyArray matchedCiphersWithCache(final ThreadContext context) {
+        final CipherListCache cache = cipherListCache;
+        if ( protocol.equals(cache.protocol) && ciphers.equals(cache.ciphers) ) {
+            return newSharedArray(context, cache.cipherList);
         }
 
         final RubyArray match = matchedCiphers(context);
@@ -509,11 +513,11 @@ public class SSLContext extends RubyObject {
 
             int i = 0; for ( CipherStrings.Def def : cipherDefs ) {
                 cipherList[i++] = runtime.newArrayNoCopy(
-                    newUTF8String(runtime, def.name), // 0
-                    newUTF8String(runtime, sslVersionString(def.algorithms)), // 1
+                    newUTF8String(runtime, def.name).freeze(context), // 0
+                    newUTF8String(runtime, sslVersionString(def.algorithms)).freeze(context), // 1
                     runtime.newFixnum(def.algStrengthBits), // 2
                     runtime.newFixnum(def.algBits) // 3
-                );
+                ).freeze(context);
             }
             return runtime.newArrayNoCopy(cipherList);
         }
@@ -553,7 +557,7 @@ public class SSLContext extends RubyObject {
             this.ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST; // due caching
         }
 
-        if ( matchedCiphers(context).isEmpty() ) {
+        if ( matchedCiphersWithCache(context).isEmpty() ) {
             throw newSSLError(context.runtime, "no cipher match");
         }
 
