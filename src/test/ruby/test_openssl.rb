@@ -13,7 +13,7 @@ class TestOpenSSL < TestCase
   end if ENV['BC_VERSION']
 
   def test_version
-    assert_equal '2.2.0', OpenSSL::VERSION
+    assert_equal '2.2.1', OpenSSL::VERSION
 
     assert OpenSSL::OPENSSL_VERSION.index('OpenSSL')
     if defined? JRUBY_VERSION
@@ -21,12 +21,10 @@ class TestOpenSSL < TestCase
     end
     assert OpenSSL::OPENSSL_VERSION_NUMBER
 
-    if RUBY_VERSION > '2.0'
-      # MRI 2.3 openssl/utils.rb does this (and we shall pass) :
-      assert defined?(OpenSSL::OPENSSL_LIBRARY_VERSION)
-      assert /\AOpenSSL +0\./ !~ OpenSSL::OPENSSL_LIBRARY_VERSION
-      #puts "OpenSSL::OPENSSL_LIBRARY_VERSION = #{OpenSSL::OPENSSL_LIBRARY_VERSION.inspect}"
-    end
+    # MRI 2.3 openssl/utils.rb does this (and we shall pass) :
+    assert defined?(OpenSSL::OPENSSL_LIBRARY_VERSION)
+    assert /\AOpenSSL +0\./ !~ OpenSSL::OPENSSL_LIBRARY_VERSION
+    #puts "OpenSSL::OPENSSL_LIBRARY_VERSION = #{OpenSSL::OPENSSL_LIBRARY_VERSION.inspect}"
   end
 
   def test_debug

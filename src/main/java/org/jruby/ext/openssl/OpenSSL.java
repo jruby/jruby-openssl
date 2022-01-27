@@ -88,7 +88,7 @@ public final class OpenSSL {
 
         runtime.getLoadService().require("jopenssl/version");
 
-        final byte[] version = { '2','.','2','.','0' };
+        final byte[] version = { '2','.','2','.','1' };
 
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
