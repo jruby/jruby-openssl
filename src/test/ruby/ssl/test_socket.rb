@@ -85,22 +85,21 @@ class TestSSLSocket < TestCase
     end
   end if RUBY_VERSION > '2.2'
 
-  def test_read_nonblock_no_exception
-    ssl_pair do |s1, s2|
-      assert_equal :wait_readable, eval('s2.read_nonblock 10, exception: false')
-      s1.write "abc\ndef\n"
-      IO.select [ s2 ]
-      ret = eval('s2.read_nonblock 2, exception: false')
-      assert_equal "ab", ret
-      assert_equal "c\n", s2.gets
-      ret = eval('s2.read_nonblock 10, exception: false')
-      assert_equal("def\n", ret)
-      s1.close
-      sleep 0.1
-      opts = { :exception => false }
-      assert_equal nil, s2.read_nonblock(10, opts)
-    end
-  end if RUBY_VERSION > '2.2'
+  def test_read_nonblock_without_session
+    start_server(OpenSSL::SSL::VERIFY_PEER, false) { |_, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.sync_close = true
+
+      assert_equal :wait_readable, ssl.read_nonblock(100, exception: false)
+      ssl.write("abc\n")
+      IO.select [ssl]
+      assert_equal('a', ssl.read_nonblock(1))
+      assert_equal("bc\n", ssl.read_nonblock(100))
+      assert_equal :wait_readable, ssl.read_nonblock(100, exception: false)
+      ssl.close
+    }
+  end
 
   def test_connect_non_connected; require 'socket'
     socket = OpenSSL::SSL::SSLSocket.new(Socket.new(:INET, :STREAM))
@@ -115,14 +114,17 @@ class TestSSLSocket < TestCase
   end if RUBY_VERSION > '2.2'
 
   def test_connect_nonblock
-    ssl_server = server
+    host = "127.0.0.1"; port = 0
+    server = TCPServer.new(host, port)
+    ssl_server = OpenSSL::SSL::SSLServer.new(server, OpenSSL::SSL::SSLContext.new)
+
     thread = Thread.new do
       ssl_server.accept.tap { ssl_server.close }
     end
 
     host = "127.0.0.1"
     ctx = OpenSSL::SSL::SSLContext.new()
-    ctx.ciphers = "ADH"
+    ctx.ciphers = "AES"
     client = TCPSocket.new host, server_port(ssl_server)
     client = OpenSSL::SSL::SSLSocket.new(client, ctx)
     begin
@@ -150,18 +152,18 @@ class TestSSLSocket < TestCase
 
   private
 
-  def server; require 'socket'
+  def server(ssl_version: nil); require 'socket'
     host = "127.0.0.1"; port = 0
     ctx = OpenSSL::SSL::SSLContext.new()
-    ctx.ciphers = "ADH"
+    ctx.ssl_version = ssl_version if ssl_version
     server = TCPServer.new(host, port)
     OpenSSL::SSL::SSLServer.new(server, ctx)
   end
 
-  def client(port); require 'socket'
+  def client(port, ssl_version: nil); require 'socket'
     host = "127.0.0.1"
     ctx = OpenSSL::SSL::SSLContext.new()
-    ctx.ciphers = "ADH"
+    ctx.ssl_version = ssl_version if ssl_version
     client = TCPSocket.new(host, port)
     ssl = OpenSSL::SSL::SSLSocket.new(client, ctx)
     ssl.connect
@@ -174,11 +176,11 @@ class TestSSLSocket < TestCase
   end
 
   def ssl_pair
-    ssl_server = server
+    ssl_server = server ssl_version: 'TLSv1_2'
     thread = Thread.new do
       ssl_server.accept.tap { ssl_server.close }
     end
-    ssl_client = client server_port(ssl_server)
+    ssl_client = client server_port(ssl_server), ssl_version: 'TLSv1_2'
     ssl_socket = thread.value
     if block_given?
       begin
