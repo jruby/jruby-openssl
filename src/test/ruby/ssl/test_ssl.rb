@@ -7,8 +7,6 @@ class TestSSL < TestCase
 
   def test_context_default_constants
     assert OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
-    assert_equal 'SSLv23', OpenSSL::SSL::SSLContext::DEFAULT_PARAMS[:ssl_version]
-    # assert_equal "ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM:+LOW", OpenSSL::SSL::SSLContext::DEFAULT_PARAMS[:ciphers]
     assert_equal OpenSSL::SSL::VERIFY_PEER, OpenSSL::SSL::SSLContext::DEFAULT_PARAMS[:verify_mode]
 
     assert OpenSSL::SSL::SSLContext::DEFAULT_CERT_STORE
@@ -111,12 +109,21 @@ class TestSSL < TestCase
     end
   end
 
-  # Ruby supports TLSv1.3 already. Java - TLSv1.2.
-  MAX_SSL_VERSION = if defined? JRUBY_VERSION
-                      "TLSv1.2"
-                    else
-                      "TLSv1.3"
-                    end
+  def test_ssl_version_tlsv1_3
+    ctx_proc = Proc.new do |ctx|
+      ctx.ssl_version = "TLSv1_3"
+    end
+    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true, :ctx_proc => ctx_proc) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.connect
+      assert_equal("TLSv1.3", ssl.ssl_version)
+      ssl.close
+    end
+  end
+
+  MAX_SSL_VERSION = "TLSv1.3"
+
   [
     [OpenSSL::SSL::TLS1_VERSION, nil,   MAX_SSL_VERSION, "(TLSv1,)"],
     [OpenSSL::SSL::TLS1_1_VERSION, nil, MAX_SSL_VERSION, "(TLSv1.1,)"],
