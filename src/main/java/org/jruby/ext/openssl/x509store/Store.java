@@ -104,7 +104,7 @@ public class Store implements X509TrustManager {
     public Store() {
         verifyParameter = new VerifyParameter();
 
-        extraData = new ArrayList<>(2);
+        extraData = new ArrayList<>(StoreContext.MAX_EXTRA_DATA_SIZE);
     }
 
     public List<X509Object> getObjects() {
@@ -147,9 +147,8 @@ public class Store implements X509TrustManager {
      */
     public void setExtraData(int idx, Object data) {
         assert idx >= 0;
-        assert idx < 10;
+        assert idx < StoreContext.MAX_EXTRA_DATA_SIZE;
         synchronized (extraData) {
-            extraData.ensureCapacity(idx + 1);
             while (extraData.size() <= idx) extraData.add(null);
             extraData.set(idx, data);
             // return 1;
