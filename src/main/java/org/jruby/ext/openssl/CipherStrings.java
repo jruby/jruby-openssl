@@ -2252,6 +2252,9 @@ public class CipherStrings {
         SuiteToOSSL.put("TLS_ECDH_RSA_WITH_NULL_SHA",    "ECDH-RSA-NULL-SHA");
         SuiteToOSSL.put("TLS_ECDH_anon_WITH_NULL_SHA",   "AECDH-NULL-SHA");
 
+        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_128_GCM_SHA256", "ADH-AES128-GCM-SHA256");
+        SuiteToOSSL.put("TLS_DH_anon_WITH_AES_256_GCM_SHA384", "ADH-AES256-GCM-SHA384");
+
         /* For IBM JRE: suite names start with "SSL_". On Oracle JRE, the suite names start with "TLS_" */
         SuiteToOSSL.put("SSL_DH_anon_WITH_AES_128_CBC_SHA",        "ADH-AES128-SHA");
         SuiteToOSSL.put("SSL_DH_anon_WITH_AES_128_CBC_SHA256",     "ADH-AES128-SHA256");
