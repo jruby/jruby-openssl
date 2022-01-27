@@ -127,7 +127,7 @@ public class SSLContext extends RubyObject {
         SSL_VERSION_OSSL2JSSE.put("SSLv23_server", "SSL");
         SSL_VERSION_OSSL2JSSE.put("SSLv23_client", "SSL");
 
-        ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv2", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3" });
+        ENABLED_PROTOCOLS.put("SSL", new String[] { "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3" });
 
         // Historically we were ahead of MRI to support TLS
         // ... thus the non-standard names version names :
@@ -296,7 +296,7 @@ public class SSLContext extends RubyObject {
     //private transient CipherStrings.Def tls13_ciphersuites;
 
     private String ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
-    private String protocol = "TLS"; // ctx->method
+    private String protocol = "SSL"; // ctx->method
     private boolean protocolForServer = true;
     private boolean protocolForClient = true;
     private int minProtocolVersion = 0;
