@@ -8,7 +8,6 @@ before_install:
   - unset _JAVA_OPTIONS
   - unset JRUBY_OPTS
   - rvm @default,@global do gem uninstall bundler -a -x -I || true
-  - gem update --system 3.2.33
   - gem install bundler -v "~>2.2.28"
 
 install:
@@ -18,7 +17,6 @@ install:
 before_script:
   - if [[ "$BUNDLE_INSTALL" != 0 ]]; then jruby -rbundler/setup -S rake test_prepare; else true; fi
   - export JRUBY_OPTS="$JRUBY_OPTS -Xjit.threshold=0"
-script: jruby -rbundler/setup -S rake test
 
 matrix:
   fast_finish: true
@@ -26,11 +24,9 @@ matrix:
     - rvm: jruby-head
     - script: jruby -rbundler/setup -S rake integration:install integration:test
   include:
-    - jdk: openjdk11
-      rvm: jruby-head
+    - rvm: jruby-head
       script: jruby -rbundler/setup -S rake test
-    - jdk: openjdk8
-      rvm: jruby-9.1.17.0
+    - rvm: jruby-9.1.17.0
       script: jruby -rbundler/setup -S rake integration:install integration:test
     - jdk: oraclejdk11
       rvm: jruby-9.2.20.0
