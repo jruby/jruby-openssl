@@ -45,14 +45,18 @@ plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '1.9' ) do
   execute_goal 'add-source', :phase => 'process-classes', :sources => [ gen_sources ]
 end
 
-plugin( :compiler, '3.9.0',
-        :source => '1.8', :target => java_target, :release => '8',
-        :encoding => 'UTF-8', :debug => true,
-        :showWarnings => true, :showDeprecation => true,
-        :excludes => [ 'module-info.java' ],
-        #:jdkToolchain => { :version => '[1.7,11)' },
-        :generatedSourcesDirectory => gen_sources,
-        :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ]) do
+compiler_configuration = {
+    :source => '1.8', :target => java_target, :release => '8',
+    :encoding => 'UTF-8', :debug => true,
+    :showWarnings => true, :showDeprecation => true,
+    :excludes => [ 'module-info.java' ],
+    #:jdkToolchain => { :version => '[1.7,11)' },
+    :generatedSourcesDirectory => gen_sources,
+    :annotationProcessors => [ 'org.jruby.anno.AnnotationBinder' ]
+}
+compiler_configuration.delete(:release) if ENV_JAVA['java.specification.version'] == '1.8'
+
+plugin( :compiler, '3.9.0', compiler_configuration) do
 
   #execute_goal :compile, :id => 'annotation-binder', :phase => 'compile',
   #    :generatedSourcesDirectory => gen_sources, #:outputDirectory => gen_sources,
