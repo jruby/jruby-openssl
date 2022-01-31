@@ -494,12 +494,12 @@ public class SSLContext extends RubyObject {
     private RubyArray matchedCiphersWithCache(final ThreadContext context) {
         final CipherListCache cache = cipherListCache;
         if ( protocol.equals(cache.protocol) && ciphers.equals(cache.ciphers) ) {
-            return newSharedArray(context, cache.cipherList);
+            return newSharedArray(cache.cipherList);
         }
 
         final RubyArray match = matchedCiphers(context);
         cipherListCache = new CipherListCache(protocol, ciphers, match);
-        return newSharedArray(context, match);
+        return newSharedArray(match);
     }
 
     private RubyArray matchedCiphers(final ThreadContext context) {
@@ -526,8 +526,8 @@ public class SSLContext extends RubyObject {
         }
     }
 
-    private static RubyArray newSharedArray(ThreadContext context, RubyArray array) {
-        return array.collect(context, Block.NULL_BLOCK); // shares underlying IRubyObject[] values
+    private static RubyArray newSharedArray(RubyArray array) {
+        return (RubyArray) array.dup(); // shares underlying IRubyObject[] values
     }
 
     @JRubyMethod(name = "ciphers=")
