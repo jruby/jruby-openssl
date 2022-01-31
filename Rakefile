@@ -42,9 +42,7 @@ task :test => 'lib/jopenssl.jar'
 namespace :integration do
   it_path = File.expand_path('../src/test/integration', __FILE__)
   task :install do
-    Dir.chdir(it_path) do
-      ruby "-S bundle install --gemfile '#{it_path}/Gemfile'"
-    end
+    ruby "-C #{it_path} -S bundle install"
   end
   # desc "Run IT tests"
   task :test => 'lib/jopenssl.jar' do
@@ -53,6 +51,6 @@ namespace :integration do
     end
     loader = "ARGV.each { |f| require f }" ; lib = [ 'lib', it_path ]
     test_files = FileList['src/test/integration/*_test.rb'].map { |path| path.sub('src/test/integration/', '') }
-    ruby "-I#{lib.join(':')} -C src/test/integration -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
+    ruby "-I#{lib.join(':')} -C src/test/integration -rbundler/setup -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
   end
 end

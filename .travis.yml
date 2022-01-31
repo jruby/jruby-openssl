@@ -22,15 +22,14 @@ matrix:
   fast_finish: true
   allow_failures:
     - rvm: jruby-head
-    - script: jruby -rbundler/setup -S rake integration:install integration:test
   include:
     - rvm: jruby-head
       script: jruby -rbundler/setup -S rake test
     - rvm: jruby-9.1.17.0
-      script: jruby -rbundler/setup -S rake integration:install integration:test
+      script: jruby -S rake integration:test
     - jdk: oraclejdk11
       rvm: jruby-9.2.20.0
-      script: jruby -rbundler/setup -S rake integration:install integration:test
+      script: jruby -S rake integration:test
 
 cache:
   directories:
