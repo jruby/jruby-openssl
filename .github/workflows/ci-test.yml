@@ -1,4 +1,4 @@
-name: JOSSL Unit Tests
+name: JOSSL Tests
 
 on: [push, pull_request]
 
