@@ -17,11 +17,15 @@ class TestSecurityHelper < TestCase
     assert_equal 'BC', factory2.provider.name
     # assert_same factory1.getProvider, factory2.getProvider
 
-    java.security.cert.CertificateFactory.class_eval do
-      field_reader :certFacSpi
-    end
+    begin
+      java.security.cert.CertificateFactory.class_eval do
+        field_reader :certFacSpi
+      end
 
-    spi1 = factory1.certFacSpi; spi2 = factory2.certFacSpi
+      spi1 = factory1.certFacSpi; spi2 = factory2.certFacSpi
+    rescue SecurityError => e
+      return skip "#{__method__} probably needs --add-opens (#{e.message})"
+    end
 
     if spi1.is_a? org.bouncycastle.jcajce.provider.asymmetric.x509.CertificateFactory
       org.bouncycastle.jcajce.provider.asymmetric.x509.CertificateFactory.class_eval do
