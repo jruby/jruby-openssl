@@ -3,10 +3,10 @@ source 'https://rubygems.org'
 # Specify your gem's dependencies in the gemspec
 gemspec
 
-gem "rake"
+gem "rake", require: false
 
 # for less surprises with newer releases
-gem 'jar-dependencies', '~> 0.3.11', :require => nil
+gem 'jar-dependencies', '>= 0.3.11', require: false
 
 gem 'mocha', '~> 1.4', '< 2.0'
 
