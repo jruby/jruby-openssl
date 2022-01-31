@@ -10,7 +10,9 @@ class IntegrationSSLTest < TestCase
     puts "------------------------------------------------------------"
     puts "-- HTTPClient.new.get 'https://www.bankofamerica.com'"
     puts "------------------------------------------------------------"
-    puts HTTPClient.new.get('https://www.bankofamerica.com')
+    res = HTTPClient.new.get('https://www.bankofamerica.com')
+    puts res if $VERBOSE
+    #assert_equal 200, res.code
   end
 
   def test_connect_http_client_2
@@ -20,7 +22,9 @@ class IntegrationSSLTest < TestCase
     puts "------------------------------------------------------------"
     puts "-- HTTPClient.new.get 'https://google.co.uk'"
     puts "------------------------------------------------------------"
-    puts HTTPClient.new.get('https://google.co.uk')
+    res = HTTPClient.new.get('https://google.co.uk')
+    puts res if $VERBOSE
+    #assert res.code < 400
   end
 
   def test_connect_net_http_1
@@ -35,7 +39,8 @@ class IntegrationSSLTest < TestCase
 
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
-    puts http.get('/')
+    res = http.get('/')
+    assert_equal '200', res.code
   end
 
   def test_connect_net_http_2
@@ -51,7 +56,21 @@ class IntegrationSSLTest < TestCase
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     http.ssl_version = :TLSv1_2
-    puts http.get('/')
+    res = http.get('/')
+    assert_equal Net::HTTPOK, res.class
+  end
+
+  def test_faraday_get
+    require 'faraday'
+
+    puts "\n"
+    puts "------------------------------------------------------------"
+    puts "-- Faraday.get ... 'http://httpbingo.org/ip'"
+    puts "------------------------------------------------------------"
+
+    res = Faraday.get('https://httpbingo.org/ip')
+    assert_equal 200, res.status
+    puts res.body
   end
 
   def test_connect_ssl_minmax_version

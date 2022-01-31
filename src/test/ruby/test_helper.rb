@@ -1,5 +1,3 @@
-require 'rubygems' unless defined? Gem
-
 require 'java' if defined? JRUBY_VERSION
 
 if bc_version = ENV['BC_VERSION'] # && respond_to?(:require_jar)
