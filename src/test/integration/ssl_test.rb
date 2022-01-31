@@ -38,6 +38,22 @@ class IntegrationSSLTest < TestCase
     puts http.get('/')
   end
 
+  def test_connect_net_http_2
+    require 'uri'; require 'net/https'
+
+    puts "\n"
+    puts "------------------------------------------------------------"
+    puts "-- Net::HTTP.new ... 'https://fancyssl.hboeck.de'"
+    puts "------------------------------------------------------------"
+
+    uri = URI.parse('https://fancyssl.hboeck.de/')
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.ssl_version = :TLSv1_2
+    puts http.get('/')
+  end
+
   def test_connect_ssl_minmax_version
     require 'openssl'
     require 'socket'
@@ -48,16 +64,16 @@ class IntegrationSSLTest < TestCase
     puts "------------------------------------------------------------"
 
     ctx = OpenSSL::SSL::SSLContext.new()
-    ctx.min_version = OpenSSL::SSL::TLS1_VERSION
-    ctx.max_version = OpenSSL::SSL::TLS1_1_VERSION
+    ctx.min_version = OpenSSL::SSL::TLS1_1_VERSION
+    ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
     client = TCPSocket.new('google.co.uk', 443)
     ssl = OpenSSL::SSL::SSLSocket.new(client, ctx)
     ssl.sync_close = true
     ssl.connect
     begin
-        assert_equal 'TLSv1.1', ssl.ssl_version
+      assert_equal 'TLSv1.2', ssl.ssl_version
     ensure
-        ssl.sysclose
+      ssl.sysclose
     end
   end
 end
