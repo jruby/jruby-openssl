@@ -8,9 +8,12 @@ before_install:
   - unset _JAVA_OPTIONS
   - unset JRUBY_OPTS
   - rvm @default,@global do gem uninstall bundler -a -x -I || true
+  - gem update --system 3.2.33
   - gem install bundler -v "~>2.2.28"
 
-install: if [[ "$BUNDLE_INSTALL" != 0 ]]; then jruby -S bundle install; else true; fi
+install:
+  - if [[ "$BUNDLE_INSTALL" != 0 ]]; then jruby -S bundle install; else true; fi
+  - if [[ "$BUNDLE_INSTALL" != 0 ]]; then jruby -S bundle install --gemfile src/test/integration/Gemfile; else true; fi
 
 before_script:
   - if [[ "$BUNDLE_INSTALL" != 0 ]]; then jruby -rbundler/setup -S rake test_prepare; else true; fi
