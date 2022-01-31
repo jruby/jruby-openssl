@@ -4,10 +4,6 @@ dist: precise # due OpenJDK 7
 jdk:
   - openjdk11
 
-rvm:
-  - jruby-9.2.19.0
-  - jruby-9.3.3.0
-
 before_install:
   - unset _JAVA_OPTIONS
   - unset JRUBY_OPTS
@@ -29,8 +25,7 @@ matrix:
   include:
     - jdk: openjdk11
       rvm: jruby-head
-    - jdk: openjdk17
-      rvm: jruby-9.3.3.0
+      script: jruby -rbundler/setup -S rake test
     - jdk: openjdk8
       rvm: jruby-9.1.17.0
       script: jruby -rbundler/setup -S rake integration:install integration:test
