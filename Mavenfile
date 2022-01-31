@@ -45,8 +45,8 @@ plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '1.9' ) do
   execute_goal 'add-source', :phase => 'process-classes', :sources => [ gen_sources ]
 end
 
-plugin( :compiler, '3.8.1',
-        :source => '1.8', :target => java_target,
+plugin( :compiler, '3.9.0',
+        :source => '1.8', :target => java_target, :release => '8',
         :encoding => 'UTF-8', :debug => true,
         :showWarnings => true, :showDeprecation => true,
         :excludes => [ 'module-info.java' ],
