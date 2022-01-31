@@ -21,6 +21,8 @@ jobs:
             ruby-version: jruby-9.2.20.1
           - java-version: 17
             ruby-version: jruby-9.2.20.1
+          - java-version: 8
+            ruby-version: jruby-9.1.17.0
       fail-fast: false
 
     steps:
