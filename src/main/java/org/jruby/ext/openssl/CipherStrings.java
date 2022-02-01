@@ -224,18 +224,22 @@ public class CipherStrings {
     public final static String SSL_TXT_CMPALL = "COMPLEMENTOFALL";
     public final static String SSL_TXT_CMPDEF = "COMPLEMENTOFDEFAULT";
 
-    // "ALL:!aNULL:!eNULL:!SSLv2" is for OpenSSL 1.0.0 GA
-    public final static String SSL_DEFAULT_CIPHER_LIST = "AES:ALL:!aNULL:!eNULL:!SSLv2:+RC4:@STRENGTH";
+    // NOTE: Default list of TLSv1.2 (and earlier) ciphers deprecated in 3.0.0
+    // "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2" in OpenSSL 1.0.2
+    public final static String SSL_DEFAULT_CIPHER_LIST; // = "AES:ALL:!aNULL:!eNULL:!SSLv2:+RC4:@STRENGTH";
     /*
      * The following cipher list is used by default. It also is substituted when
      * an application-defined cipher list string starts with 'DEFAULT'.
      * This applies to ciphersuites for TLSv1.2 and below.
      */
-    //public final static String SSL_DEFAULT_CIPHER_LIST = "ALL:!COMPLEMENTOFDEFAULT:!eNULL";
-    /* This is the default set of TLSv1.3 ciphersuites */ // TODO REVIEW 1.3 cipher matching
+    //public final static String SSL_DEFAULT_CIPHER_LIST = "ALL:!COMPLEMENTOFDEFAULT:!eNULL"; // OpenSSL 1.1.1
+    /* This is the default set of TLSv1.3 ciphersuites */
     public final static String TLS_DEFAULT_CIPHERSUITES = "TLS_AES_256_GCM_SHA384:" +
                                                           "TLS_CHACHA20_POLY1305_SHA256:" +
                                                           "TLS_AES_128_GCM_SHA256";
+    static { // TODO REVIEW 1.3 cipher matching
+        SSL_DEFAULT_CIPHER_LIST = "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"; // + ':' + TLS_DEFAULT_CIPHERSUITES;
+    }
 
     public final static long SSL_MKEY_MASK = 0x000000FFL;
     /* Bits for algorithm_mkey (key exchange algorithm) */

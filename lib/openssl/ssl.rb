@@ -24,43 +24,44 @@ module OpenSSL
         :options => OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_COMPRESSION
       }
 
-      if !(OpenSSL::OPENSSL_VERSION.start_with?("OpenSSL") &&
-           OpenSSL::OPENSSL_VERSION_NUMBER >= 0x10100000)
-        DEFAULT_PARAMS.merge!(
-          ciphers: %w{
-            ECDHE-ECDSA-AES128-GCM-SHA256
-            ECDHE-RSA-AES128-GCM-SHA256
-            ECDHE-ECDSA-AES256-GCM-SHA384
-            ECDHE-RSA-AES256-GCM-SHA384
-            DHE-RSA-AES128-GCM-SHA256
-            DHE-DSS-AES128-GCM-SHA256
-            DHE-RSA-AES256-GCM-SHA384
-            DHE-DSS-AES256-GCM-SHA384
-            ECDHE-ECDSA-AES128-SHA256
-            ECDHE-RSA-AES128-SHA256
-            ECDHE-ECDSA-AES128-SHA
-            ECDHE-RSA-AES128-SHA
-            ECDHE-ECDSA-AES256-SHA384
-            ECDHE-RSA-AES256-SHA384
-            ECDHE-ECDSA-AES256-SHA
-            ECDHE-RSA-AES256-SHA
-            DHE-RSA-AES128-SHA256
-            DHE-RSA-AES256-SHA256
-            DHE-RSA-AES128-SHA
-            DHE-RSA-AES256-SHA
-            DHE-DSS-AES128-SHA256
-            DHE-DSS-AES256-SHA256
-            DHE-DSS-AES128-SHA
-            DHE-DSS-AES256-SHA
-            AES128-GCM-SHA256
-            AES256-GCM-SHA384
-            AES128-SHA256
-            AES256-SHA256
-            AES128-SHA
-            AES256-SHA
-          }.join(":"),
-        )
-      end
+      # JRuby does not want this non (recent) OpenSSL fallback to happen
+      # if !(OpenSSL::OPENSSL_VERSION.start_with?("OpenSSL") &&
+      #      OpenSSL::OPENSSL_VERSION_NUMBER >= 0x10100000)
+      #   DEFAULT_PARAMS.merge!(
+      #     ciphers: %w{
+      #       ECDHE-ECDSA-AES128-GCM-SHA256
+      #       ECDHE-RSA-AES128-GCM-SHA256
+      #       ECDHE-ECDSA-AES256-GCM-SHA384
+      #       ECDHE-RSA-AES256-GCM-SHA384
+      #       DHE-RSA-AES128-GCM-SHA256
+      #       DHE-DSS-AES128-GCM-SHA256
+      #       DHE-RSA-AES256-GCM-SHA384
+      #       DHE-DSS-AES256-GCM-SHA384
+      #       ECDHE-ECDSA-AES128-SHA256
+      #       ECDHE-RSA-AES128-SHA256
+      #       ECDHE-ECDSA-AES128-SHA
+      #       ECDHE-RSA-AES128-SHA
+      #       ECDHE-ECDSA-AES256-SHA384
+      #       ECDHE-RSA-AES256-SHA384
+      #       ECDHE-ECDSA-AES256-SHA
+      #       ECDHE-RSA-AES256-SHA
+      #       DHE-RSA-AES128-SHA256
+      #       DHE-RSA-AES256-SHA256
+      #       DHE-RSA-AES128-SHA
+      #       DHE-RSA-AES256-SHA
+      #       DHE-DSS-AES128-SHA256
+      #       DHE-DSS-AES256-SHA256
+      #       DHE-DSS-AES128-SHA
+      #       DHE-DSS-AES256-SHA
+      #       AES128-GCM-SHA256
+      #       AES256-GCM-SHA384
+      #       AES128-SHA256
+      #       AES256-SHA256
+      #       AES128-SHA
+      #       AES256-SHA
+      #     }.join(":"),
+      #   )
+      # end
 
       if defined?(OpenSSL::PKey::DH)
         DEFAULT_2048 = OpenSSL::PKey::DH.new <<-_end_of_pem_
