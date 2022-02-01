@@ -1,6 +1,6 @@
 language: ruby
 
-dist: precise # due OpenJDK 7
+dist: bionic
 jdk:
   - openjdk11
 
@@ -17,6 +17,7 @@ install:
 before_script:
   - if [[ "$BUNDLE_INSTALL" != 0 ]]; then jruby -rbundler/setup -S rake test_prepare; else true; fi
   - export JRUBY_OPTS="$JRUBY_OPTS -Xjit.threshold=0"
+  - jruby -v # let's see JDK patch/build version
 
 matrix:
   fast_finish: true
