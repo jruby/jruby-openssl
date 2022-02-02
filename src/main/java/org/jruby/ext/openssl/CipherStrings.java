@@ -2244,6 +2244,7 @@ public class CipherStrings {
         SuiteToOSSL.put("SSL_RSA_WITH_NULL_SHA256",                "NULL-SHA256");
 
         // TLS v1.3 (Java 8/11) streaming ciphers :
+        // TODO the specifics of using these on 1.3 only is not implemented
 
         SuiteToOSSL.put("TLS_AES_128_GCM_SHA256", name = "TLS_AES_128_GCM_SHA256");
         CipherNames.put(name, new Def(name,
@@ -2252,6 +2253,24 @@ public class CipherStrings {
         ));
 
         SuiteToOSSL.put("TLS_AES_256_GCM_SHA384", name = "TLS_AES_256_GCM_SHA384");
+        CipherNames.put(name, new Def(name,
+                SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_CHACHA20_POLY1305_SHA256", name = "TLS_CHACHA20_POLY1305_SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_CHACHA20|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 256, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_AES_128_CCM_SHA256", name = "TLS_AES_128_CCM_SHA256");
+        CipherNames.put(name, new Def(name,
+                SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_NOT_EXP, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
+        ));
+
+        SuiteToOSSL.put("TLS_AES_128_CCM_8_SHA256", name = "TLS_AES_128_CCM_8_SHA256");
         CipherNames.put(name, new Def(name,
                 SSL_AES|SSL_SHA|SSL_TLSV1,
                 SSL_NOT_EXP, 256, 384, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
