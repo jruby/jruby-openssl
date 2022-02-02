@@ -1,18 +1,22 @@
-## 0.12.0
+## 0.12.1
 
 * improved compatibility with the openssl gem (version 2.2.1)
 * JOSSL now ships with a single set of openssl .rb files
   - providing compat with `required_ruby_version = '>= 2.3.0'`
   - flat set of .rb files at *lib/openssl/* (based on openssl gem) 
-* align secure defaults `OpenSSL::SSL::SSLContext::DEFAULT_PARAMS`
+* revisited `OpenSSL::SSL::SSLContext::DEFAULT_PARAMS` defaults
   - implicit `verify_hostname` default .rb callback still a noop
   - TLS continues to rely on the Java SSL engine for hostname checks
-* TLS 1.3 (`TLS_AES_128_GCM_SHA256` / `TLS_AES_256_GCM_SHA384`)
+* working TLS 1.3 support
 * droped Java 1.7 support (at least Java 8 needed to use the gem)
 * fixed `SSLContext#options` matches C OpenSSL (using `OP_ALL`)
 * no longer filter out SSLv2 (for improved OpenSSL compatibility) 
 * implemented naive `SSLContext#ciphers` caching to speed-up TLS
 * `StoreError` raised due a Java exception now retain native cause
+
+## 0.12.0 (yanked)
+
+There were Java 8 and JRuby 9.3 regressions in this release, use 0.12.1 instead.
 
 ## 0.11.0
 

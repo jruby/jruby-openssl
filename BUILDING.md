@@ -32,7 +32,7 @@ NOTE: make sure to **-Ilib** otherwise you end up using the OpenSSL default gem 
   make sure [pom.xml](pom.xml) is regenerated e.g. using `rmvn validate`
   and `git commit` the changes
 
-* `mvn -Prelease -DupdateReleaseInfo=true clean package`
+* `./mvnw -Prelease -DupdateReleaseInfo=true -Dmaven.test.skip=true clean package`
 
 * gem push the build gem from pkg/ e.g. `gem push pkg/jruby-openssl-0.9.15.gem`
 
