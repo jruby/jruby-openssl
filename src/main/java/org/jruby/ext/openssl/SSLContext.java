@@ -534,7 +534,7 @@ public class SSLContext extends RubyObject {
     private RubyArray matchedCiphers(final ThreadContext context) {
         final Ruby runtime = context.runtime;
         try {
-            final String[] supported = getSupportedCipherSuites(runtime, protocol);
+            final String[] supported = getSupportedCipherSuites(context, protocol);
             final Collection<CipherStrings.Def> cipherDefs =
                     CipherStrings.matchingCiphers(this.ciphers, supported, false);
 
@@ -751,14 +751,14 @@ public class SSLContext extends RubyObject {
         }
     }
 
-    private static String[] getSupportedCipherSuites(Ruby runtime, final String protocol)
+    private static String[] getSupportedCipherSuites(ThreadContext context, final String protocol)
         throws GeneralSecurityException {
-        return dummySSLEngine(runtime, protocol).getSupportedCipherSuites();
+        return dummySSLEngine(context, protocol).getSupportedCipherSuites();
     }
 
-    private static SSLEngine dummySSLEngine(Ruby runtime, final String protocol) throws GeneralSecurityException {
+    private static SSLEngine dummySSLEngine(ThreadContext context, final String protocol) throws GeneralSecurityException {
         javax.net.ssl.SSLContext sslContext = SecurityHelper.getSSLContext(protocol);
-        sslContext.init(null, null, OpenSSL.getSecureRandom(runtime));
+        sslContext.init(null, null, OpenSSL.getSecureRandom(context));
         return sslContext.createSSLEngine();
     }
 
@@ -1017,7 +1017,7 @@ public class SSLContext extends RubyObject {
             // SSLContext (internals) on Sun JDK :
             // private final java.security.Provider provider; "SunJSSE"
             // private final javax.net.ssl.SSLContextSpi; sun.security.ssl.SSLContextImpl
-            sslContext.init(keyManager, trustManager, OpenSSL.getSecureRandomFrom(context));
+            sslContext.init(keyManager, trustManager, OpenSSL.getSecureRandom(context));
             // if secureRandom == null JSSE will try :
             // - new SecureRandom();
             // - SecureRandom.getInstance("PKCS11", cryptoProvider);

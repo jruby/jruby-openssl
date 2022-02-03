@@ -334,7 +334,7 @@ public abstract class SecurityHelper {
             }
         }
         catch (NoSuchAlgorithmException e) { }
-        return new SecureRandom(); // likely "SHA1PRNG" from SPI sun.security.provider.SecureRandom
+        return new SecureRandom();
     }
 
     private static SecureRandom getSecureRandom(final String algorithm, final Provider provider)

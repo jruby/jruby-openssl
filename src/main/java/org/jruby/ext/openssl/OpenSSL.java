@@ -315,7 +315,6 @@ public final class OpenSSL {
         return getSecureRandom(runtime, false);
     }
 
-
     static SecureRandom getSecureRandom(final Ruby runtime, final boolean nullByDefault) {
         if ( tryContextSecureRandom ) {
             SecureRandom random = getSecureRandomFrom(runtime.getCurrentContext());
@@ -324,19 +323,21 @@ public final class OpenSSL {
         return nullByDefault ? null : new SecureRandom();
     }
 
-    static SecureRandom getSecureRandomFrom(final ThreadContext context) {
+    static SecureRandom getSecureRandom(final ThreadContext context) {
         if ( tryContextSecureRandom ) {
-            try {
-                SecureRandom random = context.secureRandom;
-                if (random == null) { // public SecureRandom getSecureRandom() on 9K
-                    random = (SecureRandom) context.getClass().getMethod("getSecureRandom").invoke(context);
-                }
-                return random;
-            }
-            catch (Throwable ex) {
-                tryContextSecureRandom = false;
-                debug(context.runtime, "JRuby-OpenSSL failed to retrieve secure random from thread-context", ex);
-            }
+            SecureRandom random = getSecureRandomFrom(context);
+            if ( random != null ) return random;
+        }
+        return new SecureRandom();
+    }
+
+    private static SecureRandom getSecureRandomFrom(final ThreadContext context) {
+        try {
+            return context.getSecureRandom();
+        }
+        catch (Throwable ex) {
+            tryContextSecureRandom = false;
+            debug(context.runtime, "JRuby-OpenSSL failed to retrieve secure random from thread-context", ex);
         }
         return null;
     }
