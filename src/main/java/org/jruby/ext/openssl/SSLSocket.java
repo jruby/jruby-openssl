@@ -292,7 +292,7 @@ public class SSLSocket extends RubyObject {
 
         try {
             if ( ! initialHandshake ) {
-                SSLEngine engine = ossl_ssl_setup(context, true);
+                SSLEngine engine = ossl_ssl_setup(context, false);
                 engine.setUseClientMode(true);
                 engine.beginHandshake();
                 handshakeStatus = engine.getHandshakeStatus();
@@ -352,7 +352,7 @@ public class SSLSocket extends RubyObject {
 
         try {
             if ( ! initialHandshake ) {
-                final SSLEngine engine = ossl_ssl_setup(context, false);
+                final SSLEngine engine = ossl_ssl_setup(context, true);
                 engine.setUseClientMode(false);
                 final IRubyObject verify_mode = verify_mode(context);
                 if ( verify_mode != context.nil ) {
