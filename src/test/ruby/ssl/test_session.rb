@@ -30,6 +30,27 @@ class TestSSLSession < TestCase
     end
   end
 
+  def test_alpn_protocol_selection_ary
+    advertised = ["h2", "http/1.1"]
+    ctx_proc = Proc.new { |ctx|
+      ctx.alpn_select_cb = -> (protocols) {
+        assert_equal Array, protocols.class
+        assert_equal advertised, protocols
+        protocols.first
+      }
+    }
+    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: ctx_proc) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ctx = OpenSSL::SSL::SSLContext.new("TLSv1_2")
+      ctx.alpn_protocols = advertised
+      ssl = OpenSSL::SSL::SSLSocket.new(sock, ctx)
+      ssl.sync_close = true
+      ssl.connect
+      assert_equal("h2", ssl.alpn_protocol)
+      ssl.puts "abc"; assert_equal "abc\n", ssl.gets
+    end
+  end
+
   def test_exposes_session_error
     OpenSSL::SSL::Session::SessionError
   end
