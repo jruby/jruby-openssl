@@ -242,8 +242,9 @@ public class SSLSocket extends RubyObject {
     public final SSLContext context() { return this.sslContext; }
 
     @JRubyMethod(name = "alpn_protocol")
-    public final RubyString alpn_protocol(final ThreadContext context) {
-        return RubyString.newString(context.runtime, this.engine.getApplicationProtocol());
+    public IRubyObject alpn_protocol(final ThreadContext context) {
+        final String protocol = engine.getApplicationProtocol();
+        return protocol == null ? context.nil : RubyString.newString(context.runtime, protocol);
     }
 
     @JRubyMethod(name = "sync")
