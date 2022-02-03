@@ -229,6 +229,9 @@ public class SSLSocket extends RubyObject {
         dummy = ByteBuffer.allocate(0);
         this.engine = engine;
         copySessionSetupIfSet(context);
+
+        sslContext.setApplicationProtocolsOrSelector(engine);
+
         return engine;
     }
 
@@ -290,7 +293,6 @@ public class SSLSocket extends RubyObject {
             if ( ! initialHandshake ) {
                 SSLEngine engine = ossl_ssl_setup(context, true);
                 engine.setUseClientMode(true);
-                sslContext.setApplicationProtocols(engine);
                 engine.beginHandshake();
                 handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;
@@ -365,7 +367,6 @@ public class SSLSocket extends RubyObject {
                         engine.setNeedClientAuth(true);
                     }
                 }
-                sslContext.setApplicationProtocols(engine);
                 engine.beginHandshake();
                 handshakeStatus = engine.getHandshakeStatus();
                 initialHandshake = true;

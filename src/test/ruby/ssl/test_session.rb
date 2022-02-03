@@ -34,6 +34,8 @@ class TestSSLSession < TestCase
     advertised = ["h2", "http/1.1"]
     ctx_proc = Proc.new { |ctx|
       ctx.alpn_select_cb = -> (protocols) {
+        assert_equal Array, protocols.class
+        assert_equal advertised, protocols
         protocols.first
       }
     }

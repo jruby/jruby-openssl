@@ -45,6 +45,7 @@ import java.util.Collections;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedKeyManager;
@@ -459,13 +460,12 @@ public class SSLContext extends RubyObject {
 
         value = getInstanceVariable("@alpn_protocols");
         if ( value != null && ! value.isNil() ) {
-            IRubyObject[] rArray = ((RubyArray) value).toJavaArray();
-            String[] protos = new String[rArray.length];
-            for(int i = 0; i < protos.length; i++) {
-                protos[i] = ((RubyString) rArray[i]).asJavaString();
+            IRubyObject[] alpn_protocols = ((RubyArray) value).toJavaArrayMaybeUnsafe();
+            String[] protocols = new String[alpn_protocols.length];
+            for(int i = 0; i < protocols.length; i++) {
+                protocols[i] = alpn_protocols[i].convertToString().asJavaString();
             }
-
-            alpnProtocols = protos;
+            alpnProtocols = protocols;
         } else {
             alpnProtocols = null;
         }
@@ -505,7 +505,8 @@ public class SSLContext extends RubyObject {
         */
 
         try {
-            internalContext = createInternalContext(context, cert, key, store, clientCert, extraChainCert, verifyMode, timeout, alpnProtocols, alpnSelectCb);
+            internalContext = createInternalContext(context, cert, key, store, clientCert, extraChainCert,
+                                                    verifyMode, timeout, alpnProtocols, alpnSelectCb);
         }
         catch (GeneralSecurityException e) {
             throw newSSLError(runtime, e);
@@ -716,42 +717,38 @@ public class SSLContext extends RubyObject {
         }
     }
 
-    void setApplicationProtocols(SSLEngine engine) {
-        if ( !(engine instanceof org.bouncycastle.jsse.BCSSLEngine) ) {
-            return;
-        }
-        if ( protocolForClient ) {
-            if ( internalContext.alpnProtocols != null ) {
-                org.bouncycastle.jsse.BCSSLParameters bcParams = new org.bouncycastle.jsse.BCSSLParameters();
-                bcParams.setApplicationProtocols(internalContext.alpnProtocols);
-                bcParams.setCipherSuites(engine.getSupportedCipherSuites()); // TODO
-                ((org.bouncycastle.jsse.BCSSLEngine) engine).setParameters(bcParams);
-            }
-        }
-        if ( protocolForServer ) {
-            if ( internalContext.alpnSelectCb != null ) {
-                ((org.bouncycastle.jsse.BCSSLEngine) engine).setBCHandshakeApplicationProtocolSelector(
-                        new org.bouncycastle.jsse.BCApplicationProtocolSelector<SSLEngine>()
-                        {
-                            public String select(SSLEngine engine, List<String> protocols) {
-                                Ruby runtime = internalContext.alpnSelectCb.getRuntime();
-                                IRubyObject[] arr = new IRubyObject[protocols.size()];
-                                for(int i = 0; i < arr.length; i++) {
-                                    arr[i] = runtime.newString(protocols.get(i));
-                                }
-                                RubyArray array = RubyArray.newArray(runtime, arr);
+    void setApplicationProtocolsOrSelector(final SSLEngine engine) {
+        setApplicationProtocolSelector(engine);
+        setApplicationProtocols(engine);
+    }
 
-                                IRubyObject selectedProtocol = internalContext.alpnSelectCb.getBlock().call(runtime.getCurrentContext(), (IRubyObject) array);
-                                if (selectedProtocol != null) {
-                                    return ((RubyString) selectedProtocol).toString();
-                                }
+    private void setApplicationProtocolSelector(final SSLEngine engine) {
+        final RubyProc alpn_select_cb = internalContext.alpnSelectCallback;
+        if (alpn_select_cb != null) {
+            engine.setHandshakeApplicationProtocolSelector((_engine, protocols) -> {
+                final Ruby runtime = getRuntime();
+                IRubyObject[] rubyProtocols = new IRubyObject[protocols.size()];
+                int i = 0; for (String protocol : protocols) {
+                    rubyProtocols[i++] = runtime.newString(protocol);
+                }
 
-                                return null;
-                            }
-                        });
-            }
+                IRubyObject[] args = new IRubyObject[] { RubyArray.newArray(runtime, rubyProtocols) };
+                IRubyObject selected_protocol = alpn_select_cb.call(runtime.getCurrentContext(), args);
+                if (selected_protocol != null && !selected_protocol.isNil()) {
+                    return ((RubyString) selected_protocol).asJavaString();
+                }
+                return null; // callback returned nil - none of the advertised names are acceptable
+            });
         }
+    }
 
+    private void setApplicationProtocols(final SSLEngine engine) {
+        final String[] alpn_protocols = internalContext.alpnProtocols;
+        if (alpn_protocols != null) {
+            SSLParameters params = engine.getSSLParameters();
+            params.setApplicationProtocols(alpn_protocols);
+            engine.setSSLParameters(params);
+        }
     }
 
     private static String[] getSupportedCipherSuites(Ruby runtime, final String protocol)
@@ -986,7 +983,7 @@ public class SSLContext extends RubyObject {
             final int verifyMode,
             final int timeout,
             final String[] alpnProtocols,
-            final RubyProc alpnSelectCb) throws NoSuchAlgorithmException {
+            final RubyProc alpnSelectCallback) throws NoSuchAlgorithmException {
 
             if ( pKey != null && xCert != null ) {
                 this.privateKey = pKey.getPrivateKey();
@@ -1005,7 +1002,7 @@ public class SSLContext extends RubyObject {
             this.verifyMode = verifyMode;
             this.timeout = timeout;
             this.alpnProtocols = alpnProtocols;
-            this.alpnSelectCb = alpnSelectCb;
+            this.alpnSelectCallback = alpnSelectCallback;
 
             // initialize SSL context :
 
@@ -1052,8 +1049,9 @@ public class SSLContext extends RubyObject {
         final List<X509AuxCertificate> extraChainCert; // empty assumed == null
 
         private final int timeout;
+
         private final String[] alpnProtocols;
-        private final RubyProc alpnSelectCb;
+        private final RubyProc alpnSelectCallback;
 
         private final javax.net.ssl.SSLContext sslContext;
 
