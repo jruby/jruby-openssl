@@ -56,15 +56,15 @@ end
   (See the file 'LICENCE'.)
 =end
 
-require_relative 'openssl/bn'
-require_relative 'openssl/pkey'
-require_relative 'openssl/cipher'
-#require_relative 'openssl/config' if OpenSSL.const_defined?(:Config, false)
-require_relative 'openssl/digest'
-require_relative 'openssl/hmac'
-require_relative 'openssl/x509'
-require_relative 'openssl/ssl'
-require_relative 'openssl/pkcs5'
+require 'openssl/bn'
+require 'openssl/pkey'
+require 'openssl/cipher'
+#require 'openssl/config' if OpenSSL.const_defined?(:Config, false)
+require 'openssl/digest'
+require 'openssl/hmac'
+require 'openssl/x509'
+require 'openssl/ssl'
+require 'openssl/pkcs5'
 
 module OpenSSL
   # call-seq:
