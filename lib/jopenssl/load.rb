@@ -5,15 +5,19 @@ require 'jopenssl/version'
 # NOTE: assuming user does pull in BC .jars from somewhere else on the CP
 unless ENV_JAVA['jruby.openssl.load.jars'].eql?('false')
   version = JOpenSSL::BOUNCY_CASTLE_VERSION
-  bc_jars = nil
   begin
     require 'jar-dependencies'
     # if we have jar-dependencies we let it track the jars
-    require_jar( 'org.bouncycastle', 'bcprov-jdk15on', version )
-    require_jar( 'org.bouncycastle', 'bcpkix-jdk15on', version )
-    require_jar( 'org.bouncycastle', 'bctls-jdk15on',  version )
+    require_jar 'org.bouncycastle', 'bcprov-jdk15on', version
+    require_jar 'org.bouncycastle', 'bcpkix-jdk15on', version
+    require_jar 'org.bouncycastle', 'bctls-jdk15on',  version
+    begin # bcutil got extracted from bcprov in BC 1.69
+      require_jar 'org.bouncycastle', 'bcutil-jdk15to18', version
+    rescue LoadError, RuntimeError
+      # continue without loading the jar - assume we got BC < 1.69
+    end
     bc_jars = true
-  rescue LoadError
+  rescue LoadError, RuntimeError
     bc_jars = false
   end
   unless bc_jars
