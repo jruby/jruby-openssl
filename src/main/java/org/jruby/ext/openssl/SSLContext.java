@@ -83,6 +83,7 @@ import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.X509Object;
 import org.jruby.ext.openssl.x509store.X509Utils;
 
+import static org.jruby.ext.openssl.CipherStrings.SuiteToOSSL;
 import static org.jruby.ext.openssl.StringHelper.*;
 import static org.jruby.ext.openssl.SSL.*;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
@@ -569,9 +570,13 @@ public class SSLContext extends RubyObject {
             StringBuilder cipherStr = new StringBuilder();
             String sep = "";
             for ( int i = 0; i < ciphs.size(); i++ ) {
-                IRubyObject elem = ciphs.eltInternal(i);
+                Object elem = ciphs.eltInternal(i);
                 if (elem instanceof RubyArray) {
                     elem = ((RubyArray) elem).eltInternal(0);
+                } else if (elem instanceof RubyString) {
+                    // NOTE: JOSSL allows to pass in Java cipher names (in an array)
+                    String osslName = SuiteToOSSL.get(((RubyString) elem).asJavaString());
+                    if (osslName != null) elem = osslName;
                 }
                 cipherStr.append(sep).append( elem.toString() );
                 sep = ":";

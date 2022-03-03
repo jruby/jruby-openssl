@@ -177,7 +177,7 @@ class TestSSLContext < TestCase
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = "AES"
 
-    actual = context.ciphers.map { |cipher| cipher[0]}
+    actual = context.ciphers.map { |cipher| cipher[0] }
     assert actual.include?("ECDHE-RSA-AES128-SHA")
     assert actual.include?("ECDHE-ECDSA-AES128-SHA")
     assert actual.include?("AES128-SHA")
@@ -186,7 +186,7 @@ class TestSSLContext < TestCase
   def test_set_ciphers_by_cipher_name
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384"
-    actual = context.ciphers.map { |cipher| cipher[0]}
+    actual = context.ciphers.map { |cipher| cipher[0] }
     assert actual.include?("ECDHE-ECDSA-AES128-GCM-SHA256")
     assert actual.include?("ECDHE-ECDSA-AES256-GCM-SHA384")
   end
@@ -194,7 +194,7 @@ class TestSSLContext < TestCase
   def test_set_ciphers_by_array_of_names
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = ["ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-ECDSA-AES256-GCM-SHA384"]
-    actual = context.ciphers.map { |cipher| cipher[0]}
+    actual = context.ciphers.map { |cipher| cipher[0] }
     assert actual.include?("ECDHE-ECDSA-AES128-GCM-SHA256")
     assert actual.include?("ECDHE-ECDSA-AES256-GCM-SHA384")
   end
@@ -202,8 +202,25 @@ class TestSSLContext < TestCase
   def test_set_ciphers_by_array_of_name_version_bits
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = [["ECDHE-ECDSA-AES128-GCM-SHA256", "TLSv1.2", 128, 128]]
-    actual = context.ciphers.map { |cipher| cipher[0]}
+    actual = context.ciphers.map { |cipher| cipher[0] }
     assert actual.include?("ECDHE-ECDSA-AES128-GCM-SHA256")
+  end
+
+  def test_set_ciphers_by_array_supports_setting_java_names
+    context = OpenSSL::SSL::SSLContext.new
+    context.ciphers = [
+        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", # Java name
+        "ECDHE-ECDSA-AES256-GCM-SHA384", # Ruby name
+        'TLS_AES_256_GCM_SHA384' # same name in Ruby/Java
+    ]
+    actual = context.ciphers.map { |cipher| cipher[0] }
+    assert actual.include?("ECDHE-ECDSA-AES128-GCM-SHA256"), actual.inspect
+    assert actual.include?("ECDHE-ECDSA-AES256-GCM-SHA384"), actual.inspect
+    assert actual.include?("TLS_AES_256_GCM_SHA384"), actual.inspect
+
+    context.ciphers = [ 'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384' ]
+    actual = context.ciphers.map { |cipher| cipher[0] }
+    assert_equal actual, ['ECDHE-RSA-AES256-GCM-SHA384']
   end
 
   def test_set_ciphers_empty_array

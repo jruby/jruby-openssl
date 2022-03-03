@@ -781,7 +781,7 @@ public class CipherStrings {
     private final static Map<String, Def> Definitions;
     //private final static ArrayList<Def> Ciphers;
     private final static Map<String, Def> CipherNames;
-    private final static Map<String, String> SuiteToOSSL;
+    final static Map<String, String> SuiteToOSSL;
 
     static {
         Definitions = new HashMap<String, Def>( 48, 1 );
