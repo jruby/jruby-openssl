@@ -1,3 +1,12 @@
+## 0.12.2
+
+* [fix] work-around JRuby 9.2 autoload behavior (#248)
+  to be able to install jruby-openssl >= 0.12 on JRuby 9.2
+  while the default gem (shipped with JRuby) is < 0.12
+* [feat] support alpn negotiation in ssl context (#247)
+* [feat] support Java cipher names on `SSLContext#ciphers=`
+* [fix] properly handle `require_jar` fallback
+
 ## 0.12.1
 
 * improved compatibility with the openssl gem (version 2.2.1)
