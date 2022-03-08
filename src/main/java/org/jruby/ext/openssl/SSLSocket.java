@@ -837,8 +837,9 @@ public class SSLSocket extends RubyObject {
             buffStr.setValue(new ByteList(bytesRead, offset, read, false));
             return buffStr;
         }
-        catch (IOException ioe) {
-            throw runtime.newIOError(ioe.getMessage());
+        catch (IOException ex) {
+            debug(runtime, "SSLSocket.sysreadImpl failed", ex);
+            throw Utils.newError(runtime, runtime.getIOError(), ex);
         }
     }
 
@@ -920,8 +921,9 @@ public class SSLSocket extends RubyObject {
 
             return runtime.newFixnum(written);
         }
-        catch (IOException ioe) {
-            throw runtime.newIOError(ioe.getMessage());
+        catch (IOException ex) {
+            debug(runtime, "SSLSocket.syswriteImpl failed", ex);
+            throw Utils.newError(runtime, runtime.getIOError(), ex);
         }
     }
 
