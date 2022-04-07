@@ -249,6 +249,10 @@ public class SSLContext extends RubyObject {
         SSLContext.addReadWriteAttribute(context, "alpn_protocols");
         SSLContext.addReadWriteAttribute(context, "alpn_select_cb");
 
+        SSLContext.addReadWriteAttribute(context, "session_get_cb");
+        SSLContext.addReadWriteAttribute(context, "session_new_cb");
+        SSLContext.addReadWriteAttribute(context, "session_remove_cb");
+
         SSLContext.defineAlias("ssl_timeout", "timeout");
         SSLContext.defineAlias("ssl_timeout=", "timeout=");
 
