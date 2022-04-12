@@ -179,6 +179,22 @@ geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
     assert_equal expected, OpenSSL::Digest::SHA1.hexdigest(key.to_der)
   end if !defined?(JRUBY_VERSION) || JRUBY_VERSION > '9.1' # set_key only since Ruby 2.3
 
+  def test_to_java
+    key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
+    pkey = OpenSSL::PKey::RSA.new(File.read(key_file))
+    assert_kind_of java.security.PublicKey, pkey.to_java
+    assert_kind_of java.security.PublicKey, pkey.to_java(java.security.PublicKey)
+    assert_kind_of java.security.PublicKey, pkey.to_java(java.security.interfaces.RSAPublicKey)
+    assert_kind_of java.security.PublicKey, pkey.to_java(java.security.Key)
+    assert_kind_of java.security.PrivateKey, pkey.to_java(java.security.PrivateKey)
+    assert_kind_of java.security.PrivateKey, pkey.to_java(java.security.interfaces.RSAPrivateKey)
+    priv_key = pkey.to_java(java.security.PrivateKey)
+    if priv_key.is_a? org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPrivateCrtKey
+      assert_kind_of java.security.PrivateKey, pkey.to_java(org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPrivateCrtKey)
+    end
+    assert_raise_kind_of(TypeError) { pkey.to_java(java.security.interfaces.ECPrivateKey) }
+  end if defined?(JRUBY_VERSION)
+
   private
 
   def assert_same_rsa(expected, key)

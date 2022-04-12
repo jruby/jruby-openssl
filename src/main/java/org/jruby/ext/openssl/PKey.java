@@ -237,6 +237,25 @@ public abstract class PKey extends RubyObject {
         return data;
     }
 
+    @Override
+    public Object toJava(final Class target) {
+        if (PrivateKey.class.isAssignableFrom(target)) {
+            final PrivateKey key = getPrivateKey();
+            if (key == null) {
+                throw getRuntime().newRuntimeError("private key not available, to convert to " + target);
+            }
+            if (target.isInstance(key)) return key;
+            throw getRuntime().newTypeError("cannot convert private key of type " + key.getClass() + " to " + target);
+        }
+        if (target.isAssignableFrom(PublicKey.class) || Key.class.isAssignableFrom(target)) {
+            // default is public key, also want to_java() as well as to_java(java.lang.Object) to end up here
+            final PublicKey key = getPublicKey();
+            if (target.isInstance(key)) return key;
+            throw getRuntime().newTypeError("cannot convert public key of type " + key.getClass() + " to " + target);
+        }
+        return super.toJava(target);
+    }
+
     static ByteList sign(final String signAlg, final PrivateKey privateKey, final ByteList data)
         throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         Signature signature = SecurityHelper.getSignature(signAlg);
