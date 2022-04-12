@@ -909,7 +909,7 @@ public class BN extends RubyObject {
 
     @Override
     public Object toJava(Class target) {
-        if ( target.isAssignableFrom(BigInteger.class) || target == Number.class ) return value;
+        if ( target.isAssignableFrom(BigInteger.class) ) return value;
         if ( target == Long.class || target == Long.TYPE ) return value.longValue();
         if ( target == Integer.class || target == Integer.TYPE ) return value.intValue();
         if ( target == Double.class || target == Double.TYPE ) return value.doubleValue();

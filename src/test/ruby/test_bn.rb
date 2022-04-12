@@ -78,7 +78,9 @@ class TestBN < TestCase
 
   def test_to_java
     assert_equal java.lang.Integer.new(42), OpenSSL::BN.new('42').to_java(:int)
-    assert_equal java.math.BigInteger.valueOf(24), OpenSSL::BN.new('24').to_java
+    assert_equal java.math.BigInteger.valueOf(24), val = OpenSSL::BN.new('24').to_java
+    assert_equal java.math.BigInteger, val.class
+    assert_equal java.math.BigInteger.valueOf(24), val = OpenSSL::BN.new('24').to_java(java.lang.Number)
   end if defined? JRUBY_VERSION
 
   def test_new_str
