@@ -518,26 +518,26 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod
     public RubyArray ciphers(final ThreadContext context) { // SSL_CTX_get_ciphers
-        return matchedCiphersWithCache(context);
+        return matchedCiphersWithCache(context, this.ciphers);
     }
 
-    private RubyArray matchedCiphersWithCache(final ThreadContext context) {
+    private RubyArray matchedCiphersWithCache(final ThreadContext context, final String ciphers) {
         final CipherListCache cache = cipherListCache;
         if ( protocol.equals(cache.protocol) && ciphers.equals(cache.ciphers) ) {
             return newSharedArray(cache.cipherList);
         }
 
-        final RubyArray match = matchedCiphers(context);
+        final RubyArray match = matchedCiphers(context, ciphers);
         cipherListCache = new CipherListCache(protocol, ciphers, match);
         return newSharedArray(match);
     }
 
-    private RubyArray matchedCiphers(final ThreadContext context) {
+    private RubyArray matchedCiphers(final ThreadContext context, final String ciphers) {
         final Ruby runtime = context.runtime;
         try {
             final String[] supported = getSupportedCipherSuites(context, protocol);
             final Collection<CipherStrings.Def> cipherDefs =
-                    CipherStrings.matchingCiphers(this.ciphers, supported, false);
+                    CipherStrings.matchingCiphers(ciphers, supported, false);
 
             final IRubyObject[] cipherList = new IRubyObject[ cipherDefs.size() ];
 
@@ -562,8 +562,9 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod(name = "ciphers=")
     public IRubyObject set_ciphers(final ThreadContext context, final IRubyObject ciphers) {
+        String cipherString;
         if ( ciphers.isNil() ) {
-            this.ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
+            cipherString = CipherStrings.SSL_DEFAULT_CIPHER_LIST;
         }
         else if ( ciphers instanceof RubyArray ) {
             final RubyArray ciphs = (RubyArray) ciphers;
@@ -581,20 +582,23 @@ public class SSLContext extends RubyObject {
                 cipherStr.append(sep).append( elem.toString() );
                 sep = ":";
             }
-            this.ciphers = cipherStr.toString();
+            cipherString = cipherStr.toString();
         }
         else {
-            this.ciphers = ciphers.asString().toString();
+            cipherString = ciphers.asString().toString();
         }
 
-        if (this.ciphers.equals(CipherStrings.SSL_DEFAULT_CIPHER_LIST)) {
-            this.ciphers = CipherStrings.SSL_DEFAULT_CIPHER_LIST; // due caching
+        if (cipherString.equals(CipherStrings.SSL_DEFAULT_CIPHER_LIST)) {
+            cipherString = CipherStrings.SSL_DEFAULT_CIPHER_LIST; // due caching
         }
 
-        if ( matchedCiphersWithCache(context).isEmpty() ) {
+        System.out.println("cipherString: " + cipherString + " " + matchedCiphersWithCache(context, cipherString).isEmpty());
+
+        if ( matchedCiphersWithCache(context, cipherString).isEmpty() ) {
             throw newSSLError(context.runtime, "no cipher match");
         }
 
+        this.ciphers = cipherString;
         return ciphers;
     }
 

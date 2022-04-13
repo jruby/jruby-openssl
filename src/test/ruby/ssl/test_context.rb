@@ -232,4 +232,16 @@ class TestSSLContext < TestCase
     assert_include ex.message, "no cipher match"
   end
 
+  def test_invalid_ciphers_does_not_mutate_context
+    context = OpenSSL::SSL::SSLContext.new
+    ciphers = context.ciphers
+    assert !ciphers.empty?
+    begin
+      context.ciphers = ['AES256-SHA123']
+      fail 'raise expected'
+    rescue OpenSSL::SSL::SSLError
+    end
+    assert_equal context.ciphers, ciphers
+  end
+
 end
