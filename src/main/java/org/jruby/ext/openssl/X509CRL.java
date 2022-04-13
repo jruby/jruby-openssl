@@ -709,6 +709,14 @@ public class X509CRL extends RubyObject {
         return context.runtime.getFalse();
     }
 
+    @Override
+    public Object toJava(Class target) {
+        if (target.isAssignableFrom(java.security.cert.X509CRL.class)) {
+            return getCRL();
+        }
+        return super.toJava(target);
+    }
+
     private static RubyClass _CRLError(final Ruby runtime) {
         return _X509(runtime).getClass("CRLError");
     }

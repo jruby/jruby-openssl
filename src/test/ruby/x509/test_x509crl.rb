@@ -164,6 +164,12 @@ EOF
     assert_equal(false, exts[2].critical?)
   end
 
+  def test_to_java
+    crl = OpenSSL::X509::CRL.new File.read(File.expand_path('../revoked.crl', __FILE__))
+    assert_kind_of java.security.cert.X509CRL, crl.to_java
+    assert_same crl.to_java, crl.to_java(java.security.cert.X509CRL)
+  end
+
   private
 
   def get_subject_key_id(cert)
