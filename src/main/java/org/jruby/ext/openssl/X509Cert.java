@@ -133,7 +133,7 @@ public class X509Cert extends RubyObject {
 
     private transient PKey public_key; // lazy initialized
 
-    private final List<X509Extension> extensions = new ArrayList<X509Extension>();
+    private final List<X509Extension> extensions = new ArrayList<>(4);
 
     private boolean changed = true;
 
@@ -147,11 +147,16 @@ public class X509Cert extends RubyObject {
 
     public static IRubyObject wrap(Ruby runtime, Certificate cert)
         throws CertificateEncodingException {
-        return wrap(runtime.getCurrentContext(), cert.getEncoded());
+        return wrap(runtime.getCurrentContext(), cert);
     }
 
     static X509Cert wrap(ThreadContext context, Certificate cert)
         throws CertificateEncodingException {
+        if (cert instanceof X509Certificate) {
+            final X509Cert c = new X509Cert(context.runtime);
+            c.initialize(context, (X509Certificate) cert);
+            return c;
+        }
         return wrap(context, cert.getEncoded());
     }
 
@@ -161,23 +166,14 @@ public class X509Cert extends RubyObject {
         return wrap(runtime.getCurrentContext(), cert.getEncoded());
     }
 
-    static X509Cert wrap(ThreadContext context, javax.security.cert.Certificate cert)
-        throws javax.security.cert.CertificateEncodingException {
-        return wrap(context, cert.getEncoded());
-    }
-
     static X509Cert wrap(final ThreadContext context, final byte[] encoded) {
-        //final Ruby runtime = context.runtime;
-        //final RubyString enc = StringHelper.newString(runtime, encoded);
-        //return _Certificate(runtime).callMethod(context, "new", enc);
         final X509Cert cert = new X509Cert(context.runtime);
         cert.initialize(context, encoded);
         return cert;
     }
 
     @JRubyMethod(name="initialize", optional = 1, visibility = Visibility.PRIVATE)
-    public IRubyObject initialize(final ThreadContext context,
-        final IRubyObject[] args, final Block unusedBlock) {
+    public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args, final Block unusedBlock) {
 
         if ( args.length == 0 ) {
             this.subject = X509Name.newName(context.runtime);
@@ -197,21 +193,27 @@ public class X509Cert extends RubyObject {
     }
 
     private void initialize(final ThreadContext context, final byte[] encoded, final int offset, final int length) {
-        final Ruby runtime = context.runtime;
-
         byte[] bytes = StringHelper.readX509PEM(encoded, offset, length);
-
+        final X509Certificate cert;
         try {
             final ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
             cert = (X509Certificate) SecurityHelper.getCertificateFactory("X.509").generateCertificate(bis);
         }
         catch (CertificateException e) {
-            throw newCertificateError(runtime, e);
+            throw newCertificateError(context.runtime, e);
         }
+
+        initialize(context, cert);
+    }
+
+    private void initialize(final ThreadContext context, final X509Certificate cert) {
+        final Ruby runtime = context.runtime;
 
         if ( cert == null ) {
             throw newCertificateError(runtime, (String) null);
         }
+
+        this.cert = cert;
 
         set_serial( RubyNumeric.str2inum(runtime, runtime.newString(cert.getSerialNumber().toString()), 10) );
         set_not_before( context, RubyTime.newTime( runtime, cert.getNotBefore().getTime() ) );
