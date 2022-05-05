@@ -60,9 +60,9 @@ public class SSL {
     public static final long OP_CIPHER_SERVER_PREFERENCE =                  0x00400000L;
     public static final long OP_TLS_ROLLBACK_BUG =                          0x00800000L;
 
-    public static final long OP_NO_SSLv2 =                                  0x01000000L; // supported
-    public static final long OP_NO_SSLv3 =                                  0x02000000L; // supported
-    public static final long OP_NO_TLSv1 =                                  0x04000000L; // supported
+    public static final long OP_NO_SSLv2 =                                  0x01000000L;
+    public static final long OP_NO_SSLv3 =                                  0x02000000L;
+    public static final long OP_NO_TLSv1 =                                  0x04000000L;
     public static final long OP_NO_TLSv1_2 =                                0x08000000L;
     public static final long OP_NO_TLSv1_1 =                                0x10000000L;
     public static final long OP_NO_TLSv1_3 =                                0x20000000L;
@@ -169,7 +169,7 @@ public class SSL {
         SSL.setConstant("OP_NO_TLSv1", runtime.newFixnum(OP_NO_TLSv1));
         SSL.setConstant("OP_NO_TLSv1_1", runtime.newFixnum(OP_NO_TLSv1_1));
         SSL.setConstant("OP_NO_TLSv1_2", runtime.newFixnum(OP_NO_TLSv1_2));
-        //SSL.setConstant("OP_NO_TLSv1_3", runtime.newFixnum(OP_NO_TLSv1_3));
+        SSL.setConstant("OP_NO_TLSv1_3", runtime.newFixnum(OP_NO_TLSv1_3));
         SSL.setConstant("OP_PKCS1_CHECK_1", runtime.newFixnum(OP_PKCS1_CHECK_1));
         SSL.setConstant("OP_PKCS1_CHECK_2", runtime.newFixnum(OP_PKCS1_CHECK_2));
         SSL.setConstant("OP_NETSCAPE_CA_DN_BUG", runtime.newFixnum(OP_NETSCAPE_CA_DN_BUG));
