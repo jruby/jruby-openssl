@@ -592,8 +592,6 @@ public class SSLContext extends RubyObject {
             cipherString = CipherStrings.SSL_DEFAULT_CIPHER_LIST; // due caching
         }
 
-        System.out.println("cipherString: " + cipherString + " " + matchedCiphersWithCache(context, cipherString).isEmpty());
-
         if ( matchedCiphersWithCache(context, cipherString).isEmpty() ) {
             throw newSSLError(context.runtime, "no cipher match");
         }
@@ -1135,7 +1133,7 @@ public class SSLContext extends RubyObject {
                 chain = (List) internalContext.extraChainCert;
             }
             else if ( internalContext.cert != null ) {
-                chain = new ArrayList<java.security.cert.X509Certificate>(8);
+                chain = new ArrayList<>(8);
 
                 StoreContext storeCtx = internalContext.createStoreContext(null);
                 X509AuxCertificate x = internalContext.cert;
