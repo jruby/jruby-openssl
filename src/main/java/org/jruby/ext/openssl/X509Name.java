@@ -299,15 +299,15 @@ public class X509Name extends RubyObject {
 
                 RubyArray arr = (RubyArray)obj;
 
-                IRubyObject entry0, entry1, entry2;
-                entry0 = arr.size() > 0 ? arr.eltOk(0) : context.nil;
-                entry1 = arr.size() > 1 ? arr.eltOk(1) : context.nil;
-                entry2 = arr.size() > 2 ? arr.eltOk(2) : context.nil;
+                IRubyObject name, value, type;
+                name  = arr.size() > 0 ? arr.eltOk(0) : context.nil;
+                value = arr.size() > 1 ? arr.eltOk(1) : context.nil;
+                type  = arr.size() > 2 ? arr.eltOk(2) : context.nil;
 
-                if (entry2.isNil()) entry2 = template.callMethod(context, "[]", entry0);
-                if (entry2.isNil()) entry2 = _Name.getConstant("DEFAULT_OBJECT_TYPE");
+                if (type.isNil()) type = template.callMethod(context, "[]", name);
+                if (type.isNil()) type = _Name.getConstant("DEFAULT_OBJECT_TYPE");
 
-                add_entry(context, entry0, entry1, entry2);
+                add_entry(context, name, value, type);
             }
         }
         else {
@@ -494,7 +494,7 @@ public class X509Name extends RubyObject {
     @SuppressWarnings("unchecked")
     @JRubyMethod
     public IRubyObject inspect() {
-        return ObjectSupport.inspect(this, Collections.EMPTY_LIST);
+        return ObjectSupport.inspect(this, toFormat(getRuntime(), RFC2253));
     }
 
     @Override
