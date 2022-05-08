@@ -435,11 +435,12 @@ public class X509Name extends RubyObject {
             final ASN1ObjectIdentifier oid = oidsIter.next();
             String oName = name(runtime, oid);
             if ( oName == null ) oName = oid.toString();
-            final Object value = valuesIter.next();
+            final Object value = valuesIter.next(); // ASN1String impl (getString() -> toString())
 
             switch (format) {
                 case RFC2253:
-                    str.append(sep).append(oName).append('=').append(value);
+                    str.append(sep).append(oName).append('=');
+                    appendValueRFC2253(str, value);
                     sep = ",";
                     break;
                 case ONELINE:
@@ -462,6 +463,26 @@ public class X509Name extends RubyObject {
         }
 
         return str;
+    }
+
+    private static void appendValueRFC2253(final StringBuilder str, final Object value) {
+        final String val = value.toString();
+        for (int i = 0; i < val.length(); i++) {
+            char c = val.charAt(i);
+            switch (c) {
+                case ',' :
+                case '+' :
+                case '"' :
+                case '<' :
+                case '>' :
+                case ';' :
+                case '\\' :
+                    str.append('\\').append(c);
+                    break;
+                default :
+                    str.append(c);
+            }
+        }
     }
 
     @JRubyMethod

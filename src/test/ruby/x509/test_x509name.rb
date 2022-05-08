@@ -1,8 +1,9 @@
+# encoding: UTF-8
 require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestX509Name < TestCase
 
-  def test_to_a_to_s
+  def test_to_a_to_s_and_to_utf8
     dn = [
       ["DC", "org"],
       ["DC", "jruby", 22],
@@ -10,11 +11,11 @@ class TestX509Name < TestCase
       ["UID", "kares"],
       ["emailAddress", "jruby@kares-x.org"],
       ["serialNumber", "1234567890"],
-      ["street", "Edelenyska"],
+      ["street", "Edelenska"],
       ['2.5.4.44', 'X'],
-      ['2.5.4.65', 'BUBS'],
-      ['postalCode', '04801', 22],
-      ['postalAddress', 'Edelenyska 1, Roznava'],
+      ['2.5.4.65', 'B;BS'],
+      ['postalCode', '048+01', 22],
+      ['postalAddress', "Edelénska 2022/11, RV"],
     ]
     name = OpenSSL::X509::Name.new
     dn.each { |attr| name.add_entry(*attr) }
@@ -27,11 +28,11 @@ class TestX509Name < TestCase
       ["UID", "kares", 12],
       ["emailAddress", "jruby@kares-x.org", 22],
       ["serialNumber", "1234567890", 19],
-      ["street", "Edelenyska", 12],
+      ["street", "Edelenska", 12],
       ['generationQualifier', 'X', 12],
-      ['pseudonym', 'BUBS', 12],
-      ['postalCode', '04801', 22],
-      ['postalAddress', 'Edelenyska 1, Roznava', 12],
+      ['pseudonym', 'B;BS', 12],
+      ['postalCode', '048+01', 22],
+      ['postalAddress', "Edelénska 2022/11, RV", 12],
     ]
 
     assert_equal exp_to_a.size, ary.size
@@ -39,8 +40,17 @@ class TestX509Name < TestCase
       assert_equal el, ary[i]
     end
 
-    str = exp_to_a.map { |arr| "#{arr[0]}=#{arr[1]}" }.join('/')
-    assert_equal "/#{str}", name.to_s
+    assert_equal "/DC=org/DC=jruby/CN=Karol Bucek/UID=kares/emailAddress=jruby@kares-x.org/serialNumber=1234567890/street=Edelenska/generationQualifier=X/pseudonym=B;BS/postalCode=048+01/postalAddress=Edelénska 2022/11, RV",
+                 name.to_s
+    # assert_equal Encoding::ASCII_8BIT, name.to_s.encoding # MRI behavior
+    # assert_equal "DC=org, DC=jruby, CN=Karol Bucek/UID=kares/emailAddress=jruby@kares-x.org/serialNumber=1234567890/street=Edelenska/generationQualifier=X/pseudonym=B;BS/postalCode=048+01/postalAddress=Edelénska 2022/11, RV",
+    #              name.to_s(OpenSSL::X509::Name::COMPAT)
+    # assert_equal Encoding::ASCII_8BIT, name.to_s(OpenSSL::X509::Name::COMPAT).encoding # MRI behavior
+
+    assert_equal "postalAddress=Edelénska 2022/11\\, RV,postalCode=048\\+01,pseudonym=B\\;BS,generationQualifier=X,street=Edelenska,serialNumber=1234567890,emailAddress=jruby@kares-x.org,UID=kares,CN=Karol Bucek,DC=jruby,DC=org",
+                 name.to_s(OpenSSL::X509::Name::RFC2253)
+    assert_equal "postalAddress=Edelénska 2022/11\\, RV,postalCode=048\\+01,pseudonym=B\\;BS,generationQualifier=X,street=Edelenska,serialNumber=1234567890,emailAddress=jruby@kares-x.org,UID=kares,CN=Karol Bucek,DC=jruby,DC=org",
+                 name.to_utf8
   end
 
   def test_raise_on_invalid_field_name
@@ -76,7 +86,6 @@ class TestX509Name < TestCase
   end
 
   def test_hash_long_name
-   puts 'test_hash_long_name'
     name = OpenSSL::X509::Name.new [['CN', 'a' * 255], ['DC', 'example']]
     assert_equal 214469118, name.hash
   end
