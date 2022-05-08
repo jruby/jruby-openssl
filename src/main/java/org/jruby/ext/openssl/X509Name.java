@@ -167,9 +167,9 @@ public class X509Name extends RubyObject {
 
     public X509Name(Ruby runtime, RubyClass type) {
         super(runtime,type);
-        oids = new ArrayList<ASN1ObjectIdentifier>();
-        values = new ArrayList<ASN1Encodable>();
-        types = new ArrayList<RubyInteger>();
+        oids = new ArrayList<>(4);
+        values = new ArrayList<>(4);
+        types = new ArrayList<>(4);
     }
 
     private final List<ASN1ObjectIdentifier> oids;
@@ -256,15 +256,11 @@ public class X509Name extends RubyObject {
         }
     }
 
-    private void addEntry(ASN1ObjectIdentifier oid, RubyString value, RubyInteger type)
-        throws IOException {
+    private void addEntry(ASN1ObjectIdentifier oid, RubyString value, RubyInteger type) throws RuntimeException {
         this.name = null;
         this.canonicalName = null;
         this.oids.add(oid);
-        final ASN1Encodable convertedValue = getNameEntryConverted().
-                getConvertedValue(oid, value.toString()
-        );
-        this.values.add( convertedValue );
+        this.values.add( getNameEntryConverted().getConvertedValue(oid, value.toString()) );
         this.types.add(type);
     }
 
@@ -379,8 +375,9 @@ public class X509Name extends RubyObject {
         try {
             addEntry(objectId, value.asString(), (RubyInteger) type);
         }
-        catch (IOException e) {
-            throw newNameError(runtime, "invalid value", e);
+        catch (RuntimeException e) {
+            String msg = e.getMessage(); // X509DefaultEntryConverted: "can't recode value for oid " + oid.getId()
+            throw newNameError(runtime, msg == null ? "invalid value" : msg, e);
         }
         return this;
     }
@@ -396,32 +393,34 @@ public class X509Name extends RubyObject {
     @SuppressWarnings("unchecked")
     @JRubyMethod(name = "to_s", rest = true)
     public IRubyObject to_s(IRubyObject[] args) {
-        final Ruby runtime = getRuntime();
-
         int flag = 0;
         if ( args.length > 0 && ! args[0].isNil() ) {
             flag = RubyNumeric.fix2int( args[0] );
         }
+        final Ruby runtime = getRuntime();
+        // NOTE: historically we haven't screwed this up as ASCII-8BIT as C-OpenSSL does
+        return RubyString.newString(runtime, toFormat(runtime, flag));
+    }
 
-        /* Should follow parameters like this:
-        if 0 (COMPAT):
-        irb(main):025:0> x.to_s(OpenSSL::X509::Name::COMPAT)
-        => "CN=ola.bini, O=sweden/streetAddress=sweden, O=sweden/2.5.4.43343=sweden"
-        irb(main):026:0> x.to_s(OpenSSL::X509::Name::ONELINE)
-        => "CN = ola.bini, O = sweden, streetAddress = sweden, O = sweden, 2.5.4.43343 = sweden"
-        irb(main):027:0> x.to_s(OpenSSL::X509::Name::MULTILINE)
-        => "commonName                = ola.bini\norganizationName          = sweden\nstreetAddress             = sweden\norganizationName          = sweden\n2.5.4.43343 = sweden"
-        irb(main):028:0> x.to_s(OpenSSL::X509::Name::RFC2253)
-        => "2.5.4.43343=#0C0673776564656E,O=sweden,streetAddress=sweden,O=sweden,CN=ola.bini"
-        else
-        => /CN=ola.bini/O=sweden/streetAddress=sweden/O=sweden/2.5.4.43343=sweden
-         */
-
+    /* Should follow parameters like this:
+    if 0 (COMPAT):
+    irb(main):025:0> x.to_s(OpenSSL::X509::Name::COMPAT)
+    => "CN=ola.bini, O=sweden/streetAddress=sweden, O=sweden/2.5.4.43343=sweden"
+    irb(main):026:0> x.to_s(OpenSSL::X509::Name::ONELINE)
+    => "CN = ola.bini, O = sweden, streetAddress = sweden, O = sweden, 2.5.4.43343 = sweden"
+    irb(main):027:0> x.to_s(OpenSSL::X509::Name::MULTILINE)
+    => "commonName                = ola.bini\norganizationName          = sweden\nstreetAddress             = sweden\norganizationName          = sweden\n2.5.4.43343 = sweden"
+    irb(main):028:0> x.to_s(OpenSSL::X509::Name::RFC2253)
+    => "2.5.4.43343=#0C0673776564656E,O=sweden,streetAddress=sweden,O=sweden,CN=ola.bini"
+    else
+    => /CN=ola.bini/O=sweden/streetAddress=sweden/O=sweden/2.5.4.43343=sweden
+     */
+    private StringBuilder toFormat(final Ruby runtime, final int format) {
         final Iterator<ASN1ObjectIdentifier> oidsIter;
         final Iterator<Object> valuesIter;
-        if ( flag == RFC2253 ) {
-            ArrayList<ASN1ObjectIdentifier> reverseOids = new ArrayList<ASN1ObjectIdentifier>(oids);
-            ArrayList<Object> reverseValues = new ArrayList<Object>(values);
+        if ( format == RFC2253 ) {
+            ArrayList<ASN1ObjectIdentifier> reverseOids = new ArrayList<>(oids);
+            ArrayList<Object> reverseValues = new ArrayList<>(values);
             Collections.reverse(reverseOids);
             Collections.reverse(reverseValues);
             oidsIter = reverseOids.iterator();
@@ -432,13 +431,13 @@ public class X509Name extends RubyObject {
         }
 
         final StringBuilder str = new StringBuilder(48); String sep = "";
-        while( oidsIter.hasNext() ) {
+        while (oidsIter.hasNext()) {
             final ASN1ObjectIdentifier oid = oidsIter.next();
             String oName = name(runtime, oid);
             if ( oName == null ) oName = oid.toString();
             final Object value = valuesIter.next();
 
-            switch(flag) {
+            switch (format) {
                 case RFC2253:
                     str.append(sep).append(oName).append('=').append(value);
                     sep = ",";
@@ -462,7 +461,12 @@ public class X509Name extends RubyObject {
             }
         }
 
-        return runtime.newString( str.toString() );
+        return str;
+    }
+
+    @JRubyMethod
+    public IRubyObject to_utf8(ThreadContext context) {
+        return StringHelper.newUTF8String(context.runtime, toFormat(context.runtime, RFC2253));
     }
 
     @Override
@@ -488,7 +492,9 @@ public class X509Name extends RubyObject {
             final String value = valuesIter.next().toString();
             final IRubyObject type = typesIter.next();
             final IRubyObject[] entry = new IRubyObject[] {
-                runtime.newString(oName), runtime.newString(value), type
+                    StringHelper.newUTF8String(runtime, oName),
+                    StringHelper.newUTF8String(runtime, value),
+                    type
             };
             entries.append( runtime.newArrayNoCopy(entry) );
         }

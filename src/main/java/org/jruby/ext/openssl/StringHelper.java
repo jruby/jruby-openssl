@@ -29,6 +29,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Locale;
 
+import org.jcodings.specific.ASCIIEncoding;
 import org.jcodings.specific.UTF8Encoding;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -59,6 +60,10 @@ abstract class StringHelper {
     static RubyString newString(final Ruby runtime, final byte[] bytes, final int count) {
         final ByteList byteList = new ByteList(bytes, 0, count, false);
         return RubyString.newString(runtime, byteList);
+    }
+
+    static RubyString newString(final Ruby runtime, final CharSequence chars) {
+        return new RubyString(runtime, runtime.getString(), chars, ASCIIEncoding.INSTANCE);
     }
 
     static ByteList setByteListShared(final RubyString str) {
