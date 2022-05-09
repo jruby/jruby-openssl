@@ -526,16 +526,6 @@ public class X509Name extends RubyObject {
         return ASN1.oid2name(runtime, oid, true);
     }
 
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    org.bouncycastle.asn1.x509.X509Name getRealName() {
-        final java.util.Vector strValues = new java.util.Vector();
-        for ( ASN1Encodable value : values ) strValues.add( value.toString() );
-        return new org.bouncycastle.asn1.x509.X509Name(
-            new java.util.Vector<Object>(oids), strValues
-        );
-    }
-
     final X500Name getX500Name() {
         if ( name != null ) return name;
 

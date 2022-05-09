@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigInteger;
 
-import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -60,6 +59,12 @@ import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.joda.time.DateTime;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -593,59 +598,69 @@ public class X509Cert extends RubyObject {
             throw newCertificateError(runtime, "signature_algorithm not supported");
         }
 
-        org.bouncycastle.x509.X509V3CertificateGenerator builder = getCertificateBuilder();
-
+        final X509v3CertificateBuilder builder = newCertificateBuilder();
         for ( X509Extension ext : uniqueExtensions() ) {
             try {
                 final byte[] bytes = ext.getRealValueEncoded();
-                builder.addExtension(ext.getRealObjectID().getId(), ext.isRealCritical(), bytes);
+                builder.addExtension(ext.getRealObjectID(), ext.isRealCritical(), bytes);
             }
-            catch (IOException ioe) {
-                throw runtime.newIOErrorFromException(ioe);
+            catch (IOException e) {
+                throw newCertificateError(runtime, "invalid extension (" + e.getMessage() + ")", e);
             }
         }
 
-        builder.setSignatureAlgorithm(digAlg + "WITH" + keyAlg); // "SHA1WITHRSA"
-
+        final X509CertificateHolder certHolder;
         try {
-            cert = builder.generate( ((PKey) key).getPrivateKey() );
-        }
-        catch (GeneralSecurityException e) {
-            throw newCertificateError(runtime, e);
-        }
-        catch (IllegalStateException e) {
+            ContentSigner signer =
+                    new JcaContentSignerBuilder(digAlg + "WITH" + keyAlg).
+                            build(((PKey) key).getPrivateKey());
+            certHolder = builder.build(signer);
+        } catch (OperatorCreationException e) {
+            Exception cause = (Exception) e.getCause(); // GeneralSecurityException
+            if (cause == null) cause = e;
+            throw newCertificateError(runtime, "cannot create signer: " + cause.getMessage(), cause);
+        } catch (IllegalStateException e) {
             // e.g. "not all mandatory fields set in V3 TBScertificate generator"
             throw newCertificateError(runtime, "could not generate certificate", e);
+        } catch (RuntimeException e) {
+            throw newCertificateError(runtime, e);
         }
 
-        if (cert == null) throw newCertificateError(runtime, (String) null);
+        try {
+            this.cert = (X509Certificate)
+                    SecurityHelper.getCertificateFactory("X.509").
+                            generateCertificate(new ByteArrayInputStream(certHolder.getEncoded()));
+        } catch (IOException|CertificateException e) {
+            throw newCertificateError(runtime, "could not re-generate certificate", e);
+        }
 
-        String name = ASN1Registry.o2a(cert.getSigAlgOID());
+        String name = ASN1Registry.o2a(certHolder.getSignatureAlgorithm().getAlgorithm());
         if ( name == null ) name = cert.getSigAlgOID();
         this.sig_alg = runtime.newString(name);
         this.changed = false;
         return this;
     }
 
-    private org.bouncycastle.x509.X509V3CertificateGenerator getCertificateBuilder() {
-        org.bouncycastle.x509.X509V3CertificateGenerator generator =
-            new org.bouncycastle.x509.X509V3CertificateGenerator();
-        if ( serial.equals(BigInteger.ZERO) ) { // NOTE: diversion from MRI (OpenSSL allows not setting serial)
-            throw newCertificateError(getRuntime(), "Certificate#serial needs to be set (to > 0)");
+    private X509v3CertificateBuilder newCertificateBuilder() {
+        //if ( serial.equals(BigInteger.ZERO) ) { // NOTE: diversion from MRI (OpenSSL allows not setting serial)
+        //    throw newCertificateError(getRuntime(), "Certificate#serial needs to be set (to > 0)");
+        //}
+
+        SubjectPublicKeyInfo publicKeyInfo;
+        try {
+            publicKeyInfo = SubjectPublicKeyInfo.getInstance(public_key.getPublicKey().getEncoded());
+        } catch (Exception e) {
+            throw newCertificateError(getRuntime(), "invalid public key data", e);
         }
-        generator.setSerialNumber( serial.abs() );
 
-        if ( subject != null ) generator.setSubjectDN( ((X509Name) subject).getRealName() );
-        if ( issuer != null ) generator.setIssuerDN( ((X509Name) issuer).getRealName() );
-
-        generator.setNotBefore( not_before.getJavaDate() );
-        generator.setNotAfter( not_after.getJavaDate() );
-        generator.setPublicKey( getPublicKey() );
-
-        return generator;
+        return new X509v3CertificateBuilder(
+                issuer == null ? null : ((X509Name) issuer).getX500Name(),
+                serial.abs(),
+                not_before.getJavaDate(), not_after.getJavaDate(),
+                subject == null ? null : ((X509Name) subject).getX500Name(),
+                publicKeyInfo
+        );
     }
-
-    //private transient org.bouncycastle.x509.X509V3CertificateGenerator generator;
 
     @JRubyMethod
     public RubyBoolean verify(final IRubyObject key) {
