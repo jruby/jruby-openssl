@@ -167,7 +167,7 @@ public class X509Name extends RubyObject {
 
     private final List<ASN1ObjectIdentifier> oids;
     private final List<ASN1Encodable> values; // <ASN1String>
-    private final List<RubyInteger> types;
+    private final List<Integer> types;
 
     private transient X500Name name;
     private transient X500Name canonicalName;
@@ -239,17 +239,14 @@ public class X509Name extends RubyObject {
         this.name = null; // NOTE: each fromX factory calls this ...
         this.canonicalName = null;
         final Integer type = ASN1.typeId(value);
-        if ( type == null ) {
+        if (type == null) {
             warn(runtime.getCurrentContext(), this + " addType() could not resolve type for: " +
                  value + " (" + (value == null ? "" : value.getClass().getName()) + ")");
-            ((List) this.types).add( runtime.getNil() );
         }
-        else {
-            this.types.add( runtime.newFixnum( type.intValue() ) );
-        }
+        this.types.add(type);
     }
 
-    private void addEntry(ASN1ObjectIdentifier oid, RubyString value, RubyInteger type) throws RuntimeException {
+    private void addEntry(ASN1ObjectIdentifier oid, RubyString value, final int type) throws RuntimeException {
         this.name = null;
         this.canonicalName = null;
         this.oids.add(oid);
@@ -279,9 +276,7 @@ public class X509Name extends RubyObject {
         if ( dn instanceof RubyArray ) {
             RubyArray ary = (RubyArray) dn;
 
-            final RubyClass _Name = _Name(runtime);
-
-            if ( template.isNil() ) template = _Name.getConstant("OBJECT_TYPE_TEMPLATE");
+            if (template.isNil()) template = _Name(runtime).getConstant("OBJECT_TYPE_TEMPLATE");
 
             for (int i = 0; i < ary.size(); i++) {
                 IRubyObject obj = ary.eltOk(i);
@@ -297,8 +292,7 @@ public class X509Name extends RubyObject {
                 value = arr.size() > 1 ? arr.eltOk(1) : context.nil;
                 type  = arr.size() > 2 ? arr.eltOk(2) : context.nil;
 
-                if (type.isNil()) type = template.callMethod(context, "[]", name);
-                if (type.isNil()) type = _Name.getConstant("DEFAULT_OBJECT_TYPE");
+                if (type.isNil()) type = getDefaultType(context, name, template);
 
                 add_entry(context, name, value, type);
             }
@@ -343,7 +337,7 @@ public class X509Name extends RubyObject {
 
     @JRubyMethod
     public IRubyObject add_entry(ThreadContext context, IRubyObject oid, IRubyObject value) {
-        return add_entry(context, oid, value, null);
+        return add_entry(context, oid, value, context.nil);
     }
 
     @JRubyMethod
@@ -353,7 +347,7 @@ public class X509Name extends RubyObject {
 
         final RubyString oidStr = oid.asString();
 
-        if ( type == null || type.isNil() ) type = getDefaultType(context, oidStr);
+        if ( type.isNil() ) type = getDefaultType(context, oidStr);
 
         final ASN1ObjectIdentifier objectId;
         try {
@@ -365,22 +359,30 @@ public class X509Name extends RubyObject {
         // NOTE: won't reach here :
         if ( objectId == null ) throw newNameError(runtime, "invalid field name");
 
+        final int typeInt = type.convertToInteger().getIntValue();
+        if (ASN1.typeClassSafe(typeInt) == null) {
+            throw newNameError(runtime, "invalid type: " + typeInt);
+        }
+
         try {
-            addEntry(objectId, value.asString(), (RubyInteger) type);
+            addEntry(objectId, value.asString(), typeInt);
         }
         catch (RuntimeException e) {
+            debugStackTrace(runtime, e);
             String msg = e.getMessage(); // X509DefaultEntryConverted: "can't recode value for oid " + oid.getId()
             throw newNameError(runtime, msg == null ? "invalid value" : msg, e);
         }
         return this;
     }
 
-    private static IRubyObject getDefaultType(final ThreadContext context, final RubyString oid) {
-        IRubyObject template = _Name(context.runtime).getConstant("OBJECT_TYPE_TEMPLATE");
-        if ( template instanceof RubyHash ) {
-            return ((RubyHash) template).op_aref(context, oid);
-        }
-        return template.callMethod(context, "[]", oid);
+    private IRubyObject getDefaultType(final ThreadContext context, final RubyString oid) {
+        return getDefaultType(context, oid, _Name(context.runtime).getConstant("OBJECT_TYPE_TEMPLATE"));
+    }
+
+    private IRubyObject getDefaultType(final ThreadContext context, final IRubyObject oid, final IRubyObject template) {
+        final IRubyObject type = template instanceof RubyHash ?
+                ((RubyHash) template).op_aref(context, oid) : template.callMethod(context, "[]", oid);
+        return type.isNil() ? _Name(context.runtime).getConstant("DEFAULT_OBJECT_TYPE") : type;
     }
 
     @SuppressWarnings("unchecked")
@@ -496,19 +498,18 @@ public class X509Name extends RubyObject {
         final Ruby runtime = getRuntime();
         final RubyArray entries = runtime.newArray( oids.size() );
         final Iterator<ASN1ObjectIdentifier> oidsIter = oids.iterator();
-        @SuppressWarnings("unchecked")
-        final Iterator<Object> valuesIter = (Iterator) values.iterator();
-        final Iterator<RubyInteger> typesIter = types.iterator();
+        final Iterator<ASN1Encodable> valuesIter = values.iterator();
+        final Iterator<Integer> typesIter = types.iterator();
         while ( oidsIter.hasNext() ) {
             final ASN1ObjectIdentifier oid = oidsIter.next();
             String oName = name(runtime, oid);
             if ( oName == null ) oName = oid.toString();
             final String value = valuesIter.next().toString();
-            final IRubyObject type = typesIter.next();
+            final Integer type = typesIter.next();
             final IRubyObject[] entry = new IRubyObject[] {
                     StringHelper.newUTF8String(runtime, oName),
                     StringHelper.newUTF8String(runtime, value),
-                    type
+                    type == null ? runtime.getNil() : runtime.newFixnum(type)
             };
             entries.append( runtime.newArrayNoCopy(entry) );
         }

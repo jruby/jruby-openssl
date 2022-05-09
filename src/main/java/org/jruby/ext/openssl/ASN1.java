@@ -633,6 +633,11 @@ public class ASN1 {
         return (Class<? extends ASN1Encodable>) ASN1_INFO[typeId][1];
     }
 
+    static Class<? extends ASN1Encodable> typeClassSafe(final int typeId) {
+        if (typeId >= ASN1_INFO.length || typeId < 0) return null;
+        return typeClass(typeId);
+    }
+
     static ASN1Encodable typeInstance(Class<? extends ASN1Encodable> type, Object value)
         throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         Method getInstance = null;

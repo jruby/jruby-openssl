@@ -68,6 +68,27 @@ class TestX509Name < TestCase
     assert_equal [["DC", "org", 22], ["DC", "ruby-lang", 22], ["CN", "TestCA", 12]], name.to_a
   end
 
+  def test_new_with_type
+    name = OpenSSL::X509::Name.new [['CN', 'a foo', OpenSSL::ASN1::PRINTABLESTRING],
+                                    ['DC', 'bar', OpenSSL::ASN1::UTF8STRING],
+                                    ['DC', 'bar.baz']]
+    assert_equal [["CN", "a foo", OpenSSL::ASN1::PRINTABLESTRING],
+                  ["DC", "bar", OpenSSL::ASN1::UTF8STRING],
+                  ["DC", "bar.baz", 22]
+                 ], name.to_a
+    assert_equal [["CN", "foo", 12]], OpenSSL::X509::Name.new([['CN', 'foo', nil]]).to_a
+  end
+
+  def test_new_with_invalid_type
+    begin
+      OpenSSL::X509::Name.new [['CN', 'foo', 111], ['DC', 'bar.baz']]
+      fail 'NameError expected'
+    rescue OpenSSL::X509::NameError => e
+      # MRI: "X509_NAME_add_entry_by_txt: nested asn1 error"
+      assert e
+    end
+  end
+
   def test_hash_empty
     name = OpenSSL::X509::Name.new
     assert_equal 4003674586, name.hash
