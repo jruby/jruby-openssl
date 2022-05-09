@@ -48,11 +48,21 @@ abstract class ObjectSupport {
         return RubyString.newString(runtime, inspect(runtime, self, variableList));
     }
 
+    static RubyString inspect(final RubyBasicObject self, final CharSequence content) {
+        final Ruby runtime = self.getRuntime();
+        final StringBuilder part = inspectHeader(self).append(' ').append(content).append('>');
+        return RubyString.newString(runtime, part);
+    }
+
+    private static StringBuilder inspectHeader(final RubyBasicObject self) {
+        final StringBuilder part = new StringBuilder();
+        part.append("#<").append(self.getMetaClass().getRealClass().getName());
+        return part;
+    }
+
     private static StringBuilder inspect(final Ruby runtime, final RubyBasicObject self,
         final List<Variable> variableList) {
-        final StringBuilder part = new StringBuilder();
-        String cname = self.getMetaClass().getRealClass().getName();
-        part.append("#<").append(cname).append(":0x");
+        final StringBuilder part = inspectHeader(self).append(":0x");
         part.append(Integer.toHexString(System.identityHashCode(self)));
 
         if (runtime.isInspecting(self)) {
