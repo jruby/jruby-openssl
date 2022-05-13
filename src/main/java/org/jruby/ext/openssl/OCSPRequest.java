@@ -82,7 +82,6 @@ import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.runtime.Arity;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -98,19 +97,13 @@ import static org.jruby.ext.openssl.OCSP.*;
  */
 public class OCSPRequest extends RubyObject {
     private static final long serialVersionUID = -4020616730425816999L;
-
-    private static ObjectAllocator REQUEST_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new OCSPRequest(runtime, klass);
-        }
-    };
     
     public OCSPRequest(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
     }
     
     public static void createRequest(final Ruby runtime, final RubyModule _OCSP) {
-        RubyClass _request = _OCSP.defineClassUnder("Request", runtime.getObject(), REQUEST_ALLOCATOR);
+        RubyClass _request = _OCSP.defineClassUnder("Request", runtime.getObject(), (r, klass) -> new OCSPRequest(r, klass));
         _request.defineAnnotatedMethods(OCSPRequest.class);
     }
     

@@ -49,7 +49,6 @@ import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.impl.Base64;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
@@ -68,15 +67,9 @@ import static org.jruby.ext.openssl.OpenSSL.*;
 public class NetscapeSPKI extends RubyObject {
     private static final long serialVersionUID = 3211242351810109432L;
 
-    private static ObjectAllocator NETSCAPESPKI_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new NetscapeSPKI(runtime, klass);
-        }
-    };
-
     static void createNetscapeSPKI(Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         RubyModule Netscape = OpenSSL.defineModuleUnder("Netscape");
-        RubyClass SPKI = Netscape.defineClassUnder("SPKI",runtime.getObject(),NETSCAPESPKI_ALLOCATOR);
+        RubyClass SPKI = Netscape.defineClassUnder("SPKI", runtime.getObject(), (r, klass) -> new NetscapeSPKI(r, klass));
         Netscape.defineClassUnder("SPKIError", OpenSSLError, OpenSSLError.getAllocator());
         SPKI.defineAnnotatedMethods(NetscapeSPKI.class);
     }

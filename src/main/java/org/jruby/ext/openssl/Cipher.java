@@ -42,7 +42,6 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
@@ -78,12 +77,8 @@ import static org.jruby.ext.openssl.OpenSSL.*;
 public class Cipher extends RubyObject {
     private static final long serialVersionUID = -5390983669951165103L;
 
-    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
-        public Cipher allocate(Ruby runtime, RubyClass klass) { return new Cipher(runtime, klass); }
-    };
-
     static void createCipher(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
-        final RubyClass Cipher = OpenSSL.defineClassUnder("Cipher", runtime.getObject(), ALLOCATOR);
+        final RubyClass Cipher = OpenSSL.defineClassUnder("Cipher", runtime.getObject(), (r, klass) -> new Cipher(r, klass));
         Cipher.defineClassUnder("CipherError", OpenSSLError, OpenSSLError.getAllocator());
         Cipher.defineAnnotatedMethods(Cipher.class);
 

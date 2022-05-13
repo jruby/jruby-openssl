@@ -37,7 +37,6 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.runtime.Visibility;
@@ -50,12 +49,8 @@ import static org.jruby.ext.openssl.OpenSSL.isDebug;
 public class HMAC extends RubyObject {
     private static final long serialVersionUID = 7602535792884680307L;
 
-    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
-        public HMAC allocate(Ruby runtime, RubyClass klass) { return new HMAC(runtime, klass); }
-    };
-
     static void createHMAC(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
-        RubyClass HMAC = OpenSSL.defineClassUnder("HMAC", runtime.getObject(), ALLOCATOR);
+        RubyClass HMAC = OpenSSL.defineClassUnder("HMAC", runtime.getObject(), (r, klass) -> new HMAC(r, klass));
         OpenSSL.defineClassUnder("HMACError", OpenSSLError, OpenSSLError.getAllocator());
         HMAC.defineAnnotatedMethods(HMAC.class);
     }

@@ -73,7 +73,6 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -93,14 +92,8 @@ import static org.jruby.ext.openssl.StringHelper.newString;
 public class X509Name extends RubyObject {
     private static final long serialVersionUID = -226196051911335103L;
 
-    private static ObjectAllocator X509NAME_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new X509Name(runtime, klass);
-        }
-    };
-
     static void createX509Name(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
-        RubyClass _Name = X509.defineClassUnder("Name", runtime.getObject(), X509NAME_ALLOCATOR);
+        RubyClass _Name = X509.defineClassUnder("Name", runtime.getObject(), (r, klass) -> new X509Name(r, klass));
         X509.defineClassUnder("NameError", OpenSSLError, OpenSSLError.getAllocator());
 
         _Name.defineAnnotatedMethods(X509Name.class);

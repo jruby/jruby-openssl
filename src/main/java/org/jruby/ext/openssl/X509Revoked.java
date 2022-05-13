@@ -42,7 +42,6 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
@@ -58,14 +57,8 @@ public class X509Revoked extends RubyObject {
 
     private static final long serialVersionUID = -6238325248555061878L;
 
-    private static ObjectAllocator X509REVOKED_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new X509Revoked(runtime, klass);
-        }
-    };
-
     static void createX509Revoked(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
-        RubyClass Revoked = X509.defineClassUnder("Revoked", runtime.getObject(), X509REVOKED_ALLOCATOR);
+        RubyClass Revoked = X509.defineClassUnder("Revoked", runtime.getObject(), (r, klass) -> new X509Revoked(r, klass));
         X509.defineClassUnder("RevokedError", OpenSSLError, OpenSSLError.getAllocator());
         Revoked.defineAnnotatedMethods(X509Revoked.class);
     }

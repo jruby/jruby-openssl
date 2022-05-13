@@ -46,7 +46,6 @@ import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
@@ -77,10 +76,6 @@ public class BN extends RubyObject {
 
     private static final int DEFAULT_CERTAINTY = 100;
 
-    private static final ObjectAllocator BN_ALLOCATOR = new ObjectAllocator() {
-        public BN allocate(Ruby runtime, RubyClass klass) { return new BN(runtime, klass); }
-    };
-
     public static BN newBN(Ruby runtime, BigInteger value) {
         return newInstance(runtime, value);
     }
@@ -92,7 +87,7 @@ public class BN extends RubyObject {
     static void createBN(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
         OpenSSL.defineClassUnder("BNError", OpenSSLError, OpenSSLError.getAllocator());
 
-        RubyClass BN = OpenSSL.defineClassUnder("BN", runtime.getObject(), BN_ALLOCATOR);
+        RubyClass BN = OpenSSL.defineClassUnder("BN", runtime.getObject(), (r, klass) -> new BN(r, klass));
         BN.includeModule( runtime.getModule("Comparable") );
         BN.defineAnnotatedMethods(BN.class);
     }

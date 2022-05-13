@@ -105,14 +105,8 @@ import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 public class X509Cert extends RubyObject {
     private static final long serialVersionUID = -6524431607032364369L;
 
-    private static ObjectAllocator X509CERT_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new X509Cert(runtime, klass);
-        }
-    };
-
     static void createX509Cert(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
-        RubyClass Certificate = X509.defineClassUnder("Certificate", runtime.getObject(), X509CERT_ALLOCATOR);
+        RubyClass Certificate = X509.defineClassUnder("Certificate", runtime.getObject(), (r, klass) -> new X509Cert(r, klass));
         X509.defineClassUnder("CertificateError", OpenSSLError, OpenSSLError.getAllocator());
         Certificate.defineAnnotatedMethods(X509Cert.class);
     }

@@ -35,7 +35,6 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -51,14 +50,8 @@ import static org.jruby.ext.openssl.SSL._SSL;
  */
 public class SSLSession extends RubyObject {
 
-    private static final ObjectAllocator SESSION_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new SSLSession(runtime, klass);
-        }
-    };
-
     static void createSession(final Ruby runtime, final RubyModule SSL, final RubyClass OpenSSLError) { // OpenSSL::SSL
-        RubyClass Session = SSL.defineClassUnder("Session", runtime.getObject(), SESSION_ALLOCATOR);
+        RubyClass Session = SSL.defineClassUnder("Session", runtime.getObject(), (r, klass) -> new SSLSession(r, klass));
         // OpenSSL::SSL::Session::SessionError
         Session.defineClassUnder("SessionError", OpenSSLError, OpenSSLError.getAllocator());
         Session.defineAnnotatedMethods(SSLSession.class);

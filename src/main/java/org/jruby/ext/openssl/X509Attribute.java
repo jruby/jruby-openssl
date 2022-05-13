@@ -44,7 +44,6 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.runtime.Arity;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
@@ -59,14 +58,8 @@ import static org.jruby.ext.openssl.Utils.*;
 public class X509Attribute extends RubyObject {
     private static final long serialVersionUID = 5569940260019783275L;
 
-    private static ObjectAllocator ATTRIBUTE_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new X509Attribute(runtime, klass);
-        }
-    };
-
     static void createAttribute(Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
-        RubyClass Attribute = X509.defineClassUnder("Attribute", runtime.getObject(), ATTRIBUTE_ALLOCATOR);
+        RubyClass Attribute = X509.defineClassUnder("Attribute", runtime.getObject(), (r, klass) -> new X509Attribute(r, klass));
 
         X509.defineClassUnder("AttributeError", OpenSSLError, OpenSSLError.getAllocator());
 

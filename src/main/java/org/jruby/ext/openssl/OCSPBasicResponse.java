@@ -88,7 +88,6 @@ import org.jruby.ext.openssl.impl.ASN1Registry;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.X509Utils;
 import org.jruby.runtime.Arity;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -117,14 +116,8 @@ public class OCSPBasicResponse extends RubyObject {
     private static final String OCSP_RESPID_KEY = "RESPID_KEY";
     private static final String OCSP_TRUSTOTHER = "TRUSTOTHER";
     
-    private static ObjectAllocator BASICRESPONSE_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new OCSPBasicResponse(runtime, klass);
-        }
-    };
-    
     public static void createBasicResponse(final Ruby runtime, final RubyModule OCSP) {
-        RubyClass BasicResponse = OCSP.defineClassUnder("BasicResponse", runtime.getObject(), BASICRESPONSE_ALLOCATOR);
+        RubyClass BasicResponse = OCSP.defineClassUnder("BasicResponse", runtime.getObject(), (r, klass) -> new OCSPBasicResponse(r, klass));
         BasicResponse.defineAnnotatedMethods(OCSPBasicResponse.class);
     }
     

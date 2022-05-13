@@ -52,8 +52,6 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.ext.openssl.impl.ASN1Registry;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -70,14 +68,8 @@ import static org.jruby.ext.openssl.OCSP.*;
 public class OCSPCertificateId extends RubyObject {
     private static final long serialVersionUID = 6324454052172773918L;
 
-    private static ObjectAllocator CERTIFICATEID_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new OCSPCertificateId(runtime, klass);
-        }
-    };
-        
     public static void createCertificateId(final Ruby runtime, final RubyModule _OCSP) {
-        RubyClass _certificateId = _OCSP.defineClassUnder("CertificateId", runtime.getObject(), CERTIFICATEID_ALLOCATOR);
+        RubyClass _certificateId = _OCSP.defineClassUnder("CertificateId", runtime.getObject(), (r, klass) -> new OCSPCertificateId(r, klass));
         _certificateId.defineAnnotatedMethods(OCSPCertificateId.class);
     }
     

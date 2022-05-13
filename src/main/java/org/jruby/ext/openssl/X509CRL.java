@@ -93,14 +93,8 @@ import static org.jruby.ext.openssl.StringHelper.appendLowerHexValue;
 public class X509CRL extends RubyObject {
     private static final long serialVersionUID = -2463300006179688577L;
 
-    private static ObjectAllocator X509CRL_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new X509CRL(runtime, klass);
-        }
-    };
-
     static void createX509CRL(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
-        RubyClass CRL = X509.defineClassUnder("CRL", runtime.getObject(), X509CRL_ALLOCATOR);
+        RubyClass CRL = X509.defineClassUnder("CRL", runtime.getObject(), (r, klass) -> new X509CRL(r, klass));
         X509.defineClassUnder("CRLError", OpenSSLError, OpenSSLError.getAllocator());
         CRL.defineAnnotatedMethods(X509CRL.class);
     }

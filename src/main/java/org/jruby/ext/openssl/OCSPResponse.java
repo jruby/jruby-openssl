@@ -47,7 +47,6 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.runtime.Arity;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -62,12 +61,6 @@ import static org.jruby.ext.openssl.OCSP.*;
  */
 public class OCSPResponse extends RubyObject {
     private static final long serialVersionUID = 5763247988029815198L;
-
-    private static ObjectAllocator RESPONSE_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new OCSPResponse(runtime, klass);
-        }
-    };
     
     public OCSPResponse(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
@@ -78,7 +71,7 @@ public class OCSPResponse extends RubyObject {
     }
     
     public static void createResponse(final Ruby runtime, final RubyModule OCSP) {
-        RubyClass Response = OCSP.defineClassUnder("Response", runtime.getObject(), RESPONSE_ALLOCATOR);
+        RubyClass Response = OCSP.defineClassUnder("Response", runtime.getObject(), (r, klass) -> new OCSPResponse(r, klass));
         Response.defineAnnotatedMethods(OCSPResponse.class);
     }
     

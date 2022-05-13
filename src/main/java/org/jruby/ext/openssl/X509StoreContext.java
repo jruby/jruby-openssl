@@ -62,14 +62,9 @@ import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorSt
 public class X509StoreContext extends RubyObject {
     private static final long serialVersionUID = -4165247923898746888L;
 
-    private static ObjectAllocator X509STORECTX_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new X509StoreContext(runtime, klass);
-        }
-    };
-
     public static void createX509StoreContext(final Ruby runtime, final RubyModule X509) {
-        RubyClass StoreContext = X509.defineClassUnder("StoreContext", runtime.getObject(), X509STORECTX_ALLOCATOR);
+        RubyClass StoreContext = X509.defineClassUnder("StoreContext", runtime.getObject(),
+                (r, klass) -> new X509StoreContext(r, klass));
         StoreContext.defineAnnotatedMethods(X509StoreContext.class);
         StoreContext.undefineMethod("dup");
     }

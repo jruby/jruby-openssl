@@ -56,7 +56,6 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
@@ -73,14 +72,8 @@ import static org.jruby.ext.openssl.PKey.supportedSignatureAlgorithm;
 public class X509Request extends RubyObject {
     private static final long serialVersionUID = -2886532636278901502L;
 
-    private static ObjectAllocator REQUEST_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new X509Request(runtime, klass);
-        }
-    };
-
     public static void createRequest(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
-        RubyClass _Request = X509.defineClassUnder("Request", runtime.getObject(), REQUEST_ALLOCATOR);
+        RubyClass _Request = X509.defineClassUnder("Request", runtime.getObject(), (r, klass) -> new X509Request(r, klass));
         X509.defineClassUnder("RequestError", OpenSSLError, OpenSSLError.getAllocator());
         _Request.defineAnnotatedMethods(X509Request.class);
     }

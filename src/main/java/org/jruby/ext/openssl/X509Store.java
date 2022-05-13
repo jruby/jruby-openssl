@@ -47,7 +47,6 @@ import org.jruby.ext.openssl.x509store.X509Error;
 import org.jruby.ext.openssl.x509store.X509Utils;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -59,14 +58,8 @@ public class X509Store extends RubyObject {
 
     private static final long serialVersionUID = -2969708892287379665L;
 
-    private static ObjectAllocator X509STORE_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new X509Store(runtime, klass);
-        }
-    };
-
     static void createX509Store(final Ruby runtime, final RubyModule X509, final RubyClass OpenSSLError) {
-        RubyClass Store = X509.defineClassUnder("Store", runtime.getObject(), X509STORE_ALLOCATOR);
+        RubyClass Store = X509.defineClassUnder("Store", runtime.getObject(), (r, klass) -> new X509Store(r, klass));
         X509.defineClassUnder("StoreError", OpenSSLError, OpenSSLError.getAllocator());
 
         final ThreadContext context = runtime.getCurrentContext();

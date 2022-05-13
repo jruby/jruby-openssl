@@ -33,12 +33,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NotYetConnectedException;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 
@@ -68,12 +65,6 @@ import static org.jruby.ext.openssl.OpenSSL.*;
 public class SSLSocket extends RubyObject {
 
     private static final long serialVersionUID = -2084816623554406237L;
-
-    private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass klass) {
-            return new SSLSocket(runtime, klass);
-        }
-    };
 
     private enum CallSiteIndex {
 
@@ -110,7 +101,8 @@ public class SSLSocket extends RubyObject {
             }
         }
 
-        RubyClass SSLSocket = runtime.defineClassUnder("SSLSocket", runtime.getObject(), ALLOCATOR, SSL, extraCallSites);
+        RubyClass SSLSocket = runtime.defineClassUnder("SSLSocket", runtime.getObject(),
+                (r, klass) -> new SSLSocket(r, klass), SSL, extraCallSites);
 
         final ThreadContext context = runtime.getCurrentContext();
 
