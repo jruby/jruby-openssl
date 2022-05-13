@@ -49,7 +49,21 @@ import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1String;
 import org.bouncycastle.asn1.BERTags;
+import org.bouncycastle.asn1.DERBMPString;
+import org.bouncycastle.asn1.DERBitString;
+import org.bouncycastle.asn1.DERGeneralString;
+import org.bouncycastle.asn1.DERGeneralizedTime;
+import org.bouncycastle.asn1.DERGraphicString;
+import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.DERNumericString;
+import org.bouncycastle.asn1.DEROctetString;
+import org.bouncycastle.asn1.DERPrintableString;
+import org.bouncycastle.asn1.DERT61String;
+import org.bouncycastle.asn1.DERUTCTime;
 import org.bouncycastle.asn1.DERUTF8String;
+import org.bouncycastle.asn1.DERUniversalString;
+import org.bouncycastle.asn1.DERVideotexString;
+import org.bouncycastle.asn1.DERVisibleString;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.DLSet;
 import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
@@ -58,7 +72,6 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x509.X509DefaultEntryConverter;
-import org.bouncycastle.asn1.x509.X509NameEntryConverter;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -66,7 +79,6 @@ import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyHash;
-import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
@@ -246,16 +258,61 @@ public class X509Name extends RubyObject {
         this.types.add(type);
     }
 
+    /**
+     * @param oid
+     * @param value
+     * @param type expected to be legit at this point
+     * @throws RuntimeException
+     */
     private void addEntry(ASN1ObjectIdentifier oid, RubyString value, final int type) throws RuntimeException {
         this.name = null;
         this.canonicalName = null;
+        this.values.add(NAME_ENTRY_CONVERTER.convertValueFor(oid, value, type));
         this.oids.add(oid);
-        this.values.add( getNameEntryConverted().getConvertedValue(oid, value.toString()) );
         this.types.add(type);
     }
 
-    private static X509NameEntryConverter getNameEntryConverted() {
-        return new X509DefaultEntryConverter();
+    private static final X509NameEntryConverterImpl NAME_ENTRY_CONVERTER = new X509NameEntryConverterImpl();
+
+    private static class X509NameEntryConverterImpl extends X509DefaultEntryConverter {
+
+        ASN1Primitive convertValueFor(final ASN1ObjectIdentifier oid, final RubyString value, final int type) {
+            switch (type) {
+                case ASN1.BIT_STRING:
+                    return new DERBitString(value.getBytes());
+                case ASN1.OCTET_STRING:
+                    return new DEROctetString(value.getBytes());
+                case ASN1.UTF8STRING:
+                    return new DERUTF8String(value.asJavaString());
+                case ASN1.NUMERICSTRING:
+                    return new DERNumericString(value.asJavaString()); // validate?
+                case ASN1.PRINTABLESTRING:
+                    return new DERPrintableString(value.asJavaString());
+                case ASN1.T61STRING:
+                    return new DERT61String(value.asJavaString());
+                case ASN1.VIDEOTEXSTRING:
+                    return new DERVideotexString(value.getBytes());
+                case ASN1.IA5STRING:
+                    return new DERIA5String(value.asJavaString());
+                case ASN1.GENERALIZEDTIME:
+                    return new DERGeneralizedTime(value.asJavaString());
+                case ASN1.UTCTIME:
+                    return new DERUTCTime(value.asJavaString());
+                case ASN1.GRAPHICSTRING:
+                    return new DERGraphicString(value.getBytes());
+                //case ASN1.ISO64STRING:
+                    //return new DERVisibleString(value.asJavaString());
+                case ASN1.GENERALSTRING:
+                    return new DERGeneralString(value.asJavaString());
+                case ASN1.UNIVERSALSTRING:
+                    return new DERUniversalString(value.getBytes());
+                case ASN1.BMPSTRING:
+                    return new DERBMPString(value.asJavaString());
+            }
+
+            return super.getConvertedValue(oid, value.toString());
+        }
+
     }
 
     @Override
