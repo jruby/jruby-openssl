@@ -1,3 +1,17 @@
+## 0.13.0
+
+* [fix] ASN1::EndOfContent ancestor hierarchy (#228)
+* [fix] handle X509::Name type conversion (#206)
+* [fix] handle invalid type when creating `X509::Name`
+* [fix] `OpenSSL::X509::Name#inspect` compatibility
+* [fix] escaping with `OpenSSL::X509::Name::RFC2253`
+* [feat] implement `OpenSSL::X509::Name#to_utf8`
+* [fix] compat missing `OpenSSL::SSL::OP_NO_TLSv1_3`
+* [refactor] performance - do not encode/decode cert objects
+* [fix] make sure `Context.ciphers` are not mutated (#219)
+* [feat] support `to_java` conversion for CRL
+* [feat] support `to_java` protocol for PKey (#250)
+
 ## 0.12.2
 
 * [fix] work-around JRuby 9.2 autoload behavior (#248)
