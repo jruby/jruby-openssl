@@ -563,6 +563,30 @@ public class ASN1 {
         // OpenSSL::ASN1::BMPSTRING (30) :
         { "BMPSTRING", org.bouncycastle.asn1.DERBMPString.class, "BMPString" }};
 
+    final static int EOC = 0; // OpenSSL::ASN1::EOC (0)
+    final static int BOOLEAN = 1; // OpenSSL::ASN1::BOOLEAN (1)
+    final static int INTEGER = 2; //  OpenSSL::ASN1::INTEGER (2)
+    final static int BIT_STRING = 3; // OpenSSL::ASN1::BIT_STRING (3)
+    final static int OCTET_STRING = 4; // OpenSSL::ASN1::OCTET_STRING (4)
+    final static int NULL = 5; // OpenSSL::ASN1::NULL (5)
+    final static int OBJECT = 6; // OpenSSL::ASN1::OBJECT (6)
+    final static int ENUMERATED = 10; //  OpenSSL::ASN1::ENUMERATED (10)
+    final static int UTF8STRING = 12; // OpenSSL::ASN1::UTF8STRING (12)
+    final static int SEQUENCE = 16; //  OpenSSL::ASN1::SEQUENCE (16)
+    final static int SET = 17; // OpenSSL::ASN1::SET (17)
+    final static int NUMERICSTRING = 18; //  OpenSSL::ASN1::NUMERICSTRING (18)
+    final static int PRINTABLESTRING = 19; // OpenSSL::ASN1::PRINTABLESTRING (19)
+    final static int T61STRING = 20; // OpenSSL::ASN1::T61STRING (20)
+    final static int VIDEOTEXSTRING = 21; // OpenSSL::ASN1::VIDEOTEXSTRING (21)
+    final static int IA5STRING = 22; // OpenSSL::ASN1::IA5STRING (22)
+    final static int UTCTIME = 23; // OpenSSL::ASN1::UTCTIME (23)
+    final static int GENERALIZEDTIME = 24; // OpenSSL::ASN1::GENERALIZEDTIME (24)
+    final static int GRAPHICSTRING = 25; // OpenSSL::ASN1::GRAPHICSTRING (25)
+    final static int ISO64STRING = 26; // OpenSSL::ASN1::ISO64STRING (26)
+    final static int GENERALSTRING = 27; // OpenSSL::ASN1::GENERALSTRING (27)
+    final static int UNIVERSALSTRING = 28; // OpenSSL::ASN1::UNIVERSALSTRING (28)
+    final static int BMPSTRING = 30; // OpenSSL::ASN1::BMPSTRING (30)
+
     private final static Map<Class<?>, Integer> JCLASS_TO_ID = new HashMap<Class<?>, Integer>(24, 1);
     private final static Map<String, Integer> RCLASS_TO_ID = new HashMap<String, Integer>(28, 1);
 
@@ -575,32 +599,34 @@ public class ASN1 {
             if ( info[2] != null ) {
                 RCLASS_TO_ID.put((String) info[2], Integer.valueOf(i));
             }
+
+            switch (i) {
+                case EOC: assert "EOC".equals(info[0]); break;
+                case BOOLEAN: assert "BOOLEAN".equals(info[0]); break;
+                case INTEGER: assert "INTEGER".equals(info[0]); break;
+                case BIT_STRING: assert "BIT_STRING".equals(info[0]); break;
+                case OCTET_STRING: assert "OCTET_STRING".equals(info[0]); break;
+                case NULL: assert "NULL".equals(info[0]); break;
+                case OBJECT: assert "OBJECT".equals(info[0]); break;
+                case ENUMERATED: assert "ENUMERATED".equals(info[0]); break;
+                case UTF8STRING: assert "UTF8STRING".equals(info[0]); break;
+                case SEQUENCE: assert "SEQUENCE".equals(info[0]); break;
+                case SET: assert "SET".equals(info[0]); break;
+                case NUMERICSTRING: assert "NUMERICSTRING".equals(info[0]); break;
+                case PRINTABLESTRING: assert "PRINTABLESTRING".equals(info[0]); break;
+                case T61STRING: assert "T61STRING".equals(info[0]); break;
+                case VIDEOTEXSTRING: assert "VIDEOTEXSTRING".equals(info[0]); break;
+                case IA5STRING: assert "IA5STRING".equals(info[0]); break;
+                case UTCTIME: assert "UTCTIME".equals(info[0]); break;
+                case GENERALIZEDTIME: assert "GENERALIZEDTIME".equals(info[0]); break;
+                case GRAPHICSTRING: assert "GRAPHICSTRING".equals(info[0]); break;
+                case ISO64STRING: assert "ISO64STRING".equals(info[0]); break;
+                case GENERALSTRING: assert "GENERALSTRING".equals(info[0]); break;
+                case UNIVERSALSTRING: assert "UNIVERSALSTRING".equals(info[0]); break;
+                case BMPSTRING: assert "BMPSTRING".equals(info[0]); break;
+            }
         }
     }
-
-    private final static int EOC = 0; // OpenSSL::ASN1::EOC (0)
-    //private final static int BOOLEAN = 1; // OpenSSL::ASN1::BOOLEAN (1)
-    //private final static int INTEGER = 2; //  OpenSSL::ASN1::INTEGER (2)
-    private final static int BIT_STRING = 3; // OpenSSL::ASN1::BIT_STRING (3)
-    private final static int OCTET_STRING = 4; // OpenSSL::ASN1::OCTET_STRING (4)
-    //private final static int NULL = 5; // OpenSSL::ASN1::NULL (5)
-    //private final static int OBJECT = 6; // OpenSSL::ASN1::OBJECT (6)
-    //private final static int ENUMARATED = 10; //  OpenSSL::ASN1::ENUMERATED (10)
-    //private final static int UTFSTRING = 12; // OpenSSL::ASN1::UTF8STRING (12)
-    private final static int SEQUENCE = 16; //  OpenSSL::ASN1::SEQUENCE (16)
-    private final static int SET = 17; // OpenSSL::ASN1::SET (17)
-    //private final static int NUMERICSTRING = 18; //  OpenSSL::ASN1::NUMERICSTRING (18)
-     // OpenSSL::ASN1::PRINTABLESTRING (19)
-     // OpenSSL::ASN1::T61STRING (20)
-     // OpenSSL::ASN1::VIDEOTEXSTRING (21)
-     // OpenSSL::ASN1::IA5STRING (22)
-     // OpenSSL::ASN1::UTCTIME (23)
-     // OpenSSL::ASN1::GENERALIZEDTIME (24)
-     // OpenSSL::ASN1::GRAPHICSTRING (25)
-     // OpenSSL::ASN1::ISO64STRING (26)
-     // OpenSSL::ASN1::GENERALSTRING (27)
-     // OpenSSL::ASN1::UNIVERSALSTRING (28)
-     // OpenSSL::ASN1::BMPSTRING (30)
 
     private static Integer typeId(Class<?> type) {
         Integer id = null;
