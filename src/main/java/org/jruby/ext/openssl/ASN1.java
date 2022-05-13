@@ -708,19 +708,22 @@ public class ASN1 {
         _ASN1Data.addReadWriteAttribute(context, "value");
         _ASN1Data.addReadWriteAttribute(context, "tag");
         _ASN1Data.addReadWriteAttribute(context, "tag_class");
+        _ASN1Data.addReadWriteAttribute(context, "indefinite_length");
+        _ASN1Data.defineAlias( "infinite_length", "indefinite_length");
+        _ASN1Data.defineAlias( "infinite_length=", "indefinite_length=");
         _ASN1Data.defineAnnotatedMethods(ASN1Data.class);
 
         final ObjectAllocator primitiveAllocator = Primitive.ALLOCATOR;
         RubyClass Primitive = ASN1.defineClassUnder("Primitive", _ASN1Data, primitiveAllocator);
         Primitive.addReadWriteAttribute(context, "tagging");
-        Primitive.addReadAttribute(context, "infinite_length");
+        Primitive.undefineMethod("infinite_length=");
+        Primitive.undefineMethod("indefinite_length=");
         Primitive.defineAnnotatedMethods(Primitive.class);
 
         final ObjectAllocator constructiveAllocator = Constructive.ALLOCATOR;
         RubyClass Constructive = ASN1.defineClassUnder("Constructive", _ASN1Data, constructiveAllocator);
         Constructive.includeModule( runtime.getModule("Enumerable") );
         Constructive.addReadWriteAttribute(context, "tagging");
-        Constructive.addReadWriteAttribute(context, "infinite_length");
         Constructive.defineAnnotatedMethods(Constructive.class);
 
         ASN1.defineClassUnder("Boolean", Primitive, primitiveAllocator); // OpenSSL::ASN1::Boolean <=> value is a Boolean
@@ -747,10 +750,11 @@ public class ASN1 {
         ASN1.defineClassUnder("UTCTime", Primitive, primitiveAllocator); // OpenSSL::ASN1::UTCTime <=> value is a Time
         ASN1.defineClassUnder("GeneralizedTime", Primitive, primitiveAllocator); // OpenSSL::ASN1::GeneralizedTime <=> value is a Time
 
-        ASN1.defineClassUnder("EndOfContent", Primitive, primitiveAllocator); // OpenSSL::ASN1::EndOfContent <=> value is always nil
+        ASN1.defineClassUnder("EndOfContent", _ASN1Data, asn1DataAllocator). // OpenSSL::ASN1::EndOfContent <=> value is always nil
+                defineAnnotatedMethods(EndOfContent.class);
 
-        RubyClass ObjectId = ASN1.defineClassUnder("ObjectId", Primitive, primitiveAllocator);
-        ObjectId.defineAnnotatedMethods(ObjectId.class);
+        ASN1.defineClassUnder("ObjectId", Primitive, primitiveAllocator).
+                defineAnnotatedMethods(ObjectId.class);
 
         ASN1.defineClassUnder("Sequence", Constructive, Constructive.getAllocator());
         ASN1.defineClassUnder("Set", Constructive, Constructive.getAllocator());
@@ -1361,7 +1365,9 @@ public class ASN1 {
             }
         }
 
-        boolean isEOC() { return false; }
+        boolean isEOC() {
+            return "EndOfContent".equals( getClassBaseName() );
+        }
 
         boolean isExplicitTagging() { return ! isImplicitTagging(); }
 
@@ -1412,6 +1418,7 @@ public class ASN1 {
         }
 
         byte[] toDER(final ThreadContext context) throws IOException {
+            if ( isEOC() ) return new byte[] { 0x00, 0x00 };
             return toASN1(context).toASN1Primitive().getEncoded(ASN1Encoding.DER);
         }
 
@@ -1460,6 +1467,26 @@ public class ASN1 {
             for ( int i = 0; i < array.size(); i++ ) {
                 ((ASN1Data) array.entry(i)).print(indent + 1);
             }
+        }
+
+    }
+
+    public static class EndOfContent {
+
+        private EndOfContent() {}
+
+        @JRubyMethod(visibility = Visibility.PRIVATE)
+        public static IRubyObject initialize(final ThreadContext context, final IRubyObject self) {
+            final Ruby runtime = context.runtime;
+            self.getInstanceVariables().setInstanceVariable("@tag", runtime.newFixnum(0));
+            self.getInstanceVariables().setInstanceVariable("@value", RubyString.newEmptyString(context.runtime));
+            self.getInstanceVariables().setInstanceVariable("@tag_class", runtime.newSymbol("UNIVERSAL"));
+            return self;
+        }
+
+        static IRubyObject newInstance(final ThreadContext context) {
+            RubyClass klass = _ASN1(context.runtime).getClass("EndOfContent");
+            return klass.newInstance(context, Block.NULL_BLOCK);
         }
 
     }
@@ -1556,7 +1583,7 @@ public class ASN1 {
             self.setInstanceVariable("@value", value);
             self.setInstanceVariable("@tag_class", tag_class);
             self.setInstanceVariable("@tagging", tagging);
-            self.setInstanceVariable("@infinite_length", runtime.getFalse());
+            self.setInstanceVariable("@indefinite_length", runtime.getFalse());
         }
 
         @Override
@@ -1573,25 +1600,12 @@ public class ASN1 {
 
         @Override
         boolean isEOC() {
-            return "EndOfContent".equals( getClassBaseName() );
+            return false;
         }
 
         @Override
         byte[] toDER(final ThreadContext context) throws IOException {
-            if ( isEOC() ) return new byte[] { 0x00, 0x00 };
             return toASN1(context).toASN1Primitive().getEncoded(ASN1Encoding.DER);
-        }
-
-        static Primitive newInstance(final ThreadContext context, final String type,
-            final IRubyObject value) {
-            RubyClass klass = _ASN1(context.runtime).getClass(type);
-            final Primitive self = new Primitive(context.runtime, klass);
-            if ( value != null ) self.setInstanceVariable("@value", value);
-            return self;
-        }
-
-        static Primitive newEndOfContent(final ThreadContext context) {
-            return newInstance(context, "EndOfContent", null);
         }
 
         /*
@@ -1756,7 +1770,7 @@ public class ASN1 {
 
             final RubyArray values = runtime.newArray(value.size());
             for ( final IRubyObject val : value ) values.append(val);
-            // values.append( Primitive.newEndOfContent(context) );
+            // values.append( EndOfContent.newInstance(context) );
 
             self.setInstanceVariable("@tag", runtime.newFixnum(defaultTag));
             self.setInstanceVariable("@value", values);
@@ -1768,11 +1782,9 @@ public class ASN1 {
 
         static Constructive setInfiniteLength(final ThreadContext context, final IRubyObject constructive) {
             final Constructive instance = ((Constructive) constructive);
-            final IRubyObject eoc = Primitive.newEndOfContent(context);
             final IRubyObject value = instance.value(context);
-            if ( value instanceof RubyArray ) ((RubyArray) value).append(eoc);
-            else value.callMethod(context, "<<", eoc);
-            instance.setInstanceVariable("@infinite_length", context.runtime.getTrue());
+            value.callMethod(context, "<<", EndOfContent.newInstance(context));
+            instance.setInstanceVariable("@indefinite_length", context.runtime.getTrue());
             return instance;
         }
 
@@ -1789,7 +1801,7 @@ public class ASN1 {
         }
 
         private boolean isInfiniteLength() {
-            return getInstanceVariable("@infinite_length").isTrue();
+            return getInstanceVariable("@indefinite_length").isTrue();
         }
 
         @Override
@@ -1838,8 +1850,7 @@ public class ASN1 {
             if ( rawConstructive() ) { // MRI compatibility
                 if ( ! isInfiniteLength() && ! super.value(context).isNil() ) {
                     final Ruby runtime = context.runtime;
-                    throw newASN1Error(runtime, "Constructive shall only be used"
-                                                + " with infinite length");
+                    throw newASN1Error(runtime, "Constructive shall only be used with indefinite length");
                 }
             }
             return super.to_der(context);
