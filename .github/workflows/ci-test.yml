@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 env:
   JAVA_OPTS: '-XX:+TieredCompilation -XX:TieredStopAtLevel=1'
+  JRUBY_OPTS: '-J-ea'
 
 jobs:
 

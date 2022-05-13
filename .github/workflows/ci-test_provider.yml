@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 env:
   JAVA_OPTS: '-Djruby.openssl.provider.register=true -Djruby.openssl.warn=true '
-  JRUBY_OPTS: '-J--add-opens=java.base/java.security=org.jruby.dist -Xjit.threshold=0'
+  JRUBY_OPTS: '-J-ea -J--add-opens=java.base/java.security=org.jruby.dist -Xjit.threshold=0'
 
 jobs:
 
