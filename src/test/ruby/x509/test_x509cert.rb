@@ -15,6 +15,15 @@ class TestX509Certificate < TestCase
     assert_raise(OpenSSL::X509::CertificateError) { cert.public_key }
   end
 
+  def test_new_from_java_bytes # was historically supported through the StringHelper.readInput fallback
+    cert = File.read(File.expand_path('ca.crt', File.dirname(__FILE__)))
+    fact = java.security.cert.CertificateFactory.getInstance("X.509")
+    java_cert = fact.generateCertificate(java.io.ByteArrayInputStream.new(cert.to_java_bytes)) # X509Certificate
+    cert = OpenSSL::X509::Certificate.new(java_cert.getEncoded) # byte[]
+    assert_equal java_cert.getSerialNumber, cert.serial.to_java
+    assert_equal java_cert.getPublicKey, cert.public_key.to_java
+  end
+
   def test_alt_name_extension
     cert = OpenSSL::X509::Certificate.new
     cert.add_extension OpenSSL::X509::Extension.new('subjectAltName', 'email:self@jruby.org, IP:127.0.0.1', false)
