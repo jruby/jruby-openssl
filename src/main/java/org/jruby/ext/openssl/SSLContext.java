@@ -618,7 +618,7 @@ public class SSLContext extends RubyObject {
         return method;
     }
 
-    @JRubyMethod(name = "set_minmax_proto_version")
+    @JRubyMethod(name = "set_minmax_proto_version", visibility = Visibility.PRIVATE)
     public IRubyObject set_minmax_proto_version(ThreadContext context, IRubyObject minVersion, IRubyObject maxVersion) {
         minProtocolVersion = parseProtoVersion(minVersion);
         maxProtocolVersion = parseProtoVersion(maxVersion);
