@@ -93,11 +93,6 @@ final class Utils {
         return ex;
     }
 
-    static boolean hasNonNilInstanceVariable(final IRubyObject self, final String var) {
-        final IRubyObject val = self.getInstanceVariables().getInstanceVariable(var);
-        return val != null && ! val.isNil();
-    }
-
     // reinvented parts of org.jruby.runtime.Helpers for compatibility with "older" JRuby :
 
     static IRubyObject invoke(ThreadContext context, IRubyObject self, String name, Block block) {
