@@ -615,10 +615,7 @@ public class SSLSocket extends RubyObject {
             netData.position(netData.limit());
             throw ioe;
         }
-        if ( netData.hasRemaining() ) {
-            return true;
-        }
-        return false;
+        return netData.hasRemaining();
     }
 
     private int writeToChannel(ByteBuffer buffer, boolean blocking) throws IOException {
@@ -755,11 +752,15 @@ public class SSLSocket extends RubyObject {
     }
 
     private void doShutdown() throws IOException {
-        if ( engine.isOutboundDone() ) return;
+        if (engine.isOutboundDone()) return;
 
+        if (flushData(false)) {
+            debug(getRuntime(), "SSLSocket.doShutdown data in the data buffer - can't send close");
+            return;
+        }
         netData.clear();
         try {
-            engine.wrap(dummy, netData);
+            engine.wrap(dummy, netData); // send close (after sslEngine.closeOutbound)
         }
         catch (SSLException e) {
             debug(getRuntime(), "SSLSocket.doShutdown", e);
