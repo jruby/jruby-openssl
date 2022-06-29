@@ -1072,22 +1072,22 @@ public class ASN1 {
             return ASN1.getClass("ObjectId").newInstance(context, runtime.newString(objId), Block.NULL_BLOCK);
         }
 
-        if ( obj instanceof ASN1TaggedObject ) {
-            final ASN1TaggedObject taggedObj = (ASN1TaggedObject) obj;
-            IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject());
-            IRubyObject tag = runtime.newFixnum( taggedObj.getTagNo() );
-            IRubyObject tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
-            final RubyArray valArr = runtime.newArray(val);
-            return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
-        }
-
-        if ( obj instanceof ASN1ApplicationSpecific ) {
+        if ( obj instanceof ASN1ApplicationSpecific ) { // TODO this will likely break in BC version > 1.71
             final ASN1ApplicationSpecific appSpecific = (ASN1ApplicationSpecific) obj;
             IRubyObject tag = runtime.newFixnum( appSpecific.getApplicationTag() );
             IRubyObject tag_class = runtime.newSymbol("APPLICATION");
             final ASN1Sequence sequence = (ASN1Sequence) appSpecific.getObject(SEQUENCE);
             @SuppressWarnings("unchecked")
             final RubyArray valArr = decodeObjects(context, ASN1, sequence.getObjects());
+            return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
+        }
+
+        if ( obj instanceof ASN1TaggedObject ) {
+            final ASN1TaggedObject taggedObj = (ASN1TaggedObject) obj;
+            IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject());
+            IRubyObject tag = runtime.newFixnum( taggedObj.getTagNo() );
+            IRubyObject tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
+            final RubyArray valArr = runtime.newArray(val);
             return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
         }
 
