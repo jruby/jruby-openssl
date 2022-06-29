@@ -424,7 +424,7 @@ public final class PKeyEC extends PKey {
 //            System.arraycopy(s, 0, encoded, i, s.length);
 
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            ASN1OutputStream asn1 = new ASN1OutputStream(bytes);
+            ASN1OutputStream asn1 = ASN1OutputStream.create(bytes);
 
             ASN1EncodableVector v = new ASN1EncodableVector();
             v.add(new ASN1Integer(signature[0])); // r

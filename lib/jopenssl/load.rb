@@ -8,22 +8,19 @@ unless ENV_JAVA['jruby.openssl.load.jars'].eql?('false')
   begin
     require 'jar-dependencies'
     # if we have jar-dependencies we let it track the jars
-    require_jar 'org.bouncycastle', 'bcprov-jdk15on', version
-    require_jar 'org.bouncycastle', 'bcpkix-jdk15on', version
-    require_jar 'org.bouncycastle', 'bctls-jdk15on',  version
-    begin # bcutil got extracted from bcprov in BC 1.69
-      require_jar 'org.bouncycastle', 'bcutil-jdk15to18', version
-    rescue LoadError, RuntimeError
-      # continue without loading the jar - assume we got BC < 1.69
-    end
+    require_jar 'org.bouncycastle', 'bcprov-jdk18on', version
+    require_jar 'org.bouncycastle', 'bcpkix-jdk18on', version
+    require_jar 'org.bouncycastle', 'bcutil-jdk18on', version
+    require_jar 'org.bouncycastle', 'bctls-jdk18on',  version
     bc_jars = true
   rescue LoadError, RuntimeError
     bc_jars = false
   end
   unless bc_jars
-    load "org/bouncycastle/bcprov-jdk15on/#{version}/bcprov-jdk15on-#{version}.jar"
-    load "org/bouncycastle/bcpkix-jdk15on/#{version}/bcpkix-jdk15on-#{version}.jar"
-    load "org/bouncycastle/bctls-jdk15on/#{version}/bctls-jdk15on-#{version}.jar"
+    load "org/bouncycastle/bcprov-jdk18on/#{version}/bcprov-jdk18on-#{version}.jar"
+    load "org/bouncycastle/bcpkix-jdk18on/#{version}/bcpkix-jdk18on-#{version}.jar"
+    load "org/bouncycastle/bcutil-jdk18on/#{version}/bcutil-jdk18on-#{version}.jar"
+    load "org/bouncycastle/bctls-jdk18on/#{version}/bctls-jdk18on-#{version}.jar"
   end
 end
 

@@ -1004,7 +1004,7 @@ public class PEMInputOutput {
         BufferedWriter out = makeBuffered(_out);
         PrivateKeyInfo info = PrivateKeyInfo.getInstance(new ASN1InputStream(getEncoded(obj)).readObject());
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
-        ASN1OutputStream aOut = new ASN1OutputStream(bOut);
+        ASN1OutputStream aOut = ASN1OutputStream.create(bOut);
 
         DSAParameter p = DSAParameter.getInstance(info.getPrivateKeyAlgorithm().getParameters());
         ASN1EncodableVector v = new ASN1EncodableVector();
@@ -1156,7 +1156,7 @@ public class PEMInputOutput {
         }
 
         ByteArrayOutputStream bOut = new ByteArrayOutputStream();
-        ASN1OutputStream aOut = new ASN1OutputStream(bOut);
+        ASN1OutputStream aOut = ASN1OutputStream.create(bOut);
 
         aOut.writeObject(new DLSequence(v));
 

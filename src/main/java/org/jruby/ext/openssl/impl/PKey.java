@@ -284,8 +284,8 @@ public class PKey {
     public static KeyPair readECPrivateKey(final KeyFactory ecFactory, final byte[] input)
         throws IOException, InvalidKeySpecException {
         try {
-            ECPrivateKeyStructure pKey = new ECPrivateKeyStructure((ASN1Sequence) ASN1Primitive.fromByteArray(input));
-            AlgorithmIdentifier   algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, pKey.getParameters());
+            org.bouncycastle.asn1.sec.ECPrivateKey pKey = org.bouncycastle.asn1.sec.ECPrivateKey.getInstance(ASN1Primitive.fromByteArray(input));
+            AlgorithmIdentifier   algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, pKey.getParametersObject().toASN1Primitive());
             PrivateKeyInfo        privInfo = new PrivateKeyInfo(algId, pKey.toASN1Primitive());
             SubjectPublicKeyInfo  pubInfo = new SubjectPublicKeyInfo(algId, pKey.getPublicKey().getBytes());
             PKCS8EncodedKeySpec   privSpec = new PKCS8EncodedKeySpec(privInfo.getEncoded());
