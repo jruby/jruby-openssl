@@ -292,13 +292,13 @@ public class Signed {
         int index = 3;
         ASN1Encodable tmp = sequence.getObjectAt(index);
         if((tmp instanceof ASN1TaggedObject) && ((ASN1TaggedObject)tmp).getTagNo() == 0) {
-            certificates = ((ASN1TaggedObject)tmp).getObject();
+            certificates = ((ASN1TaggedObject)tmp).getBaseObject().toASN1Primitive();
             index++;
         }
 
         tmp = sequence.getObjectAt(index);
         if((tmp instanceof ASN1TaggedObject) && ((ASN1TaggedObject)tmp).getTagNo() == 1) {
-            crls = ((ASN1TaggedObject)tmp).getObject();
+            crls = ((ASN1TaggedObject)tmp).getBaseObject().toASN1Primitive();
             index++;
         }
 

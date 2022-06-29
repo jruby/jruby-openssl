@@ -143,7 +143,7 @@ public class PKCS7 {
                 ASN1Encodable content = size == 1 ? null : ((ASN1Sequence) obj).getObjectAt(1);
 
                 if (content != null && content instanceof ASN1TaggedObject && ((ASN1TaggedObject) content).getTagNo() == 0) {
-                    content = ((ASN1TaggedObject) content).getObject();
+                    content = ((ASN1TaggedObject) content).getBaseObject().toASN1Primitive();
                 }
                 p7.initiateWith(nid, content);
             }

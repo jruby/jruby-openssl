@@ -1362,8 +1362,8 @@ public class PEMInputOutput {
                 else trust = Collections.emptyList();
 
                 if ( obj instanceof ASN1TaggedObject && ((ASN1TaggedObject) obj).getTagNo() == 0 ) {
-                    reject = new ArrayList<String>();
-                    final ASN1Sequence rejectSeq = (ASN1Sequence) ((ASN1TaggedObject) obj).getObject();
+                    final ASN1Sequence rejectSeq = (ASN1Sequence) ((ASN1TaggedObject) obj).getBaseObject().toASN1Primitive();
+                    reject = new ArrayList<>(rejectSeq.size());
                     for( int i = 0; i < rejectSeq.size(); i++ ) {
                         reject.add( ((ASN1ObjectIdentifier) rejectSeq.getObjectAt(i)).getId() );
                     }
@@ -1387,8 +1387,8 @@ public class PEMInputOutput {
                 else keyid = null;
 
                 if ( obj instanceof ASN1TaggedObject && ((ASN1TaggedObject) obj).getTagNo() == 1 ) {
-                    other = new ArrayList<ASN1Primitive>();
-                    final ASN1Sequence otherSeq = (ASN1Sequence) ((ASN1TaggedObject) obj).getObject();
+                    final ASN1Sequence otherSeq = (ASN1Sequence) ((ASN1TaggedObject) obj).getBaseObject().toASN1Primitive();
+                    other = new ArrayList<>(otherSeq.size());
                     for( int i = 0; i < otherSeq.size(); i++ ) {
                         other.add( (ASN1Primitive) otherSeq.getObjectAt(i) );
                     }

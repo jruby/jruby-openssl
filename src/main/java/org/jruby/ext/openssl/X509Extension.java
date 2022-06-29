@@ -38,6 +38,7 @@ import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
@@ -426,10 +427,10 @@ public class X509Extension extends RubyObject {
                     for ( int i = 0; i < size; i++ ) {
                         final ASN1Encodable enc = seq.getObjectAt(i);
                         if (enc instanceof ASN1TaggedObject) {
-                            ASN1Primitive obj = ((ASN1TaggedObject) enc).getObject();
+                            ASN1Primitive obj = ((ASN1TaggedObject) enc).getBaseObject().toASN1Primitive();
                             switch( ((ASN1TaggedObject) enc).getTagNo() ) {
                                 case 0 :
-                                    ASN1Primitive keyid = obj;
+                                    ASN1Primitive keyid = obj.toASN1Primitive();
                                     val.append(keyid_);
                                     hexBytes( keyidBytes(keyid), val );
                                     break;
@@ -595,7 +596,7 @@ public class X509Extension extends RubyObject {
 
     private static byte[] keyidBytes(ASN1Primitive keyid) throws IOException {
         if ( keyid instanceof ASN1TaggedObject ) {
-            keyid = ((ASN1TaggedObject) keyid).getObject();
+            keyid = ((ASN1TaggedObject) keyid).getBaseObject().toASN1Primitive();
         }
         if ( keyid instanceof ASN1OctetString ) {
             return ((ASN1OctetString) keyid).getOctets();

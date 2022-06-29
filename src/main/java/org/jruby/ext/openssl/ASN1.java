@@ -1074,7 +1074,7 @@ public class ASN1 {
 
         if ( obj instanceof ASN1TaggedObject ) {
             final ASN1TaggedObject taggedObj = (ASN1TaggedObject) obj;
-            IRubyObject val = decodeObject(context, ASN1, taggedObj.getObject());
+            IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject());
             IRubyObject tag = runtime.newFixnum( taggedObj.getTagNo() );
             IRubyObject tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
             final RubyArray valArr = runtime.newArray(val);
@@ -1134,11 +1134,11 @@ public class ASN1 {
             debugStackTrace(context.runtime, e);
             throw context.runtime.newArgumentError(e.getMessage());
         }
-        //catch (RuntimeException e) {
-        //    final Ruby runtime = context.runtime;
-        //    debugStackTrace(runtime, e);
-        //    throw Utils.newRuntimeError(context.runtime, e);
-        //}
+        catch (RuntimeException e) {
+
+            debugStackTrace(context.runtime, e);
+            throw Utils.newRuntimeError(context.runtime, e);
+        }
     }
 
     static IRubyObject decodeImpl(final ThreadContext context, IRubyObject obj)
