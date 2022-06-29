@@ -667,7 +667,7 @@ public class X509Cert extends RubyObject {
             return runtime.getTrue();
         }
         catch (CertificateException e) {
-            debug(runtime, "Certificate#verify failed: ", e);
+            debugStackTrace(runtime, "Certificate#verify failed", e);
             throw newCertificateError(runtime, e);
         }
         catch (NoSuchAlgorithmException e) {
@@ -679,11 +679,11 @@ public class X509Cert extends RubyObject {
             throw newCertificateError(runtime, e);
         }
         catch (SignatureException e) {
-            debug(runtime, "Certificate#verify failed: ", e);
+            debug(runtime, "Certificate#verify failed", e);
             return runtime.getFalse();
         }
         catch (InvalidKeyException e) {
-            debug(runtime, "Certificate#verify failed: ", e);
+            debug(runtime, "Certificate#verify failed", e);
             return runtime.getFalse();
         }
     }

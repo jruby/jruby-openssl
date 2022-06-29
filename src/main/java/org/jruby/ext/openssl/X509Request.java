@@ -351,7 +351,7 @@ public class X509Request extends RubyObject {
             return runtime.newBoolean( getRequest().verify(publicKey) );
         }
         catch (InvalidKeyException e) {
-            debug(runtime, "X509::Request.verify invalid key", e);
+            debug(runtime, "X509::Request#verify invalid key", e);
             throw newRequestError(runtime, "invalid key supplied", e);
         }
         //catch (IOException e) {

@@ -766,7 +766,7 @@ public class SSLSocket extends RubyObject {
             return;
         }
         catch (RuntimeException e) {
-            debugStackTrace(getRuntime(), e);
+            debugStackTrace(getRuntime(), "SSLSocket.doShutdown", e);
             return;
         }
         netData.flip();
@@ -830,7 +830,7 @@ public class SSLSocket extends RubyObject {
             return buffStr;
         }
         catch (IOException ex) {
-            debug(runtime, "SSLSocket.sysreadImpl failed", ex);
+            debugStackTrace(runtime, "SSLSocket.sysreadImpl", ex);
             throw Utils.newError(runtime, runtime.getIOError(), ex);
         }
     }
@@ -914,7 +914,7 @@ public class SSLSocket extends RubyObject {
             return runtime.newFixnum(written);
         }
         catch (IOException ex) {
-            debug(runtime, "SSLSocket.syswriteImpl failed", ex);
+            debugStackTrace(runtime, "SSLSocket.syswriteImpl", ex);
             throw Utils.newError(runtime, runtime.getIOError(), ex);
         }
     }

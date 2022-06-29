@@ -331,7 +331,7 @@ public class Store implements X509TrustManager {
             if (!e.getClass().getSimpleName().equals("NotFound")) {
                 throw e;
             }
-            OpenSSL.debug(runtime, "add X509_CERT_FILER_CTX (to default paths)", e);
+            OpenSSL.debugStackTrace(runtime, "add X509_CERT_FILER_CTX (to default paths)", e);
         }
 
         lookup = addLookup(runtime, Lookup.hashDirLookup());
@@ -346,7 +346,7 @@ public class Store implements X509TrustManager {
             if (!e.getClass().getSimpleName().equals("NotFound")) {
                 throw e;
             }
-            OpenSSL.debug(runtime, "add X509_HASH_DIR_CTX (to default paths)", e);
+            OpenSSL.debugStackTrace(runtime, "add X509_HASH_DIR_CTX (to default paths)", e);
         }
 
         X509Error.clearErrors();

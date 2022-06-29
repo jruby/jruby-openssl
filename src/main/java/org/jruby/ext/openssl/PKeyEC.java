@@ -297,7 +297,7 @@ public final class PKeyEC extends PKey {
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (InvalidKeySpecException e) { debug(runtime, "PKeyEC could not read private key", e); }
-            catch (IOException e) { debug(runtime, "PKeyEC could not read private key", e); }
+            catch (IOException e) { debugStackTrace(runtime, "PKeyEC could not read private key", e); }
             catch (RuntimeException e) {
                 if ( isKeyGenerationFailure(e) ) debug(runtime, "PKeyEC could not read private key", e);
                 else debugStackTrace(runtime, e);

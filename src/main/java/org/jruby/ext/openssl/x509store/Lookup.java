@@ -336,7 +336,7 @@ public class Lookup {
         try {
             // hardcode the keystore type, as we expect cacerts to be a java keystore
             // especially needed since Java 9 (getDefaultType on 11/13 is "pkcs12")
-            KeyStore keystore = SecurityHelper.getKeyStore("jks");
+            KeyStore keystore = SecurityHelper.getKeyStore("JKS");
 	        // null password - as the cacerts file isn't password protected
             keystore.load(fin, null);
             PKIXParameters params = new PKIXParameters(keystore);
@@ -470,7 +470,7 @@ public class Lookup {
                         file = ctx.envEntry(X509_CERT_FILE_EVP); // ENV['SSL_CERT_FILE']
                     }
                     catch (RuntimeException e) {
-                        OpenSSL.debug(ctx.runtime, "failed to read env " + X509_CERT_FILE_EVP, e);
+                        OpenSSL.debugStackTrace(ctx.runtime, "failed to read env " + X509_CERT_FILE_EVP, e);
                     }
                     if (file == null) {
                         file = X509_CERT_FILE.replace('/', File.separatorChar);

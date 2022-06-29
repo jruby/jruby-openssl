@@ -287,7 +287,7 @@ public class PKeyRSA extends PKey {
             try { key = readRSAPrivateKey(rsaFactory, str.getBytes()); }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (InvalidKeySpecException e) { debug(runtime, "PKeyRSA could not read private key", e); }
-            catch (IOException e) { debug(runtime, "PKeyRSA could not read private key", e); }
+            catch (IOException e) { debugStackTrace(runtime, "PKeyRSA could not read private key", e); }
             catch (RuntimeException e) {
                 if ( isKeyGenerationFailure(e) ) debug(runtime, "PKeyRSA could not read private key", e);
                 else debugStackTrace(runtime, e);
@@ -297,7 +297,7 @@ public class PKeyRSA extends PKey {
             try { key = readRSAPublicKey(rsaFactory, str.getBytes()); }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
             catch (InvalidKeySpecException e) { debug(runtime, "PKeyRSA could not read public key", e); }
-            catch (IOException e) { debug(runtime, "PKeyRSA could not read public key", e); }
+            catch (IOException e) { debugStackTrace(runtime, "PKeyRSA could not read public key", e); }
             catch (RuntimeException e) {
                 if ( isKeyGenerationFailure(e) ) debug(runtime, "PKeyRSA could not read public key", e);
                 else debugStackTrace(runtime, e);
