@@ -203,16 +203,6 @@ public abstract class PKey extends RubyObject {
 
     public abstract RubyString to_pem(ThreadContext context, final IRubyObject[] args) ;
 
-    @Deprecated
-    public RubyString to_pem(final IRubyObject[] args) {
-        return to_pem(getRuntime().getCurrentContext(), args);
-    }
-
-    @Deprecated
-    public RubyString export(final IRubyObject[] args) {
-        return to_pem(getRuntime().getCurrentContext(), args);
-    }
-
     @JRubyMethod(name = "sign")
     public IRubyObject sign(IRubyObject digest, IRubyObject data) {
         final Ruby runtime = getRuntime();
