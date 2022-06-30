@@ -586,15 +586,25 @@ public class SSLSocket extends RubyObject {
                 if ( netData.hasRemaining() ) {
                     while ( flushData(blocking) ) { /* loop */ }
                 }
-                netData.clear();
-                SSLEngineResult result = engine.wrap(dummy, netData);
-                handshakeStatus = result.getHandshakeStatus();
-                netData.flip();
+                assert !netData.hasRemaining();
+                doWrap(blocking);
                 flushData(blocking);
                 break;
             default:
                 throw new IllegalStateException("Unknown handshaking status: " + handshakeStatus);
             }
+        }
+    }
+
+    private void doWrap(boolean blocking) throws IOException {
+        netData.clear();
+        SSLEngineResult result = engine.wrap(dummy, netData);
+        netData.flip();
+        handshakeStatus = result.getHandshakeStatus();
+        status = result.getStatus();
+        if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK
+                && status == SSLEngineResult.Status.OK) {
+            doTasks();
         }
     }
 
