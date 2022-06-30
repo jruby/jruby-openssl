@@ -28,7 +28,6 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.ClosedChannelException;
@@ -145,14 +144,14 @@ public class SSLSocket extends RubyObject {
     private SSLEngine engine;
     private RubyIO io;
 
-    private ByteBuffer peerAppData;
-    private ByteBuffer peerNetData;
-    private ByteBuffer netData;
-    private ByteBuffer dummy;
+    private ByteBuffer appReadData;
+    private ByteBuffer netReadData;
+    private ByteBuffer netWriteData;
+    private final ByteBuffer dummy = ByteBuffer.allocate(0); // could be static
 
     private boolean initialHandshake = false;
 
-    private SSLEngineResult.HandshakeStatus handshakeStatus;
+    private SSLEngineResult.HandshakeStatus handshakeStatus; // != null after hand-shake starts
     private SSLEngineResult.Status status;
 
     int verifyResult = X509Utils.V_OK;
@@ -212,13 +211,13 @@ public class SSLSocket extends RubyObject {
         engine = sslContext.createSSLEngine(peerHost, peerPort);
 
         final javax.net.ssl.SSLSession session = engine.getSession();
-        peerNetData = ByteBuffer.allocate(session.getPacketBufferSize());
-        peerAppData = ByteBuffer.allocate(session.getApplicationBufferSize());
-        netData = ByteBuffer.allocate(session.getPacketBufferSize());
-        peerNetData.limit(0);
-        peerAppData.limit(0);
-        netData.limit(0);
-        dummy = ByteBuffer.allocate(0);
+        netReadData = ByteBuffer.allocate(session.getPacketBufferSize());
+        appReadData = ByteBuffer.allocate(session.getApplicationBufferSize());
+        netWriteData = ByteBuffer.allocate(session.getPacketBufferSize());
+        netReadData.limit(0);
+        appReadData.limit(0);
+        netWriteData.limit(0);
+
         this.engine = engine;
         copySessionSetupIfSet(context);
 
@@ -561,7 +560,6 @@ public class SSLSocket extends RubyObject {
             }
 
             // otherwise, proceed as before
-
             switch (handshakeStatus) {
             case FINISHED:
             case NOT_HANDSHAKING:
@@ -582,16 +580,16 @@ public class SSLSocket extends RubyObject {
                 }
                 break;
             case NEED_WRAP:
-                if ( netData.hasRemaining() ) {
+                if ( netWriteData.hasRemaining() ) {
                     while ( flushData(blocking) ) { /* loop */ }
                 }
-                assert !netData.hasRemaining();
+                assert !netWriteData.hasRemaining();
                 doWrap(blocking);
                 flushData(blocking);
                 assert status != SSLEngineResult.Status.BUFFER_UNDERFLOW;
                 if (status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
-                    netData.compact();
-                    netData.flip();
+                    netWriteData.compact();
+                    netWriteData.flip();
                     if (handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP || flushData(blocking)) {
                         sel = waitSelect(SelectionKey.OP_WRITE, blocking, exception);
                         if ( sel instanceof IRubyObject ) return (IRubyObject) sel; // :wait_writeable
@@ -605,9 +603,9 @@ public class SSLSocket extends RubyObject {
     }
 
     private void doWrap(boolean blocking) throws IOException {
-        netData.clear();
-        SSLEngineResult result = engine.wrap(dummy, netData);
-        netData.flip();
+        netWriteData.clear();
+        SSLEngineResult result = engine.wrap(dummy, netWriteData);
+        netWriteData.flip();
         handshakeStatus = result.getHandshakeStatus();
         status = result.getStatus();
         if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK
@@ -627,13 +625,13 @@ public class SSLSocket extends RubyObject {
 
     private boolean flushData(boolean blocking) throws IOException {
         try {
-            writeToChannel(netData, blocking);
+            writeToChannel(netWriteData, blocking);
         }
         catch (IOException ioe) {
-            netData.position(netData.limit());
+            netWriteData.position(netWriteData.limit());
             throw ioe;
         }
-        return netData.hasRemaining();
+        return netWriteData.hasRemaining();
     }
 
     private int writeToChannel(ByteBuffer buffer, boolean blocking) throws IOException {
@@ -671,15 +669,15 @@ public class SSLSocket extends RubyObject {
         if ( ! blocking ) channel.configureBlocking(false);
 
         try {
-            if ( netData.hasRemaining() ) {
+            if ( netWriteData.hasRemaining() ) {
                 flushData(blocking);
             }
-            netData.clear();
-            final SSLEngineResult result = engine.wrap(src, netData);
+            netWriteData.clear();
+            final SSLEngineResult result = engine.wrap(src, netWriteData);
             if ( result.getStatus() == SSLEngineResult.Status.CLOSED ) {
                 throw getRuntime().newIOError("closed SSL engine");
             }
-            netData.flip();
+            netWriteData.flip();
             flushData(blocking);
             return result.bytesConsumed();
         }
@@ -692,22 +690,22 @@ public class SSLSocket extends RubyObject {
         if ( initialHandshake ) return 0;
         if ( engine.isInboundDone() ) return -1;
 
-        if ( ! peerAppData.hasRemaining() ) {
+        if ( ! appReadData.hasRemaining() ) {
             int appBytesProduced = readAndUnwrap(blocking);
             if (appBytesProduced == -1 || appBytesProduced == 0) {
                 return appBytesProduced;
             }
         }
-        int limit = Math.min(peerAppData.remaining(), dst.remaining());
-        peerAppData.get(dst.array(), dst.arrayOffset(), limit);
+        int limit = Math.min(appReadData.remaining(), dst.remaining());
+        appReadData.get(dst.array(), dst.arrayOffset(), limit);
         dst.position(dst.arrayOffset() + limit);
         return limit;
     }
 
     private int readAndUnwrap(final boolean blocking) throws IOException {
-        final int bytesRead = socketChannelImpl().read(peerNetData);
+        final int bytesRead = socketChannelImpl().read(netReadData);
         if ( bytesRead == -1 ) {
-            if ( ! peerNetData.hasRemaining() ||
+            if ( ! netReadData.hasRemaining() ||
                  ( status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) ) {
                 closeInbound();
                 return -1;
@@ -716,12 +714,12 @@ public class SSLSocket extends RubyObject {
             // be defered till the last engine.unwrap() call.
             // peerNetData could not be empty.
         }
-        peerAppData.clear();
-        peerNetData.flip();
+        appReadData.clear();
+        netReadData.flip();
 
         SSLEngineResult result;
         do {
-            result = engine.unwrap(peerNetData, peerAppData);
+            result = engine.unwrap(netReadData, appReadData);
         }
         while ( result.getStatus() == SSLEngineResult.Status.OK &&
 				result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_UNWRAP &&
@@ -730,15 +728,15 @@ public class SSLSocket extends RubyObject {
         if ( result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.FINISHED ) {
             finishInitialHandshake();
         }
-        if ( peerAppData.position() == 0 &&
+        if ( appReadData.position() == 0 &&
             result.getStatus() == SSLEngineResult.Status.OK &&
-            peerNetData.hasRemaining() ) {
-            result = engine.unwrap(peerNetData, peerAppData);
+            netReadData.hasRemaining() ) {
+            result = engine.unwrap(netReadData, appReadData);
         }
         status = result.getStatus();
         handshakeStatus = result.getHandshakeStatus();
 
-        if ( bytesRead == -1 && ! peerNetData.hasRemaining() ) {
+        if ( bytesRead == -1 && ! netReadData.hasRemaining() ) {
             // now it's safe to call closeInbound().
             closeInbound();
         }
@@ -747,15 +745,15 @@ public class SSLSocket extends RubyObject {
             return -1;
         }
 
-        peerNetData.compact();
-        peerAppData.flip();
+        netReadData.compact();
+        appReadData.flip();
         if ( ! initialHandshake && (
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
                 handshakeStatus == SSLEngineResult.HandshakeStatus.FINISHED ) ) {
             doHandshake(blocking);
         }
-        return peerAppData.remaining();
+        return appReadData.remaining();
     }
 
     private void closeInbound() {
@@ -776,9 +774,9 @@ public class SSLSocket extends RubyObject {
             debug(getRuntime(), "SSLSocket.doShutdown data in the data buffer - can't send close");
             return;
         }
-        netData.clear();
+        netWriteData.clear();
         try {
-            engine.wrap(dummy, netData); // send close (after sslEngine.closeOutbound)
+            engine.wrap(dummy, netWriteData); // send close (after sslEngine.closeOutbound)
         }
         catch (SSLException e) {
             debug(getRuntime(), "SSLSocket.doShutdown", e);
@@ -788,7 +786,7 @@ public class SSLSocket extends RubyObject {
             debugStackTrace(getRuntime(), "SSLSocket.doShutdown", e);
             return;
         }
-        netData.flip();
+        netWriteData.flip();
         flushData(true);
     }
 
@@ -814,7 +812,7 @@ public class SSLSocket extends RubyObject {
 
         try {
             // So we need to make sure to only block when there is no data left to process
-            if ( engine == null || ! ( peerAppData.hasRemaining() || peerNetData.position() > 0 ) ) {
+            if ( engine == null || ! ( appReadData.hasRemaining() || netReadData.position() > 0 ) ) {
                 final Object ex = waitSelect(SelectionKey.OP_READ, blocking, exception);
                 if ( ex instanceof IRubyObject ) return (IRubyObject) ex; // :wait_readable
             }
@@ -992,7 +990,7 @@ public class SSLSocket extends RubyObject {
 
         engine.closeOutbound();
 
-        if ( ! force && netData.hasRemaining() ) return;
+        if ( ! force && netWriteData.hasRemaining() ) return;
 
         try {
             doShutdown();
