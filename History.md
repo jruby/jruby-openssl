@@ -1,3 +1,11 @@
+## 0.14.0
+
+This version upgraded to latest Bouncy-Castle (1.71) and is only compatible with 
+the new version mostly due artifact naming and breaking chances in BC itself.
+
+- [deps] upgrade BC to latest 1.71
+- [fix] make set_minmax_proto_version private 
+
 ## 0.13.0
 
 * [fix] ASN1::EndOfContent ancestor hierarchy (#228)
