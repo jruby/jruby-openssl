@@ -574,9 +574,8 @@ public class SSLSocket extends RubyObject {
                 if (readAndUnwrap(blocking) == -1 && handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED) {
                     throw new SSLHandshakeException("Socket closed");
                 }
-                // during initialHandshake, calling readAndUnwrap that results UNDERFLOW
-                // does not mean writable. we explicitly wait for readable channel to avoid
-                // busy loop.
+                // during initialHandshake, calling readAndUnwrap that results UNDERFLOW does not mean writable.
+                // we explicitly wait for readable channel to avoid busy loop.
                 if (initialHandshake && status == SSLEngineResult.Status.BUFFER_UNDERFLOW) {
                     sel = waitSelect(SelectionKey.OP_READ, blocking, exception);
                     if ( sel instanceof IRubyObject ) return (IRubyObject) sel; // :wait_readable
@@ -589,6 +588,15 @@ public class SSLSocket extends RubyObject {
                 assert !netData.hasRemaining();
                 doWrap(blocking);
                 flushData(blocking);
+                assert status != SSLEngineResult.Status.BUFFER_UNDERFLOW;
+                if (status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                    netData.compact();
+                    netData.flip();
+                    if (handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP || flushData(blocking)) {
+                        sel = waitSelect(SelectionKey.OP_WRITE, blocking, exception);
+                        if ( sel instanceof IRubyObject ) return (IRubyObject) sel; // :wait_writeable
+                    }
+                }
                 break;
             default:
                 throw new IllegalStateException("Unknown handshaking status: " + handshakeStatus);
