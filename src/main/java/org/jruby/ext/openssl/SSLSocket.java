@@ -589,6 +589,7 @@ public class SSLSocket extends RubyObject {
                 assert status != SSLEngineResult.Status.BUFFER_UNDERFLOW;
                 if (status == SSLEngineResult.Status.BUFFER_OVERFLOW) {
                     netWriteData.compact();
+                    netWriteData = Utils.ensureCapacity(netWriteData, engine.getSession().getPacketBufferSize());
                     netWriteData.flip();
                     if (handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP || flushData(blocking)) {
                         sel = waitSelect(SelectionKey.OP_WRITE, blocking, exception);
@@ -602,7 +603,7 @@ public class SSLSocket extends RubyObject {
         }
     }
 
-    private void doWrap(boolean blocking) throws IOException {
+    private void doWrap(final boolean blocking) throws IOException {
         netWriteData.clear();
         SSLEngineResult result = engine.wrap(dummy, netWriteData);
         netWriteData.flip();
@@ -623,6 +624,11 @@ public class SSLSocket extends RubyObject {
         verifyResult = sslContext.getLastVerifyResult();
     }
 
+    /**
+     * @param blocking
+     * @return whether buffer has remaining data
+     * @throws IOException
+     */
     private boolean flushData(boolean blocking) throws IOException {
         try {
             writeToChannel(netWriteData, blocking);

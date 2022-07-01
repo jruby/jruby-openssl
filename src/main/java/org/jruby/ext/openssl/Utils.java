@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashSet;
 
 import org.jruby.*;
@@ -176,8 +177,12 @@ final class Utils {
         return ret;
     }
 
-    static IRubyObject extractKeywordArg(ThreadContext context, String keyword, RubyHash opts) {
-        return opts.op_aref(context, context.runtime.newSymbol(keyword));
+    static ByteBuffer ensureCapacity(final ByteBuffer buffer, final int size) {
+        if (size <= buffer.capacity()) return buffer;
+        buffer.flip();
+        ByteBuffer newBuffer = ByteBuffer.allocate(size);
+        newBuffer.put(buffer);
+        return newBuffer;
     }
 
 }// Utils
