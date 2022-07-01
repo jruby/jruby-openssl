@@ -674,22 +674,33 @@ public class SSLSocket extends RubyObject {
         final boolean blockingMode = channel.isBlocking();
         if ( ! blocking ) channel.configureBlocking(false);
 
+        int written = 0;
         try {
-            if ( netWriteData.hasRemaining() ) {
-                flushData(blocking);
+            while (true) {
+                if (netWriteData.hasRemaining()) flushData(blocking);
+                else if (!src.hasRemaining()) break;
+
+                netWriteData.clear();
+                final SSLEngineResult result = engine.wrap(src, netWriteData);
+                netWriteData.flip();
+
+                switch (result.getStatus()) {
+                    case OK:
+                        written += result.bytesConsumed();
+                        break;
+                    case BUFFER_OVERFLOW:
+                        netWriteData = Utils.ensureCapacity(netWriteData, engine.getSession().getPacketBufferSize());
+                        netWriteData.position(netWriteData.limit());
+                        break;
+                    case CLOSED:
+                        throw getRuntime().newIOError("closed SSL engine"); // EOF?
+                }
             }
-            netWriteData.clear();
-            final SSLEngineResult result = engine.wrap(src, netWriteData);
-            if ( result.getStatus() == SSLEngineResult.Status.CLOSED ) {
-                throw getRuntime().newIOError("closed SSL engine");
-            }
-            netWriteData.flip();
-            flushData(blocking);
-            return result.bytesConsumed();
         }
         finally {
             if ( ! blocking ) channel.configureBlocking(blockingMode);
         }
+        return written;
     }
 
     public int read(final ByteBuffer dst, final boolean blocking) throws IOException {
