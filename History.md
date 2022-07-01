@@ -1,10 +1,17 @@
+## 0.14.1 (CR1)
+
+* [fix] Java's default session timeout in 24h
+* [fix] handle ArgumentError on SSLSession#timeout=
+* [fix] handle potential buffer overflow on write (#242)
+* [fix] buffer overflow after wrap-ing data - wait
+
 ## 0.14.0
 
 This version upgraded to latest Bouncy-Castle (1.71) and is only compatible with 
 the new version mostly due artifact naming and breaking chances in BC itself.
 
-- [deps] upgrade BC to latest 1.71
-- [fix] make set_minmax_proto_version private 
+* [deps] upgrade BC to latest 1.71
+* [fix] make set_minmax_proto_version private 
 
 ## 0.13.0
 
