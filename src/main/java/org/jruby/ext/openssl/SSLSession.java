@@ -154,7 +154,11 @@ public class SSLSession extends RubyObject {
             warn(context, "WARNING: can not set OpenSSL::SSL::Session#timeout=("+ timeout +") no session context");
             return context.nil;
         }
-        sessionContext.setSessionTimeout(RubyNumeric.fix2int(timeout)); // in seconds as well
+        try {
+            sessionContext.setSessionTimeout(RubyNumeric.fix2int(timeout)); // in seconds as well
+        } catch (IllegalArgumentException e) {
+            throw context.runtime.newArgumentError(e.getMessage());
+        }
         return timeout;
     }
 
