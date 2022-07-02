@@ -591,7 +591,7 @@ public class SSLSocket extends RubyObject {
                     netWriteData.compact();
                     netWriteData = Utils.ensureCapacity(netWriteData, engine.getSession().getPacketBufferSize());
                     netWriteData.flip();
-                    if (handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP || flushData(blocking)) {
+                    if (handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
                         sel = waitSelect(SelectionKey.OP_WRITE, blocking, exception);
                         if ( sel instanceof IRubyObject ) return (IRubyObject) sel; // :wait_writeable
                     }
