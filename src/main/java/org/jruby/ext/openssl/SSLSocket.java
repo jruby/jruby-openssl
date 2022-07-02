@@ -674,28 +674,32 @@ public class SSLSocket extends RubyObject {
         final boolean blockingMode = channel.isBlocking();
         if ( ! blocking ) channel.configureBlocking(false);
 
-        int written = 0;
+        boolean loop = false; int written = 0;
         try {
-            while (true) {
-                if (netWriteData.hasRemaining()) flushData(blocking);
-                else if (!src.hasRemaining()) break;
-
+            if (netWriteData.hasRemaining()) flushData(blocking);
+            do {
                 netWriteData.clear();
                 final SSLEngineResult result = engine.wrap(src, netWriteData);
                 netWriteData.flip();
 
                 switch (result.getStatus()) {
                     case OK:
+                        loop = flushData(blocking) && src.hasRemaining();
                         written += result.bytesConsumed();
                         break;
                     case BUFFER_OVERFLOW:
                         netWriteData = Utils.ensureCapacity(netWriteData, engine.getSession().getPacketBufferSize());
                         netWriteData.position(netWriteData.limit());
+                        loop = true; // src.hasRemaining();
+                        if (netWriteData.hasRemaining()) flushData(blocking);
                         break;
                     case CLOSED:
                         throw getRuntime().newIOError("closed SSL engine"); // EOF?
+                    case BUFFER_UNDERFLOW:
+                        debug("SSLSocket.write unexpected BUFFER_UNDERFLOW");
+                        return written;
                 }
-            }
+            } while (loop);
         }
         finally {
             if ( ! blocking ) channel.configureBlocking(blockingMode);
