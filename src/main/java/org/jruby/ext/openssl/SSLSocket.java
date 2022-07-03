@@ -663,17 +663,14 @@ public class SSLSocket extends RubyObject {
             session.putValue(SESSION_SOCKET_ID, getObjectId());
         }
     }
-    
+
+    // NOTE: gets called on negotiation connect/accept - not really on RE-negotiation as intended?!
     private void callRenegotiationCallback(final ThreadContext context) throws RaiseException {
         IRubyObject renegotiationCallback = sslContext.getInstanceVariable("@renegotiation_cb");
-        if(renegotiationCallback == null || renegotiationCallback.isNil()) {
-            return;
-        }
-        else {
-            // the return of the Proc is not important
-            // Can throw ruby exception to "disallow" renegotiations
-            renegotiationCallback.callMethod(context, "call", this);
-        }    
+        if (renegotiationCallback == null || renegotiationCallback.isNil()) return;
+        // the return of the Proc is not important
+        // Can throw ruby exception to "disallow" re-negotiations
+        renegotiationCallback.callMethod(context, "call", this);
     }
 
     public int write(ByteBuffer src, boolean blocking) throws SSLException, IOException {
