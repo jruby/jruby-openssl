@@ -150,6 +150,7 @@ public class SSLSocket extends RubyObject {
     private final ByteBuffer dummy = ByteBuffer.allocate(0); // could be static
 
     private boolean initialHandshake = false;
+    private transient long initializeTime;
 
     private SSLEngineResult.HandshakeStatus handshakeStatus; // != null after hand-shake starts
     private SSLEngineResult.Status status;
@@ -178,6 +179,9 @@ public class SSLSocket extends RubyObject {
         set_sync(context, runtime.getTrue()); // io.sync = true
         setInstanceVariable("@sync_close", runtime.getFalse()); // self.sync_close = false
         sslContext.setup(context);
+
+        this.initializeTime = System.currentTimeMillis();
+
         return Utils.invokeSuper(context, this, args, Block.NULL_BLOCK); // super()
     }
 
@@ -198,6 +202,8 @@ public class SSLSocket extends RubyObject {
         }
         return context.nil;
     }
+
+    private static final String SESSION_SOCKET_ID = "socket_id";
 
     private SSLEngine ossl_ssl_setup(final ThreadContext context, final boolean server) {
         SSLEngine engine = this.engine;
@@ -651,6 +657,11 @@ public class SSLSocket extends RubyObject {
 
     private void finishInitialHandshake() {
         initialHandshake = false;
+
+        final javax.net.ssl.SSLSession session = engine.getSession();
+        if (session.getValue(SESSION_SOCKET_ID) != null) {
+            session.putValue(SESSION_SOCKET_ID, getObjectId());
+        }
     }
     
     private void callRenegotiationCallback(final ThreadContext context) throws RaiseException {
@@ -1137,7 +1148,7 @@ public class SSLSocket extends RubyObject {
         if ( engine != null ) {
             final String peerHost = engine.getPeerHost();
             if ( peerHost != null && peerHost.length() > 0 ) {
-                // NOT getSSLContext().createSSLEngine() - no hints for session reuse
+                // getSSLContext().createSSLEngine() - no hints for session reuse
                 return true;
             }
         }
@@ -1146,14 +1157,23 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod(name = "session_reused?")
     public IRubyObject session_reused_p() {
-        if ( reusableSSLEngine() ) {
-            if ( ! engine.getEnableSessionCreation() ) {
+        if (reusableSSLEngine()) {
+            if (!engine.getEnableSessionCreation()) {
                 // if session creation is disabled we can be sure its to be re-used
                 return getRuntime().getTrue();
             }
-            //return getRuntime().getFalse(); // NOTE: likely incorrect (we can not decide)
+            // return getRuntime().getFalse(); // incorrect (we can not decide)
         }
-        //warn(getRuntime().getCurrentContext(), "WARNING: SSLSocket#session_reused? is not supported");
+        javax.net.ssl.SSLSession session = sslSession();
+        if (!isNullSession(session)) {
+            if (session.getCreationTime() < this.initializeTime) {
+                return getRuntime().getTrue();
+            }
+            Object socketId = session.getValue(SESSION_SOCKET_ID);
+            if (socketId != null && ((Long) socketId).longValue() != getObjectId()) {
+                return getRuntime().getTrue();
+            }
+        }
         return getRuntime().getNil(); // can not decide - probably not
     }
 
@@ -1161,6 +1181,10 @@ public class SSLSocket extends RubyObject {
 
     final javax.net.ssl.SSLSession sslSession() {
         return engine == null ? null : engine.getSession();
+    }
+
+    static boolean isNullSession(final javax.net.ssl.SSLSession session) {
+        return session == null || "SSL_NULL_WITH_NULL_NULL".equals(session.getCipherSuite());
     }
 
     private transient SSLSession session;
