@@ -1,9 +1,10 @@
-## 0.14.1 (CR1)
+## 0.14.1 (CR2)
 
 * [fix] Java's default session timeout in 24h
 * [fix] handle ArgumentError on SSLSession#timeout=
 * [fix] handle potential buffer overflow on write (#242)
 * [fix] buffer overflow after wrap-ing data - wait
+* [refactor] try a few tricks to detect session re-use
 
 ## 0.14.0
 
