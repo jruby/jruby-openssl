@@ -340,7 +340,7 @@ public class PEMInputOutput {
             }
             else if ( line.indexOf(BEG_STRING_ECPRIVATEKEY) != -1) {
                 try {
-                    return readKeyPair(reader, passwd, "ECDSA", BEF_E + PEM_STRING_ECPRIVATEKEY);
+                    return readKeyPair(reader, passwd, "EC", BEF_E + PEM_STRING_ECPRIVATEKEY);
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating DSA private key: ", e);
@@ -349,9 +349,10 @@ public class PEMInputOutput {
             else if ( line.indexOf(BEG_STRING_PKCS8INF) != -1) {
                 try {
                     byte[] bytes = readBase64Bytes(reader, BEF_E + PEM_STRING_PKCS8INF);
-                    PrivateKeyInfo info = PrivateKeyInfo.getInstance(bytes);
-                    String type = getPrivateKeyTypeFromObjectId(info.getPrivateKeyAlgorithm().getAlgorithm());
-                    return org.jruby.ext.openssl.impl.PKey.readPrivateKey(((ASN1Object) info.parsePrivateKey()).getEncoded(ASN1Encoding.DER), type);
+                    PrivateKeyInfo pInfo = PrivateKeyInfo.getInstance(bytes);
+                    KeyFactory keyFactory = getKeyFactory( pInfo.getPrivateKeyAlgorithm() );
+                    PrivateKey pKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(pInfo.getEncoded()));
+                    return new KeyPair(null, pKey);
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating private key: ", e);
@@ -605,7 +606,7 @@ public class PEMInputOutput {
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_EC_PUBLIC) != -1 ) {
                 try {
-                    return (ECPublicKey) readPublicKey(reader, "ECDSA", BEF_E + "EC PUBLIC KEY");
+                    return (ECPublicKey) readPublicKey(reader, "EC", BEF_E + "EC PUBLIC KEY");
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating ECDSA public key: ", e);
@@ -621,7 +622,7 @@ public class PEMInputOutput {
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_PUBLIC) != -1 ) {
                 try {
-                    return (ECPublicKey) readPublicKey(reader, "ECDSA", BEF_E + PEM_STRING_PUBLIC);
+                    return (ECPublicKey) readPublicKey(reader, "EC", BEF_E + PEM_STRING_PUBLIC);
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating ECDSA public key: ", e);
@@ -638,7 +639,7 @@ public class PEMInputOutput {
         while ( ( line = reader.readLine() ) != null ) {
             if ( line.indexOf(BEG_STRING_EC) != -1 ) {
                 try {
-                    return readKeyPair(reader, passwd, "ECDSA", BEF_E + "EC PRIVATE KEY");
+                    return readKeyPair(reader, passwd, "EC", BEF_E + "EC PRIVATE KEY");
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating ECDSA private key: ", e);
@@ -1171,6 +1172,8 @@ public class PEMInputOutput {
     private static String getPrivateKeyTypeFromObjectId(ASN1ObjectIdentifier oid) {
         if ( ASN1Registry.oid2nid(oid) == ASN1Registry.NID_rsaEncryption ) {
             return "RSA";
+        } else if ( ASN1Registry.oid2nid(oid) == ASN1Registry.NID_X9_62_id_ecPublicKey ) {
+            return "EC";
         } else {
             return "DSA";
         }
@@ -1226,7 +1229,7 @@ public class PEMInputOutput {
 
     private static PublicKey readPublicKey(BufferedReader in, String endMarker) throws IOException {
         byte[] input = readBase64Bytes(in, endMarker);
-        String[] algs = { "RSA", "DSA", "ECDSA" };
+        String[] algs = { "RSA", "DSA", "EC" };
         for (int i = 0; i < algs.length; i++) {
             PublicKey key = readPublicKey(input, algs[i], endMarker);
             if (key != null) {
@@ -1488,7 +1491,7 @@ public class PEMInputOutput {
 
         String algorithm = null;
         if ( X9ObjectIdentifiers.id_ecPublicKey.equals(algIdentifier) ) {
-            algorithm = "ECDSA";
+            algorithm = "EC";
         }
         else if ( PKCSObjectIdentifiers.rsaEncryption.equals(algIdentifier) ) {
             algorithm = "RSA";

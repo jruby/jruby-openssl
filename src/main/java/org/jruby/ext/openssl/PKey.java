@@ -129,7 +129,7 @@ public abstract class PKey extends RubyObject {
                             (DSAPrivateKey) keyPair.getPrivate(), (DSAPublicKey) keyPair.getPublic()
                     );
                 }
-                if ( "ECDSA".equals(alg) ) {
+                if ( "EC".equals(alg) ) {
                     return new PKeyEC(runtime, _PKey(runtime).getClass("EC"),
                             (PrivateKey) keyPair.getPrivate(), (PublicKey) keyPair.getPublic()
                     );
@@ -165,7 +165,7 @@ public abstract class PKey extends RubyObject {
                 if ( "DSA".equals(pubKey.getAlgorithm()) ) {
                     return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
                 }
-                if ( "ECDSA".equals(pubKey.getAlgorithm()) ) {
+                if ( "EC".equals(pubKey.getAlgorithm()) ) {
                     return new PKeyEC(runtime, pubKey);
                 }
             }

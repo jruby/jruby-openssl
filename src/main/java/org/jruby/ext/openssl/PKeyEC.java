@@ -220,7 +220,7 @@ public final class PKeyEC extends PKey {
     public PrivateKey getPrivateKey() { return privateKey; }
 
     @Override
-    public String getAlgorithm() { return "ECDSA"; }
+    public String getAlgorithm() { return "EC"; }
 
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args, Block block) {
@@ -254,13 +254,13 @@ public final class PKeyEC extends PKey {
         Object key = null;
         final KeyFactory ecdsaFactory;
         try {
-            ecdsaFactory = SecurityHelper.getKeyFactory("ECDSA");
+            ecdsaFactory = SecurityHelper.getKeyFactory("EC");
         }
         catch (NoSuchAlgorithmException e) {
-            throw runtime.newRuntimeError("unsupported key algorithm (ECDSA)");
+            throw runtime.newRuntimeError("unsupported key algorithm (EC)");
         }
         catch (RuntimeException e) {
-            throw runtime.newRuntimeError("unsupported key algorithm (ECDSA) " + e);
+            throw runtime.newRuntimeError("unsupported key algorithm (EC) " + e);
         }
         // TODO: ugly NoClassDefFoundError catching for no BC env. How can we remove this?
         boolean noClassDef = false;
@@ -380,7 +380,7 @@ public final class PKeyEC extends PKey {
         // final ECDomainParameters params = getDomainParameters();
         try {
             ECGenParameterSpec genSpec = new ECGenParameterSpec(getCurveName());
-            KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("ECDSA"); // "BC"
+            KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("EC"); // "BC"
             gen.initialize(genSpec, new SecureRandom());
             KeyPair pair = gen.generateKeyPair();
             this.publicKey = (ECPublicKey) pair.getPublic();
@@ -517,7 +517,7 @@ public final class PKeyEC extends PKey {
         final Point point = (Point) arg;
         ECPublicKeySpec keySpec = new ECPublicKeySpec(point.asECPoint(), getParamSpec());
         try {
-            this.publicKey = (ECPublicKey) SecurityHelper.getKeyFactory("ECDSA").generatePublic(keySpec);
+            this.publicKey = (ECPublicKey) SecurityHelper.getKeyFactory("EC").generatePublic(keySpec);
             return arg;
         }
         catch (GeneralSecurityException ex) {
@@ -555,7 +555,7 @@ public final class PKeyEC extends PKey {
         }
         ECPrivateKeySpec keySpec = new ECPrivateKeySpec(s, getParamSpec());
         try {
-            this.privateKey = SecurityHelper.getKeyFactory("ECDSA").generatePrivate(keySpec);
+            this.privateKey = SecurityHelper.getKeyFactory("EC").generatePrivate(keySpec);
             return arg;
         }
         catch (GeneralSecurityException ex) {
