@@ -994,12 +994,12 @@ public class SSLContext extends RubyObject {
 
             if ( pKey != null && xCert != null ) {
                 this.privateKey = pKey.getPrivateKey();
-                this.keyAlgorithm = pKey.getAlgorithm();
+                this.keyType = pKey.getKeyType();
                 this.cert = xCert.getAuxCert();
             }
             else {
                 this.privateKey = null;
-                this.keyAlgorithm = null;
+                this.keyType = null;
                 this.cert = null;
             }
 
@@ -1047,7 +1047,7 @@ public class SSLContext extends RubyObject {
 
         final Store store;
         final X509AuxCertificate cert;
-        final String keyAlgorithm;
+        final String keyType;
         final PrivateKey privateKey;
 
         final int verifyMode;
@@ -1098,7 +1098,7 @@ public class SSLContext extends RubyObject {
             if (internalContext.privateKey == null) return null;
 
             for (int i = 0; i < keyType.length; i++) {
-                if (keyType[i].equalsIgnoreCase(internalContext.keyAlgorithm)) {
+                if (keyType[i].equalsIgnoreCase(internalContext.keyType)) {
                     return keyType[i];
                 }
             }
@@ -1109,7 +1109,7 @@ public class SSLContext extends RubyObject {
         public String chooseEngineServerAlias(String keyType, java.security.Principal[] issuers, javax.net.ssl.SSLEngine engine) {
             if (internalContext.privateKey == null) return null;
 
-            if (keyType.equalsIgnoreCase(internalContext.keyAlgorithm)) {
+            if (keyType.equalsIgnoreCase(internalContext.keyType)) {
                 return keyType;
             }
             return null;

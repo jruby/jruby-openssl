@@ -220,7 +220,10 @@ public final class PKeyEC extends PKey {
     public PrivateKey getPrivateKey() { return privateKey; }
 
     @Override
-    public String getAlgorithm() { return "EC"; }
+    public String getAlgorithm() { return "ECDSA"; }
+
+    @Override
+    public String getKeyType() { return "EC"; }
 
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args, Block block) {

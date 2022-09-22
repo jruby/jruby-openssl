@@ -197,6 +197,8 @@ public abstract class PKey extends RubyObject {
 
     public String getAlgorithm() { return "NONE"; }
 
+    public String getKeyType() { return getAlgorithm(); }
+
     public boolean isPrivateKey() { return getPrivateKey() != null; }
 
     public abstract RubyString to_der() ;
