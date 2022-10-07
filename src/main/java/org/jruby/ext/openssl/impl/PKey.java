@@ -113,7 +113,7 @@ public class PKey {
             privSpec = new DSAPrivateKeySpec(x.getValue(), p.getValue(), q.getValue(), g.getValue());
             pubSpec = new DSAPublicKeySpec(y.getValue(), p.getValue(), q.getValue(), g.getValue());
         }
-        else if ( type.equals("ECDSA") ) {
+        else if ( type.equals("EC") ) {
             return readECPrivateKey(input);
         }
         else {
@@ -278,7 +278,7 @@ public class PKey {
 
     public static KeyPair readECPrivateKey(final byte[] input)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        return readECPrivateKey(SecurityHelper.getKeyFactory("ECDSA"), input);
+        return readECPrivateKey(SecurityHelper.getKeyFactory("EC"), input);
     }
 
     public static KeyPair readECPrivateKey(final KeyFactory ecFactory, final byte[] input)
@@ -290,7 +290,7 @@ public class PKey {
             SubjectPublicKeyInfo  pubInfo = new SubjectPublicKeyInfo(algId, pKey.getPublicKey().getBytes());
             PKCS8EncodedKeySpec   privSpec = new PKCS8EncodedKeySpec(privInfo.getEncoded());
             X509EncodedKeySpec    pubSpec = new X509EncodedKeySpec(pubInfo.getEncoded());
-            //KeyFactory            fact = KeyFactory.getInstance("ECDSA", provider);
+            //KeyFactory            fact = KeyFactory.getInstance("EC", provider);
 
             ECPrivateKey privateKey = (ECPrivateKey) ecFactory.generatePrivate(privSpec);
             if ( algId.getParameters() instanceof ASN1ObjectIdentifier ) {
@@ -383,5 +383,3 @@ public class PKey {
         return new DLSequence(vec).getEncoded();
     }
 }
-
-

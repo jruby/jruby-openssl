@@ -51,6 +51,14 @@ class TestEC < TestCase
     #puts signature.inspect
   end
 
+  def test_read_pkcs8_with_ec
+    key_file = File.join(File.dirname(__FILE__), 'private_key_pkcs8.pem')
+
+    key = OpenSSL::PKey::read(File.read(key_file))
+    assert_equal '37273549501637553234010607973347901861080883009977847480473501706546896416762', key.private_key.to_s
+    assert_empty key.public_key.to_s
+  end
+
   def test_point
     group = OpenSSL::PKey::EC::Group.new('prime256v1')
     client_public_key_bn = OpenSSL::BN.new('58089019511196532477248433747314139754458690644712400444716868601190212265537817278966641566813745621284958192417192818318052462970895792919572995957754854')
