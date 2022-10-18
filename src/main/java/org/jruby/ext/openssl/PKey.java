@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import java.io.ByteArrayInputStream;
+import java.io.Console;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
@@ -406,6 +407,12 @@ public abstract class PKey extends RubyObject {
     }
 
     protected static char[] passwordPrompt(final ThreadContext context, final String prompt) {
+        Console console = System.console();
+        if (console != null) {
+            return console.readPassword(prompt);
+        }
+
+        // fall back on simple IO, but may be broken (jruby/jruby#5588)
         final RubyModule Kernel = context.runtime.getKernel();
         // NOTE: just a fast and simple print && gets - hopefully better than nothing!
         Kernel.callMethod("print", context.runtime.newString(prompt));
