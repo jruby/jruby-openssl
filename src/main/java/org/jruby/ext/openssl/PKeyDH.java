@@ -202,9 +202,6 @@ public class PKeyDH extends PKey {
         BigInteger x;
         SecureRandom secureRandom = new SecureRandom();
         // adapting algorithm from org.bouncycastle.crypto.generators.DHKeyGeneratorHelper,
-        // which seems a little stronger (?) than OpenSSL's (OSSL just generates a random,
-        // while BC generates a random potential prime [for limit > 0], though it's not
-        // subject to Miller-Rabin [certainty = 0], but is subject to other constraints)
         // see also [ossl]/crypto/dh/dh_key.c #generate_key
         if (limit == 0) {
             final BigInteger pSub2 = p.subtract(TWO);
@@ -213,8 +210,7 @@ public class PKeyDH extends PKey {
             } while (x.equals(BigInteger.ZERO));
         } else {
             do {
-                // generate potential prime, though with 0 certainty (no Miller-Rabin tests)
-                x = new BigInteger(limit, 0, secureRandom);
+                x = new BigInteger(limit, secureRandom);
             } while (x.equals(BigInteger.ZERO));
         }
         return x;
