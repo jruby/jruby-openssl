@@ -512,7 +512,7 @@ public class X509Cert extends RubyObject {
     @JRubyMethod
     public IRubyObject public_key(final ThreadContext context) {
         if ( public_key == null ) initializePublicKey();
-        return public_key.callMethod(context, "public_key");
+        return public_key;
     }
 
     @JRubyMethod(name = "public_key=")
@@ -555,6 +555,9 @@ public class X509Cert extends RubyObject {
             //    throw new IllegalStateException("no public key encoded data");
             //}
             set_public_key( PKeyDSA.newInstance(runtime, publicKey) );
+        }
+        else if ( "EC".equalsIgnoreCase(algorithm) ) {
+            set_public_key( PKeyEC.newInstance(runtime, publicKey) );
         }
         else {
             String message = "unsupported algorithm";
