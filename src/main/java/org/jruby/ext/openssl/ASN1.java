@@ -1046,17 +1046,30 @@ public class ASN1 {
 
         if (obj instanceof ASN1TaggedObject) {
             final ASN1TaggedObject taggedObj = (ASN1TaggedObject) obj;
+            final IRubyObject tag = runtime.newFixnum(taggedObj.getTagNo());
+            final IRubyObject tag_class;
+            switch (taggedObj.getTagClass()) {
+                case BERTags.PRIVATE:
+                    tag_class = runtime.newSymbol("PRIVATE");
+                    break;
+                case BERTags.APPLICATION:
+                    tag_class = runtime.newSymbol("APPLICATION");
+                    break;
+                case BERTags.CONTEXT_SPECIFIC:
+                    tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
+                    break;
+                default:
+                    tag_class = runtime.newSymbol("UNIVERSAL");
+                    break;
+            }
+
             if (taggedObj.getTagClass() == BERTags.APPLICATION) {
-                IRubyObject tag = runtime.newFixnum( taggedObj.getTagNo() );
-                IRubyObject tag_class = runtime.newSymbol("APPLICATION");
                 final ASN1Sequence sequence = (ASN1Sequence) taggedObj.getBaseUniversal(false, SEQUENCE);
                 @SuppressWarnings("unchecked")
                 final RubyArray valArr = decodeObjects(context, ASN1, sequence.getObjects());
                 return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
             } else {
                 IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject());
-                IRubyObject tag = runtime.newFixnum( taggedObj.getTagNo() );
-                IRubyObject tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
                 final RubyArray valArr = runtime.newArray(val);
                 return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
             }
@@ -1351,11 +1364,14 @@ public class ASN1 {
         int getTagClass(final ThreadContext context) {
             IRubyObject tag_class = getInstanceVariable("@tag_class");
             if (tag_class instanceof RubySymbol) {
-                if ("APPLICATION".equals(tag_class.toString())) {
-                    return BERTags.APPLICATION;
-                }
-                if ("CONTEXT_SPECIFIC".equals(tag_class.toString())) {
-                    return BERTags.CONTEXT_SPECIFIC;
+                switch (((RubySymbol) tag_class).asJavaString()) {
+                    case "PRIVATE":
+                        return BERTags.PRIVATE;
+                    case "APPLICATION":
+                        return BERTags.APPLICATION;
+                    case "CONTEXT_SPECIFIC":
+                        return BERTags.CONTEXT_SPECIFIC;
+                    default: // fallback to BERTags.UNIVERSAL
                 }
             }
             return BERTags.UNIVERSAL; // 0
@@ -1367,6 +1383,7 @@ public class ASN1 {
 
         final ASN1TaggedObject toASN1TaggedObject(final ThreadContext context) {
             final int tag = getTag(context);
+            final int tagClass = getTagClass(context);
 
             final IRubyObject value = callMethod(context, "value");
             if (value instanceof RubyArray) {
@@ -1385,7 +1402,7 @@ public class ASN1 {
             if (!(value instanceof ASN1Data)) {
                 throw new UnsupportedOperationException("toASN1 " + inspect() + " value: " + value.inspect() + " (" + value.getMetaClass() + ")");
             }
-            return new DERTaggedObject(isExplicitTagging(), tag, ((ASN1Data) value).toASN1(context));
+            return new DERTaggedObject(isExplicitTagging(), tagClass, tag, ((ASN1Data) value).toASN1(context));
         }
 
         @JRubyMethod
