@@ -508,4 +508,22 @@ HMUfpIBvFSDJ3gyICh3WZlXi/EjJKSZp4A==
 EOF
     assert_equal '5ad8a5d6', cert.subject.hash.to_s(16)
   end
+
+  def test_ec_public_key
+    cert_string = File.read(File.expand_path('ec.crt', File.dirname(__FILE__)))
+    cert = OpenSSL::X509::Certificate.new(cert_string)
+    assert_same OpenSSL::PKey::EC, cert.public_key.class
+  end
+
+  def test_rsa_public_key
+    cert_string = File.read(File.expand_path('rsa.crt', File.dirname(__FILE__)))
+    cert = OpenSSL::X509::Certificate.new(cert_string)
+    assert_same OpenSSL::PKey::RSA, cert.public_key.class
+  end
+
+  def test_dsa_public_key
+    cert_string = File.read(File.expand_path('dsa.crt', File.dirname(__FILE__)))
+    cert = OpenSSL::X509::Certificate.new(cert_string)
+    assert_same OpenSSL::PKey::DSA, cert.public_key.class
+  end
 end
