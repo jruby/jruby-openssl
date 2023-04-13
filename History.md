@@ -1,6 +1,9 @@
-## 0.14.1 (DEV)
+## 0.14.1
 
-* Revert "[fix] handle potential buffer overflow on write" (#242)
+* [refactor] improve performance of Diffie-Hellman key exchange (#272)
+* Try to use JDK console to prompt for pass (#270)
+* [fix] for PKCS8 EC private key support (#267)
+* ~~"[fix] handle potential buffer overflow on write" (#242)~~
 
 ## 0.14.1 (CR2)
 
