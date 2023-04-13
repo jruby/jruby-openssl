@@ -330,11 +330,12 @@ EOF
     cert = OpenSSL::X509::Certificate.new File.read(crt)
 
     p cert if $VERBOSE
+    key_id = '8D:7C:C3:13:84:30:96:E4:06:A0:2B:7B:7A:6B:0F:CE:C5:03:D3:E5'
 
     assert cert.to_text.index('X509v3 Authority Key Identifier:')
-    assert cert.to_text.match /X509v3 Authority Key Identifier:\s*keyid:B6:24:8F:53:D1:24:66:F2:1D:EA:4F:37:2B:F0:3A:3A:78:BA:5D:45/m
+    assert cert.to_text.match /X509v3 Authority Key Identifier:\s*?keyid:#{key_id}/m
     assert cert.to_text.index('X509v3 Subject Key Identifier:')
-    assert cert.to_text.match /X509v3 Subject Key Identifier:\s*B6:24:8F:53:D1:24:66:F2:1D:EA:4F:37:2B:F0:3A:3A:78:BA:5D:45/m
+    assert cert.to_text.match /X509v3 Subject Key Identifier:\s*?#{key_id}/m
   end
 
   def test_to_text_npe_regression

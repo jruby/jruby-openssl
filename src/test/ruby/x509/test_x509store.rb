@@ -43,7 +43,7 @@ class TestX509Store < TestCase
     assert ! store.verify(@cert)
     store.set_default_paths
 
-    puts @cert.inspect if $VERBOSE
+    #puts @cert.inspect if $VERBOSE
     #puts @cert.to_java java.security.cert.X509Certificate
 
     verified = store.verify(@cert)

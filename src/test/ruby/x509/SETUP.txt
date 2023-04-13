@@ -5,6 +5,17 @@ $ /usr/lib/ssl/misc/CA.sh -newreq
 $ /usr/lib/ssl/misc/CA.sh -sign
 Signed certificate is in newcert.pem
 
-$ keytool -import -file demoCA/cacert.pem -alias demoCA -keystore javastore.ts -storepass javastore
+$ keytool -importcert --file demoCA/cacert.pem -alias demoCA -keystore javastore.ts -storetype jks
 Trust this certificate? [no]:  y
 Certificate was added to keystore
+
+$ keytool -list -keystore javastore.ts
+Enter keystore password:  ...
+
+Keystore type: JKS
+Keystore provider: SUN
+
+Your keystore contains 1 entry
+
+democa, Apr 13, 2023, trustedCertEntry,
+Certificate fingerprint (SHA-256): ...
