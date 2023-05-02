@@ -57,6 +57,7 @@ import java.security.cert.CertificateFactorySpi;
 import java.security.cert.X509CRL;
 import java.security.interfaces.DSAParams;
 import java.security.interfaces.DSAPublicKey;
+import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Locale;
 import java.util.Map;
@@ -85,11 +86,13 @@ import org.bouncycastle.crypto.params.DSAParameters;
 import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.jce.provider.X509CRLObject;
+import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.OperatorException;
 import org.bouncycastle.operator.bc.BcDSAContentVerifierProviderBuilder;
+import org.bouncycastle.operator.bc.BcECContentVerifierProviderBuilder;
 import org.bouncycastle.operator.bc.BcRSAContentVerifierProviderBuilder;
 import org.jruby.util.SafePropertyAccessor;
 
@@ -609,6 +612,10 @@ public abstract class SecurityHelper {
                     DSAParameters parameters = new DSAParameters(params.getP(), params.getQ(), params.getG());
                     AsymmetricKeyParameter dsaKey = new DSAPublicKeyParameters(y, parameters);
                     verifierProvider = new BcDSAContentVerifierProviderBuilder(digestAlgFinder).build(dsaKey);
+                }
+                else if ( "EC".equalsIgnoreCase( publicKey.getAlgorithm() )) {
+                    AsymmetricKeyParameter ecKey = ECUtil.generatePublicKeyParameter(publicKey);
+                    verifierProvider = new BcECContentVerifierProviderBuilder(digestAlgFinder).build(ecKey);
                 }
                 else {
                     BigInteger mod = ((RSAPublicKey) publicKey).getModulus();
