@@ -170,6 +170,12 @@ EOF
     assert_same crl.to_java, crl.to_java(java.security.cert.X509CRL)
   end
 
+  def test_verify_crl_signature
+    crl = OpenSSL::X509::CRL.new(File.read(File.expand_path('../ec-ca.crl', __FILE__)))
+    ca = OpenSSL::X509::Certificate.new(File.read(File.expand_path('../ec-ca.crt', __FILE__)))
+    assert crl.verify(ca.public_key)
+  end
+
   private
 
   def get_subject_key_id(cert)
