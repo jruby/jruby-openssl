@@ -1,3 +1,7 @@
+## 0.14.2
+
+* [deps] upgrade BC to latest 1.74
+
 ## 0.14.1
 
 * [refactor] improve performance of Diffie-Hellman key exchange (#272)
