@@ -1,6 +1,6 @@
 ## 0.14.2
 
-* [deps] upgrade BC to latest 1.74
+* [deps] upgrade BC to latest 1.75
 
 ## 0.14.1
 
