@@ -1,6 +1,8 @@
 ## 0.14.2
 
 * [deps] upgrade BC to latest 1.74
+* [fix] for CRL verify when signed with EC key (#276)
+* [fix] OpenSSL::X509::Certificate#public_key raises for EC keys (#273)
 
 ## 0.14.1
 
