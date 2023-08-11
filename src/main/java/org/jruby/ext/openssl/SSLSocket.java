@@ -161,13 +161,16 @@ public class SSLSocket extends RubyObject {
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
 
-        if ( Arity.checkArgumentCount(runtime, args, 1, 2) == 1 ) {
+        if (Arity.checkArgumentCount(runtime, args, 1, 2) == 1) {
             sslContext = new SSLContext(runtime).initializeImpl();
         } else {
+            if (!(args[1] instanceof SSLContext)) {
+                throw runtime.newTypeError(args[1], "OpenSSL::SSL::SSLContext");
+            }
             sslContext = (SSLContext) args[1];
         }
 
-        if ( ! ( args[0] instanceof RubyIO ) ) {
+        if (!(args[0] instanceof RubyIO)) {
             throw runtime.newTypeError("IO expected but got " + args[0].getMetaClass().getName());
         }
         setInstanceVariable("@context", this.sslContext); // only compat (we do not use @context)
