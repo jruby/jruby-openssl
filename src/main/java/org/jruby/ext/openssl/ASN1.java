@@ -1931,19 +1931,17 @@ public class ASN1 {
         private ASN1EncodableVector toASN1EncodableVector(final ThreadContext context) {
             final ASN1EncodableVector vec = new ASN1EncodableVector();
             final IRubyObject value = value(context);
-            if ( value instanceof RubyArray ) {
-                final RubyArray val = (RubyArray) value;
-                for ( int i = 0; i < val.size(); i++ ) {
-                    if ( addEntry(context, vec, val.entry(i)) ) break;
+            final RubyArray val;
+            if (value instanceof RubyArray ) {
+                val = (RubyArray) value;
+            } else {
+                if (!value.respondsTo("to_a")) {
+                    throw context.runtime.newTypeError("can't convert " + value.getMetaClass().getName() + " into Array");
                 }
+                val = (RubyArray) value.callMethod(context, "to_a");
             }
-            else {
-                final int size = RubyInteger.num2int(value.callMethod(context, "size"));
-                for ( int i = 0; i < size; i++ ) {
-                    final RubyInteger idx = context.runtime.newFixnum(i);
-                    IRubyObject entry = value.callMethod(context, "[]", idx);
-                    if ( addEntry(context, vec, entry) ) break;
-                }
+            for ( int i = 0; i < val.size(); i++ ) {
+                if ( addEntry(context, vec, val.entry(i)) ) break;
             }
             return vec;
         }

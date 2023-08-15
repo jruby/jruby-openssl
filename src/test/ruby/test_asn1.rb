@@ -26,11 +26,6 @@ class TestASN1 < TestCase
 
     assert_raise(TypeError) { OpenSSL::ASN1::Integer.new(nil).to_der }
     assert_raise(TypeError) { OpenSSL::ASN1::Boolean.new(nil).to_der }
-
-    # NOTE: MRI does not raise
-    assert_raise(NoMethodError) { OpenSSL::ASN1::Set.new(nil).to_der }
-    # NOTE: MRI does not raise
-    assert_raise(NoMethodError) { OpenSSL::ASN1::Sequence.new(nil).to_der }
   end
 
   def test_instantiate
@@ -165,6 +160,14 @@ class TestASN1 < TestCase
 
     expected = "0B1@0\x11\x06\n\t\x92&\x89\x93\xF2,d\x01\x19\x16\x03org1+0\x16\x06\n\t\x92&\x89\x93\xF2,d\x01\x19\x16\bthe-borg1\x110\x0F\x06\x03U\x04\x03\f\bQueen_42"
     assert_equal expected, name.to_der
+  end
+
+  def test_sequence_convert_to_array
+    data_sequence = ::OpenSSL::ASN1::Sequence([::OpenSSL::ASN1::Integer(0)])
+    asn1 = ::OpenSSL::ASN1::Sequence(data_sequence)
+    assert_equal "0\x03\x02\x01\x00" , asn1.to_der
+
+    assert_raise(TypeError) { ::OpenSSL::ASN1::Sequence(::OpenSSL::ASN1::Integer(0)).to_der }
   end
 
   def test_raw_constructive
