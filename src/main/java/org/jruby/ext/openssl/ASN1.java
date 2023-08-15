@@ -1935,6 +1935,10 @@ public class ASN1 {
                     if ( addEntry(context, vec, val.entry(i)) ) break;
                 }
             }
+            else if (respondsTo("to_der")) {
+                IRubyObject entry = value.callMethod(context, "to_der");
+                addEntry(context, vec, entry);
+            }
             else {
                 final int size = RubyInteger.num2int(value.callMethod(context, "size"));
                 for ( int i = 0; i < size; i++ ) {
