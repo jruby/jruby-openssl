@@ -1697,13 +1697,13 @@ public class ASN1 {
             }
 
             if ( type == DERGeneralString.class ) {
-                return new DERGeneralString( val.asString().toString() );
+                return ASN1GeneralString.getInstance( val.asString().getBytes() );
             }
             if ( type == DERVisibleString.class ) {
-                return new DERVisibleString( val.asString().toString() );
+                return ASN1VisibleString.getInstance( val.asString().getBytes() );
             }
             if ( type == DERNumericString.class ) {
-                return new DERNumericString( val.asString().toString() );
+                return ASN1NumericString.getInstance( val.asString().getBytes() );
             }
 
             if ( val instanceof RubyString ) {
