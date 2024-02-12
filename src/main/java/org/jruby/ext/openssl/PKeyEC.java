@@ -21,6 +21,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 import java.security.SecureRandom;
+import java.security.SignatureException;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
@@ -69,11 +70,11 @@ import org.jruby.runtime.component.VariableEntry;
 import org.jruby.ext.openssl.impl.CipherSpec;
 import static org.jruby.ext.openssl.OpenSSL.debug;
 import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
-import static org.jruby.ext.openssl.PKey._PKey;
 import org.jruby.ext.openssl.impl.ECPrivateKeyWithName;
 import static org.jruby.ext.openssl.impl.PKey.readECPrivateKey;
 import org.jruby.ext.openssl.util.ByteArrayOutputStream;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
+import org.jruby.util.ByteList;
 
 /**
  * OpenSSL::PKey::EC implementation.
@@ -200,8 +201,12 @@ public final class PKeyEC extends PKey {
 
     PKeyEC(Ruby runtime, RubyClass type, PrivateKey privKey, PublicKey pubKey) {
         super(runtime, type);
-        this.privateKey = privKey;
         this.publicKey = (ECPublicKey) pubKey;
+        if (privKey instanceof ECPrivateKey) {
+            setPrivateKey((ECPrivateKey) privKey);
+        } else {
+            this.privateKey = privKey;
+        }
     }
 
     private transient Group group;
@@ -213,9 +218,10 @@ public final class PKeyEC extends PKey {
 
     private String getCurveName() { return curveName; }
 
-//    private ECNamedCurveParameterSpec getParameterSpec() {
-//        return ECNamedCurveTable.getParameterSpec( getCurveName() );
-//    }
+    private ECNamedCurveParameterSpec getParameterSpec() {
+        assert curveName != null;
+        return ECNamedCurveTable.getParameterSpec(getCurveName());
+    }
 
     @Override
     public PublicKey getPublicKey() { return publicKey; }
@@ -342,12 +348,10 @@ public final class PKeyEC extends PKey {
                 throw newECError(runtime, "Neither PUB key nor PRIV key: (invalid key type " + privKey.getClass().getName() + ")");
             }
             this.publicKey = (ECPublicKey) pubKey;
-            this.privateKey = (ECPrivateKey) privKey;
-            unwrapPrivateKeyWithName();
+            setPrivateKey((ECPrivateKey) privKey);
         }
         else if ( key instanceof ECPrivateKey ) {
-            this.privateKey = (ECPrivateKey) key;
-            unwrapPrivateKeyWithName();
+            setPrivateKey((ECPrivateKey) key);
         }
         else if ( key instanceof ECPublicKey ) {
             this.publicKey = (ECPublicKey) key; this.privateKey = null;
@@ -359,9 +363,13 @@ public final class PKeyEC extends PKey {
         if ( publicKey != null ) {
             publicKey.getParams().getCurve();
         }
-        // TODO set curveName ?!?!?!?!?!?!?!
 
         return this;
+    }
+
+    void setPrivateKey(final ECPrivateKey key) {
+        this.privateKey = key;
+        unwrapPrivateKeyWithName();
     }
 
     private void unwrapPrivateKeyWithName() {
@@ -402,7 +410,7 @@ public final class PKeyEC extends PKey {
     @JRubyMethod(name = "dsa_sign_asn1")
     public IRubyObject dsa_sign_asn1(final ThreadContext context, final IRubyObject data) {
         try {
-            ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec(getCurveName());
+            ECNamedCurveParameterSpec params = getParameterSpec();
             ASN1ObjectIdentifier oid = getCurveOID(getCurveName());
             ECNamedDomainParameters domainParams = new ECNamedDomainParameters(oid,
                 params.getCurve(), params.getG(), params.getN(), params.getH(), params.getSeed()
@@ -442,10 +450,10 @@ public final class PKeyEC extends PKey {
             return StringHelper.newString(context.runtime, bytes.buffer(), bytes.size());
         }
         catch (IOException ex) {
-            throw newECError(context.runtime, ex.toString());
+            throw newECError(context.runtime, ex.getMessage());
         }
         catch (RuntimeException ex) {
-            throw newECError(context.runtime, ex.toString());
+            throw (RaiseException) newECError(context.runtime, ex.toString()).initCause(ex);
         }
     }
 

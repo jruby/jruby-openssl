@@ -132,7 +132,7 @@ public abstract class PKey extends RubyObject {
                 }
                 if ( "EC".equals(alg) ) {
                     return new PKeyEC(runtime, _PKey(runtime).getClass("EC"),
-                            (PrivateKey) keyPair.getPrivate(), (PublicKey) keyPair.getPublic()
+                            keyPair.getPrivate(), keyPair.getPublic()
                     );
                 }
             }
