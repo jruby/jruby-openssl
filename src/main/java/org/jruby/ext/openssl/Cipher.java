@@ -715,7 +715,6 @@ public class Cipher extends RubyObject {
     private int generateKeyLength = -1;
     private int ivLength = -1;
     private boolean encryptMode = true;
-    //private IRubyObject[] modeParams;
     private boolean cipherInited = false;
     private byte[] key;
     private byte[] realIV;
@@ -1265,11 +1264,24 @@ public class Cipher extends RubyObject {
     }
 
     private transient ByteList auth_tag;
+    private int auth_tag_len = 16;
 
     @JRubyMethod(name = "auth_tag")
     public IRubyObject auth_tag(final ThreadContext context) {
+        return getAuthTag(context, auth_tag_len);
+    }
+
+    @JRubyMethod(name = "auth_tag")
+    public IRubyObject auth_tag(final ThreadContext context, IRubyObject tag_len) {
+        return getAuthTag(context, tag_len.convertToInteger().getIntValue());
+    }
+
+    private IRubyObject getAuthTag(final ThreadContext context, final int tag_len) {
         if ( auth_tag != null ) {
-            return RubyString.newString(context.runtime, auth_tag);
+            if (auth_tag.length() <= tag_len) {
+                return RubyString.newString(context.runtime, auth_tag);
+            }
+            return RubyString.newString(context.runtime, (ByteList) auth_tag.subSequence(0, tag_len));
         }
         if ( ! isAuthDataMode() ) {
             throw newCipherError(context.runtime, "authentication tag not supported by this cipher");
@@ -1287,14 +1299,18 @@ public class Cipher extends RubyObject {
         return auth_tag;
     }
 
+    @JRubyMethod(name = "auth_tag_len=")
+    public IRubyObject set_auth_tag_len(IRubyObject tag_len) {
+        this.auth_tag_len = tag_len.convertToInteger().getIntValue();
+        return tag_len;
+    }
+
     private boolean isAuthDataMode() { // Authenticated Encryption with Associated Data (AEAD)
         return "GCM".equalsIgnoreCase(cryptoMode) || "CCM".equalsIgnoreCase(cryptoMode);
     }
 
-    private static final int MAX_AUTH_TAG_LENGTH = 16;
-
     private int getAuthTagLength() {
-        return Math.min(MAX_AUTH_TAG_LENGTH, this.key.length); // in bytes
+        return Math.min(auth_tag_len, this.key.length); // in bytes
     }
 
     private transient ByteList auth_data;
@@ -1346,21 +1362,9 @@ public class Cipher extends RubyObject {
         this.set_iv(context, str); return str;
     }
 
-    //String getAlgorithm() {
-    //    return this.cipher.getAlgorithm();
-    //}
-
     final String getName() {
         return this.name;
     }
-
-    //String getCryptoBase() {
-    //    return this.cryptoBase;
-    //}
-
-    //String getCryptoMode() {
-    //    return this.cryptoMode;
-    //}
 
     final int getKeyLength() {
         return keyLength;

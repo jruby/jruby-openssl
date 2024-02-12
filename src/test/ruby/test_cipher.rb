@@ -363,17 +363,17 @@ class TestCipher < TestCase
     #assert_equal "", cipher.final
   end
 
-  def test_aes_gcm
+  def test_aes_gcm_custom
     ['aes-128-gcm', 'aes-192-gcm', 'aes-256-gcm'].each do |algo|
       pt = "You should all use Authenticated Encryption!"
-      cipher, key, iv = new_encryptor(algo)
+      cipher, key, iv = new_random_encryptor(algo)
 
       cipher.auth_data = "aad"
       ct  = cipher.update(pt) + cipher.final
       tag = cipher.auth_tag
       assert_equal(16, tag.size)
 
-      decipher = new_decryptor(algo, key, iv)
+      decipher = new_decryptor(algo, key: key, iv: iv)
       decipher.auth_tag = tag
       decipher.auth_data = "aad"
 
@@ -381,23 +381,21 @@ class TestCipher < TestCase
     end
   end
 
-  def new_encryptor(algo)
+  def test_authenticated
+    cipher = OpenSSL::Cipher.new('aes-128-gcm')
+    assert_predicate(cipher, :authenticated?)
+    cipher = OpenSSL::Cipher.new('aes-128-cbc')
+    assert_not_predicate(cipher, :authenticated?)
+  end
+
+  def new_random_encryptor(algo)
     cipher = OpenSSL::Cipher.new(algo)
     cipher.encrypt
     key = cipher.random_key
     iv = cipher.random_iv
     [cipher, key, iv]
   end
-  private :new_encryptor
-
-  def new_decryptor(algo, key, iv)
-    OpenSSL::Cipher.new(algo).tap do |cipher|
-      cipher.decrypt
-      cipher.key = key
-      cipher.iv = iv
-    end
-  end
-  private :new_decryptor
+  private :new_random_encryptor
 
   def test_aes_128_gcm_with_auth_tag
     cipher = OpenSSL::Cipher.new('aes-128-gcm')
@@ -496,6 +494,82 @@ class TestCipher < TestCase
     cipher.encrypt
     buffer = Object.new
     assert_raise(TypeError) { cipher.update('bar' * 10, buffer) }
+  end
+
+  def test_aes_gcm
+    # GCM spec Appendix B Test Case 4
+    key = ["feffe9928665731c6d6a8f9467308308"].pack("H*")
+    iv =  ["cafebabefacedbaddecaf888"].pack("H*")
+    aad = ["feedfacedeadbeeffeedfacedeadbeef" \
+           "abaddad2"].pack("H*")
+    pt =  ["d9313225f88406e5a55909c5aff5269a" \
+           "86a7a9531534f7da2e4c303d8a318a72" \
+           "1c3c0c95956809532fcf0e2449a6b525" \
+           "b16aedf5aa0de657ba637b39"].pack("H*")
+    ct =  ["42831ec2217774244b7221b784d0d49c" \
+           "e3aa212f2c02a4e035c17e2329aca12e" \
+           "21d514b25466931c7d8f6a5aac84aa05" \
+           "1ba30b396a0aac973d58e091"].pack("H*")
+    tag = ["5bc94fbc3221a5db94fae95ae7121a47"].pack("H*")
+
+    cipher = new_encryptor("aes-128-gcm", key: key, iv: iv, auth_data: aad)
+    # TODO JOpenSSL should raise
+    # assert_raise(OpenSSL::Cipher::CipherError, 'unable to set authentication tag length: failed to get parameter') do
+    #   cipher.auth_tag_len = 16
+    # end
+    assert_equal ct, cipher.update(pt) << cipher.final
+    assert_equal tag, cipher.auth_tag
+    cipher = new_decryptor("aes-128-gcm", key: key, iv: iv, auth_tag: tag, auth_data: aad)
+    # TODO JOpenSSL should raise
+    # assert_raise(OpenSSL::Cipher::CipherError, 'unable to set authentication tag length: failed to get parameter') do
+    #   cipher.auth_tag_len = 16
+    # end
+    assert_equal pt, cipher.update(ct) << cipher.final
+
+    # truncated tag is accepted
+    cipher = new_encryptor("aes-128-gcm", key: key, iv: iv, auth_data: aad)
+    assert_equal ct, cipher.update(pt) << cipher.final
+    assert_equal tag[0, 8], cipher.auth_tag(8)
+    assert_equal tag, cipher.auth_tag
+
+    # NOTE: MRI seems to just ignore the invalid tag?!
+    # cipher = new_decryptor("aes-128-gcm", key: key, iv: iv, auth_tag: tag[0, 8], auth_data: aad)
+    # assert_equal pt, cipher.update(ct) << cipher.final
+
+    # wrong tag is rejected
+    tag2 = tag.dup
+    tag2.setbyte(-1, (tag2.getbyte(-1) + 1) & 0xff)
+    cipher = new_decryptor("aes-128-gcm", key: key, iv: iv, auth_tag: tag2, auth_data: aad)
+    cipher.update(ct)
+    assert_raise(OpenSSL::Cipher::CipherError) { cipher.final }
+
+    # wrong aad is rejected
+    aad2 = aad[0..-2] << aad[-1].succ
+    cipher = new_decryptor("aes-128-gcm", key: key, iv: iv, auth_tag: tag, auth_data: aad2)
+    cipher.update(ct)
+    assert_raise(OpenSSL::Cipher::CipherError) { cipher.final }
+
+    # wrong ciphertext is rejected
+    ct2 = ct[0..-2] << ct[-1].succ
+    cipher = new_decryptor("aes-128-gcm", key: key, iv: iv, auth_tag: tag, auth_data: aad)
+    cipher.update(ct2)
+    assert_raise(OpenSSL::Cipher::CipherError) { cipher.final }
+  end
+
+  private
+
+  def new_encryptor(algo, **kwargs)
+    OpenSSL::Cipher.new(algo).tap do |cipher|
+      cipher.encrypt
+      kwargs.each {|k, v| cipher.send(:"#{k}=", v) }
+    end
+  end
+
+  def new_decryptor(algo, **kwargs)
+    OpenSSL::Cipher.new(algo).tap do |cipher|
+      cipher.decrypt
+      kwargs.each {|k, v| cipher.send(:"#{k}=", v) }
+    end
   end
 
 end
