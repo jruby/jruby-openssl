@@ -203,18 +203,13 @@ class TestEC < TestCase
     super
     self.class.disable_security_restrictions!
 
-    # @data1 = 'foo'; @data2 = 'bar' * 1000 # data too long for DSA sig
-
     @groups = []; @keys = []
 
     OpenSSL::PKey::EC.builtin_curves.each do |curve, comment|
       next if curve.start_with?("Oakley") # Oakley curves are not suitable for ECDSA
-      group = OpenSSL::PKey::EC::Group.new(curve)
 
-      key = OpenSSL::PKey::EC.new(group)
-      key.generate_key
-
-      @groups << group; @keys << key
+      @groups << group = OpenSSL::PKey::EC::Group.new(curve)
+      @keys << OpenSSL::PKey::EC.generate(group)
     end
   end
 

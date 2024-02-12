@@ -248,8 +248,7 @@ public final class PKeyEC extends PKey {
         IRubyObject arg = args[0];
 
         if ( arg instanceof Group ) {
-            this.group = (Group) arg;
-            this.curveName = this.group.getCurveName();
+            setGroup((Group) arg);
             return this;
         }
 
@@ -380,6 +379,11 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    private void setGroup(final Group group) {
+        this.group = group;
+        this.curveName = this.group.getCurveName();
+    }
+
     //private static ECNamedCurveParameterSpec readECParameters(final byte[] input) throws IOException {
     //    ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.getInstance(input);
     //    return ECNamedCurveTable.getParameterSpec(oid.getId());
@@ -405,6 +409,19 @@ public final class PKeyEC extends PKey {
             throw newECError(context.runtime, ex.toString());
         }
         return this;
+    }
+
+    @JRubyMethod(meta = true)
+    public static IRubyObject generate(final ThreadContext context, final IRubyObject self, final IRubyObject group) {
+        PKeyEC randomKey = new PKeyEC(context.runtime, (RubyClass) self);
+
+        if (group instanceof Group) {
+            randomKey.setGroup((Group) group);
+        } else {
+            randomKey.curveName = group.convertToString().toString();
+        }
+
+        return randomKey.generate_key(context);
     }
 
     @JRubyMethod(name = "dsa_sign_asn1")
