@@ -1,4 +1,4 @@
-name: JOSSL Tests
+name: rake test
 
 on: [push, pull_request]
 
@@ -13,15 +13,19 @@ jobs:
 
     strategy:
       matrix:
-        java-version: [ 8, 11, 15, 17 ]
-        ruby-version: [ jruby-9.3.3.0 ]
+        java-version: [ 8, 11, 17, 21 ]
+        ruby-version: [ jruby-9.4.5.0 ]
         include:
           - java-version: 8
             ruby-version: jruby-9.2.19.0
-          - java-version: 11
-            ruby-version: jruby-9.2.20.1
           - java-version: 17
             ruby-version: jruby-9.2.20.1
+          - java-version: 8
+            ruby-version: jruby-9.3.3.0
+          - java-version: 11
+            ruby-version: jruby-9.3.13.0
+          - java-version: 15
+            ruby-version: jruby-9.3.13.0
           - java-version: 8
             ruby-version: jruby-9.1.17.0
       fail-fast: false
