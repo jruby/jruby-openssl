@@ -11,4 +11,4 @@ gem 'jar-dependencies', '>= 0.3.11', require: false
 gem 'mocha', '~> 1.4', '< 2.0'
 
 # NOTE: runit-maven-plugin will use it's own :
-gem 'test-unit', '2.5.5'
+gem 'test-unit'
