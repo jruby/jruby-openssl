@@ -17,13 +17,10 @@ import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
-import java.security.SecureRandom;
-import java.security.SignatureException;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
@@ -427,7 +424,7 @@ public final class PKeyEC extends PKey {
         try {
             ECGenParameterSpec genSpec = new ECGenParameterSpec(getCurveName());
             KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("EC"); // "BC"
-            gen.initialize(genSpec, new SecureRandom());
+            gen.initialize(genSpec, OpenSSL.getSecureRandom(context));
             KeyPair pair = gen.generateKeyPair();
             this.publicKey = (ECPublicKey) pair.getPublic();
             this.privateKey = pair.getPrivate();
@@ -537,11 +534,8 @@ public final class PKeyEC extends PKey {
             final byte[] secret = agreement.generateSecret();
             return StringHelper.newString(context.runtime, secret);
         }
-        catch (NoSuchAlgorithmException ex) {
-            throw newECError(context.runtime, ex.toString());
-        }
         catch (InvalidKeyException ex) {
-            throw newECError(context.runtime, ex.toString());
+            throw newECError(context.runtime, "invalid key: " + ex.getMessage());
         }
         catch (GeneralSecurityException ex) {
             throw newECError(context.runtime, ex.toString());
