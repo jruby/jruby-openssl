@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
+import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
@@ -36,6 +37,7 @@ import java.security.spec.InvalidParameterSpecException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 import javax.crypto.KeyAgreement;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
@@ -82,7 +84,6 @@ import org.jruby.ext.openssl.impl.ECPrivateKeyWithName;
 import static org.jruby.ext.openssl.impl.PKey.readECPrivateKey;
 import org.jruby.ext.openssl.util.ByteArrayOutputStream;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
-import org.jruby.util.ByteList;
 
 /**
  * OpenSSL::PKey::EC implementation.
@@ -170,24 +171,21 @@ public final class PKeyEC extends PKey {
         return curves;
     }
 
-    private static ASN1ObjectIdentifier getCurveOID(final String curveName) {
+    private static Optional<ASN1ObjectIdentifier> getCurveOID(final String curveName) {
         ASN1ObjectIdentifier id;
         id = org.bouncycastle.asn1.sec.SECNamedCurves.getOID(curveName);
-        if ( id != null ) return id;
+        if ( id != null ) return Optional.of(id);
         id = org.bouncycastle.asn1.x9.X962NamedCurves.getOID(curveName);
-        if ( id != null ) return id;
+        if ( id != null ) return Optional.of(id);
         id = org.bouncycastle.asn1.nist.NISTNamedCurves.getOID(curveName);
-        if ( id != null ) return id;
+        if ( id != null ) return Optional.of(id);
         id = org.bouncycastle.asn1.teletrust.TeleTrusTNamedCurves.getOID(curveName);
-        if ( id != null ) return id;
-        throw new IllegalStateException("could not identify curve name: " + curveName);
+        if ( id != null ) return Optional.of(id);
+        return Optional.empty();
     }
 
     private static boolean isCurveName(final String curveName) {
-        try {
-            return getCurveOID(curveName) != null;
-        }
-        catch (IllegalStateException ex) { return false; }
+        return getCurveOID(curveName).isPresent();
     }
 
     private static String getCurveName(final ASN1ObjectIdentifier oid) {
@@ -365,14 +363,18 @@ public final class PKeyEC extends PKey {
             setPrivateKey((ECPrivateKey) key);
         }
         else if ( key instanceof ECPublicKey ) {
-            this.publicKey = (ECPublicKey) key; this.privateKey = null;
+            this.publicKey = (ECPublicKey) key;
+            this.privateKey = null;
         }
         else {
             throw newECError(runtime, "Neither PUB key nor PRIV key: "  + key.getClass().getName());
         }
 
-        if ( publicKey != null ) {
-            publicKey.getParams().getCurve();
+        if ( curveName == null && publicKey != null ) {
+            final String oid = getCurveNameObjectIdFromKey(context, publicKey);
+            if (isCurveName(oid)) {
+                this.curveName = getCurveName(new ASN1ObjectIdentifier(oid));
+            }
         }
 
         return this;
@@ -388,6 +390,20 @@ public final class PKeyEC extends PKey {
         if ( privKey instanceof ECPrivateKeyWithName ) {
             this.privateKey = ((ECPrivateKeyWithName) privKey).unwrap();
             this.curveName = getCurveName( ((ECPrivateKeyWithName) privKey).getCurveNameOID() );
+        }
+    }
+
+    private static String getCurveNameObjectIdFromKey(final ThreadContext context, final ECPublicKey key) {
+        try {
+            AlgorithmParameters algParams = AlgorithmParameters.getInstance("EC");
+            algParams.init(key.getParams());
+            return algParams.getParameterSpec(ECGenParameterSpec.class).getName();
+        }
+        catch (NoSuchAlgorithmException|InvalidParameterSpecException ex) {
+            throw newECError(context.runtime, ex.getMessage());
+        }
+        catch (Exception ex) {
+            throw (RaiseException) newECError(context.runtime, ex.toString()).initCause(ex);
         }
     }
 
@@ -806,7 +822,9 @@ public final class PKeyEC extends PKey {
 
             try {
                 final StringWriter writer = new StringWriter();
-                PEMInputOutput.writeECParameters(writer, getCurveOID(getCurveName()), spec, passwd);
+                final ASN1ObjectIdentifier oid = getCurveOID(getCurveName())
+                        .orElseThrow(() -> newECError(context.runtime, "invalid curve name: " + getCurveName()));
+                PEMInputOutput.writeECParameters(writer, oid, spec, passwd);
                 return RubyString.newString(context.runtime, writer.getBuffer());
             }
             catch (IOException ex) {
