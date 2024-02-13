@@ -1,3 +1,13 @@
+## 0.14.3
+
+* [fix] SSLSocket#alpn_protocol to be nil when not used (#287)
+* [feat] try resolving curve-name from EC public key
+* [feat] implement missing PKey::EC#dsa_verify_asn1 (#241)
+* [feat] implement support for PKey::EC.generate (#255)
+* [refactor] make sure curveName is set when using PKey.read (#289)
+* [fix] add Cipher#auth_data(arg) override (Rails 7.x compatibility) (#290)
+* [fix] raise TypeError when arg not of expected type (jruby/jruby#7875)
+
 ## 0.14.2
 
 * [deps] upgrade BC to latest 1.74
