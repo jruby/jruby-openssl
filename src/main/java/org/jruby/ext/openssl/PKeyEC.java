@@ -16,6 +16,7 @@ import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -31,19 +32,26 @@ import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import javax.crypto.KeyAgreement;
 import org.bouncycastle.asn1.ASN1EncodableVector;
+import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OutputStream;
-import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.DERSequence;
 
-import org.bouncycastle.crypto.params.ECNamedDomainParameters;
+import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECDSASigner;
+import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.ECPointUtil;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
@@ -110,8 +118,12 @@ public final class PKeyEC extends PKey {
         return _PKey(runtime).getClass("EC");
     }
 
-    public static RaiseException newECError(Ruby runtime, String message) {
+    private static RaiseException newECError(Ruby runtime, String message) {
         return Utils.newError(runtime, _PKey(runtime).getClass("ECError"), message);
+    }
+
+    private static RaiseException newECError(Ruby runtime, String message, Exception cause) {
+        return Utils.newError(runtime, _PKey(runtime).getClass("ECError"), message, cause);
     }
 
     @JRubyMethod(meta = true)
@@ -396,7 +408,6 @@ public final class PKeyEC extends PKey {
 
     @JRubyMethod(name = "generate_key")
     public PKeyEC generate_key(final ThreadContext context) {
-        // final ECDomainParameters params = getDomainParameters();
         try {
             ECGenParameterSpec genSpec = new ECGenParameterSpec(getCurveName());
             KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("EC"); // "BC"
@@ -426,54 +437,69 @@ public final class PKeyEC extends PKey {
 
     @JRubyMethod(name = "dsa_sign_asn1")
     public IRubyObject dsa_sign_asn1(final ThreadContext context, final IRubyObject data) {
+        if (privateKey == null) {
+            throw newECError(context.runtime, "Private EC key needed!");
+        }
         try {
-            ECNamedCurveParameterSpec params = getParameterSpec();
-            ASN1ObjectIdentifier oid = getCurveOID(getCurveName());
-            ECNamedDomainParameters domainParams = new ECNamedDomainParameters(oid,
-                params.getCurve(), params.getG(), params.getN(), params.getH(), params.getSeed()
-            );
+            final ECNamedCurveParameterSpec params = getParameterSpec();
 
             final ECDSASigner signer = new ECDSASigner();
-            final ECPrivateKey privKey = (ECPrivateKey) this.privateKey;
-            signer.init(true, new ECPrivateKeyParameters(privKey.getS(), domainParams));
+            signer.init(true, new ECPrivateKeyParameters(
+                    ((ECPrivateKey) this.privateKey).getS(),
+                    new ECDomainParameters(params.getCurve(), params.getG(), params.getN(), params.getH())
+            ));
 
-            final byte[] message = data.convertToString().getBytes();
-            BigInteger[] signature = signer.generateSignature(message); // [r, s]
-
-//            final byte[] r = signature[0].toByteArray();
-//            final byte[] s = signature[1].toByteArray();
-//            // ASN.1 encode as: 0x30 len 0x02 rlen (r) 0x02 slen (s)
-//            final int len = 1 + (1 + r.length) + 1 + (1 + s.length);
-//
-//            final byte[] encoded = new byte[1 + 1 + len]; int i;
-//            encoded[0] = 0x30;
-//            encoded[1] = (byte) len;
-//            encoded[2] = 0x20;
-//            encoded[3] = (byte) r.length;
-//            System.arraycopy(r, 0, encoded, i = 4, r.length); i += r.length;
-//            encoded[i++] = 0x20;
-//            encoded[i++] = (byte) s.length;
-//            System.arraycopy(s, 0, encoded, i, s.length);
+            BigInteger[] signature = signer.generateSignature(data.convertToString().getBytes()); // [r, s]
 
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            ASN1OutputStream asn1 = ASN1OutputStream.create(bytes);
+            ASN1OutputStream asn1 = ASN1OutputStream.create(bytes, ASN1Encoding.DER);
 
-            ASN1EncodableVector v = new ASN1EncodableVector();
+            ASN1EncodableVector v = new ASN1EncodableVector(2);
             v.add(new ASN1Integer(signature[0])); // r
             v.add(new ASN1Integer(signature[1])); // s
 
-            asn1.writeObject(new DLSequence(v));
+            asn1.writeObject(new DERSequence(v));
+            asn1.close();
 
             return StringHelper.newString(context.runtime, bytes.buffer(), bytes.size());
         }
         catch (IOException ex) {
             throw newECError(context.runtime, ex.getMessage());
         }
-        catch (RuntimeException ex) {
-            throw (RaiseException) newECError(context.runtime, ex.toString()).initCause(ex);
+        catch (Exception ex) {
+            throw newECError(context.runtime, ex.toString(), ex);
         }
     }
 
+    @JRubyMethod(name = "dsa_verify_asn1")
+    public IRubyObject dsa_verify_asn1(final ThreadContext context, final IRubyObject data, final IRubyObject sign) {
+        final Ruby runtime = context.runtime;
+        try {
+            final ECNamedCurveParameterSpec params = getParameterSpec();
+
+            final ECDSASigner signer = new ECDSASigner();
+            signer.init(false, new ECPublicKeyParameters(
+                    EC5Util.convertPoint(publicKey.getParams(), publicKey.getW()),
+                    new ECDomainParameters(params.getCurve(), params.getG(), params.getN(), params.getH())
+            ));
+
+            ASN1Primitive vec = new ASN1InputStream(sign.convertToString().getBytes()).readObject();
+
+            if (!(vec instanceof ASN1Sequence)) {
+                throw newECError(runtime, "invalid signature (not a sequence)");
+            }
+
+            ASN1Sequence seq = (ASN1Sequence) vec;
+            ASN1Integer r = ASN1Integer.getInstance(seq.getObjectAt(0));
+            ASN1Integer s = ASN1Integer.getInstance(seq.getObjectAt(1));
+
+            boolean verify = signer.verifySignature(data.convertToString().getBytes(), r.getPositiveValue(), s.getPositiveValue());
+            return runtime.newBoolean(verify);
+        }
+        catch (IOException|IllegalArgumentException|IllegalStateException ex) {
+            throw newECError(runtime, "invalid signature: " + ex.getMessage(), ex);
+        }
+    }
 
     @JRubyMethod(name = "dh_compute_key")
     public IRubyObject dh_compute_key(final ThreadContext context, final IRubyObject point) {
