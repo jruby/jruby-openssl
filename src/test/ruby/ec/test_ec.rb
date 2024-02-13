@@ -237,15 +237,18 @@ class TestEC < TestCase
   end
 
   def test_sign_verify
-    key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
+    p256 = Fixtures.pkey("p256.pem")
+    data = "Sign me!"
+    signature = p256.sign("SHA1", data)
+    assert_equal true, p256.verify("SHA1", signature, data)
 
-    key = OpenSSL::PKey::EC.new(File.read(key_file))
-    data = 'abcd'
-    digest = OpenSSL::Digest::SHA256.new
-    sig = key.sign(digest, data)
-    assert_true key.verify(digest, sig, data)
-
-    key.sign(OpenSSL::Digest::SHA1.new, data)
+    signature0 = (<<~'end;').unpack("m")[0]
+      MEQCIEOTY/hD7eI8a0qlzxkIt8LLZ8uwiaSfVbjX2dPAvN11AiAQdCYx56Fq
+      QdBp1B4sxJoA8jvODMMklMyBKVmudboA6A==
+    end;
+    assert_equal true, p256.verify("SHA256", signature0, data)
+    signature1 = signature0.succ
+    assert_equal false, p256.verify("SHA256", signature1, data)
   end
 
   def test_group_encoding
@@ -293,13 +296,31 @@ class TestEC < TestCase
     end
   end if false # NOT-IMPLEMENTED TODO
 
-  def test_dsa_sign_verify
-    data1 = 'foo'
+  def test_dsa_sign_verify_all
+    data1 = 'hashed-value'
     for key in @keys
+      next if key.group.curve_name == 'SM2'
+
       sig = key.dsa_sign_asn1(data1)
-      assert(key.dsa_verify_asn1(data1, sig))
+      assert_equal(true, key.dsa_verify_asn1(data1, sig))
+      assert_equal(false, key.dsa_verify_asn1(data1 + 'X', sig))
     end
-  end if false # NOT-IMPLEMENTED
+  end
+
+  def test_sign_verify_raw
+    key = Fixtures.pkey("p256.pem")
+    data1 = "foo"
+    data2 = "bar"
+
+    malformed_sig = "*" * 30
+
+    # Sign by #dsa_sign_asn1
+    sig = key.dsa_sign_asn1(data1)
+
+    assert_equal true, key.dsa_verify_asn1(data1, sig)
+    assert_equal false, key.dsa_verify_asn1(data2, sig)
+    assert_raise(OpenSSL::PKey::ECError) { key.dsa_verify_asn1(data1, malformed_sig) }
+  end
 
 #  def test_dh_compute_key
 #    for key in @keys
