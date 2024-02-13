@@ -101,7 +101,7 @@ TestCase.class_eval do
     end
   end
 
-  def self.disable_security_restrictions!; @@security_restrictions = nil end # do nothing on MRI
+  def self.disable_security_restrictions!; end # do nothing on MRI
 
   @@security_restrictions = ''
 
@@ -121,11 +121,6 @@ TestCase.class_eval do
     disable_security_restrictions! if @@security_restrictions.eql?('')
   end
 
-  def self.security_restrictions?
-    disable_security_restrictions; return @@security_restrictions
-  end
-
-  def self.java7?; java_version.last.to_i == 7 end
   def self.java8?; java_version.last.to_i == 8 end
 
   def self.java_version
