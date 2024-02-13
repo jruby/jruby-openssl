@@ -21,6 +21,18 @@ class TestASN1 < TestCase
     assert_equal i, OpenSSL::ASN1.decode(ai.to_der).value
   end
 
+  def test_encode_nested_sequence_to_der
+    data_sequence = ::OpenSSL::ASN1::Sequence([::OpenSSL::ASN1::Integer(0)])
+    asn1 = ::OpenSSL::ASN1::Sequence(data_sequence)
+    assert_equal "0\x03\x02\x01\x00", asn1.to_der
+  end
+
+  def test_encode_nested_set_to_der
+    data_set = ::OpenSSL::ASN1::Set([::OpenSSL::ASN1::Integer(0)])
+    asn1 = ::OpenSSL::ASN1::Set(data_set)
+    assert_equal "1\x03\x02\x01\x00", asn1.to_der
+  end
+
   def test_encode_nil
     #Primitives raise TypeError, Constructives NoMethodError
 
