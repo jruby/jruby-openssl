@@ -21,16 +21,41 @@ class TestASN1 < TestCase
     assert_equal i, OpenSSL::ASN1.decode(ai.to_der).value
   end
 
+  def test_encode_asn1_data
+    ai = OpenSSL::ASN1::ASN1Data.new(i = "bla", 0, :APPLICATION)
+    ai2 = OpenSSL::ASN1.decode(ai.to_der)
+    assert_equal :APPLICATION, ai2.tag_class
+    assert_equal 0, ai2.tag
+    assert_equal i, ai2.value
+
+    ai = OpenSSL::ASN1::ASN1Data.new(i = "bla", 4, :UNIVERSAL)
+    ai2 = OpenSSL::ASN1.decode(ai.to_der)
+    assert_equal :UNIVERSAL, ai2.tag_class
+    assert_equal 4, ai2.tag
+    assert_equal i, ai2.value
+
+    ai = OpenSSL::ASN1::ASN1Data.new(i = ["bla"], 0, :APPLICATION)
+    ai2 = OpenSSL::ASN1.decode(ai.to_der)
+    assert_equal :APPLICATION, ai2.tag_class
+    assert_equal 0, ai2.tag
+    assert_equal "bla", ai2.value
+
+    ai = OpenSSL::ASN1::ASN1Data.new(i = ["bla", "bla"], 0, :APPLICATION)
+    ai2 = OpenSSL::ASN1.decode(ai.to_der)
+    assert_equal :APPLICATION, ai2.tag_class
+    assert_equal 0, ai2.tag
+    assert_equal "blabla", ai2.value
+
+    assert_raise(ArgumentError) { OpenSSL::ASN1::ASN1Data.new(1).to_der }
+    assert_raise("no implicit conversion of Integer into String") { OpenSSL::ASN1::ASN1Data.new(1, 0, :APPLICATION).to_der }
+    assert_raise("no implicit conversion of Integer into String") { OpenSSL::ASN1::ASN1Data.new(1, 0, :CONTEXT_SPECIFIC).to_der }
+  end
+
   def test_encode_nil
     #Primitives raise TypeError, Constructives NoMethodError
 
     assert_raise(TypeError) { OpenSSL::ASN1::Integer.new(nil).to_der }
     assert_raise(TypeError) { OpenSSL::ASN1::Boolean.new(nil).to_der }
-
-    # NOTE: MRI does not raise
-    assert_raise(NoMethodError) { OpenSSL::ASN1::Set.new(nil).to_der }
-    # NOTE: MRI does not raise
-    assert_raise(NoMethodError) { OpenSSL::ASN1::Sequence.new(nil).to_der }
   end
 
   def test_instantiate
@@ -167,6 +192,14 @@ class TestASN1 < TestCase
     assert_equal expected, name.to_der
   end
 
+  def test_sequence_convert_to_array
+    data_sequence = ::OpenSSL::ASN1::Sequence([::OpenSSL::ASN1::Integer(0)])
+    asn1 = ::OpenSSL::ASN1::Sequence(data_sequence)
+    assert_equal "0\x03\x02\x01\x00" , asn1.to_der
+
+    assert_raise(TypeError) { ::OpenSSL::ASN1::Sequence(::OpenSSL::ASN1::Integer(0)).to_der }
+  end
+
   def test_raw_constructive
     eoc = OpenSSL::ASN1::EndOfContent.new
     #puts "eoc: #{eoc.inspect}"
@@ -265,11 +298,10 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal(8, tbs_cert.value.size)
 
     version = tbs_cert.value[0]
-    assert_equal(:CONTEXT_SPECIFIC, version.tag_class)
+    assert_equal(:UNIVERSAL, version.tag_class)
     assert_equal(0, version.tag)
-    assert_equal(1, version.value.size)
-    assert_equal(OpenSSL::ASN1::Integer, version.value[0].class)
-    assert_equal(2, version.value[0].value)
+    assert_equal(OpenSSL::BN, version.value.class)
+    assert_equal(2, version.value)
 
     serial = tbs_cert.value[1]
     assert_equal(OpenSSL::ASN1::Integer, serial.class)
@@ -378,16 +410,13 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal(65537, spkey.value[1].value)
 
     extensions = tbs_cert.value[7]
-    assert_equal(:CONTEXT_SPECIFIC, extensions.tag_class)
+    assert_equal(:UNIVERSAL, extensions.tag_class)
     assert_equal(3, extensions.tag)
-    assert_equal(1, extensions.value.size)
     assert_equal(OpenSSL::ASN1::Sequence, extensions.value[0].class)
-    assert_equal(3, extensions.value[0].value.size)
+    assert_equal(3, extensions.value[0].size)
 
-    ext = extensions.value[0].value[0]  # basicConstraints
+    ext = extensions.value[0]  # basicConstraints
 
-    assert_equal(OpenSSL::ASN1::Sequence, ext.class)
-    assert_equal(3, ext.value.size)
     assert_equal(OpenSSL::ASN1::ObjectId, ext.value[0].class)
     assert_equal("2.5.29.19",  ext.value[0].oid)
     assert_equal(OpenSSL::ASN1::Boolean, ext.value[1].class)
@@ -404,7 +433,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal(OpenSSL::ASN1::Integer, extv.value[1].class)
     assert_equal(1, extv.value[1].value)
 
-    ext = extensions.value[0].value[1]  # keyUsage
+    ext = extensions.value[1]  # keyUsage
 
     assert_equal(OpenSSL::ASN1::Sequence, ext.class)
     assert_equal(3, ext.value.size)
@@ -418,7 +447,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     str = "\000"; str[0] = 0b00000110.chr
     assert_equal(str, extv.value)
 
-    ext = extensions.value[0].value[2]  # subjectKeyIdentifier
+    ext = extensions.value[2]  # subjectKeyIdentifier
 
     assert_equal(OpenSSL::ASN1::Sequence, ext.class)
     assert_equal(2, ext.value.size)

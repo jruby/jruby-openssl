@@ -956,7 +956,7 @@ public class ASN1 {
     } // ObjectId
 
     static IRubyObject decodeObject(final ThreadContext context,
-        final RubyModule ASN1, final org.bouncycastle.asn1.ASN1Encodable obj)
+        final RubyModule ASN1, final ASN1Encodable obj)
         throws IOException, IllegalArgumentException {
         final Ruby runtime = context.runtime;
 
@@ -1076,19 +1076,21 @@ public class ASN1 {
             final ASN1ApplicationSpecific appSpecific = (ASN1ApplicationSpecific) obj;
             IRubyObject tag = runtime.newFixnum( appSpecific.getApplicationTag() );
             IRubyObject tag_class = runtime.newSymbol("APPLICATION");
-            final ASN1Sequence sequence = (ASN1Sequence) appSpecific.getObject(SEQUENCE);
-            @SuppressWarnings("unchecked")
-            final RubyArray valArr = decodeObjects(context, ASN1, sequence.getObjects());
-            return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
+            final ASN1TaggedObject taggedObj = (ASN1TaggedObject) obj;
+            final ASN1Encodable taggedBaseObj = taggedObj.getBaseObject();
+            return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { decodeObject(context, ASN1, taggedBaseObj).callMethod(context, "value"), tag, tag_class }, Block.NULL_BLOCK);
         }
 
         if ( obj instanceof ASN1TaggedObject ) {
             final ASN1TaggedObject taggedObj = (ASN1TaggedObject) obj;
             IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject());
             IRubyObject tag = runtime.newFixnum( taggedObj.getTagNo() );
-            IRubyObject tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
-            final RubyArray valArr = runtime.newArray(val);
-            return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
+            IRubyObject tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");;
+            if (BERTags.UNIVERSAL != taggedObj.getTagClass()) {
+                tag_class = runtime.newSymbol("UNIVERSAL");
+            }
+            final ASN1Encodable taggedBaseObj = taggedObj.getBaseObject();
+            return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { decodeObject(context, ASN1, taggedBaseObj).callMethod(context, "value"), tag, tag_class }, Block.NULL_BLOCK);
         }
 
         if ( obj instanceof ASN1Sequence ) {
@@ -1383,28 +1385,50 @@ public class ASN1 {
 
         final ASN1TaggedObject toASN1TaggedObject(final ThreadContext context) {
             final int tag = getTag(context);
+            final RubyModule ASN1 = _ASN1(context.runtime);
 
-            final IRubyObject val = callMethod(context, "value");
+            IRubyObject val = callMethod(context, "value");
+            final IRubyObject tagClass = callMethod(context, "tag_class");
+            ASN1Encodable obj;
+
             if ( val instanceof RubyArray ) {
                 final RubyArray arr = (RubyArray) val;
-                if ( arr.size() > 1 ) {
-                    ASN1EncodableVector vec = new ASN1EncodableVector();
-                    for ( final IRubyObject obj : arr.toJavaArray() ) {
-                        ASN1Encodable data = ((ASN1Data) obj).toASN1(context);
-                        if ( data == null ) break; vec.add( data );
+
+                if ( arr.size() >= 1 ) {
+                    ByteArrayOutputStream bytes = new ByteArrayOutputStream( );
+
+                    for ( final IRubyObject o : arr.toJavaArray() ) {
+                        try {
+                            bytes.write(((RubyString) o).getBytes());
+                        } catch (IOException e) {
+                            throw new IllegalStateException(e.getMessage());
+                        } catch(ClassCastException e) {
+                            throw context.runtime.newTypeError(e.getMessage());
+                        }
                     }
-                    return new DERTaggedObject(isExplicitTagging(), tag, new DERSequence(vec));
-                }
-                else if ( arr.size() == 1 ) {
-                    ASN1Encodable data = ((ASN1Data) arr.entry(0)).toASN1(context);
-                    return new DERTaggedObject(isExplicitTagging(), tag, data);
-                }
-                else {
+                    obj = new DEROctetString(bytes.toByteArray());
+                } else {
                     throw new IllegalStateException("empty array detected");
                 }
+            } else {
+                try {
+                    obj = new DEROctetString(((RubyString) val).getBytes());
+                } catch(ClassCastException e) {
+                    throw context.runtime.newTypeError("no implicit conversion of " + val.getMetaClass().getName() + " into String");
+                }
             }
-            return new DERTaggedObject(isExplicitTagging(), tag, ((ASN1Data) val).toASN1(context));
+
+            if (tagClass.toString().equals("APPLICATION")) {
+                try {
+                    return new DERApplicationSpecific(isExplicitTagging(), tag, obj);
+                } catch (IOException e) {
+                    throw new IllegalStateException(e.getMessage());
+                }
+            } else {
+                return new DERTaggedObject(isExplicitTagging(), tag, obj);
+            }
         }
+
 
         @JRubyMethod
         public IRubyObject to_der(final ThreadContext context) {
@@ -1929,19 +1953,17 @@ public class ASN1 {
         private ASN1EncodableVector toASN1EncodableVector(final ThreadContext context) {
             final ASN1EncodableVector vec = new ASN1EncodableVector();
             final IRubyObject value = value(context);
-            if ( value instanceof RubyArray ) {
-                final RubyArray val = (RubyArray) value;
-                for ( int i = 0; i < val.size(); i++ ) {
-                    if ( addEntry(context, vec, val.entry(i)) ) break;
+            final RubyArray val;
+            if (value instanceof RubyArray ) {
+                val = (RubyArray) value;
+            } else {
+                if (!value.respondsTo("to_a")) {
+                    throw context.runtime.newTypeError("can't convert " + value.getMetaClass().getName() + " into Array");
                 }
+                val = (RubyArray) value.callMethod(context, "to_a");
             }
-            else {
-                final int size = RubyInteger.num2int(value.callMethod(context, "size"));
-                for ( int i = 0; i < size; i++ ) {
-                    final RubyInteger idx = context.runtime.newFixnum(i);
-                    IRubyObject entry = value.callMethod(context, "[]", idx);
-                    if ( addEntry(context, vec, entry) ) break;
-                }
+            for ( int i = 0; i < val.size(); i++ ) {
+                if ( addEntry(context, vec, val.entry(i)) ) break;
             }
             return vec;
         }

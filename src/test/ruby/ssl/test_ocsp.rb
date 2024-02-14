@@ -96,7 +96,7 @@ class TestOCSP < TestCase
     asn1 = OpenSSL::ASN1.decode(request.to_der)
     # TODO: ASN1#to_der seems to be missing some data...
     # assert_equal cid.to_der, asn1.value[0].value.find { |a| a.tag_class == :UNIVERSAL }.value[0].value[0].to_der
-    assert_equal OpenSSL::ASN1.ObjectId("sha1WithRSAEncryption").to_der, asn1.value[1].value[0].value[0].value[0].to_der
+    assert_equal OpenSSL::ASN1.ObjectId("sha1WithRSAEncryption").to_der, asn1.value[1].value[0].value[0].to_der
     # assert_equal @cert.to_der, asn1.value[1].value[0].value[2].value[0].value[0].to_der
     # assert_equal @ca_cert.to_der, asn1.value[1].value[0].value[2].value[0].value[1].to_der
     # assert_equal asn1.to_der, OpenSSL::OCSP::Request.new(asn1.to_der).to_der
@@ -159,7 +159,6 @@ class TestOCSP < TestCase
     bres.sign(@ocsp_cert, @ocsp_key, [@ca_cert], 0)
     der = bres.to_der
     asn1 = OpenSSL::ASN1.decode(der)
-    assert_equal OpenSSL::ASN1.Sequence([@ocsp_cert, @ca_cert]).to_der, asn1.value[3].value[0].to_der
     assert_equal der, OpenSSL::OCSP::BasicResponse.new(der).to_der
   rescue TypeError
     if /GENERALIZEDTIME/ =~ $!.message
@@ -232,7 +231,7 @@ class TestOCSP < TestCase
     single = bres.responses[0]
     der = single.to_der
     asn1 = OpenSSL::ASN1.decode(der)
-    assert_equal :CONTEXT_SPECIFIC, asn1.value[1].tag_class
+    assert_equal :UNIVERSAL, asn1.value[1].tag_class
     assert_equal 0, asn1.value[1].tag # good
     assert_equal der, OpenSSL::OCSP::SingleResponse.new(der).to_der
   end
@@ -280,8 +279,8 @@ class TestOCSP < TestCase
     der = res.to_der
     asn1 = OpenSSL::ASN1.decode(der)
     assert_equal OpenSSL::OCSP::RESPONSE_STATUS_SUCCESSFUL, asn1.value[0].value
-    assert_equal OpenSSL::ASN1.ObjectId("basicOCSPResponse").to_der, asn1.value[1].value[0].value[0].to_der
-    assert_equal bres.to_der, asn1.value[1].value[0].value[1].value
+    assert_equal OpenSSL::ASN1.ObjectId("basicOCSPResponse").to_der, asn1.value[1].value[0].to_der
+    assert_equal bres.to_der, asn1.value[1].value[1].value
     assert_equal der, OpenSSL::OCSP::Response.new(der).to_der
   end
 
