@@ -81,12 +81,10 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.PBEParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.pkcs.PKCS12PBEParams;
 import org.bouncycastle.asn1.pkcs.EncryptedPrivateKeyInfo;
 import org.bouncycastle.asn1.ASN1Encodable;
-import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1OutputStream;
@@ -129,6 +127,7 @@ import org.bouncycastle.cms.CMSSignedData;
 import org.jruby.ext.openssl.Cipher.Algorithm;
 import org.jruby.ext.openssl.impl.ASN1Registry;
 import org.jruby.ext.openssl.impl.CipherSpec;
+import org.jruby.ext.openssl.impl.PKey.Type;
 import org.jruby.ext.openssl.impl.PKCS10Request;
 import org.jruby.ext.openssl.SecurityHelper;
 import org.jruby.ext.openssl.util.ByteArrayOutputStream;
@@ -349,10 +348,9 @@ public class PEMInputOutput {
             else if ( line.indexOf(BEG_STRING_PKCS8INF) != -1) {
                 try {
                     byte[] bytes = readBase64Bytes(reader, BEF_E + PEM_STRING_PKCS8INF);
-                    PrivateKeyInfo pInfo = PrivateKeyInfo.getInstance(bytes);
-                    KeyFactory keyFactory = getKeyFactory( pInfo.getPrivateKeyAlgorithm() );
-                    PrivateKey pKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(pInfo.getEncoded()));
-                    return new KeyPair(null, pKey);
+                    final PrivateKeyInfo keyInfo = PrivateKeyInfo.getInstance(bytes);
+                    final Type type = getPrivateKeyType(keyInfo.getPrivateKeyAlgorithm());
+                    return org.jruby.ext.openssl.impl.PKey.readPrivateKey(type, keyInfo);
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating private key: ", e);
@@ -1270,7 +1268,7 @@ public class PEMInputOutput {
         } else {
             keyBytes = decoded;
         }
-        return org.jruby.ext.openssl.impl.PKey.readPrivateKey(keyBytes, type);
+        return org.jruby.ext.openssl.impl.PKey.readPrivateKey(Type.valueOf(type), keyBytes);
     }
 
     private static byte[] decrypt(byte[] decoded, String dekInfo, char[] passwd)
@@ -1486,23 +1484,23 @@ public class PEMInputOutput {
 
     public static KeyFactory getKeyFactory(final AlgorithmIdentifier algId)
         throws NoSuchAlgorithmException {
-        return SecurityHelper.getKeyFactory(getPrivateKeyType(algId));
+        return SecurityHelper.getKeyFactory(getPrivateKeyType(algId).name());
     }
 
-    private static String getPrivateKeyType(final AlgorithmIdentifier algId) {
+    private static Type getPrivateKeyType(final AlgorithmIdentifier algId) {
         final ASN1ObjectIdentifier algIdentifier = algId.getAlgorithm();
 
         if (X9ObjectIdentifiers.id_ecPublicKey.equals(algIdentifier)) {
-            return "EC";
+            return Type.EC;
         }
         if (PKCSObjectIdentifiers.rsaEncryption.equals(algIdentifier)) {
-            return "RSA";
+            return Type.RSA;
         }
         if (X9ObjectIdentifiers.id_dsa.equals(algIdentifier)) {
-            return "DSA";
+            return Type.DSA;
         }
 
-        return algIdentifier.getId();
+        return Type.valueOf(algIdentifier.getId());
     }
 
     private static CertificateFactory getX509CertificateFactory() {
