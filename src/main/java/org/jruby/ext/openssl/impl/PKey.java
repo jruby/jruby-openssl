@@ -132,24 +132,15 @@ public class PKey {
     }
 
     // d2i_PUBKEY_bio
-    public static PublicKey readPublicKey(byte[] input) throws IOException,
-        NoSuchAlgorithmException, InvalidKeySpecException {
+    public static PublicKey readPublicKey(byte[] input) throws IOException, NoSuchAlgorithmException {
         PublicKey key = null;
         try {
             key = readRSAPublicKey(input);
-        }
-        catch (NoSuchAlgorithmException e) { throw e; /* should not happen */ }
-        catch (InvalidKeySpecException e) {
-            // ignore
-        }
+        } catch (InvalidKeySpecException e) { /* ignore */ }
         if (key == null) {
             try {
                 key = readDSAPublicKey(input);
-            }
-            catch (NoSuchAlgorithmException e) { throw e; /* should not happen */ }
-            catch (InvalidKeySpecException e) {
-                // ignore
-            }
+            } catch (InvalidKeySpecException e) { /* ignore */ }
         }
         return key;
     }

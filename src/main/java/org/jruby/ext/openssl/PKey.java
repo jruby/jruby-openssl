@@ -141,13 +141,13 @@ public abstract class PKey extends RubyObject {
             PublicKey pubKey = null;
             try {
                 pubKey = PEMInputOutput.readRSAPublicKey(new StringReader(str.toString()), null);
-                return new PKeyRSA(runtime, (RSAPublicKey) pubKey);
+                if (pubKey != null) return new PKeyRSA(runtime, (RSAPublicKey) pubKey);
             } catch (IOException e) {
                 debugStackTrace(runtime, "PKey readRSAPublicKey", e); /* ignore */
             }
             try {
                 pubKey = PEMInputOutput.readDSAPublicKey(new StringReader(str.toString()), null);
-                return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
+                if (pubKey != null) return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
             } catch (IOException e) {
                 debugStackTrace(runtime, "PKey readDSAPublicKey", e); /* ignore */
             }
@@ -163,7 +163,9 @@ public abstract class PKey extends RubyObject {
             if (pubKey == null) {
                 try {
                     pubKey = PEMInputOutput.readPubKey(new StringReader(str.toString()));
-                } catch (IOException e) { /* ignore */ }
+                } catch (IOException e) {
+                    debugStackTrace(runtime, "PKey readPubKey", e); /* ignore */
+                }
             }
 
             if (pubKey != null) {
@@ -178,7 +180,7 @@ public abstract class PKey extends RubyObject {
                 }
             }
 
-            throw runtime.newArgumentError("Could not parse PKey");
+            throw newPKeyError(runtime, "Could not parse PKey: unsupported");
         }
 
         private static String getAlgorithm(final KeyPair key) {

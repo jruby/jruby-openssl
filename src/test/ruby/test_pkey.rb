@@ -28,6 +28,22 @@ class TestPKey < TestCase
     assert_true cert.check_private_key(pkey)
   end
 
+  def test_pkey_pem_file_error
+    begin
+      ret = OpenSSL::PKey.read('not a PEM file')
+      fail "expected OpenSSL::PKey.read to raise (got: #{ret.inspect})"
+    rescue OpenSSL::PKey::PKeyError => e
+      assert_equal 'Could not parse PKey: unsupported', e.message
+    end
+
+    begin
+      ret = OpenSSL::PKey::RSA.new('not a PEM file')
+      fail "expected OpenSSL::PKey::RSA.new to raise (got: #{ret.inspect})"
+    rescue OpenSSL::PKey::RSAError
+      assert true
+    end
+  end
+
   def test_to_java
     pkey = OpenSSL::PKey.read(KEY)
     assert_kind_of java.security.PublicKey, pkey.to_java
