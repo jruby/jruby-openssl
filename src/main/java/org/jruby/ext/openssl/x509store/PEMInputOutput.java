@@ -1486,23 +1486,23 @@ public class PEMInputOutput {
 
     public static KeyFactory getKeyFactory(final AlgorithmIdentifier algId)
         throws NoSuchAlgorithmException {
+        return SecurityHelper.getKeyFactory(getPrivateKeyType(algId));
+    }
 
+    private static String getPrivateKeyType(final AlgorithmIdentifier algId) {
         final ASN1ObjectIdentifier algIdentifier = algId.getAlgorithm();
 
-        String algorithm = null;
-        if ( X9ObjectIdentifiers.id_ecPublicKey.equals(algIdentifier) ) {
-            algorithm = "EC";
+        if (X9ObjectIdentifiers.id_ecPublicKey.equals(algIdentifier)) {
+            return "EC";
         }
-        else if ( PKCSObjectIdentifiers.rsaEncryption.equals(algIdentifier) ) {
-            algorithm = "RSA";
+        if (PKCSObjectIdentifiers.rsaEncryption.equals(algIdentifier)) {
+            return "RSA";
         }
-        else if ( X9ObjectIdentifiers.id_dsa.equals(algIdentifier) ) {
-            algorithm = "DSA";
+        if (X9ObjectIdentifiers.id_dsa.equals(algIdentifier)) {
+            return "DSA";
         }
 
-        if ( algorithm == null ) algorithm = algIdentifier.getId();
-
-        return SecurityHelper.getKeyFactory(algorithm);
+        return algIdentifier.getId();
     }
 
     private static CertificateFactory getX509CertificateFactory() {

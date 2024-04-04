@@ -89,8 +89,12 @@ public class PKey {
 
     public static KeyPair readPrivateKey(final byte[] input, final String type)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        return readPrivateKey((ASN1Sequence) new ASN1InputStream(input).readObject(), type);
+    }
+
+    public static KeyPair readPrivateKey(final ASN1Sequence seq, final String type)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         KeySpec pubSpec; KeySpec privSpec;
-        ASN1Sequence seq = (ASN1Sequence) new ASN1InputStream(input).readObject();
         if ( type.equals("RSA") ) {
             ASN1Integer mod = (ASN1Integer) seq.getObjectAt(1);
             ASN1Integer pubExp = (ASN1Integer) seq.getObjectAt(2);
@@ -114,36 +118,13 @@ public class PKey {
             pubSpec = new DSAPublicKeySpec(y.getValue(), p.getValue(), q.getValue(), g.getValue());
         }
         else if ( type.equals("EC") ) {
-            return readECPrivateKey(input);
+            return readECPrivateKey(SecurityHelper.getKeyFactory("EC"), seq);
         }
         else {
             throw new IllegalStateException("unsupported type: " + type);
         }
         KeyFactory fact = SecurityHelper.getKeyFactory(type);
         return new KeyPair(fact.generatePublic(pubSpec), fact.generatePrivate(privSpec));
-    }
-
-    // d2i_PrivateKey_bio
-    public static KeyPair readPrivateKey(byte[] input) throws IOException,
-        NoSuchAlgorithmException, InvalidKeySpecException {
-        KeyPair key = null;
-        try {
-            key = readRSAPrivateKey(input);
-        }
-        catch (NoSuchAlgorithmException e) { throw e; /* should not happen */ }
-        catch (InvalidKeySpecException e) {
-            // ignore
-        }
-        if (key == null) {
-            try {
-                key = readDSAPrivateKey(input);
-            }
-            catch (NoSuchAlgorithmException e) { throw e; /* should not happen */ }
-            catch (InvalidKeySpecException e) {
-                // ignore
-            }
-        }
-        return key;
     }
 
     // d2i_PUBKEY_bio
@@ -281,22 +262,26 @@ public class PKey {
         return readECPrivateKey(SecurityHelper.getKeyFactory("EC"), input);
     }
 
-    public static KeyPair readECPrivateKey(final KeyFactory ecFactory, final byte[] input)
+    public static KeyPair readECPrivateKey(final KeyFactory keyFactory, final byte[] input)
+        throws IOException, InvalidKeySpecException {
+        return readECPrivateKey(keyFactory, (ASN1Sequence) ASN1Primitive.fromByteArray(input));
+    }
+
+    public static KeyPair readECPrivateKey(final KeyFactory keyFactory, final ASN1Sequence input)
         throws IOException, InvalidKeySpecException {
         try {
-            org.bouncycastle.asn1.sec.ECPrivateKey pKey = org.bouncycastle.asn1.sec.ECPrivateKey.getInstance(ASN1Primitive.fromByteArray(input));
+            org.bouncycastle.asn1.sec.ECPrivateKey pKey = org.bouncycastle.asn1.sec.ECPrivateKey.getInstance(input);
             AlgorithmIdentifier   algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, pKey.getParametersObject().toASN1Primitive());
             PrivateKeyInfo        privInfo = new PrivateKeyInfo(algId, pKey.toASN1Primitive());
             SubjectPublicKeyInfo  pubInfo = new SubjectPublicKeyInfo(algId, pKey.getPublicKey().getBytes());
             PKCS8EncodedKeySpec   privSpec = new PKCS8EncodedKeySpec(privInfo.getEncoded());
             X509EncodedKeySpec    pubSpec = new X509EncodedKeySpec(pubInfo.getEncoded());
-            //KeyFactory            fact = KeyFactory.getInstance("EC", provider);
 
-            ECPrivateKey privateKey = (ECPrivateKey) ecFactory.generatePrivate(privSpec);
+            ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(privSpec);
             if ( algId.getParameters() instanceof ASN1ObjectIdentifier ) {
                 privateKey = ECPrivateKeyWithName.wrap(privateKey, (ASN1ObjectIdentifier) algId.getParameters());
             }
-            return new KeyPair(ecFactory.generatePublic(pubSpec), privateKey);
+            return new KeyPair(keyFactory.generatePublic(pubSpec), privateKey);
         }
         catch (ClassCastException ex) {
             throw new IOException("wrong ASN.1 object found in stream", ex);
