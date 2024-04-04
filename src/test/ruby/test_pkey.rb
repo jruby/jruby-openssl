@@ -14,6 +14,20 @@ class TestPKey < TestCase
     assert_equal OpenSSL::PKey::RSA.new(KEY).e, pkey.e
   end
 
+  def test_pkey_read_pkcs8_and_check_with_cert
+    pkey = File.expand_path('pkey-pkcs8.pem', File.dirname(__FILE__))
+    pkey = OpenSSL::PKey.read(File.read(pkey), nil)
+
+    assert_true pkey.private?
+    assert_true pkey.public?
+    assert pkey.public_key.to_s
+
+    cert = File.expand_path('pkey-cert.pem', File.dirname(__FILE__))
+    cert = OpenSSL::X509::Certificate.new(File.read(cert))
+
+    assert_true cert.check_private_key(pkey)
+  end
+
   def test_to_java
     pkey = OpenSSL::PKey.read(KEY)
     assert_kind_of java.security.PublicKey, pkey.to_java
