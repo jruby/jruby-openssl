@@ -88,6 +88,7 @@ public class PKey {
     }
 
     private static PrivateKeyInfo mockPrivateKeyInfo(final Type type, final byte[] input) throws IOException {
+        assert type != null;
         return new PrivateKeyInfo(null, new ASN1InputStream(input).readObject());
     }
 
@@ -273,20 +274,21 @@ public class PKey {
     public static KeyPair readECPrivateKey(final KeyFactory keyFactory, final PrivateKeyInfo keyInfo)
         throws IOException, InvalidKeySpecException {
         try {
-            org.bouncycastle.asn1.sec.ECPrivateKey key = org.bouncycastle.asn1.sec.ECPrivateKey.getInstance(keyInfo.parsePrivateKey());
+            ASN1Sequence seq = ASN1Sequence.getInstance(keyInfo.parsePrivateKey());
+
+            org.bouncycastle.asn1.sec.ECPrivateKey key = org.bouncycastle.asn1.sec.ECPrivateKey.getInstance(seq);
             AlgorithmIdentifier algId = keyInfo.getPrivateKeyAlgorithm();
-            // NOTE: should only happen when using mockPrivateKeyInfo(Type, byte[])
-            if (algId == null) algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey);
+            if (algId == null) { // mockPrivateKeyInfo
+                algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, key.getParameters());
+            }
+            final SubjectPublicKeyInfo pubInfo = new SubjectPublicKeyInfo(algId, key.getPublicKey().getBytes());
+            final PrivateKeyInfo privInfo = new PrivateKeyInfo(algId, key);
 
-            SubjectPublicKeyInfo pubInfo = new SubjectPublicKeyInfo(algId, key.getPublicKey().getBytes());
-            PKCS8EncodedKeySpec privSpec = new PKCS8EncodedKeySpec(keyInfo.getEncoded());
-            X509EncodedKeySpec pubSpec = new X509EncodedKeySpec(pubInfo.getEncoded());
-
-            ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(privSpec);
+            ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(new PKCS8EncodedKeySpec(privInfo.getEncoded()));
             if (algId.getParameters() instanceof ASN1ObjectIdentifier) {
                 privateKey = ECPrivateKeyWithName.wrap(privateKey, (ASN1ObjectIdentifier) algId.getParameters());
             }
-            return new KeyPair(keyFactory.generatePublic(pubSpec), privateKey);
+            return new KeyPair(keyFactory.generatePublic(new X509EncodedKeySpec(pubInfo.getEncoded())), privateKey);
         }
         catch (ClassCastException ex) {
             throw new IOException("wrong ASN.1 object found in stream", ex);

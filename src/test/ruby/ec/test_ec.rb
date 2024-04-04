@@ -55,8 +55,12 @@ class TestEC < TestCase
     key_file = File.join(File.dirname(__FILE__), 'private_key_pkcs8.pem')
 
     key = OpenSSL::PKey::read(File.read(key_file))
+    assert_equal OpenSSL::PKey::EC, key.class
     assert_equal '37273549501637553234010607973347901861080883009977847480473501706546896416762', key.private_key.to_s
-    assert_empty key.public_key.to_s
+
+    assert_equal OpenSSL::PKey::EC::Point, key.public_key.class
+    public_key = '59992919564038617581477192805085606797983518604284049179473294859597640027055772972320536875319417493705914919226919250526441868144324498122209513139102397'
+    assert_equal public_key, key.public_key.to_bn.to_s
   end
 
   def test_point
