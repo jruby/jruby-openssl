@@ -1,4 +1,5 @@
 # coding: US-ASCII
+require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 module PKCS7Test
   class TestPKCS7 < TestCase
@@ -886,6 +887,99 @@ gBoDG3WMPZoQj9pb7uMcrnvs4APj2FIhMU8U15LcPAj59cD6S6rWnAxO8NFK7HQG
       assert_equal(3, recip[1].serial)
       assert_equal(data, p7.decrypt(@rsa1024, @ee2_cert))
       assert_equal(data, p7.decrypt(@rsa1024))
+    end
+
+  end
+
+  # NOTE: based on MRI's test_pkcs7.rb
+  class TestOpenSSL < TestCase
+    def setup
+      @rsa1024 = Fixtures.pkey("rsa1024")
+      @rsa2048 = Fixtures.pkey("rsa2048")
+      ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+      ee1 = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=EE1")
+      ee2 = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=EE2")
+
+      ca_exts = [
+        ["basicConstraints","CA:TRUE",true],
+        ["keyUsage","keyCertSign, cRLSign",true],
+        ["subjectKeyIdentifier","hash",false],
+        ["authorityKeyIdentifier","keyid:always",false],
+      ]
+      @ca_cert = issue_cert(ca, @rsa2048, 1, ca_exts, nil, nil)
+      ee_exts = [
+        ["keyUsage","Non Repudiation, Digital Signature, Key Encipherment",true],
+        ["authorityKeyIdentifier","keyid:always",false],
+        ["extendedKeyUsage","clientAuth, emailProtection, codeSigning",false],
+      ]
+      @ee1_cert = issue_cert(ee1, @rsa1024, 2, ee_exts, @ca_cert, @rsa2048)
+      @ee2_cert = issue_cert(ee2, @rsa1024, 3, ee_exts, @ca_cert, @rsa2048)
+    end
+
+    def test_signed
+      store = OpenSSL::X509::Store.new
+      store.add_cert(@ca_cert)
+      ca_certs = [@ca_cert]
+
+      data = "aaaaa\r\nbbbbb\r\nccccc\r\n"
+      tmp = OpenSSL::PKCS7.sign(@ee1_cert, @rsa1024, data, ca_certs)
+      p7 = OpenSSL::PKCS7.new(tmp.to_der)
+      certs = p7.certificates
+      signers = p7.signers
+      assert(p7.verify([], store))
+      assert_equal(data, p7.data)
+      assert_equal(2, certs.size)
+      assert_equal(@ee1_cert.subject.to_s, certs[0].subject.to_s)
+      assert_equal(@ca_cert.subject.to_s, certs[1].subject.to_s)
+      assert_equal(1, signers.size)
+      assert_equal(@ee1_cert.serial, signers[0].serial)
+      assert_equal(@ee1_cert.issuer.to_s, signers[0].issuer.to_s)
+
+      # Normally OpenSSL tries to translate the supplied content into canonical
+      # MIME format (e.g. a newline character is converted into CR+LF).
+      # If the content is a binary, PKCS7::BINARY flag should be used.
+
+      data = "aaaaa\nbbbbb\nccccc\n"
+      flag = OpenSSL::PKCS7::BINARY
+      tmp = OpenSSL::PKCS7.sign(@ee1_cert, @rsa1024, data, ca_certs, flag)
+      assert_equal OpenSSL::PKCS7, tmp.class
+
+      p7 = OpenSSL::PKCS7.new(tmp.to_der)
+      certs = p7.certificates
+      signers = p7.signers
+      assert(p7.verify([], store))
+      assert_equal(data, p7.data)
+      assert_equal(2, certs.size)
+      assert_equal(@ee1_cert.subject.to_s, certs[0].subject.to_s)
+      assert_equal(@ca_cert.subject.to_s, certs[1].subject.to_s)
+      assert_equal(1, signers.size)
+      assert_equal(@ee1_cert.serial, signers[0].serial)
+      assert_equal(@ee1_cert.issuer.to_s, signers[0].issuer.to_s)
+
+      # A signed-data which have multiple signatures can be created
+      # through the following steps.
+      #   1. create two signed-data
+      #   2. copy signerInfo and certificate from one to another
+
+      tmp1 = OpenSSL::PKCS7.sign(@ee1_cert, @rsa1024, data, [], flag)
+      tmp2 = OpenSSL::PKCS7.sign(@ee2_cert, @rsa1024, data, [], flag)
+      tmp1.add_signer(tmp2.signers[0])
+      tmp1.add_certificate(@ee2_cert)
+
+      p7 = OpenSSL::PKCS7.new(tmp1.to_der)
+      certs = p7.certificates
+      signers = p7.signers
+      assert(p7.verify([], store))
+      assert_equal(data, p7.data)
+      assert_equal(2, certs.size)
+      assert_equal(2, signers.size)
+      assert_equal(@ee1_cert.serial, signers[0].serial)
+      assert_equal(@ee1_cert.issuer.to_s, signers[0].issuer.to_s)
+      assert_equal(@ee2_cert.serial, signers[1].serial)
+      assert_equal(@ee2_cert.issuer.to_s, signers[1].issuer.to_s)
+
+      assert signers[0].signed_time
+      assert_equal Time, signers[1].signed_time.class
     end
 
   end

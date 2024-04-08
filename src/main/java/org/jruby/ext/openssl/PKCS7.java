@@ -29,8 +29,10 @@ package org.jruby.ext.openssl;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
@@ -39,6 +41,7 @@ import java.security.PrivateKey;
 import java.security.cert.CertificateEncodingException;
 
 import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1UTCTime;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -49,6 +52,7 @@ import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
+import org.jruby.RubyTime;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
@@ -738,8 +742,20 @@ public class PKCS7 extends RubyObject {
 
         @JRubyMethod
         public IRubyObject signed_time(final ThreadContext context) {
-            warn(context, "WARNING: unimplemented method called: OpenSSL::PKCS7::SignerInfo#signed_time");
-            return context.runtime.getNil();
+            ASN1Encodable asn1obj = info.getSignedAttribute(ASN1Registry.NID_pkcs9_signingTime);
+            if (asn1obj == null) {
+                throw newPKCS7Error(context.runtime, "no signing time attribute");
+            }
+            if (asn1obj instanceof ASN1UTCTime) {
+                final Date adjusted;
+                try {
+                    adjusted = ((ASN1UTCTime) asn1obj).getAdjustedDate();
+                } catch (ParseException ex) {
+                    throw newPKCS7Error(context.runtime, ex);
+                }
+                return RubyTime.newTime(context.runtime, adjusted.getTime());
+            }
+            return context.nil;
         }
     }
 
