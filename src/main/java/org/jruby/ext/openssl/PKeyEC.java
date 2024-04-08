@@ -34,6 +34,7 @@ import java.security.spec.InvalidParameterSpecException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import javax.crypto.KeyAgreement;
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -63,6 +64,7 @@ import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
+import org.jruby.RubySymbol;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
@@ -695,6 +697,14 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    private enum PointConversion {
+        COMPRESSED, UNCOMPRESSED, HYBRID;
+
+        String toRubyString() {
+            return super.toString().toLowerCase(Locale.ROOT);
+        }
+    }
+
     @JRubyClass(name = "OpenSSL::PKey::EC::Group")
     public static final class Group extends RubyObject {
 
@@ -713,6 +723,9 @@ public final class PKeyEC extends PKey {
 
         private transient PKeyEC key;
         private ECParameterSpec paramSpec;
+
+        private PointConversion conversionForm = PointConversion.UNCOMPRESSED;
+
         private RubyString curve_name;
 
         public Group(Ruby runtime, RubyClass type) {
@@ -723,11 +736,6 @@ public final class PKeyEC extends PKey {
             this(runtime, _EC(runtime).getClass("Group"));
             this.key = key;
             this.paramSpec = key.publicKey.getParams();
-        }
-
-        private String getCurveName() {
-            if (key != null) return key.getCurveName();
-            return curve_name.toString();
         }
 
         @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
@@ -743,11 +751,18 @@ public final class PKeyEC extends PKey {
                     return this;
                 }
 
-                this.curve_name = ((RubyString) arg);
+                this.curve_name = arg.convertToString();
 
-                // TODO PEM/DER parsing not implemented
+                final ECNamedCurveParameterSpec ecCurveParamSpec = ECNamedCurveTable.getParameterSpec(curve_name.toString());
+                final EllipticCurve curve = EC5Util.convertCurve(ecCurveParamSpec.getCurve(), ecCurveParamSpec.getSeed());
+                this.paramSpec = EC5Util.convertSpec(curve, ecCurveParamSpec);
             }
             return this;
+        }
+
+        private String getCurveName() {
+            if (key != null) return key.getCurveName();
+            return curve_name.toString();
         }
 
         @Override
@@ -831,12 +846,34 @@ public final class PKeyEC extends PKey {
             }
         }
 
-        final EllipticCurve getCurve() {
+        EllipticCurve getCurve() {
             if (paramSpec == null) {
                 paramSpec = getParamSpec(getCurveName());
             }
             return paramSpec.getCurve();
         }
+
+        @JRubyMethod
+        public RubySymbol point_conversion_form(final ThreadContext context) {
+            return context.runtime.newSymbol(this.conversionForm.toRubyString());
+        }
+
+        @JRubyMethod(name = "point_conversion_form=")
+        public IRubyObject set_point_conversion_form(final ThreadContext context, final IRubyObject form) {
+            this.conversionForm = parse_point_conversion_form(context.runtime, form);
+            return form;
+        }
+
+        static PointConversion parse_point_conversion_form(final Ruby runtime, final IRubyObject form) {
+            if (form instanceof RubySymbol) {
+                final String pointConversionForm = ((RubySymbol) form).asJavaString();
+                if ("uncompressed".equals(pointConversionForm)) return PointConversion.UNCOMPRESSED;
+                if ("compressed".equals(pointConversionForm)) return PointConversion.COMPRESSED;
+                if ("hybrid".equals(pointConversionForm)) return PointConversion.HYBRID;
+            }
+            throw runtime.newArgumentError("unsupported point conversion form: " + form.inspect());
+        }
+
 
 //        @Override
 //        @JRubyMethod
@@ -874,14 +911,12 @@ public final class PKeyEC extends PKey {
             super(runtime, type);
         }
 
-        // private transient ECPublicKey publicKey;
         private ECPoint point;
         //private int bitLength;
         private Group group;
 
         Point(Ruby runtime, ECPublicKey publicKey, Group group) {
             this(runtime, _EC(runtime).getClass("Point"));
-            //this.publicKey = publicKey;
             this.point = publicKey.getW();
             this.group = group;
         }
@@ -914,7 +949,12 @@ public final class PKeyEC extends PKey {
                 this.group = (Group) arg;
             }
             if ( argc == 2 ) { // (group, bn)
-                final byte[] encoded = ((BN) args[1]).getValue().abs().toByteArray();
+                final byte[] encoded;
+                if (args[1] instanceof BN) {
+                    encoded = ((BN) args[1]).getValue().abs().toByteArray();
+                } else {
+                    encoded = args[1].convertToString().getBytes();
+                }
                 try {
                     this.point = ECPointUtil.decodePoint(group.getCurve(), encoded);
                 }
@@ -951,13 +991,52 @@ public final class PKeyEC extends PKey {
         }
 
         private int bitLength() {
+            assert group != null;
+            assert group.paramSpec != null;
             return group.paramSpec.getOrder().bitLength();
+        }
+
+        private PointConversion getPointConversionForm() {
+            if (group == null) return null;
+            return group.conversionForm;
         }
 
         @JRubyMethod
         public BN to_bn(final ThreadContext context) {
-            final byte[] encoded = encode(bitLength(), point);
+            return toBN(context, getPointConversionForm()); // group.point_conversion_form
+        }
+
+        @JRubyMethod
+        public BN to_bn(final ThreadContext context, final IRubyObject conversion_form) {
+            return toBN(context, Group.parse_point_conversion_form(context.runtime, conversion_form));
+        }
+
+        private BN toBN(final ThreadContext context, final PointConversion conversionForm) {
+            final byte[] encoded = encodePoint(conversionForm);
             return BN.newBN(context.runtime, new BigInteger(1, encoded));
+        }
+
+        private byte[] encodePoint(final PointConversion conversionForm) {
+            final byte[] encoded;
+            switch (conversionForm) {
+                case UNCOMPRESSED:
+                    encoded = encodeUncompressed(bitLength(), point);
+                    break;
+                case COMPRESSED:
+                    encoded = encodeCompressed(point);
+                    break;
+                case HYBRID:
+                    throw getRuntime().newNotImplementedError(":hybrid compression not implemented");
+                default:
+                    throw new AssertionError("unexpected conversion form: " + conversionForm);
+            }
+            return encoded;
+        }
+
+        @JRubyMethod
+        public IRubyObject to_octet_string(final ThreadContext context, final IRubyObject conversion_form) {
+            final PointConversion conversionForm = Group.parse_point_conversion_form(context.runtime, conversion_form);
+            return StringHelper.newString(context.runtime, encodePoint(conversionForm));
         }
 
         private boolean isInfinity() {
@@ -986,34 +1065,49 @@ public final class PKeyEC extends PKey {
     }
 
     static byte[] encode(final ECPublicKey pubKey) {
-        return encode(pubKey.getParams().getOrder().bitLength(), pubKey.getW());
+        return encodeUncompressed(pubKey.getParams().getOrder().bitLength(), pubKey.getW());
     }
 
-    private static byte[] encode(final int bitLength, final ECPoint point) {
-        if ( point == ECPoint.POINT_INFINITY )  return new byte[1];
+    private static byte[] encodeUncompressed(final int fieldSize, final ECPoint point) {
+        if (point == ECPoint.POINT_INFINITY) return new byte[1];
 
-        final int bytesLength = (bitLength + 7) / 8;
-        byte[] encoded = new byte[1 + bytesLength + bytesLength];
+        final int expLength = (fieldSize + 7) / 8;
+
+        byte[] encoded = new byte[1 + expLength + expLength];
 
         encoded[0] = 0x04;
 
-        addIntBytes(point.getAffineX(), bytesLength, encoded, 1);
-        addIntBytes(point.getAffineY(), bytesLength, encoded, 1 + bytesLength);
+        addIntBytes(point.getAffineX(), expLength, encoded, 1);
+        addIntBytes(point.getAffineY(), expLength, encoded, 1 + expLength);
 
         return encoded;
     }
 
-    private static void addIntBytes(BigInteger i, final int length, final byte[] dest, final int destOffset) {
-       final byte[] bytes = i.toByteArray();
+    private static byte[] encodeCompressed(final ECPoint point) {
+        if (point == ECPoint.POINT_INFINITY) return new byte[1];
 
-       if (length < bytes.length) {
-           System.arraycopy(bytes, bytes.length - length, dest, destOffset, length);
+        final int bytesLength = point.getAffineX().bitLength() / 8 + 1;
+
+        byte[] encoded = new byte[1 + bytesLength];
+
+        encoded[0] = (byte) (point.getAffineY().testBit(0) ? 0x03 : 0x02);
+
+        addIntBytes(point.getAffineX(), bytesLength, encoded, 1);
+
+        return encoded;
+    }
+
+    private static void addIntBytes(final BigInteger value, final int length, final byte[] dest, final int destOffset) {
+        final byte[] in = value.toByteArray();
+
+        if (length < in.length) {
+           System.arraycopy(in, in.length - length, dest, destOffset, length);
         }
-        else if (length > bytes.length) {
-            System.arraycopy(bytes, 0, dest, destOffset + (length - bytes.length), bytes.length);
+        else if (length > in.length) {
+            System.arraycopy(in, 0, dest, destOffset + (length - in.length), in.length);
         }
         else {
-            System.arraycopy(bytes, 0, dest, destOffset, length);
+            System.arraycopy(in, 0, dest, destOffset, length);
         }
     }
 

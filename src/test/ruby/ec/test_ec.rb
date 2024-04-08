@@ -73,8 +73,35 @@ class TestEC < TestCase
     client_public_key_bn = OpenSSL::BN.new('58089019511196532477248433747314139754458690644712400444716868601190212265537817278966641566813745621284958192417192818318052462970895792919572995957754854')
 
     binary = "\x04U\x1D6|\xA9\x14\eC\x13\x99b\x96\x9B\x94f\x8F\xB0o\xE2\xD3\xBC%\x8E\xE0Xn\xF2|R\x99b\xBD\xBFB\x8FS\xCF\x13\x7F\x8C\x03N\x96\x9D&\xB2\xE1\xBDQ\b\xCE\x94!s\x06.\xC5?\x96\xC7q\xDA\x8B\xE6"
-    client_public_key = OpenSSL::PKey::EC::Point.new(group, client_public_key_bn)
-    assert_equal binary, client_public_key.to_bn.to_s(2)
+    point = OpenSSL::PKey::EC::Point.new(group, client_public_key_bn)
+    assert_equal binary, point.to_bn.to_s(2)
+    assert_equal binary, point.to_octet_string(:uncompressed)
+
+    point2 = OpenSSL::PKey::EC::Point.new(group, point.to_octet_string(:uncompressed))
+    assert_equal binary, point2.to_bn.to_s(2)
+
+    compressed = "\x02U\x1D6|\xA9\x14\eC\x13\x99b\x96\x9B\x94f\x8F\xB0o\xE2\xD3\xBC%\x8E\xE0Xn\xF2|R\x99b\xBD"
+    assert_equal compressed, point.to_octet_string(:compressed)
+
+    # TODO: not yet implemented
+    # hybrid = "\x06U\x1D6|\xA9\x14\eC\x13\x99b\x96\x9B\x94f\x8F\xB0o\xE2\xD3\xBC%\x8E\xE0Xn\xF2|R\x99b\xBD\xBFB\x8FS\xCF\x13\x7F\x8C\x03N\x96\x9D&\xB2\xE1\xBDQ\b\xCE\x94!s\x06.\xC5?\x96\xC7q\xDA\x8B\xE6"
+    # assert_equal hybrid, point.to_octet_string(:hybrid)
+  end
+
+  def test_random_point
+    group = OpenSSL::PKey::EC::Group.new("prime256v1")
+    key = OpenSSL::PKey::EC.generate(group)
+    point = key.public_key
+
+    point2 = OpenSSL::PKey::EC::Point.new(group, point.to_bn)
+    assert_equal point, point2
+    assert_equal point.to_bn, point2.to_bn
+    assert_equal point.to_octet_string(:uncompressed), point2.to_octet_string(:uncompressed)
+
+    point3 = OpenSSL::PKey::EC::Point.new(group, point.to_octet_string(:uncompressed))
+    assert_equal point, point3
+    assert_equal point.to_bn, point3.to_bn
+    assert_equal point.to_octet_string(:uncompressed), point3.to_octet_string(:uncompressed)
   end
 
   require File.expand_path('base64.rb', File.dirname(__FILE__))
