@@ -541,6 +541,11 @@ public class PKeyRSA extends PKey {
         }
     }
 
+    @JRubyMethod
+    public IRubyObject oid() {
+        return getRuntime().newString("rsaEncryption");
+    }
+
     @JRubyMethod(name="d=")
     public synchronized IRubyObject set_d(final ThreadContext context, IRubyObject value) {
         if ( privateKey != null ) {

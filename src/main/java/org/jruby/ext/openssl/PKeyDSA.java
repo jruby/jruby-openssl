@@ -441,6 +441,11 @@ public class PKeyDSA extends PKey {
         }
     }
 
+    @JRubyMethod
+    public IRubyObject oid() {
+        return getRuntime().newString("DSA");
+    }
+
     private DSAKey getDsaKey() {
         DSAKey result;
         return (result = publicKey) != null ? result : privateKey;

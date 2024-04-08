@@ -9,6 +9,11 @@ class TestRSA < TestCase
     require 'base64'
   end
 
+  def test_oid
+    key = OpenSSL::PKey::RSA.new
+    assert_equal 'rsaEncryption', key.oid
+  end
+
   def test_rsa_private_decrypt
     key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
     base64_cipher = "oj1VB1Lnh6j5Ahoq4dllIXkStZHaT9RvizB0x+yIUDtzi6grSh9vXoCchb+U\nkyLOcMmIXopv1Oe7h2te+XS63AG0EAfUhKTFVDYkm7VmcXue25MPr+P+0w+7\nWjZci4VRBLq3T2qZa3IJhQPsNAtEE1DYXnEjNe0jcFa2bu8TPNscoogo5aAw\nQGT+3cKe7A053czG47Sip7aIo+4NlJHE9kFMOTLaWi3fvv/M9/VKo3Bmm/88\n8Ai09LncNTpq787CRHw/wfjuPlQJOiLt+i7AZHBl6x0jK9bqkhPK5YwP0vmc\nuL52QLzgPxj9E78crg47iJDOgNwU/ux1/VuKnlQ9PQ==\n"

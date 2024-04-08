@@ -3,6 +3,11 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestEC < TestCase
 
+  def test_oid
+    key = OpenSSL::PKey::EC.new
+    assert_equal 'id-ecPublicKey', key.oid
+  end
+
   def test_read_pem
     key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
 

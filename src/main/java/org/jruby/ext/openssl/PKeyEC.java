@@ -542,6 +542,11 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    @JRubyMethod
+    public IRubyObject oid() {
+        return getRuntime().newString("id-ecPublicKey");
+    }
+
     private Group getGroup(boolean required) {
         if (group == null) {
             if (publicKey != null) {
