@@ -354,19 +354,21 @@ public class Signed {
     }
 
     private static Set<AlgorithmIdentifier> algorithmIdentifiersFromASN1Set(ASN1Encodable content) {
-        ASN1Set set = (ASN1Set)content;
-        Set<AlgorithmIdentifier> result = new HashSet<AlgorithmIdentifier>();
-        for(Enumeration<?> e = set.getObjects(); e.hasMoreElements();) {
-            result.add(AlgorithmIdentifier.getInstance(e.nextElement()));
+        ASN1Set set = (ASN1Set) content;
+        final int len = set.size();
+        Set<AlgorithmIdentifier> result = new HashSet<>(len);
+        for (int i = 0; i < len; i++) {
+            result.add(AlgorithmIdentifier.getInstance(set.getObjectAt(i)));
         }
         return result;
     }
 
     private static Collection<SignerInfoWithPkey> signerInfosFromASN1Set(ASN1Encodable content) {
-        ASN1Set set = (ASN1Set)content;
-        Collection<SignerInfoWithPkey> result = new ArrayList<SignerInfoWithPkey>();
-        for(Enumeration<?> e = set.getObjects(); e.hasMoreElements();) {
-            result.add(SignerInfoWithPkey.getInstance(e.nextElement()));
+        ASN1Set set = (ASN1Set) content;
+        final int len = set.size();
+        Collection<SignerInfoWithPkey> result = new ArrayList<>();
+        for (int i = 0; i < len; i++) {
+            result.add(SignerInfoWithPkey.getInstance(set.getObjectAt(i)));
         }
         return result;
     }

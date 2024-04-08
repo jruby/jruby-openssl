@@ -72,11 +72,15 @@ public class SignerInfoWithPkey implements ASN1Encodable {
     private ASN1OctetString         encryptedDigest;
     private ASN1Set                 unauthenticatedAttributes;
 
-    public static SignerInfoWithPkey getInstance(Object o) {
-        if(o instanceof SignerInfo) {
-            return (SignerInfoWithPkey)o;
-        } else if (o instanceof ASN1Sequence) {
-            return new SignerInfoWithPkey((ASN1Sequence)o);
+    public static SignerInfoWithPkey getInstance(ASN1Encodable o) {
+        if (o instanceof SignerInfo) {
+            final SignerInfo info = (SignerInfo) o;
+            return new SignerInfoWithPkey(info.getVersion(), info.getIssuerAndSerialNumber(), info.getDigestAlgorithm(),
+                                          info.getAuthenticatedAttributes(), info.getDigestEncryptionAlgorithm(),
+                                          info.getEncryptedDigest(), info.getUnauthenticatedAttributes());
+        }
+        if (o instanceof ASN1Sequence) {
+            return new SignerInfoWithPkey((ASN1Sequence) o);
         }
 
         throw new IllegalArgumentException("unknown object in factory: " + o.getClass().getName());
@@ -97,13 +101,13 @@ public class SignerInfoWithPkey implements ASN1Encodable {
     SignerInfoWithPkey() {
     }
 
-    public SignerInfoWithPkey(ASN1Integer              version,
-        IssuerAndSerialNumber   issuerAndSerialNumber,
-        AlgorithmIdentifier     digAlgorithm,
-        ASN1Set                 authenticatedAttributes,
-        AlgorithmIdentifier     digEncryptionAlgorithm,
-        ASN1OctetString         encryptedDigest,
-        ASN1Set                 unauthenticatedAttributes) {
+    public SignerInfoWithPkey(ASN1Integer version,
+                              IssuerAndSerialNumber issuerAndSerialNumber,
+                              AlgorithmIdentifier digAlgorithm,
+                              ASN1Set authenticatedAttributes,
+                              AlgorithmIdentifier digEncryptionAlgorithm,
+                              ASN1OctetString encryptedDigest,
+                              ASN1Set unauthenticatedAttributes) {
         this.version = version;
         this.issuerAndSerialNumber = issuerAndSerialNumber;
         this.digAlgorithm = digAlgorithm;
@@ -113,8 +117,8 @@ public class SignerInfoWithPkey implements ASN1Encodable {
         this.unauthenticatedAttributes = unauthenticatedAttributes;
     }
 
-    public SignerInfoWithPkey(ASN1Sequence seq) {
-        Enumeration     e = seq.getObjects();
+    SignerInfoWithPkey(ASN1Sequence seq) {
+        Enumeration e = seq.getObjects();
 
         version = (ASN1Integer)e.nextElement();
         issuerAndSerialNumber = IssuerAndSerialNumber.getInstance(e.nextElement());
@@ -122,7 +126,7 @@ public class SignerInfoWithPkey implements ASN1Encodable {
 
         Object obj = e.nextElement();
 
-        if(obj instanceof ASN1TaggedObject) {
+        if (obj instanceof ASN1TaggedObject) {
             authenticatedAttributes = ASN1Set.getInstance((ASN1TaggedObject)obj, false);
 
             digEncryptionAlgorithm = AlgorithmIdentifier.getInstance(e.nextElement());
