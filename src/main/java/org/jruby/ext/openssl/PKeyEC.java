@@ -688,6 +688,31 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    @JRubyMethod
+    public RubyString to_text() {
+        StringBuilder result = new StringBuilder();
+        final ECParameterSpec spec = getParamSpec();
+        result.append("Private-Key: (").append(spec.getOrder().bitLength()).append(" bit)").append('\n');
+
+        if (privateKey != null) {
+            result.append("priv:");
+            addSplittedAndFormatted(result, ((ECPrivateKey) privateKey).getS());
+        }
+
+        if (publicKey != null) {
+            result.append("pub:");
+            final byte[] pubBytes = encodeUncompressed(getGroup(true).getBitLength(), publicKey.getW());
+            final StringBuilder hexBytes = new StringBuilder(pubBytes.length * 2);
+            for (byte b: pubBytes) {
+                hexBytes.append(Integer.toHexString(Byte.toUnsignedInt(b)));
+            }
+            addSplittedAndFormatted(result, hexBytes);
+        }
+        result.append("ASN1 OID: ").append(getCurveName()).append('\n');
+
+        return RubyString.newString(getRuntime(), result);
+    }
+
     private enum PointConversion {
         COMPRESSED, UNCOMPRESSED, HYBRID;
 

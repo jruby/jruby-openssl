@@ -369,20 +369,22 @@ public abstract class PKey extends RubyObject {
     }
 
     protected static void addSplittedAndFormatted(StringBuilder result, BigInteger value) {
-        String v = value.toString(16);
-        if ((v.length() % 2) != 0) {
-            v = "0" + v;
-        }
+        addSplittedAndFormatted(result, value.toString(16));
+    }
+
+    static void addSplittedAndFormatted(StringBuilder result, CharSequence v) {
+        if ((v.length() % 2) != 0) v = '0' + v.toString();
+
         String sep = "";
         for (int i = 0; i < v.length(); i += 2) {
             result.append(sep);
             if ((i % 30) == 0) {
                 result.append("\n    ");
             }
-            result.append(v.substring(i, i + 2));
+            result.append(v, i, i + 2);
             sep = ":";
         }
-        result.append("\n");
+        result.append('\n');
     }
 
     protected static CipherSpec cipherSpec(final IRubyObject cipher) {

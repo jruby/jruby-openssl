@@ -37,6 +37,12 @@ class TestEC < TestCase
     #pem = key.to_pem
     #puts pem
     #assert_equal(pem, OpenSSL::PKey::EC.new(pem).to_pem)
+
+    # to_text
+    text = key.to_text
+    assert_include text, "Private-Key: (112 bit)\n"
+    assert_include text, "bb:54:b8:93:a9:51:3c:09:a6:37:f7:2c:95:2e\n"
+    assert_include text, "ASN1 OID: secp112r1\n"
   end
 
   def test_read_pem2
