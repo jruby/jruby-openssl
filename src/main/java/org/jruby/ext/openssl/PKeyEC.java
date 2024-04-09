@@ -841,6 +841,10 @@ public final class PKeyEC extends PKey {
             return getParamSpec().getCurve();
         }
 
+        int getBitLength() {
+            return getParamSpec().getOrder().bitLength();
+        }
+
         @JRubyMethod
         public RubySymbol point_conversion_form(final ThreadContext context) {
             return context.runtime.newSymbol(this.conversionForm.toRubyString());
@@ -900,7 +904,6 @@ public final class PKeyEC extends PKey {
         }
 
         private ECPoint point;
-        //private int bitLength;
         private Group group;
 
         Point(Ruby runtime, ECPublicKey publicKey, Group group) {
@@ -978,11 +981,6 @@ public final class PKeyEC extends PKey {
             return point; // return publicKey.getW();
         }
 
-        private int bitLength() {
-            assert group != null;
-            return group.getParamSpec().getOrder().bitLength();
-        }
-
         private PointConversion getPointConversionForm() {
             if (group == null) return null;
             return group.conversionForm;
@@ -1007,7 +1005,8 @@ public final class PKeyEC extends PKey {
             final byte[] encoded;
             switch (conversionForm) {
                 case UNCOMPRESSED:
-                    encoded = encodeUncompressed(bitLength(), point);
+                    assert group != null;
+                    encoded = encodeUncompressed(group.getBitLength(), point);
                     break;
                 case COMPRESSED:
                     encoded = encodeCompressed(point);
