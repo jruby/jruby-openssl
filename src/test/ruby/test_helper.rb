@@ -63,7 +63,7 @@ end
 
 puts "#{__FILE__} using #{TestCase}" if $VERBOSE || defined?(REPORT_PATH)
 
-TestCase.class_eval do
+class TestCase
 
   def setup; require 'openssl' end
 
