@@ -309,7 +309,6 @@ public class X509Request extends RubyObject {
     @JRubyMethod
     public IRubyObject sign(final ThreadContext context,
         final IRubyObject key, final IRubyObject digest) {
-        // PublicKey publicKey = public_key.getPublicKey();
         PrivateKey privateKey = ((PKey) key).getPrivateKey();
 
         final Ruby runtime = context.runtime;
@@ -319,14 +318,14 @@ public class X509Request extends RubyObject {
         try {
             request = null; getRequest().sign( privateKey, digAlg );
         }
-        catch (GeneralSecurityException e) {
-            debugStackTrace(runtime, e);
+        catch (InvalidKeyException e) {
+            debug(runtime, "X509Request#sign failed", e);
             throw newRequestError(runtime, e);
         }
-        //catch (IOException e) {
-        //    debugStackTrace(runtime, e);
-        //    throw newRequestError(runtime, e);
-        //}
+        catch (Exception e) {
+            debugStackTrace(runtime, "X509Request#sign", e);
+            throw newRequestError(runtime, e);
+        }
         return this;
     }
 
