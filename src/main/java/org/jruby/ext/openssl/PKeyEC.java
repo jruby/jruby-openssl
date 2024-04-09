@@ -600,9 +600,13 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    /**
+     * @see ECNamedCurveSpec
+     */
     private static ECParameterSpec getParamSpec(final String curveName) {
-        ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec(curveName);
-        return new ECNamedCurveSpec(spec.getName(), spec.getCurve(), spec.getG(), spec.getN(), spec.getH(), spec.getSeed());
+        final ECNamedCurveParameterSpec ecCurveParamSpec = ECNamedCurveTable.getParameterSpec(curveName);
+        final EllipticCurve curve = EC5Util.convertCurve(ecCurveParamSpec.getCurve(), ecCurveParamSpec.getSeed());
+        return EC5Util.convertSpec(curve, ecCurveParamSpec);
     }
 
     private ECParameterSpec getParamSpec() {
@@ -722,7 +726,7 @@ public final class PKeyEC extends PKey {
         }
 
         private transient PKeyEC key;
-        private ECParameterSpec paramSpec;
+        private transient ECParameterSpec paramSpec;
 
         private PointConversion conversionForm = PointConversion.UNCOMPRESSED;
 
@@ -752,10 +756,6 @@ public final class PKeyEC extends PKey {
                 }
 
                 this.curve_name = arg.convertToString();
-
-                final ECNamedCurveParameterSpec ecCurveParamSpec = ECNamedCurveTable.getParameterSpec(curve_name.toString());
-                final EllipticCurve curve = EC5Util.convertCurve(ecCurveParamSpec.getCurve(), ecCurveParamSpec.getSeed());
-                this.paramSpec = EC5Util.convertSpec(curve, ecCurveParamSpec);
             }
             return this;
         }
@@ -768,59 +768,56 @@ public final class PKeyEC extends PKey {
         @Override
         @JRubyMethod(name = { "==", "eql?" })
         public IRubyObject op_equal(final ThreadContext context, final IRubyObject obj) {
-            if ( paramSpec == null ) return context.nil;
+            final Ruby runtime = context.runtime;
             if ( obj instanceof Group ) {
                 final Group that = (Group) obj;
-                boolean equals = this.paramSpec.equals(that.paramSpec);
-                return context.runtime.newBoolean(equals);
+                return context.runtime.newBoolean(this.implCurveName(runtime).equals(that.implCurveName(runtime)));
             }
             return context.runtime.getFalse();
         }
 
         @JRubyMethod
         public IRubyObject curve_name(final ThreadContext context) {
+            return implCurveName(context.runtime).dup();
+        }
+
+        private RubyString implCurveName(final Ruby runtime) {
             if (curve_name == null) {
                 String prefix, curveName = key.getCurveName();
                 // BC 1.54: "brainpoolP512t1" 1.55: "brainpoolp512t1"
                 if (curveName.startsWith(prefix = "brainpoolp")) {
                     curveName = "brainpoolP" + curveName.substring(prefix.length());
                 }
-                curve_name = RubyString.newString(context.runtime, curveName);
+                curve_name = RubyString.newString(runtime, curveName);
             }
-            return curve_name.dup();
+            return curve_name;
         }
 
         @JRubyMethod
         public IRubyObject order(final ThreadContext context) {
-            if ( paramSpec == null ) return context.nil;
-            return BN.newBN(context.runtime, paramSpec.getOrder());
+            return BN.newBN(context.runtime, getParamSpec().getOrder());
         }
 
         @JRubyMethod
         public IRubyObject cofactor(final ThreadContext context) {
-            if ( paramSpec == null ) return context.nil;
-            return context.runtime.newFixnum(paramSpec.getCofactor());
+            return context.runtime.newFixnum(getParamSpec().getCofactor());
         }
 
         @JRubyMethod
         public IRubyObject seed(final ThreadContext context) {
-            if ( paramSpec == null ) return context.nil;
-            final byte[] seed = paramSpec.getCurve().getSeed();
+            final byte[] seed = getCurve().getSeed();
             return seed == null ? context.nil : StringHelper.newString(context.runtime, seed);
         }
 
         @JRubyMethod
         public IRubyObject degree(final ThreadContext context) {
-            if ( paramSpec == null ) return context.nil;
-            final int fieldSize = paramSpec.getCurve().getField().getFieldSize();
+            final int fieldSize = getCurve().getField().getFieldSize();
             return context.runtime.newFixnum(fieldSize);
         }
 
         @JRubyMethod
         public IRubyObject generator(final ThreadContext context) {
-            if ( paramSpec == null ) return context.nil;
-            final ECPoint generator = paramSpec.getGenerator();
-            //final int bitLength = paramSpec.getOrder().bitLength();
+            final ECPoint generator = getParamSpec().getGenerator();
             return new Point(context.runtime, generator, this);
         }
 
@@ -846,11 +843,15 @@ public final class PKeyEC extends PKey {
             }
         }
 
-        EllipticCurve getCurve() {
+        private ECParameterSpec getParamSpec() {
             if (paramSpec == null) {
-                paramSpec = getParamSpec(getCurveName());
+                paramSpec = PKeyEC.getParamSpec(getCurveName());
             }
-            return paramSpec.getCurve();
+            return paramSpec;
+        }
+
+        EllipticCurve getCurve() {
+            return getParamSpec().getCurve();
         }
 
         @JRubyMethod
@@ -992,8 +993,7 @@ public final class PKeyEC extends PKey {
 
         private int bitLength() {
             assert group != null;
-            assert group.paramSpec != null;
-            return group.paramSpec.getOrder().bitLength();
+            return group.getParamSpec().getOrder().bitLength();
         }
 
         private PointConversion getPointConversionForm() {
