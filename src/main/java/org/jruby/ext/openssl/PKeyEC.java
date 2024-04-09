@@ -52,6 +52,7 @@ import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
+import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.ECPointUtil;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
@@ -171,16 +172,7 @@ public final class PKeyEC extends PKey {
     }
 
     private static Optional<ASN1ObjectIdentifier> getCurveOID(final String curveName) {
-        ASN1ObjectIdentifier id;
-        id = org.bouncycastle.asn1.sec.SECNamedCurves.getOID(curveName);
-        if ( id != null ) return Optional.of(id);
-        id = org.bouncycastle.asn1.x9.X962NamedCurves.getOID(curveName);
-        if ( id != null ) return Optional.of(id);
-        id = org.bouncycastle.asn1.nist.NISTNamedCurves.getOID(curveName);
-        if ( id != null ) return Optional.of(id);
-        id = org.bouncycastle.asn1.teletrust.TeleTrusTNamedCurves.getOID(curveName);
-        if ( id != null ) return Optional.of(id);
-        return Optional.empty();
+        return Optional.ofNullable(ECUtil.getNamedCurveOid(curveName));
     }
 
     private static boolean isCurveName(final String curveName) {
@@ -188,16 +180,11 @@ public final class PKeyEC extends PKey {
     }
 
     private static String getCurveName(final ASN1ObjectIdentifier oid) {
-        String name;
-        name = org.bouncycastle.asn1.sec.SECNamedCurves.getName(oid);
-        if ( name != null ) return name;
-        name = org.bouncycastle.asn1.x9.X962NamedCurves.getName(oid);
-        if ( name != null ) return name;
-        name = org.bouncycastle.asn1.nist.NISTNamedCurves.getName(oid);
-        if ( name != null ) return name;
-        name = org.bouncycastle.asn1.teletrust.TeleTrusTNamedCurves.getName(oid);
-        if ( name != null ) return name;
-        throw new IllegalStateException("could not identify curve name from: " + oid);
+        final String name = ECUtil.getCurveName(oid);
+        if (name == null) {
+            throw new IllegalStateException("could not identify curve name from: " + oid);
+        }
+        return name;
     }
 
     public PKeyEC(Ruby runtime, RubyClass type) {
