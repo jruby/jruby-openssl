@@ -255,7 +255,7 @@ public final class PKeyEC extends PKey {
         final RubyString str = readInitArg(context, arg);
         final String strJava = str.toString();
 
-        if ( isCurveName(strJava) ) {
+        if (!strJava.isEmpty() && isCurveName(strJava)) {
             this.curveName = strJava;
             return this;
         }
@@ -311,22 +311,6 @@ public final class PKeyEC extends PKey {
                 else debugStackTrace(runtime, e);
             }
         }
-//        if ( key == null && ! noClassDef ) {
-//            try { // readECParameters
-//                ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.getInstance(str.getBytes());
-//                ECNamedCurveParameterSpec paramSpec = ECNamedCurveTable.getParameterSpec(oid.getId());
-//
-//                // ecdsaFactory.generatePublic(keySpec)
-//
-//            }
-//            catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
-//            catch (InvalidKeySpecException e) { debug(runtime, "PKeyEC could not read public key", e); }
-//            catch (IOException e) { debug(runtime, "PKeyEC could not read public key", e); }
-//            catch (RuntimeException e) {
-//                if ( isKeyGenerationFailure(e) ) debug(runtime, "PKeyEC could not read public key", e);
-//                else debugStackTrace(runtime, e);
-//            }
-//        }
 
         if ( key == null ) key = tryPKCS8EncodedKey(runtime, ecdsaFactory, str.getBytes());
         if ( key == null ) key = tryX509EncodedKey(runtime, ecdsaFactory, str.getBytes());
