@@ -111,14 +111,16 @@ public class X509Request extends RubyObject {
             throw newRequestError(runtime, "invalid certificate request data", e);
         }
 
-        final String algorithm; final byte[] encoded;
+        final String algorithm;
+        final byte[] encoded;
         try {
             final PublicKey pkey = request.generatePublicKey();
             algorithm = pkey.getAlgorithm();
             encoded = pkey.getEncoded();
         }
-        catch (IOException e) { throw newRequestError(runtime, e); }
-        catch (GeneralSecurityException e) { throw newRequestError(runtime, e); }
+        catch (IOException|GeneralSecurityException e) {
+            throw newRequestError(runtime, e);
+        }
 
         final RubyString enc = RubyString.newString(runtime, encoded);
         if ( "RSA".equalsIgnoreCase(algorithm) ) {
@@ -126,6 +128,9 @@ public class X509Request extends RubyObject {
         }
         else if ( "DSA".equalsIgnoreCase(algorithm) ) {
             this.public_key = newPKeyImplInstance(context, "DSA", enc);
+        }
+        else if ( "EC".equalsIgnoreCase(algorithm) ) {
+            this.public_key = newPKeyImplInstance(context, "EC", enc);
         }
         else {
             throw runtime.newNotImplementedError("public key algorithm: " + algorithm);
