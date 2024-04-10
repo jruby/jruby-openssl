@@ -59,6 +59,8 @@ import org.bouncycastle.cert.X509CRLHolder;
 import org.bouncycastle.cert.X509v2CRLBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.util.Strings;
+
 import org.joda.time.DateTime;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -74,7 +76,6 @@ import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.Variable;
@@ -538,7 +539,7 @@ public class X509CRL extends RubyObject {
     @JRubyMethod
     public IRubyObject sign(final ThreadContext context, final IRubyObject key, IRubyObject digest) {
         final Ruby runtime = context.runtime;
-        final String signatureAlgorithm = getSignatureAlgorithm(runtime, (PKey) key, (Digest) digest);
+        final String signatureAlgorithm = getSignatureAlgorithm(runtime, (PKey) key, digest);
 
         final X500Name issuerName = ((X509Name) issuer).getX500Name();
         final java.util.Date thisUpdate = getLastUpdate().toDate();
@@ -639,19 +640,23 @@ public class X509CRL extends RubyObject {
         return this;
     }
 
-    private String getSignatureAlgorithm(final Ruby runtime, final PKey key, final Digest digest) {
+    private static String getSignatureAlgorithm(final Ruby runtime, final PKey key, final IRubyObject digest) {
         // Have to obey some artificial constraints of the OpenSSL implementation. Stupid.
         final String keyAlg = key.getAlgorithm();
-        final String digAlg = digest.getShortAlgorithm();
+        final String digAlg;
+        if (digest instanceof Digest) {
+            digAlg = ((Digest) digest).getShortAlgorithm();
+        } else {
+            digAlg = Strings.toUpperCase(digest.convertToString().toString());
+        }
 
         if ( "DSA".equalsIgnoreCase(keyAlg) ) {
-            if ( ( "MD5".equalsIgnoreCase( digAlg ) ) ) { // ||
-                // ( "SHA1".equals( digest.name().toString() ) ) ) {
+            if ( ( "MD5".equalsIgnoreCase( digAlg ) ) ) {
                 throw newCRLError(runtime, "unsupported key / digest algorithm ("+ key +" / "+ digAlg +")");
             }
         }
         else if ( "RSA".equalsIgnoreCase(keyAlg) ) {
-            if ( "DSS1".equals( digest.name().toString() ) ) {
+            if ( "DSS1".equals(digAlg) || (digest instanceof Digest && "DSS1".equals(((Digest) digest).name().toString())) ) {
                 throw newCRLError(runtime, "unsupported key / digest algorithm ("+ key +" / "+ digAlg +")");
             }
         }
