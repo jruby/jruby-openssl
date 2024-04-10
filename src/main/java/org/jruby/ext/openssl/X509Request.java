@@ -267,7 +267,7 @@ public class X509Request extends RubyObject {
                 return getRuntime().newFixnum( certVersion.intValue() );
             }
         }
-        return version == null ? getRuntime().newFixnum(0) : version;
+        return version == null ? getRuntime().newFixnum(-1) : version;
     }
 
     @JRubyMethod(name="version=")

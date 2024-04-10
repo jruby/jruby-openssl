@@ -49,7 +49,7 @@ class TestX509Request < TestCase
 
   def test_version
     csr = OpenSSL::X509::Request.new
-    assert_equal 0, csr.version
+    assert_equal -1, csr.version
 
     req = OpenSSL::X509::Request.new
     req.version = 1
