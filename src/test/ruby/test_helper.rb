@@ -135,17 +135,7 @@ class TestCase
 
   def debug(msg); puts msg if $VERBOSE end
 
-  def issue_cert(*args)
-  # def issue_cert(dn, key, serial, not_before, not_after, extensions, issuer, issuer_key, digest)
-  # def issue_cert(dn, key, serial, extensions, issuer, issuer_key,
-  #                not_before: nil, not_after: nil, digest: "sha256")
-    if args.length == 9
-      dn, key, serial, not_before, not_after, extensions, issuer, issuer_key, digest = *args
-    else
-      dn, key, serial, extensions, issuer, issuer_key, opts = *args
-      opts ||= {}
-      not_before, not_after, digest = opts[:not_before], opts[:not_after], opts[:digest] || "sha256"
-    end
+  def issue_cert(dn, key, serial, extensions, issuer, issuer_key, not_before: nil, not_after: nil, digest: 'sha256')
     cert = OpenSSL::X509::Certificate.new
     issuer = cert unless issuer
     issuer_key = key unless issuer_key
@@ -167,8 +157,7 @@ class TestCase
     cert
   end
 
-  def issue_crl(revoke_info, serial, lastup, nextup, extensions,
-                issuer, issuer_key, digest)
+  def issue_crl(revoke_info, serial, lastup, nextup, extensions, issuer, issuer_key, digest)
     crl = OpenSSL::X509::CRL.new
     crl.issuer = issuer.subject
     crl.version = 1

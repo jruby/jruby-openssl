@@ -120,8 +120,8 @@ EOF
     ]
 
     now = Time.now
-    cert = issue_cert(_ca, _rsa2048, 1, now, now + 3600, cert_exts, nil, nil, OpenSSL::Digest::SHA1.new)
-    crl = issue_crl([], 1, now, now+1600, crl_exts, cert, _rsa2048, OpenSSL::Digest::SHA1.new)
+    cert = issue_cert(_ca, _rsa2048, 1, cert_exts, nil, nil, not_before: now, not_after: now + 3600)
+    crl = issue_crl([], 1, now, now+1600, crl_exts, cert, _rsa2048, OpenSSL::Digest::SHA256.new)
 
     exts = crl.extensions
     assert_equal(3, exts.size)

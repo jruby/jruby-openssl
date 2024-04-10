@@ -24,9 +24,9 @@ module SSLTestHelper
       [ "keyUsage", "keyEncipherment,digitalSignature", true ],
     ]
     now = Time.at(Time.now.to_i)
-    @ca_cert  = issue_cert(@ca, @ca_key, 1, now, now + 3600, ca_exts, nil, nil, OpenSSL::Digest::SHA256.new)
-    @svr_cert = issue_cert(@svr, @svr_key, 2, now, now + 1800, ee_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA256.new)
-    @cli_cert = issue_cert(@cli, @cli_key, 3, now, now + 1800, ee_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA256.new)
+    @ca_cert  = issue_cert(@ca, @ca_key, 1, ca_exts, nil, nil, not_before: now, not_after: now + 3600)
+    @svr_cert = issue_cert(@svr, @svr_key, 2, ee_exts, @ca_cert, @ca_key, not_before: now, not_after: now + 1800)
+    @cli_cert = issue_cert(@cli, @cli_key, 3, ee_exts, @ca_cert, @ca_key, not_before: now, not_after: now + 1800)
     @server = nil
   end
 

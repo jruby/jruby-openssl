@@ -132,8 +132,8 @@ END
     ]
 
     now = Time.now
-    ca_cert = issue_cert(ca, rsa2048, 1, now, now + 3600, ca_exts,
-                         nil, nil, OpenSSL::Digest::SHA1.new)
+    ca_cert = issue_cert(ca, rsa2048, 1, ca_exts, nil, nil,
+                         not_before: now, not_after: now + 3600, digest: OpenSSL::Digest::SHA1.new)
 
     assert_equal 5, ca_cert.extensions.size
 
@@ -180,8 +180,8 @@ END
     ]
 
     now = Time.now
-    ca_cert = issue_cert(ca, rsa2048, 1, now, now + 3600, ca_exts,
-                         nil, nil, OpenSSL::Digest::SHA1.new)
+    ca_cert = issue_cert(ca, rsa2048, 1, ca_exts, nil, nil,
+                         not_before: now, not_after: now + 3600, digest: OpenSSL::Digest::SHA1.new)
 
     assert_equal 8, ca_cert.extensions.size
     ca_cert.extensions.each_with_index do |ext, i|
@@ -222,7 +222,7 @@ END
 
     dgst = OpenSSL::Digest::SHA1.new # NOTE: does it match MRI ?!
 
-    cert = issue_cert(subj, key, s, now, now + 3600, exts, nil, nil, dgst)
+    cert = issue_cert(subj, key, s, exts, nil, nil, not_before: now, not_after: now + 3600, digest: dgst)
 
     assert cert.inspect.start_with?('#<OpenSSL::X509::Certificate:')
     if defined? JRUBY_VERSION

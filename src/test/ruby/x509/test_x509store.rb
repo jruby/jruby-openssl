@@ -74,7 +74,7 @@ class TestX509Store < TestCase
     store.add_file @pem
     cert = OpenSSL::X509::Certificate.new(File.read(@pem))
 
-    p cert if $VERBOSE
+    #p cert if $VERBOSE
 
     verified = store.verify(cert)
     assert verified, "verification failed for cert: #{cert.inspect} - #{store.inspect}"
@@ -192,18 +192,12 @@ class TestX509Store < TestCase
     ee_exts = [
         ["keyUsage","keyEncipherment,digitalSignature",true],
     ]
-    ca1_cert = issue_cert(@ca1, @rsa2048, 1, now, now+3600, ca_exts,
-                          nil, nil, OpenSSL::Digest::SHA1.new)
-    ca2_cert = issue_cert(@ca2, @rsa1024, 2, now, now+1800, ca_exts,
-                          ca1_cert, @rsa2048, OpenSSL::Digest::SHA1.new)
-    ee1_cert = issue_cert(@ee1, @dsa256, 10, now, now+1800, ee_exts,
-                          ca2_cert, @rsa1024, OpenSSL::Digest::SHA1.new)
-    ee2_cert = issue_cert(@ee2, @dsa512, 20, now, now+1800, ee_exts,
-                          ca2_cert, @rsa1024, OpenSSL::Digest::SHA1.new)
-    ee3_cert = issue_cert(@ee2, @dsa512, 30, now-100, now-1, ee_exts,
-                          ca2_cert, @rsa1024, OpenSSL::Digest::SHA1.new)
-    ee4_cert = issue_cert(@ee2, @dsa512, 40, now+1000, now+2000, ee_exts,
-                          ca2_cert, @rsa1024, OpenSSL::Digest::SHA1.new)
+    ca1_cert = issue_cert(@ca1, @rsa2048, 1, ca_exts, nil, nil, not_before: now, not_after: now + 3600)
+    ca2_cert = issue_cert(@ca2, @rsa1024, 2, ca_exts, ca1_cert, @rsa2048, not_before: now, not_after: now + 1800)
+    ee1_cert = issue_cert(@ee1, @dsa256, 10, ee_exts, ca2_cert, @rsa1024, not_before: now, not_after: now + 1800)
+    ee2_cert = issue_cert(@ee2, @dsa512, 20, ee_exts, ca2_cert, @rsa1024, not_before: now, not_after: now + 1800)
+    ee3_cert = issue_cert(@ee2, @dsa512, 30, ee_exts, ca2_cert, @rsa1024, not_before: now - 100, not_after: now - 1)
+    ee4_cert = issue_cert(@ee2, @dsa512, 40, ee_exts, ca2_cert, @rsa1024, not_before: now + 1000, not_after: now + 2000)
 
     revoke_info = []
     crl1   = issue_crl(revoke_info, 1, now, now+1800, [],
@@ -408,20 +402,13 @@ class TestX509Store < TestCase
     ee_exts = [
         ["keyUsage","keyEncipherment,digitalSignature",true],
     ]
-    ca1_cert = issue_cert(@ca_same, @rsa1, 1, not_before, now - 60 * 60, ca_exts1,
-                          nil, nil, OpenSSL::Digest::SHA1.new)
-    ca2_cert = issue_cert(@ca_same, @rsa2, 2, not_before, not_after, ca_exts2,
-                          nil, nil, OpenSSL::Digest::SHA1.new)
-    ca3_cert = issue_cert(@ca_other, @rsa3, 3, not_before, not_after, ca_exts1,
-                          nil, nil, OpenSSL::Digest::SHA1.new)
-    ca4_cert = issue_cert(@ca_same, @rsa4, 4, not_before, not_after, ca_exts1,
-                          nil, nil, OpenSSL::Digest::SHA1.new)
-    ee1_cert = issue_cert(@ee1, @dsa1, 10, now - 60, now + 1800, ee_exts,
-                          ca1_cert, @rsa1, OpenSSL::Digest::SHA1.new)
-    ee2_cert = issue_cert(@ee2, @dsa2, 20, now - 60, now + 1800, ee_exts,
-                          ca2_cert, @rsa2, OpenSSL::Digest::SHA1.new)
-    ee4_cert = issue_cert(@ee4, @dsa2, 20, now - 60, now + 1800, ee_exts,
-                          ca4_cert, @rsa4, OpenSSL::Digest::SHA1.new)
+    ca1_cert = issue_cert(@ca_same, @rsa1, 1, ca_exts1, nil, nil, not_before: not_before, not_after: now - 60 * 60)
+    ca2_cert = issue_cert(@ca_same, @rsa2, 2, ca_exts2, nil, nil, not_before: not_before, not_after: not_after)
+    ca3_cert = issue_cert(@ca_other, @rsa3, 3, ca_exts1, nil, nil, not_before: not_before, not_after: not_after)
+    ca4_cert = issue_cert(@ca_same, @rsa4, 4, ca_exts1, nil, nil, not_before: not_before, not_after: not_after)
+    ee1_cert = issue_cert(@ee1, @dsa1, 10, ee_exts, ca1_cert, @rsa1, not_before: now - 60, not_after: now + 1800)
+    ee2_cert = issue_cert(@ee2, @dsa2, 20, ee_exts, ca2_cert, @rsa2, not_before: now - 60, not_after: now + 1800)
+    ee4_cert = issue_cert(@ee4, @dsa2, 20, ee_exts, ca4_cert, @rsa4, not_before: now - 60, not_after: now + 1800)
 
     cert_store = OpenSSL::X509::Store.new
     cert_store.add_cert ca1_cert

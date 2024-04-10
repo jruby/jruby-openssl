@@ -253,8 +253,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
       ["subjectKeyIdentifier","hash",false],
     ]
     dgst = OpenSSL::Digest::SHA1.new
-    cert = issue_cert( # OpenSSL::TestUtils.issue_cert
-      subj, key, s, now, now+3600, exts, nil, nil, dgst)
+    cert = issue_cert(subj, key, s, exts, nil, nil, not_before: now, not_after: now + 3600, digest: dgst)
 
     asn1 = OpenSSL::ASN1.decode(cert)
     assert_equal(OpenSSL::ASN1::Sequence, asn1.class)

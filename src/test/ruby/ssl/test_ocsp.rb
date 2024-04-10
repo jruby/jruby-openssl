@@ -19,7 +19,7 @@ class TestOCSP < TestCase
       ["basicConstraints", "CA:TRUE", true],
       ["keyUsage", "cRLSign,keyCertSign", true],
     ]
-    @ca_cert = issue_cert(ca_subj, @ca_key, 1, now, now+1800, ca_exts, nil, nil, OpenSSL::Digest::SHA1.new)
+    @ca_cert = issue_cert(ca_subj, @ca_key, 1, ca_exts, nil, nil, not_before: now, not_after: now + 1800, digest: OpenSSL::Digest::SHA1.new)
 
     cert_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCA2")
     @cert_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1
@@ -27,19 +27,19 @@ class TestOCSP < TestCase
       ["basicConstraints", "CA:TRUE", true],
       ["keyUsage", "cRLSign,keyCertSign", true],
     ]
-    @cert = issue_cert(cert_subj, @cert_key, 5, now, now+1800, cert_exts, @ca_cert, @ca_key, OpenSSL::Digest::SHA1.new)
+    @cert = issue_cert(cert_subj, @cert_key, 5, cert_exts, @ca_cert, @ca_key, not_before: now, not_after: now + 1800, digest: OpenSSL::Digest::SHA1.new)
 
     cert2_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCert")
     @cert2_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA1
     cert2_exts = []
-    @cert2 = issue_cert(cert2_subj, @cert2_key, 10, now, now+1800, cert2_exts, @cert, @cert_key, OpenSSL::Digest::SHA1.new)
+    @cert2 = issue_cert(cert2_subj, @cert2_key, 10, cert2_exts, @cert, @cert_key, not_before: now, not_after: now + 1800, digest: OpenSSL::Digest::SHA1.new)
 
     ocsp_subj = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=TestCAOCSP")
     @ocsp_key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2
     ocsp_exts = [
       ["extendedKeyUsage", "OCSPSigning", true],
     ]
-    @ocsp_cert = issue_cert(ocsp_subj, @ocsp_key, 100, now, now+1800, ocsp_exts, @cert, @cert_key, OpenSSL::Digest::SHA1.new)
+    @ocsp_cert = issue_cert(ocsp_subj, @ocsp_key, 100, ocsp_exts, @cert, @cert_key, not_before: now, not_after: now + 1800, digest: OpenSSL::Digest::SHA1.new)
   end
 
   def test_new_certificate_id
