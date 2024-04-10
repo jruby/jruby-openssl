@@ -404,7 +404,7 @@ module PKCS7Test
     BIG_ONE = BigInteger::ONE.to_java
 
     def create_signer_info_with_algo(algo)
-      md5 = AlgorithmIdentifier.new(ASN1Registry.nid2obj(4))
+      md5 = algorithm_identifier(4)
       org.jruby.ext.openssl.impl.SignerInfoWithPkey.new(
           org.bouncycastle.asn1.ASN1Integer.new(BIG_ONE),
           org.bouncycastle.asn1.pkcs.IssuerAndSerialNumber.new(org.bouncycastle.asn1.x500.X500Name.new("C=SE"), BIG_ONE),
@@ -421,8 +421,8 @@ module PKCS7Test
       p7.type = ASN1Registry::NID_pkcs7_signed
 
       # YES, these numbers are correct. Don't change them. They are OpenSSL internal NIDs
-      md5 = AlgorithmIdentifier.new(ASN1Registry.nid2obj(4))
-      md4 = AlgorithmIdentifier.new(ASN1Registry.nid2obj(5))
+      md5 = algorithm_identifier(4)
+      md4 = algorithm_identifier(5)
 
       si = create_signer_info_with_algo(md5)
       p7.add_signer(si)
@@ -450,8 +450,8 @@ module PKCS7Test
       p7.type = ASN1Registry::NID_pkcs7_signedAndEnveloped
 
       # YES, these numbers are correct. Don't change them. They are OpenSSL internal NIDs
-      md5 = AlgorithmIdentifier.new(ASN1Registry.nid2obj(4))
-      md4 = AlgorithmIdentifier.new(ASN1Registry.nid2obj(5))
+      md5 = algorithm_identifier(4)
+      md4 = algorithm_identifier(5)
 
       si = create_signer_info_with_algo(md5)
       p7.add_signer(si)
@@ -472,6 +472,13 @@ module PKCS7Test
       assert p7.get_signed_and_enveloped.md_algs.contains(md4)
       assert p7.get_signed_and_enveloped.md_algs.contains(md5)
     end
+
+    def algorithm_identifier(nid)
+      oid = ASN1Registry.nid2oid(nid)
+      raise "oid for #{nid.inspect} not found!" unless oid
+      AlgorithmIdentifier.new(org.bouncycastle.asn1.ASN1ObjectIdentifier.new(oid))
+    end
+    private :algorithm_identifier
 
     def test_set_content_on_data_throws_exception
       p7 = PKCS7.new

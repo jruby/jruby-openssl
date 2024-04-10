@@ -62,20 +62,19 @@ public class ASN1Registry {
         return o2a( oid.getId() );
     }
 
-    //@Deprecated
     public static ASN1ObjectIdentifier sym2oid(final String name) {
         final String oid = SYM_TO_OID.get( name.toLowerCase() );
         return oid == null ? null : new ASN1ObjectIdentifier( oid );
     }
 
-    public static String name2oid(final String name) {
+    static String name2oid(final String name) {
         return SYM_TO_OID.get( name.toLowerCase() );
     }
 
     public static Map<String, String> getOIDLookup() { return SYM_TO_OID; }
 
     static ASN1ObjectIdentifier nid2obj(int nid) {
-        return new ASN1ObjectIdentifier( NID_TO_OID[ nid ] );
+        return new ASN1ObjectIdentifier(nid2oid(nid));
     }
 
     public static String nid2oid(int nid) {
