@@ -27,7 +27,10 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl.impl;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.math.BigInteger;
 
 import java.security.KeyFactory;
@@ -51,6 +54,7 @@ import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.spec.DHParameterSpec;
 
+import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1InputStream;
@@ -69,6 +73,8 @@ import org.bouncycastle.asn1.x509.DSAParameter;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.bouncycastle.jcajce.provider.asymmetric.util.KeyUtil;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
 import org.jruby.ext.openssl.SecurityHelper;
 
@@ -132,17 +138,12 @@ public class PKey {
     }
 
     // d2i_PUBKEY_bio
-    public static PublicKey readPublicKey(byte[] input) throws IOException, NoSuchAlgorithmException {
-        PublicKey key = null;
-        try {
-            key = readRSAPublicKey(input);
-        } catch (InvalidKeySpecException e) { /* ignore */ }
-        if (key == null) {
-            try {
-                key = readDSAPublicKey(input);
-            } catch (InvalidKeySpecException e) { /* ignore */ }
+    public static PublicKey readPublicKey(byte[] input) throws IOException {
+        try (Reader in = new InputStreamReader(new ByteArrayInputStream(input))) {
+            Object pemObject = new PEMParser(in).readObject();
+            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
+            return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
         }
-        return key;
     }
 
     // d2i_RSAPrivateKey_bio

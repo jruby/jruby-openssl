@@ -14,6 +14,41 @@ class TestPKey < TestCase
     assert_equal OpenSSL::PKey::RSA.new(KEY).e, pkey.e
   end
 
+  def test_read_files
+    custom_fixtures_path = File.expand_path('fixtures/pkey/custom', File.dirname(__FILE__))
+
+    key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec256-private-v2.pem')))
+    assert_equal OpenSSL::PKey::EC, key.class
+    assert key.private_key?
+
+    key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec256k-private.pem')))
+    assert_equal OpenSSL::PKey::EC, key.class
+    assert key.private_key?
+
+    key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec256k-public.pem')))
+    assert_equal OpenSSL::PKey::EC, key.class
+    assert key.public_key?
+
+    key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec256-public-v2.pem')))
+    assert_equal OpenSSL::PKey::EC, key.class
+    assert key.public_key?
+
+    key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec512-private.pem')))
+    assert_equal OpenSSL::PKey::EC, key.class
+    assert key.private_key?
+
+    key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec512-public.pem')))
+    assert_equal OpenSSL::PKey::EC, key.class
+    assert key.public_key?
+
+    key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'rsa-2048-private.pem')))
+    assert_equal OpenSSL::PKey::RSA, key.class
+    assert key.private?
+    key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'rsa-2048-public.pem')))
+    assert_equal OpenSSL::PKey::RSA, key.class
+    assert key.public?
+  end
+
   def test_pkey_read_pkcs8_and_check_with_cert
     pkey = File.expand_path('pkey-pkcs8.pem', File.dirname(__FILE__))
     pkey = OpenSSL::PKey.read(File.read(pkey), nil)

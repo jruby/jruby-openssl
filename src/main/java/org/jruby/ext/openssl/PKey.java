@@ -156,7 +156,7 @@ public abstract class PKey extends RubyObject {
             // d2i_PUBKEY_bio
             try {
                 pubKey = org.jruby.ext.openssl.impl.PKey.readPublicKey(input);
-            } catch (IOException|GeneralSecurityException e) {
+            } catch (IOException e) {
                 debugStackTrace(runtime, "PKey readPublicKey", e); /* ignore */
             }
             // PEM_read_bio_PUBKEY
