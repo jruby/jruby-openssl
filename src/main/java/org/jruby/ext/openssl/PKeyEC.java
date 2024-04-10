@@ -272,7 +272,7 @@ public final class PKeyEC extends PKey {
         }
         // TODO: ugly NoClassDefFoundError catching for no BC env. How can we remove this?
         boolean noClassDef = false;
-        if ( key == null && ! noClassDef ) { // PEM_read_bio_DSAPrivateKey
+        if ( key == null && ! noClassDef ) {
             try {
                 key = readPrivateKey(strJava, passwd);
             }
@@ -304,8 +304,7 @@ public final class PKeyEC extends PKey {
                 key = readECPrivateKey(ecdsaFactory, str.getBytes());
             }
             catch (NoClassDefFoundError e) { noClassDef = true; debugStackTrace(runtime, e); }
-            catch (InvalidKeySpecException e) { debug(runtime, "PKeyEC could not read private key", e); }
-            catch (IOException e) { debugStackTrace(runtime, "PKeyEC could not read private key", e); }
+            catch (InvalidKeySpecException|IOException e) { debug(runtime, "PKeyEC could not read private key", e); }
             catch (RuntimeException e) {
                 if ( isKeyGenerationFailure(e) ) debug(runtime, "PKeyEC could not read private key", e);
                 else debugStackTrace(runtime, e);
@@ -331,8 +330,6 @@ public final class PKeyEC extends PKey {
         if ( key == null ) key = tryPKCS8EncodedKey(runtime, ecdsaFactory, str.getBytes());
         if ( key == null ) key = tryX509EncodedKey(runtime, ecdsaFactory, str.getBytes());
 
-        if ( key == null ) throw newECError(runtime, "Neither PUB key nor PRIV key:");
-
         if ( key instanceof KeyPair ) {
             final PublicKey pubKey = ((KeyPair) key).getPublic();
             final PrivateKey privKey = ((KeyPair) key).getPrivate();
@@ -353,7 +350,7 @@ public final class PKeyEC extends PKey {
             this.privateKey = null;
         }
         else {
-            throw newECError(runtime, "Neither PUB key nor PRIV key: "  + key.getClass().getName());
+            throw newECError(runtime, "Neither PUB key nor PRIV key: ");
         }
 
         if ( curveName == null && publicKey != null ) {
