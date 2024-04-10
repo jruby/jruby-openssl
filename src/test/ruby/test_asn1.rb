@@ -45,9 +45,7 @@ class TestASN1 < TestCase
     assert_equal universal_tag_name, OpenSSL::ASN1::UNIVERSAL_TAG_NAME
   end
 
-  require 'pp'
-
-  def _test_parse_infinite_length_sequence # borrowed from Krypt
+  def _test_parse_infinite_length_sequence; require 'pp' # borrowed from Krypt
     raw = [%w{30 80 04 01 01 02 01 01 00 00}.join("")].pack("H*")
     pp asn1 = OpenSSL::ASN1.decode(raw)
 
@@ -64,6 +62,11 @@ class TestASN1 < TestCase
     assert_universal(0, eoc)
     assert_equal('', eoc.value) # assert_nil(eoc.value)
     assert_equal(raw, asn1.to_der)
+  end
+
+  def test_simple_to_der
+    assert_equal "0\x00", OpenSSL::ASN1::Sequence.new(nil).to_der
+    assert_equal "1\x00", OpenSSL::ASN1::Set.new(nil).to_der
   end
 
   def test_constructive
