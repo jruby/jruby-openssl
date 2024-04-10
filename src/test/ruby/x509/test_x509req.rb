@@ -18,6 +18,8 @@ class TestX509Request < TestCase
 
     csr.sign(key, OpenSSL::Digest::SHA256.new)
 
+    assert_equal 'sha256WithRSAEncryption', csr.signature_algorithm
+
     # The combination of the extreq and the stringification / revivification
     # is what triggers the bad behaviour in the extension. (Any extended
     # request type should do, but this matches my observed problems)
@@ -35,7 +37,12 @@ class TestX509Request < TestCase
     csr.public_key = key
     csr.subject = OpenSSL::X509::Name.new([['CN', 'foo.bar.cat', OpenSSL::ASN1::UTF8STRING]])
     csr.version = 2
+
+    assert_equal 'NULL', csr.signature_algorithm
+
     csr.sign key, OpenSSL::Digest::SHA256.new # does not raise
+
+    assert_equal 'ecdsa-with-SHA256', csr.signature_algorithm
 
     assert_true csr.verify(key)
   end

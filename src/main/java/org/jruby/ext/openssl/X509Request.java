@@ -44,6 +44,8 @@ import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.Attribute;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.operator.DefaultSignatureNameFinder;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -53,6 +55,7 @@ import org.jruby.RubyObject;
 import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
+import org.jruby.ext.openssl.impl.ASN1Registry;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.ThreadContext;
@@ -91,7 +94,7 @@ public class X509Request extends RubyObject {
 
     public X509Request(Ruby runtime, RubyClass type) {
         super(runtime, type);
-        attributes = new ArrayList<X509Attribute>(4);
+        attributes = new ArrayList<>(4);
     }
 
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
@@ -286,8 +289,10 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod
     public IRubyObject signature_algorithm(final ThreadContext context) {
-        warn(context, "WARNING: unimplemented method called: OpenSSL::X509::Request#signature_algorithm");
-        return context.runtime.getNil();
+        AlgorithmIdentifier signatureAlgId = request == null ? null : request.getSignatureAlgorithm();
+        if (signatureAlgId == null) return context.runtime.newString("NULL");
+        final String name = ASN1Registry.o2a(signatureAlgId.getAlgorithm());
+        return context.runtime.newString(name == null ? "" : name);
     }
 
     @JRubyMethod
@@ -316,7 +321,8 @@ public class X509Request extends RubyObject {
 
         final String digAlg = ((Digest) digest).getShortAlgorithm();
         try {
-            request = null; getRequest().sign( privateKey, digAlg );
+            request = null;
+            getRequest().sign( privateKey, digAlg );
         }
         catch (InvalidKeyException e) {
             debug(runtime, "X509Request#sign invalid key:", e);
@@ -330,15 +336,14 @@ public class X509Request extends RubyObject {
     }
 
     private List<Attribute> newAttributesImpl(final ThreadContext context) {
-        ArrayList<Attribute> attrs = new ArrayList<Attribute>(attributes.size());
+        ArrayList<Attribute> attrs = new ArrayList<>(attributes.size());
         for ( X509Attribute attribute : attributes ) {
             attrs.add( newAttributeImpl(context, attribute) );
         }
         return attrs;
     }
 
-    private Attribute newAttributeImpl(final ThreadContext context,
-        final X509Attribute attribute) {
+    private static Attribute newAttributeImpl(final ThreadContext context, final X509Attribute attribute) {
         return Attribute.getInstance( attribute.toASN1( context ) );
     }
 
@@ -372,7 +377,7 @@ public class X509Request extends RubyObject {
         return getRuntime().newArray(attributes);
     }
 
-    @JRubyMethod(name="attributes=")
+    @JRubyMethod(name = "attributes=")
     public IRubyObject set_attributes(final ThreadContext context,final IRubyObject attributes) {
         this.attributes.clear();
         final RubyArray attrs = (RubyArray) attributes;

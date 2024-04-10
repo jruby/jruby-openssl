@@ -126,16 +126,14 @@ public class PKCS10Request {
 
     // sign
 
-    public PKCS10CertificationRequest sign(final PrivateKey privateKey,
-        final AlgorithmIdentifier signatureAlg)
+    public PKCS10CertificationRequest sign(final PrivateKey privateKey, final AlgorithmIdentifier signatureAlg)
         throws NoSuchAlgorithmException, InvalidKeyException {
         final ContentSigner signer = new PKCS10Signer(privateKey, signatureAlg);
         signedRequest = newBuilder().build(signer); // valid = true;
         return signedRequest;
     }
 
-    public PKCS10CertificationRequest sign(final PrivateKey privateKey,
-        final String digestAlg)
+    public PKCS10CertificationRequest sign(final PrivateKey privateKey, final String digestAlg)
         throws NoSuchAlgorithmException, InvalidKeyException {
         String sigAlg = digestAlg + "WITH" + getPublicKeyAlgorithm();
         return sign(privateKey, new DefaultSignatureAlgorithmIdentifierFinder().find(sigAlg));
@@ -296,6 +294,10 @@ public class PKCS10Request {
                     getVersion().getValue();
     }
 
+    public AlgorithmIdentifier getSignatureAlgorithm() {
+        if ( signedRequest == null ) return null;
+        return signedRequest.getSignatureAlgorithm();
+    }
 
     private static class PKCS10Signer implements ContentSigner {
 
