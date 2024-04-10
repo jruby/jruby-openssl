@@ -51,6 +51,8 @@ import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.pkcs.CertificationRequestInfo;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
+import org.bouncycastle.operator.DefaultAlgorithmNameFinder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -136,16 +138,14 @@ public class PKCS10Request {
         final String digestAlg)
         throws NoSuchAlgorithmException, InvalidKeyException {
         String sigAlg = digestAlg + "WITH" + getPublicKeyAlgorithm();
-        return sign( privateKey,
-            new DefaultSignatureAlgorithmIdentifierFinder().find( sigAlg )
-        );
+        return sign(privateKey, new DefaultSignatureAlgorithmIdentifierFinder().find(sigAlg));
     }
 
     // verify
 
     public boolean verify(final PublicKey publicKey) throws InvalidKeyException {
         if ( signedRequest == null ) {
-            if ( true ) throw new IllegalStateException("no signed request");
+            assert false : "no signed request";
             return false;
         }
 
@@ -206,16 +206,23 @@ public class PKCS10Request {
         resetSignedRequest();
     }
 
+    /**
+     * @return e.g. "RSA" or "ECDSA"
+     */
     private String getPublicKeyAlgorithm() {
-        //if ( publicKeyAlgorithm == null ) {
-        //    throw new IllegalStateException("no public key info");
-        //}
-        //return publicKeyAlgorithm;
         if ( publicKeyInfo == null ) {
             throw new IllegalStateException("no public key info");
         }
-        AlgorithmIdentifier algId = publicKeyInfo.getAlgorithm();
-        return ASN1Registry.oid2sym( algId.getAlgorithm() );
+
+        final AlgorithmIdentifier algId = publicKeyInfo.getAlgorithm();
+        // NOTE: BC's DefaultAlgorithmNameFinder does not handle the EC oid
+        if (X9ObjectIdentifiers.id_ecPublicKey.equals(algId.getAlgorithm())) {
+            return "ECDSA";
+        }
+        // e.g. PKCSObjectIdentifiers.rsaEncryption -> "RSA"
+        final String algName = new DefaultAlgorithmNameFinder().getAlgorithmName(algId);
+        assert algId.getAlgorithm().getId() != algName : "could not resolve name for oid: " + algId.getAlgorithm();
+        return algName;
     }
 
     public PublicKey generatePublicKey() throws NoSuchAlgorithmException,

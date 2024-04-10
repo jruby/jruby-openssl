@@ -42,7 +42,6 @@ import java.security.PrivateKey;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.pkcs.Attribute;
 import org.bouncycastle.asn1.x500.X500Name;
 
@@ -61,6 +60,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.impl.PKCS10Request;
+
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.PKey._PKey;
 import static org.jruby.ext.openssl.X509._X509;
@@ -319,7 +319,7 @@ public class X509Request extends RubyObject {
             request = null; getRequest().sign( privateKey, digAlg );
         }
         catch (InvalidKeyException e) {
-            debug(runtime, "X509Request#sign failed", e);
+            debug(runtime, "X509Request#sign invalid key:", e);
             throw newRequestError(runtime, e);
         }
         catch (Exception e) {
@@ -344,23 +344,25 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod
     public IRubyObject verify(final ThreadContext context, IRubyObject key) {
-        final Ruby runtime = context.runtime; final PublicKey publicKey;
+        final Ruby runtime = context.runtime;
         try {
-            publicKey = ( (PKey) key.callMethod(context, "public_key") ).getPublicKey();
-            return runtime.newBoolean( getRequest().verify(publicKey) );
+            if (!(key instanceof PKey)) { // due PKeyEC
+                key = key.callMethod(context, "public_key");
+                if (!(key instanceof PKey)) {
+                    throw context.runtime.newTypeError(key, _PKey(runtime));
+                }
+            }
+            boolean signatureValid = getRequest().verify( ((PKey) key).getPublicKey() );
+            return runtime.newBoolean(signatureValid);
         }
         catch (InvalidKeyException e) {
-            debug(runtime, "X509::Request#verify invalid key", e);
+            debug(runtime, "X509Request#verify invalid key:", e);
             throw newRequestError(runtime, "invalid key supplied", e);
         }
-        //catch (IOException e) {
-        //    debug(runtime, "X509::Request.verify failed", e);
-        //    return runtime.getFalse();
-        //}
-        //catch (RuntimeException e) {
-        //    debug(runtime, "X509::Request.verify failed", e);
-        //    return runtime.getFalse();
-        //}
+        catch (RuntimeException e) {
+            debugStackTrace(runtime, "X509Request#verify", e);
+            return context.nil;
+        }
     }
 
     @JRubyMethod

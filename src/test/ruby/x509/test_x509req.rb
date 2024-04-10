@@ -28,6 +28,18 @@ class TestX509Request < TestCase
     assert_equal 0, csr.version
   end
 
+  def test_csr_request_ec_key
+    key = OpenSSL::PKey::EC.generate('secp384r1')
+
+    csr = OpenSSL::X509::Request.new
+    csr.public_key = key
+    csr.subject = OpenSSL::X509::Name.new([['CN', 'foo.bar.cat', OpenSSL::ASN1::UTF8STRING]])
+    csr.version = 2
+    csr.sign key, OpenSSL::Digest::SHA256.new # does not raise
+
+    assert_true csr.verify(key)
+  end
+
   def test_version
     csr = OpenSSL::X509::Request.new
     assert_equal 0, csr.version
