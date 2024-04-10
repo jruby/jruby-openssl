@@ -24,6 +24,7 @@ class TestPKey < TestCase
     key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec256k-private.pem')))
     assert_equal OpenSSL::PKey::EC, key.class
     assert key.private_key?
+    assert_equal 'secp256k1', key.group.curve_name
 
     key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec256k-public.pem')))
     assert_equal OpenSSL::PKey::EC, key.class
@@ -32,14 +33,17 @@ class TestPKey < TestCase
     key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec256-public-v2.pem')))
     assert_equal OpenSSL::PKey::EC, key.class
     assert key.public_key?
+    assert_equal 'prime256v1', key.group.curve_name
 
     key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec512-private.pem')))
     assert_equal OpenSSL::PKey::EC, key.class
     assert key.private_key?
+    assert_equal 'secp521r1', key.group.curve_name
 
     key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'ec512-public.pem')))
     assert_equal OpenSSL::PKey::EC, key.class
     assert key.public_key?
+    assert_equal 'secp521r1', key.group.curve_name
 
     key = OpenSSL::PKey.read(File.read(File.join(custom_fixtures_path, 'rsa-2048-private.pem')))
     assert_equal OpenSSL::PKey::RSA, key.class

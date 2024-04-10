@@ -202,6 +202,7 @@ public final class PKeyEC extends PKey {
             setPrivateKey((ECPrivateKey) privKey);
         } else {
             this.privateKey = privKey;
+            setCurveNameFromPublicKeyIfNeeded();
         }
     }
 
@@ -353,14 +354,18 @@ public final class PKeyEC extends PKey {
             throw newECError(runtime, "Neither PUB key nor PRIV key: ");
         }
 
-        if ( curveName == null && publicKey != null ) {
-            final String oid = getCurveNameObjectIdFromKey(context, publicKey);
+        setCurveNameFromPublicKeyIfNeeded();
+
+        return this;
+    }
+
+    private void setCurveNameFromPublicKeyIfNeeded() {
+        if (curveName == null && publicKey != null) {
+            final String oid = getCurveNameObjectIdFromKey(getRuntime(), publicKey);
             if (isCurveName(oid)) {
                 this.curveName = getCurveName(new ASN1ObjectIdentifier(oid));
             }
         }
-
-        return this;
     }
 
     void setPrivateKey(final ECPrivateKey key) {
@@ -376,17 +381,17 @@ public final class PKeyEC extends PKey {
         }
     }
 
-    private static String getCurveNameObjectIdFromKey(final ThreadContext context, final ECPublicKey key) {
+    private static String getCurveNameObjectIdFromKey(final Ruby runtime, final ECPublicKey key) {
         try {
             AlgorithmParameters algParams = AlgorithmParameters.getInstance("EC");
             algParams.init(key.getParams());
             return algParams.getParameterSpec(ECGenParameterSpec.class).getName();
         }
         catch (NoSuchAlgorithmException|InvalidParameterSpecException ex) {
-            throw newECError(context.runtime, ex.getMessage());
+            throw newECError(runtime, ex.getMessage());
         }
         catch (Exception ex) {
-            throw (RaiseException) newECError(context.runtime, ex.toString()).initCause(ex);
+            throw (RaiseException) newECError(runtime, ex.toString()).initCause(ex);
         }
     }
 
@@ -535,10 +540,7 @@ public final class PKeyEC extends PKey {
 
     private Group getGroup(boolean required) {
         if (group == null) {
-            if (publicKey != null) {
-                return group = new Group(getRuntime(), this);
-            }
-            if (required) throw new IllegalStateException("no group (without public key)");
+            return group = new Group(getRuntime(), this);
         }
         return group;
     }
@@ -748,7 +750,6 @@ public final class PKeyEC extends PKey {
         Group(Ruby runtime, PKeyEC key) {
             this(runtime, _EC(runtime).getClass("Group"));
             this.key = key;
-            this.paramSpec = key.publicKey.getParams();
         }
 
         @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
@@ -759,8 +760,7 @@ public final class PKeyEC extends PKey {
                 IRubyObject arg = args[0];
 
                 if ( arg instanceof Group ) {
-                    IRubyObject curve_name = ((Group) arg).curve_name(context);
-                    this.curve_name = curve_name.isNil() ? null : (RubyString) curve_name;
+                    this.curve_name = ((Group) arg).implCurveName(runtime);
                     return this;
                 }
 
@@ -771,6 +771,7 @@ public final class PKeyEC extends PKey {
 
         private String getCurveName() {
             if (key != null) return key.getCurveName();
+            assert curve_name != null;
             return curve_name.toString();
         }
 
@@ -792,6 +793,7 @@ public final class PKeyEC extends PKey {
 
         private RubyString implCurveName(final Ruby runtime) {
             if (curve_name == null) {
+                assert key != null;
                 String prefix, curveName = key.getCurveName();
                 // BC 1.54: "brainpoolP512t1" 1.55: "brainpoolp512t1"
                 if (curveName.startsWith(prefix = "brainpoolp")) {
@@ -854,7 +856,11 @@ public final class PKeyEC extends PKey {
 
         private ECParameterSpec getParamSpec() {
             if (paramSpec == null) {
-                paramSpec = PKeyEC.getParamSpec(getCurveName());
+                if (key != null) {
+                    return paramSpec = key.getParamSpec();
+                }
+                assert curve_name != null;
+                return paramSpec = PKeyEC.getParamSpec(getCurveName());
             }
             return paramSpec;
         }
