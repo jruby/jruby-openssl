@@ -1,18 +1,42 @@
+## 0.14.4
+
+* [fix] convert `OpenSSL::ASN1::Sequence` to an array on #to_der (#265)
+* [feat] implement `PKey::DH.generate` and (dummy) `q` reader (#254)
+* [fix] raise `TypeError` when arg isn't a `Group`
+* [refactor] make sure `ASN1Error` has native cause
+* [fix] stop assuming (JDK) EC key identifier
+  "EC" with Sun provider but "ECDSA" with BC
+* [fix] do not check empty string as curve name
+* [fix] make sure `PKeyEC#group.curve_name` is always set
+* [refactor] `PKey.read` to use BC fully when reading public keys
+* [fix] `OpenSSL::X509::CRL#sign` to accept string digest
+* [fix] `OpenSSL::X509::Request#version` default is -1
+* [fix] resolving EC key from `X509::Request.new(pem)`
+* [feat] implement `OpenSSL::X509::Request#signature_algorithm`
+* [fix] work-around CSR failing with EC key (#294)
+* [feat] implement `OpenSSL::PKey::EC#to_text` (#280)
+* [feat] partial support for `PKey::EC::Point#to_octet_string(form)`
+* [feat] implement `OpenSSL::PKCS7::SignerInfo#signed_time` (#269)
+* [feat] implement #oid method for `PKey` classes (#281)
+* [fix] raise `PKeyError` from `PKey.read` when no key (#285)
+* [fix] restore PKCS#8 EC key handling (see #292)
+* [fix] revert `readPrivateKey` so public key is not lost (#292)
+
 ## 0.14.3
 
-* [fix] SSLSocket#alpn_protocol to be nil when not used (#287)
+* [fix] `SSLSocket#alpn_protocol` to be nil when not used (#287)
 * [feat] try resolving curve-name from EC public key
-* [feat] implement missing PKey::EC#dsa_verify_asn1 (#241)
-* [feat] implement support for PKey::EC.generate (#255)
-* [refactor] make sure curveName is set when using PKey.read (#289)
-* [fix] add Cipher#auth_data(arg) override (Rails 7.x compatibility) (#290)
-* [fix] raise TypeError when arg not of expected type (jruby/jruby#7875)
+* [feat] implement missing `PKey::EC#dsa_verify_asn1` (#241)
+* [feat] implement support for `PKey::EC.generate` (#255)
+* [refactor] make sure curveName is set when using `PKey.read` (#289)
+* [fix] add `Cipher#auth_data(arg)` override (Rails 7.x compatibility) (#290)
+* [fix] raise `TypeError` when arg not of expected type (jruby/jruby#7875)
 
 ## 0.14.2
 
 * [deps] upgrade BC to latest 1.74
 * [fix] for CRL verify when signed with EC key (#276)
-* [fix] OpenSSL::X509::Certificate#public_key raises for EC keys (#273)
+* [fix] `OpenSSL::X509::Certificate#public_key` raises for EC keys (#273)
 
 ## 0.14.1
 
