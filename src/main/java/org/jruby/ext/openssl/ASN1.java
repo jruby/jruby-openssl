@@ -1040,14 +1040,6 @@ public class ASN1 {
             final RubyTime time = RubyTime.newTime(runtime, adjustedTime.getTime());
             return ASN1.getClass("UTCTime").newInstance(context, time, Block.NULL_BLOCK);
         }
-        // NOTE: keep for BC versions compatibility ... extends ASN1UTCTime (since BC 1.51)
-        if ( obj instanceof DERUTCTime ) {
-            final Date adjustedTime;
-            try { adjustedTime = ((DERUTCTime) obj).getAdjustedDate(); }
-            catch (ParseException e) { throw new IOException(e); }
-            final RubyTime time = RubyTime.newTime(runtime, adjustedTime.getTime());
-            return ASN1.getClass("UTCTime").newInstance(context, time, Block.NULL_BLOCK);
-        }
 
         if ( obj instanceof ASN1GeneralizedTime ) {
             final Date generalTime;
@@ -1056,16 +1048,6 @@ public class ASN1 {
             final RubyTime time = RubyTime.newTime(runtime, generalTime.getTime());
             return ASN1.getClass("GeneralizedTime").newInstance(context, time, Block.NULL_BLOCK);
         }
-        // NOTE: keep for BC versions compatibility ... extends ASN1GeneralizedTime (since BC 1.51)
-        //if ( obj instanceof DERGeneralizedTime ) {
-        //    final Date generalTime;
-        //    try {
-        //        generalTime = ((DERGeneralizedTime) obj).getDate();
-        //    }
-        //    catch (ParseException e) { throw new IOException(e); }
-        //    final RubyTime time = RubyTime.newTime(runtime, generalTime.getTime());
-        //    return ASN1.getClass("GeneralizedTime").newInstance(context, time, Block.NULL_BLOCK);
-        //}
 
         if ( obj instanceof ASN1ObjectIdentifier ) {
             final String objId = ((ASN1ObjectIdentifier) obj).getId();
