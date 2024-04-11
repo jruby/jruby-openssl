@@ -1127,12 +1127,11 @@ public class ASN1 {
             return decodeImpl(context, (RubyModule) self, obj);
         }
         catch (IOException e) {
-            //throw context.runtime.newIOErrorFromException(e);
-            throw newASN1Error(context.runtime, e.getMessage());
+            throw newASN1Error(context.runtime, e);
         }
         catch (IllegalArgumentException e) {
             debugStackTrace(context.runtime, e);
-            throw context.runtime.newArgumentError(e.getMessage());
+            throw (RaiseException) context.runtime.newArgumentError(e.getMessage()).initCause(e);
         }
         catch (RuntimeException e) {
 
@@ -1212,8 +1211,7 @@ public class ASN1 {
                 arr.append( decodeImpl(context, ASN1, in) );
             }
             catch (IOException e) {
-                //throw context.runtime.newIOErrorFromException(e);
-                throw newASN1Error(context.runtime, e.getMessage());
+                throw newASN1Error(context.runtime, e);
             }
             catch (IllegalArgumentException e) {
                 debugStackTrace(context.runtime, e);
@@ -1231,6 +1229,10 @@ public class ASN1 {
 
     public static RaiseException newASN1Error(Ruby runtime, String message) {
         return Utils.newError(runtime, _ASN1(runtime).getClass("ASN1Error"), message, false);
+    }
+
+    static RaiseException newASN1Error(Ruby runtime, Throwable ex) {
+        return (RaiseException) newASN1Error(runtime, ex.getMessage()).initCause(ex);
     }
 
     static RubyModule _ASN1(final Ruby runtime) {
