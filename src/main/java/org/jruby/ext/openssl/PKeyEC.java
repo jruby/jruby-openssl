@@ -946,7 +946,10 @@ public final class PKeyEC extends PKey {
 
             if ( arg instanceof Group ) {
                 this.group = (Group) arg;
+            } else {
+                throw runtime.newTypeError(arg, _EC(runtime).getClass("Group"));
             }
+
             if ( argc == 2 ) { // (group, bn)
                 final byte[] encoded;
                 if (args[1] instanceof BN) {

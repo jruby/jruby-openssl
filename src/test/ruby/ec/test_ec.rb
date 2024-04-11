@@ -94,6 +94,13 @@ class TestEC < TestCase
     # assert_equal hybrid, point.to_octet_string(:hybrid)
   end
 
+  def test_point_error
+    assert_raise(ArgumentError) { OpenSSL::PKey::EC::Point.new }
+    assert_raise(TypeError) { OpenSSL::PKey::EC::Point.new(nil) }
+    assert_raise(TypeError) { OpenSSL::PKey::EC::Point.new(nil, '') }
+    assert_raise(TypeError) { OpenSSL::PKey::EC::Point.new(100, '') }
+  end
+
   def test_random_point
     group = OpenSSL::PKey::EC::Group.new("prime256v1")
     key = OpenSSL::PKey::EC.generate(group)
