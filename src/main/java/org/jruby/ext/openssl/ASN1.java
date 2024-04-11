@@ -1349,20 +1349,19 @@ public class ASN1 {
         @JRubyMethod(visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context,
             final IRubyObject value, final IRubyObject tag, final IRubyObject tag_class) {
-            checkTag(context.runtime, tag, tag_class, "UNIVERSAL");
+            checkTag(context.runtime, tag, tag_class);
             this.callMethod(context, "tag=", tag);
             this.callMethod(context, "value=", value);
             this.callMethod(context, "tag_class=", tag_class);
             return this;
         }
 
-        private void checkTag(final Ruby runtime, final IRubyObject tag,
-            final IRubyObject tagClass, final String expected) {
+        private void checkTag(final Ruby runtime, final IRubyObject tag, final IRubyObject tagClass) {
             if ( ! (tagClass instanceof RubySymbol) ) {
                 throw newASN1Error(runtime, "invalid tag class");
             }
-            if ( tagClass.toString().equals(expected) && RubyNumeric.fix2int(tag) > MAX_TAG_VALUE ) {
-                throw newASN1Error(runtime, "tag number for :" + expected + " too large");
+            if ( "UNIVERSAL".equals(tagClass.toString()) && RubyNumeric.fix2int(tag) > MAX_TAG_VALUE ) {
+                throw newASN1Error(runtime, "tag number for :UNIVERSAL too large (" + tag + ")");
             }
         }
 
