@@ -35,11 +35,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.text.ParseException;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -1154,26 +1152,21 @@ public class ASN1 {
 
     }
 
-    private static IRubyObject decodeImpl(final ThreadContext context,
-        final RubyModule ASN1, final BytesInputStream in) throws IOException, IllegalArgumentException {
+    private static IRubyObject decodeImpl(final ThreadContext context, final RubyModule ASN1, final BytesInputStream in)
+        throws IOException, IllegalArgumentException {
         // NOTE: need to handle OpenSSL::ASN1::Constructive wrapping by hand :
         final Integer tag = getConstructiveTag(in.bytes(), in.offset());
         IRubyObject decoded = decodeObject(context, ASN1, readObject( in ));
         if ( tag != null ) { // OpenSSL::ASN1::Constructive.new( arg ) :
-            final String type; List<IRubyObject> value = null;
             if ( tag.intValue() == SEQUENCE ) {
                 //type = "Sequence"; // got a OpenSSL::ASN1::Sequence already :
                 return Constructive.setInfiniteLength(context, decoded);
             }
-            else if ( tag.intValue() == SET ) {
+            if ( tag.intValue() == SET ) {
                 //type = "Set"; // got a OpenSSL::ASN1::Set already :
                 return Constructive.setInfiniteLength(context, decoded);
             }
-            else {
-                type = "Constructive";
-            }
-            if ( value == null ) value = Collections.singletonList(decoded);
-            return Constructive.newInfiniteConstructive(context, type, value, tag);
+            return Constructive.newInfiniteConstructive(context, "Constructive", context.runtime.newArray(decoded), tag);
         }
         return decoded;
     }
@@ -1744,18 +1737,14 @@ public class ASN1 {
         }
 
         static Constructive newInfiniteConstructive(final ThreadContext context,
-            final String type, final List<IRubyObject> value, final int defaultTag) {
+            final String type, final IRubyObject value, final int defaultTag) {
             final Ruby runtime = context.runtime;
 
             final RubyClass klass = _ASN1(context.runtime).getClass(type);
             final Constructive self = new Constructive(runtime, klass);
 
-            final RubyArray values = runtime.newArray(value.size());
-            for ( final IRubyObject val : value ) values.append(val);
-            // values.append( EndOfContent.newInstance(context) );
-
             self.setInstanceVariable("@tag", runtime.newFixnum(defaultTag));
-            self.setInstanceVariable("@value", values);
+            self.setInstanceVariable("@value", value);
             self.setInstanceVariable("@tag_class", runtime.newSymbol("UNIVERSAL"));
             self.setInstanceVariable("@tagging", context.nil);
 
