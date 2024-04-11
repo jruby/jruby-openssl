@@ -98,10 +98,6 @@ public final class PKeyEC extends PKey {
         public PKeyEC allocate(Ruby runtime, RubyClass klass) { return new PKeyEC(runtime, klass); }
     };
 
-    static PKeyEC newInstance(final Ruby runtime, final PublicKey publicKey) {
-        return new PKeyEC(runtime, publicKey);
-    }
-
     static void createPKeyEC(final Ruby runtime, final RubyModule PKey, final RubyClass PKeyPKey, final RubyClass OpenSSLError) {
         RubyClass EC = PKey.defineClassUnder("EC", PKeyPKey, ALLOCATOR);
 

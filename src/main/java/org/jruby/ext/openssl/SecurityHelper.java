@@ -606,22 +606,25 @@ public abstract class SecurityHelper {
             try {
                 final DigestAlgorithmIdentifierFinder digestAlgFinder = new DefaultDigestAlgorithmIdentifierFinder();
                 final ContentVerifierProvider verifierProvider;
-                if ( "DSA".equalsIgnoreCase( publicKey.getAlgorithm() )) {
+                if (publicKey instanceof DSAPublicKey) {
                     BigInteger y = ((DSAPublicKey) publicKey).getY();
                     DSAParams params = ((DSAPublicKey) publicKey).getParams();
                     DSAParameters parameters = new DSAParameters(params.getP(), params.getQ(), params.getG());
                     AsymmetricKeyParameter dsaKey = new DSAPublicKeyParameters(y, parameters);
                     verifierProvider = new BcDSAContentVerifierProviderBuilder(digestAlgFinder).build(dsaKey);
                 }
-                else if ( "EC".equalsIgnoreCase( publicKey.getAlgorithm() )) {
+                else if (publicKey instanceof ECPublicKey) {
                     AsymmetricKeyParameter ecKey = ECUtil.generatePublicKeyParameter(publicKey);
                     verifierProvider = new BcECContentVerifierProviderBuilder(digestAlgFinder).build(ecKey);
                 }
-                else {
+                else if (publicKey instanceof RSAPublicKey) {
                     BigInteger mod = ((RSAPublicKey) publicKey).getModulus();
                     BigInteger exp = ((RSAPublicKey) publicKey).getPublicExponent();
                     AsymmetricKeyParameter rsaKey = new RSAKeyParameters(false, mod, exp);
                     verifierProvider = new BcRSAContentVerifierProviderBuilder(digestAlgFinder).build(rsaKey);
+                }
+                else {
+                    throw new IllegalStateException("unsupported public key type: " + (publicKey != null ? publicKey.getClass() : null));
                 }
                 return new X509CRLHolder(crl.getEncoded()).isSignatureValid( verifierProvider );
             }

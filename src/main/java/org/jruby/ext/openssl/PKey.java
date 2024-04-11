@@ -34,6 +34,7 @@ import java.math.BigInteger;
 import java.security.*;
 import java.security.interfaces.DSAPrivateKey;
 import java.security.interfaces.DSAPublicKey;
+import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
@@ -88,6 +89,20 @@ public abstract class PKey extends RubyObject {
         return Utils.newError(runtime, (RubyClass) _PKey(runtime).getConstantAt("PKeyError"), message);
     }
 
+    public static PKey newInstance(final Ruby runtime, final PublicKey publicKey) {
+        if (publicKey instanceof RSAPublicKey) {
+            return new PKeyRSA(runtime, (RSAPublicKey) publicKey);
+        }
+        if (publicKey instanceof DSAPublicKey) {
+            return new PKeyDSA(runtime, (DSAPublicKey) publicKey);
+        }
+        if (publicKey instanceof ECPublicKey) {
+            return new PKeyEC(runtime, publicKey);
+        }
+        assert publicKey != null;
+        throw runtime.newNotImplementedError("public key algorithm: " + (publicKey != null ? publicKey.getAlgorithm() : "nil"));
+    }
+
     static RubyModule _PKey(final Ruby runtime) {
         return (RubyModule) runtime.getModule("OpenSSL").getConstantAt("PKey");
     }
@@ -122,20 +137,15 @@ public abstract class PKey extends RubyObject {
             if (keyPair != null) {
                 final String alg = getAlgorithm(keyPair);
                 if ( "RSA".equals(alg) ) {
-                    return new PKeyRSA(runtime, _PKey(runtime).getClass("RSA"),
-                            (RSAPrivateCrtKey) keyPair.getPrivate(), (RSAPublicKey) keyPair.getPublic()
-                    );
+                    return new PKeyRSA(runtime, _PKey(runtime).getClass("RSA"), (RSAPrivateCrtKey) keyPair.getPrivate(), (RSAPublicKey) keyPair.getPublic());
                 }
                 if ( "DSA".equals(alg) ) {
-                    return new PKeyDSA(runtime, _PKey(runtime).getClass("DSA"),
-                            (DSAPrivateKey) keyPair.getPrivate(), (DSAPublicKey) keyPair.getPublic()
-                    );
+                    return new PKeyDSA(runtime, _PKey(runtime).getClass("DSA"), (DSAPrivateKey) keyPair.getPrivate(), (DSAPublicKey) keyPair.getPublic());
                 }
-                if ( "EC".equals(alg) ) {
-                    return new PKeyEC(runtime, _PKey(runtime).getClass("EC"),
-                            keyPair.getPrivate(), keyPair.getPublic()
-                    );
+                if ( "EC".equals(alg) || "ECDSA".equals(alg) ) { // Sun vs BC provider naming
+                    return new PKeyEC(runtime, _PKey(runtime).getClass("EC"), keyPair.getPrivate(), keyPair.getPublic());
                 }
+                debug(runtime, "PKey readPrivateKey unexpected key pair algorithm: " + alg);
             }
 
             PublicKey pubKey = null;
@@ -168,16 +178,14 @@ public abstract class PKey extends RubyObject {
                 }
             }
 
-            if (pubKey != null) {
-                if ( "RSA".equals(pubKey.getAlgorithm()) ) {
-                    return new PKeyRSA(runtime, (RSAPublicKey) pubKey);
-                }
-                if ( "DSA".equals(pubKey.getAlgorithm()) ) {
-                    return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
-                }
-                if ( "EC".equals(pubKey.getAlgorithm()) ) {
-                    return new PKeyEC(runtime, pubKey);
-                }
+            if (pubKey instanceof RSAPublicKey) {
+                return new PKeyRSA(runtime, (RSAPublicKey) pubKey);
+            }
+            if (pubKey instanceof DSAPublicKey) {
+                return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
+            }
+            if (pubKey instanceof ECPublicKey) {
+                return new PKeyEC(runtime, pubKey);
             }
 
             throw newPKeyError(runtime, "Could not parse PKey: unsupported");
@@ -188,7 +196,6 @@ public abstract class PKey extends RubyObject {
             if ( key.getPublic() != null ) return key.getPublic().getAlgorithm();
             return null;
         }
-
     }
 
     public PKey(Ruby runtime, RubyClass type) {

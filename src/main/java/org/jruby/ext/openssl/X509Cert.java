@@ -41,9 +41,9 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+
 import java.security.interfaces.DSAPublicKey;
 import java.security.interfaces.RSAPublicKey;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -82,7 +82,6 @@ import org.jruby.ext.openssl.impl.ASN1Registry;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.runtime.Block;
-import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -359,7 +358,7 @@ public class X509Cert extends RubyObject {
         final PublicKey publicKey = getPublicKey();
         text.append(S20,0,12).append("Public Key Algorithm: ").append(publicKey.getAlgorithm()).append('\n');
 
-        if ( "RSA".equals( publicKey.getAlgorithm() ) ) {
+        if (publicKey instanceof RSAPublicKey) {
             final RSAPublicKey rsaKey = ((RSAPublicKey) publicKey);
             text.append(S20,0,16).append("Public-Key: (").append( rsaKey.getModulus().bitLength() ).append(" bit)\n");
 
@@ -370,13 +369,13 @@ public class X509Cert extends RubyObject {
             text.append(S20,0,16).append("Exponent: ").append(exponent).
                  append(" (0x").append( exponent.toString(16) ).append(")\n");
         }
-        else if ( "DSA".equals( publicKey.getAlgorithm() ) ) {
+        else if (publicKey instanceof DSAPublicKey) {
             final DSAPublicKey dsaKey = ((DSAPublicKey) publicKey);
             text.append(S20,0,16).append("Public-Key: (").append( dsaKey.getY().bitLength() ).append(" bit)\n");
 
             text.append(S20,0,16).append("TODO: not-implemented (PR HOME-WORK)").append('\n'); // left-TODO
         }
-        else {
+        else { // "EC" or "ECDSA"
             text.append(S20,0,16).append("TODO: not-implemented (PRs WELCOME!)").append('\n'); // left-TODO
         }
 
@@ -540,30 +539,7 @@ public class X509Cert extends RubyObject {
             throw newCertificateError(runtime, "no certificate");
         }
 
-        final PublicKey publicKey = cert.getPublicKey();
-
-        final String algorithm = publicKey.getAlgorithm();
-
-        if ( "RSA".equalsIgnoreCase(algorithm) ) {
-            //if ( public_key == null ) {
-            //    throw new IllegalStateException("no public key encoded data");
-            //}
-            set_public_key( PKeyRSA.newInstance(runtime, publicKey) );
-        }
-        else if ( "DSA".equalsIgnoreCase(algorithm) ) {
-            //if ( public_key == null ) {
-            //    throw new IllegalStateException("no public key encoded data");
-            //}
-            set_public_key( PKeyDSA.newInstance(runtime, publicKey) );
-        }
-        else if ( "EC".equalsIgnoreCase(algorithm) ) {
-            set_public_key( PKeyEC.newInstance(runtime, publicKey) );
-        }
-        else {
-            String message = "unsupported algorithm";
-            if ( algorithm != null ) message += " '" + algorithm + "'";
-            throw newCertificateError(runtime, message);
-        }
+        set_public_key(PKey.newInstance(runtime, cert.getPublicKey()));
 
         this.changed = changed;
     }

@@ -45,7 +45,6 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.Attribute;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-import org.bouncycastle.operator.DefaultSignatureNameFinder;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -111,30 +110,14 @@ public class X509Request extends RubyObject {
             throw newRequestError(runtime, "invalid certificate request data", e);
         }
 
-        final String algorithm;
-        final byte[] encoded;
+        final PublicKey publicKey;
         try {
-            final PublicKey pkey = request.generatePublicKey();
-            algorithm = pkey.getAlgorithm();
-            encoded = pkey.getEncoded();
+            publicKey = request.generatePublicKey();
         }
         catch (IOException|GeneralSecurityException e) {
             throw newRequestError(runtime, e);
         }
-
-        final RubyString enc = RubyString.newString(runtime, encoded);
-        if ( "RSA".equalsIgnoreCase(algorithm) ) {
-            this.public_key = newPKeyImplInstance(context, "RSA", enc);
-        }
-        else if ( "DSA".equalsIgnoreCase(algorithm) ) {
-            this.public_key = newPKeyImplInstance(context, "DSA", enc);
-        }
-        else if ( "EC".equalsIgnoreCase(algorithm) ) {
-            this.public_key = newPKeyImplInstance(context, "EC", enc);
-        }
-        else {
-            throw runtime.newNotImplementedError("public key algorithm: " + algorithm);
-        }
+        this.public_key = PKey.newInstance(runtime, publicKey);
 
         this.subject = newName( context, request.getSubject() );
 
@@ -153,11 +136,6 @@ public class X509Request extends RubyObject {
         }
 
         return this;
-    }
-
-    private static PKey newPKeyImplInstance(final ThreadContext context,
-        final String className, final RubyString encoded) { // OpenSSL::PKey::RSA.new(encoded)
-        return (PKey) _PKey(context.runtime).getClass(className).callMethod(context, "new", encoded);
     }
 
     private static X509Attribute newAttribute(final ThreadContext context,

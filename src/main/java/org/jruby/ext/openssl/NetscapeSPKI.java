@@ -45,7 +45,6 @@ import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
-import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.impl.Base64;
@@ -57,8 +56,6 @@ import org.jruby.util.ByteList;
 // org.bouncycastle.jce.netscape.NetscapeCertRequest emulator:
 import org.jruby.ext.openssl.impl.NetscapeCertRequest;
 
-import static org.jruby.ext.openssl.PKeyDSA._DSA;
-import static org.jruby.ext.openssl.PKeyRSA._RSA;
 import static org.jruby.ext.openssl.OpenSSL.*;
 
 /**
@@ -102,19 +99,7 @@ public class NetscapeSPKI extends RubyObject {
             catch (GeneralSecurityException e) { throw newSPKIError(e); }
             catch (IllegalArgumentException e) { throw newSPKIError(e); }
 
-            final PublicKey publicKey = cert.getPublicKey();
-            final String algorithm = publicKey.getAlgorithm();
-            final RubyString pub_key = RubyString.newString(runtime, publicKey.getEncoded());
-
-            if ( "RSA".equalsIgnoreCase(algorithm) ) {
-                this.public_key = _RSA(runtime).callMethod(context, "new", pub_key);
-            }
-            else if ( "DSA".equalsIgnoreCase(algorithm) ) {
-                this.public_key = _DSA(runtime).callMethod(context, "new", pub_key);
-            }
-            else {
-                throw runtime.newLoadError("not implemented algo for public key: " + algorithm);
-            }
+            this.public_key = PKey.newInstance(runtime, cert.getPublicKey());
         }
         return this;
     }
