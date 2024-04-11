@@ -97,12 +97,6 @@ public class PKeyDH extends PKey {
     private transient volatile BigInteger dh_y;
     private transient volatile BigInteger dh_x;
 
-    // FIXME! need to figure out what it means in MRI/OSSL code to
-    // claim a DH is(/has) private if an engine is present -- doesn't really
-    // map to Java implementation.
-
-    //private volatile boolean haveEngine;
-
     public PKeyDH(Ruby runtime, RubyClass clazz) {
         super(runtime, clazz);
     }
@@ -118,6 +112,21 @@ public class PKeyDH extends PKey {
         this.dh_y = that.dh_y;
         this.dh_x = that.dh_x;
         return this;
+    }
+
+    @JRubyMethod(name = "generate", meta = true, rest = true)
+    public static IRubyObject generate(final ThreadContext context, IRubyObject self, IRubyObject[] args) {
+        final Ruby runtime = context.runtime;
+        final int g;
+        if (Arity.checkArgumentCount(runtime, args, 1, 2) == 2) {
+            g = RubyNumeric.num2int(args[1]);
+        } else {
+            g = 2;
+        }
+
+        PKeyDH pkey = new PKeyDH(runtime, _PKey(runtime).getClass("DH"));
+        pkey.generate(runtime, args[0], g);
+        return pkey;
     }
 
     @JRubyMethod(name="initialize", rest=true, visibility = Visibility.PRIVATE)
@@ -150,26 +159,27 @@ public class PKeyDH extends PKey {
                     throw runtime.newIOErrorFromException(e);
                 }
             } else {
-                int bits = RubyNumeric.fix2int(arg0);
-                // g defaults to 2
-                int gval = argc == 2 ? RubyNumeric.fix2int(args[1]) : 2;
-                BigInteger p;
-                try {
-                    p = generateP(bits, gval);
-                }
-                catch(IllegalArgumentException e) {
-                    throw runtime.newArgumentError(e.getMessage());
-                }
-                BigInteger g = BigInteger.valueOf(gval);
-                BigInteger x = generateX(p);
-                BigInteger y = generateY(p, g, x);
-                this.dh_p = p;
-                this.dh_g = g;
-                this.dh_x = x; // private key
-                this.dh_y = y; // public key
+                generate(runtime, arg0, argc == 2 ? RubyNumeric.num2int(args[1]) : 2); // g defaults to 2
             }
         }
         return this;
+    }
+
+    private void generate(final Ruby runtime, final IRubyObject bits, final int gval) {
+        BigInteger p;
+        try {
+            p = generateP(RubyNumeric.num2int(bits), gval);
+        }
+        catch(IllegalArgumentException e) {
+            throw runtime.newArgumentError(e.getMessage());
+        }
+        BigInteger g = BigInteger.valueOf(gval);
+        BigInteger x = generateX(p);
+        BigInteger y = generateY(p, g, x);
+        this.dh_p = p;
+        this.dh_g = g;
+        this.dh_x = x; // private key
+        this.dh_y = y; // public key
     }
 
     public static BigInteger generateP(int bits, int g) {
@@ -225,10 +235,6 @@ public class PKeyDH extends PKey {
         return g.modPow(x, p);
     }
 
-    public static BigInteger generateY(BigInteger p, int g, BigInteger x) {
-        return generateY(p, BigInteger.valueOf(g), x);
-    }
-
     @JRubyMethod(name = "generate_key!")
     public synchronized IRubyObject generate_key() {
         BigInteger p, g, x, y;
@@ -271,14 +277,11 @@ public class PKeyDH extends PKey {
 
     @Override
     public boolean isPrivateKey() {
-        return dh_x != null /* || haveEngine */;
+        return dh_x != null;
     }
 
     @JRubyMethod(name = "private?")
     public RubyBoolean private_p() {
-        // FIXME! need to figure out what it means in MRI/OSSL code to
-        // claim a DH is private if an engine is present -- doesn't really
-        // map to Java implementation.
         return getRuntime().newBoolean(isPrivateKey());
     }
 
@@ -371,6 +374,11 @@ public class PKeyDH extends PKey {
     public synchronized IRubyObject set_g(IRubyObject arg) {
         this.dh_g = BN.asBigInteger(arg);
         return arg;
+    }
+
+    @JRubyMethod(name = "q")
+    public IRubyObject q(final ThreadContext context) {
+        return context.nil;
     }
 
     // don't need synchronized as value is volatile
