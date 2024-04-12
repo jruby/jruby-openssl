@@ -45,14 +45,15 @@ import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Enumeration;
 
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.pkcs.CertificationRequestInfo;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
-import org.bouncycastle.operator.DefaultAlgorithmNameFinder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCS10CertificationRequestBuilder;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -212,15 +213,26 @@ public class PKCS10Request {
             throw new IllegalStateException("no public key info");
         }
 
-        final AlgorithmIdentifier algId = publicKeyInfo.getAlgorithm();
-        // NOTE: BC's DefaultAlgorithmNameFinder does not handle the EC oid
-        if (X9ObjectIdentifiers.id_ecPublicKey.equals(algId.getAlgorithm())) {
+        assert publicKeyInfo.getAlgorithm() != null : "null algorithm for public key info: " + publicKeyInfo;
+        final ASN1ObjectIdentifier algOID = publicKeyInfo.getAlgorithm().getAlgorithm();
+        assert algOID != null;
+
+        if (PKCSObjectIdentifiers.rsaEncryption.getId().equals(algOID.getId())) {
+            return "RSA";
+        }
+        if (X9ObjectIdentifiers.id_ecPublicKey.getId().equals(algOID.getId())) {
             return "ECDSA";
         }
-        // e.g. PKCSObjectIdentifiers.rsaEncryption -> "RSA"
-        final String algName = new DefaultAlgorithmNameFinder().getAlgorithmName(algId);
-        assert algId.getAlgorithm().getId() != algName : "could not resolve name for oid: " + algId.getAlgorithm();
-        return algName;
+        if (X9ObjectIdentifiers.id_dsa.getId().equals(algOID.getId())) {
+            return "DSA";
+        }
+
+        // final String algName = new DefaultAlgorithmNameFinder().getAlgorithmName(algId);
+        // assert algId.getAlgorithm().getId() != algName : "could not resolve name for oid: " + algId.getAlgorithm();
+        // return algName;
+
+        assert false : "unexpected public key algorithm oid: " + algOID.getId();
+        return null;
     }
 
     public PublicKey generatePublicKey() throws NoSuchAlgorithmException,

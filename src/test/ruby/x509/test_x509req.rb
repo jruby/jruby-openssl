@@ -2,6 +2,59 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestX509Request < TestCase
 
+  def setup!
+    @rsa1024 = Fixtures.pkey("rsa1024")
+    @rsa2048 = Fixtures.pkey("rsa2048")
+    @dsa256  = Fixtures.pkey("dsa256")
+    @dsa512  = Fixtures.pkey("dsa512")
+    @dn = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=GOTOU Yuuzou")
+  end
+  private :setup!
+
+  def test_public_key; setup!
+    req = issue_csr(0, @dn, @rsa1024, OpenSSL::Digest.new('SHA256'))
+    assert_equal(@rsa1024.public_key.to_der, req.public_key.to_der)
+    req = OpenSSL::X509::Request.new(req.to_der)
+    assert_equal(@rsa1024.public_key.to_der, req.public_key.to_der)
+
+    req = issue_csr(0, @dn, @dsa512, OpenSSL::Digest.new('SHA256'))
+    assert_equal(@dsa512.public_key.to_der, req.public_key.to_der)
+    req = OpenSSL::X509::Request.new(req.to_der)
+    assert_equal(@dsa512.public_key.to_der, req.public_key.to_der)
+  end
+
+  def test_sign_and_verify_rsa_sha1; setup!
+    req = issue_csr(0, @dn, @rsa1024, OpenSSL::Digest.new('SHA1'))
+    assert_equal(true,  req.verify(@rsa1024))
+    assert_equal(false, req.verify(@rsa2048))
+    assert_equal(false, request_error_returns_false { req.verify(@dsa256) })
+    assert_equal(false, request_error_returns_false { req.verify(@dsa512) })
+    # req.version = 1
+    # assert_equal(false, req.verify(@rsa1024))
+  #rescue OpenSSL::X509::RequestError # RHEL 9 disables SHA1
+  end
+
+  def test_sign_and_verify_rsa_md5; setup!
+    req = issue_csr(0, @dn, @rsa2048, OpenSSL::Digest.new('MD5'))
+    assert_equal(false, req.verify(@rsa1024))
+    assert_equal(true,  req.verify(@rsa2048))
+    assert_equal(false, request_error_returns_false { req.verify(@dsa256) })
+    assert_equal(false, request_error_returns_false { req.verify(@dsa512) })
+    req.subject = OpenSSL::X509::Name.parse("/C=JP/CN=FooBar")
+    assert_equal(false, req.verify(@rsa2048))
+  #rescue OpenSSL::X509::RequestError # RHEL7 disables MD5
+  end
+
+  def test_sign_and_verify_dsa; setup!
+    req = issue_csr(0, @dn, @dsa512, OpenSSL::Digest.new('SHA256'))
+    assert_equal(false, request_error_returns_false { req.verify(@rsa1024) })
+    assert_equal(false, request_error_returns_false { req.verify(@rsa2048) })
+    assert_equal(false, req.verify(@dsa256))
+    assert_equal(true,  req.verify(@dsa512))
+    req.public_key = @rsa1024.public_key
+    assert_equal(false, req.verify(@dsa512))
+  end
+
   def test_csr_request_extensions
     key = OpenSSL::PKey::RSA.new(512)
     csr = OpenSSL::X509::Request.new
@@ -75,6 +128,23 @@ class TestX509Request < TestCase
 
     OpenSSL::X509::Request.new(strictly_decoded) #=> #<OpenSSL::X509::Request:0x4f290f46>
     OpenSSL::X509::Request.new(decoded) #=> OpenSSL::X509::RequestError: invalid certificate request data
+  end
+
+  private
+
+  def issue_csr(ver, dn, key, digest)
+    req = OpenSSL::X509::Request.new
+    req.version = ver
+    req.subject = dn
+    req.public_key = key.public_key
+    req.sign(key, digest)
+    req
+  end
+
+  def request_error_returns_false
+    yield
+  rescue OpenSSL::X509::RequestError
+    false
   end
 
   TEST_KEY_RSA1024 = <<-_end_of_pem_
