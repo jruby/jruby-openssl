@@ -247,7 +247,6 @@ class TestASN1 < TestCase
   def test_null
     # TODO: Import Issue -- Is this related to the comment below in test_encode_all?
     # TypeError: nil value
-    # src/test/ruby/test_asn1.rb:851:in `encode_test'
     #encode_decode_test B(%w{ 05 00 }), OpenSSL::ASN1::Null.new(nil)
     assert_raise(OpenSSL::ASN1::ASN1Error) {
       OpenSSL::ASN1.decode(B(%w{ 05 01 00 }))
@@ -359,6 +358,199 @@ class TestASN1 < TestCase
     assert_equal "1\x00", OpenSSL::ASN1::Set.new(nil).to_der
   end
 
+  def test_sequence
+    encode_decode_test B(%w{ 30 00 }), OpenSSL::ASN1::Sequence.new([])
+    # TODO: Import Issue
+    # TypeError: nil value
+    #encode_decode_test B(%w{ 30 07 05 00 30 00 04 01 00 }), OpenSSL::ASN1::Sequence.new([
+    #  OpenSSL::ASN1::Null.new(nil),
+    #  OpenSSL::ASN1::Sequence.new([]),
+    #  OpenSSL::ASN1::OctetString.new(B(%w{ 00 }))
+    #])
+
+    expected = OpenSSL::ASN1::Sequence.new([OpenSSL::ASN1::OctetString.new(B(%w{ 00 }))])
+    expected.indefinite_length = true
+    encode_decode_test B(%w{ 30 80 04 01 00 00 00 }), expected
+
+    # OpenSSL::ASN1::EndOfContent can only be at the end
+    obj = OpenSSL::ASN1::Sequence.new([
+      OpenSSL::ASN1::EndOfContent.new,
+      OpenSSL::ASN1::OctetString.new(B(%w{ 00 })),
+      OpenSSL::ASN1::EndOfContent.new,
+    ])
+    obj.indefinite_length = true
+    # TODO: Import Issue
+    # <OpenSSL::ASN1::ASN1Error> exception was expected but none was thrown.
+    #assert_raise(OpenSSL::ASN1::ASN1Error) { obj.to_der }
+
+    # The last EOC in value is ignored if indefinite length form is used
+    expected = OpenSSL::ASN1::Sequence.new([
+      OpenSSL::ASN1::OctetString.new(B(%w{ 00 })),
+      OpenSSL::ASN1::EndOfContent.new
+    ])
+    expected.indefinite_length = true
+    encode_test B(%w{ 30 80 04 01 00 00 00 }), expected
+  end
+
+  def test_set
+    encode_decode_test B(%w{ 31 00 }), OpenSSL::ASN1::Set.new([])
+    # TODO: Import Issue
+    # <"1\a\x05\x000\x00\x04\x01\x00"> expected but was <"1\a\x04\x01\x00\x05\x000\x00">
+    #encode_decode_test B(%w{ 31 07 05 00 30 00 04 01 00 }), OpenSSL::ASN1::Set.new([
+    #  OpenSSL::ASN1::Null.new(nil),
+    #  OpenSSL::ASN1::Sequence.new([]),
+    #  OpenSSL::ASN1::OctetString.new(B(%w{ 00 }))
+    #])
+    expected = OpenSSL::ASN1::Set.new([OpenSSL::ASN1::OctetString.new(B(%w{ 00 }))])
+    expected.indefinite_length = true
+    encode_decode_test B(%w{ 31 80 04 01 00 00 00 }), expected
+  end
+
+  def test_utctime
+    encode_decode_test B(%w{ 17 0D }) + "160908234339Z".b,
+      OpenSSL::ASN1::UTCTime.new(Time.utc(2016, 9, 8, 23, 43, 39))
+    begin
+      # possible range of UTCTime is 1969-2068 currently
+      encode_decode_test B(%w{ 17 0D }) + "690908234339Z".b,
+        OpenSSL::ASN1::UTCTime.new(Time.utc(1969, 9, 8, 23, 43, 39))
+    rescue OpenSSL::ASN1::ASN1Error
+      pend "No negative time_t support?"
+    end
+    # not implemented
+    # decode_test B(%w{ 17 11 }) + "500908234339+0930".b,
+    #   OpenSSL::ASN1::UTCTime.new(Time.new(1950, 9, 8, 23, 43, 39, "+09:30"))
+    # decode_test B(%w{ 17 0F }) + "5009082343-0930".b,
+    #   OpenSSL::ASN1::UTCTime.new(Time.new(1950, 9, 8, 23, 43, 0, "-09:30"))
+    # assert_raise(OpenSSL::ASN1::ASN1Error) {
+    #   OpenSSL::ASN1.decode(B(%w{ 17 0C }) + "500908234339".b)
+    # }
+    # assert_raise(OpenSSL::ASN1::ASN1Error) {
+    #   OpenSSL::ASN1.decode(B(%w{ 17 0D }) + "500908234339Y".b)
+    # }
+  end
+
+  def test_generalizedtime
+    encode_decode_test B(%w{ 18 0F }) + "20161208193429Z".b,
+      OpenSSL::ASN1::GeneralizedTime.new(Time.utc(2016, 12, 8, 19, 34, 29))
+    encode_decode_test B(%w{ 18 0F }) + "99990908234339Z".b,
+      OpenSSL::ASN1::GeneralizedTime.new(Time.utc(9999, 9, 8, 23, 43, 39))
+    # not implemented
+    # decode_test B(%w{ 18 13 }) + "20161208193439+0930".b,
+    #   OpenSSL::ASN1::GeneralizedTime.new(Time.new(2016, 12, 8, 19, 34, 39, "+09:30"))
+    # decode_test B(%w{ 18 11 }) + "201612081934-0930".b,
+    #   OpenSSL::ASN1::GeneralizedTime.new(Time.new(2016, 12, 8, 19, 34, 0, "-09:30"))
+    # decode_test B(%w{ 18 11 }) + "201612081934-09".b,
+    #   OpenSSL::ASN1::GeneralizedTime.new(Time.new(2016, 12, 8, 19, 34, 0, "-09:00"))
+    # decode_test B(%w{ 18 0D }) + "2016120819.5Z".b,
+    #   OpenSSL::ASN1::GeneralizedTime.new(Time.utc(2016, 12, 8, 19, 30, 0))
+    # decode_test B(%w{ 18 0D }) + "2016120819,5Z".b,
+    #   OpenSSL::ASN1::GeneralizedTime.new(Time.utc(2016, 12, 8, 19, 30, 0))
+    # decode_test B(%w{ 18 0F }) + "201612081934.5Z".b,
+    #   OpenSSL::ASN1::GeneralizedTime.new(Time.utc(2016, 12, 8, 19, 34, 30))
+    # decode_test B(%w{ 18 11 }) + "20161208193439.5Z".b,
+    #   OpenSSL::ASN1::GeneralizedTime.new(Time.utc(2016, 12, 8, 19, 34, 39.5))
+    # assert_raise(OpenSSL::ASN1::ASN1Error) {
+    #   OpenSSL::ASN1.decode(B(%w{ 18 0D }) + "201612081934Y".b)
+    # }
+  end
+
+  def test_basic_asn1data
+    # TODO: Import Issue
+    # Java::JavaLang::ClassCastException:
+    # class org.jruby.RubyString cannot be cast to class org.jruby.ext.openssl.ASN1$ASN1Data
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.toASN1TaggedObject(ASN1.java:1408)
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.toASN1(ASN1.java:1383)
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.toDER(ASN1.java:1424)
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
+    #encode_test B(%w{ 00 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 0, :UNIVERSAL)
+    #encode_test B(%w{ 01 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :UNIVERSAL)
+    #encode_decode_test B(%w{ 41 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :APPLICATION)
+    #encode_decode_test B(%w{ 81 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :CONTEXT_SPECIFIC)
+    #encode_decode_test B(%w{ C1 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :PRIVATE)
+    # TODO: Import Issue
+    # OpenSSL::ASN1::ASN1Error: tag number for :UNIVERSAL too large
+    #  org/jruby/RubyClass.java:942:in `new'
+    #encode_decode_test B(%w{ 1F 20 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 32, :UNIVERSAL)
+    #encode_decode_test B(%w{ 1F C0 20 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 8224, :UNIVERSAL)
+    # TODO: Import Issue (same as start of this test)
+    # Java::JavaLang::ClassCastException:
+    # class org.jruby.RubyString cannot be cast to class org.jruby.ext.openssl.ASN1$ASN1Data
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.toASN1TaggedObject(ASN1.java:1408)
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.toASN1(ASN1.java:1383)
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.toDER(ASN1.java:1424)
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
+    #encode_decode_test B(%w{ 41 02 AB CD }), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 1, :APPLICATION)
+    #encode_decode_test B(%w{ 41 81 80 } + %w{ AB CD } * 64), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD } * 64), 1, :APPLICATION)
+    #encode_decode_test B(%w{ 41 82 01 00 } + %w{ AB CD } * 128), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD } * 128), 1, :APPLICATION)
+    #encode_decode_test B(%w{ 61 00 }), OpenSSL::ASN1::ASN1Data.new([], 1, :APPLICATION)
+    #obj = OpenSSL::ASN1::ASN1Data.new([OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 2, :PRIVATE)], 1, :APPLICATION)
+    #obj.indefinite_length = true
+    #encode_decode_test B(%w{ 61 80 C2 02 AB CD 00 00 }), obj
+    #obj = OpenSSL::ASN1::ASN1Data.new([
+    #  OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 2, :PRIVATE),
+    #  OpenSSL::ASN1::EndOfContent.new
+    #], 1, :APPLICATION)
+    #obj.indefinite_length = true
+    #encode_test B(%w{ 61 80 C2 02 AB CD 00 00 }), obj
+    #obj = OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 1, :UNIVERSAL)
+    #obj.indefinite_length = true
+    # TODO: Import Issue
+    # <OpenSSL::ASN1::ASN1Error> expected but was <#<Java::JavaLang::ClassCastException: class org.jruby.RubyString cannot be cast to class org.jruby.ext.openssl.ASN1$ASN1Data
+    #assert_raise(OpenSSL::ASN1::ASN1Error) { obj.to_der }
+  end
+
+  def test_basic_primitive
+    # TODO: Import Issue
+    # Java::JavaLang::NullPointerException:
+    #  org.jruby.ext.openssl.ASN1$Primitive.toDER(ASN1.java:1610)
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
+    #  org.jruby.ext.openssl.ASN1$Primitive.to_der(ASN1.java:1522)
+    #encode_test B(%w{ 00 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 0)
+    # TODO: Import Issue
+    # <"\x01\x00"> expected but was <"\x01\x01\xFF">
+    #encode_test B(%w{ 01 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 1, nil, :UNIVERSAL)
+    # <"\x81\x00"> expected but was <"\x01\x01\xFF">
+    #encode_test B(%w{ 81 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 1, nil, :CONTEXT_SPECIFIC)
+    # <"\x01\x02\xAB\xCD"> expected but was <"\x01\x01\xFF">
+    #encode_test B(%w{ 01 02 AB CD }), OpenSSL::ASN1::Primitive.new(B(%w{ AB CD }), 1)
+    # <TypeError> exception was expected but none was thrown.
+    #assert_raise(TypeError) { OpenSSL::ASN1::Primitive.new([], 1).to_der }
+
+    prim = OpenSSL::ASN1::Integer.new(50)
+    assert_equal false, prim.indefinite_length
+    assert_not_respond_to prim, :indefinite_length=
+  end
+
+  #
+  # MRI seems to have some different tests for similar things (constructive
+  # vs constructed) There may be some duplicated test cases within these but
+  # for completeness' sake I'm going to include all of MRI's tests below
+  #
+
+  def test_basic_constructed
+    #octet_string = OpenSSL::ASN1::OctetString.new(B(%w{ AB CD }))
+    # TODO: Import Issue
+    # OpenSSL::ASN1::ASN1Error: Constructive shall only be used with indefinite length
+    #encode_test B(%w{ 20 00 }), OpenSSL::ASN1::Constructive.new([], 0)
+    #encode_test B(%w{ 21 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :UNIVERSAL)
+    #encode_test B(%w{ A1 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :CONTEXT_SPECIFIC)
+    #encode_test B(%w{ 21 04 04 02 AB CD }), OpenSSL::ASN1::Constructive.new([octet_string], 1)
+    # Java::JavaLang::UnsupportedOperationException:
+    # #<OpenSSL::ASN1::Constructive:0x4fc256ec @tag=1, @value=[#<OpenSSL::ASN1::OctetString:0x7fc56d61
+    #   @tag=4, @value="\xAB\xCD", @tag_class=:UNIVERSAL, @tagging=nil, @indefinite_length=false>],
+    #   @tag_class=:CONTEXT_SPECIFIC, @tagging=:EXPLICIT, @indefinite_length=true>
+    #   org.jruby.ext.openssl.ASN1$Constructive.toDER(ASN1.java:1881)
+    #   org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
+    #   org.jruby.ext.openssl.ASN1$Constructive.to_der(ASN1.java:1858)
+    #obj = OpenSSL::ASN1::Constructive.new([octet_string], 1)
+    #obj.indefinite_length = true
+    #encode_decode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
+    # (see above) Java::JavaLang::UnsupportedOperationException
+    #obj = OpenSSL::ASN1::Constructive.new([octet_string, OpenSSL::ASN1::EndOfContent.new], 1)
+    #obj.indefinite_length = true
+    #encode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
+  end
+
   def test_constructive
     oct = OpenSSL::ASN1::OctetString.new("")
     assert_equal "\x04\x00", oct.to_der
@@ -389,6 +581,213 @@ class TestASN1 < TestCase
     outer = OpenSSL::ASN1::Sequence.new([inner, eoc])
     outer.infinite_length = true
     assert_equal "0\x800\x80\x02\x01\x01\x00\x00\x00\x00", outer.to_der
+  end
+
+  def test_prim_explicit_tagging
+    # TODO: Import Issue
+    # <"\xA0\x03\x04\x01a"> expected but was <"\x04\x01a">
+    #oct_str = OpenSSL::ASN1::OctetString.new("a", 0, :EXPLICIT)
+    #encode_test B(%w{ A0 03 04 01 61 }), oct_str
+    # <"a\x03\x04\x01a"> expected but was <"\x04\x01a">
+    oct_str2 = OpenSSL::ASN1::OctetString.new("a", 1, :EXPLICIT, :APPLICATION)
+    #encode_test B(%w{ 61 03 04 01 61 }), oct_str2
+
+    decoded = OpenSSL::ASN1.decode(oct_str2.to_der)
+    # <:APPLICATION> expected but was <:UNIVERSAL>
+    #assert_equal :APPLICATION, decoded.tag_class
+    # <1> expected but was <4>
+    #assert_equal 1, decoded.tag
+    assert_equal 1, decoded.value.size
+    #inner = decoded.value[0]
+    # <OpenSSL::ASN1::OctetString> expected but was <String>
+    #assert_equal OpenSSL::ASN1::OctetString, inner.class
+    # NoMethodError: undefined method `value' for "a":String
+    #assert_equal B(%w{ 61 }), inner.value
+  end
+
+  def test_prim_implicit_tagging
+    #int = OpenSSL::ASN1::Integer.new(1, 0, :IMPLICIT)
+    # TODO: Import Issue
+    # <"\x80\x01\x01"> expected but was <"\x02\x01\x01">
+    #encode_test B(%w{ 80 01 01 }), int
+    #int2 = OpenSSL::ASN1::Integer.new(1, 1, :IMPLICIT, :APPLICATION)
+    # <"A\x01\x01"> expected but was <"\x02\x01\x01">
+    #encode_test B(%w{ 41 01 01 }), int2
+    #decoded = OpenSSL::ASN1.decode(int2.to_der)
+    # <:APPLICATION> expected but was <:UNIVERSAL>
+    #assert_equal :APPLICATION, decoded.tag_class
+    # <1> expected but was <2>
+    #assert_equal 1, decoded.tag
+    # <"\x01"> expected but was <#<OpenSSL::BN 1>>
+    #assert_equal B(%w{ 01 }), decoded.value
+
+    # Special behavior: Encoding universal types with non-default 'tag'
+    # attribute and nil tagging method.
+    #int3 = OpenSSL::ASN1::Integer.new(1, 1)
+    # <"\x01\x01\x01"> expected but was <"\x02\x01\x01">
+    #encode_test B(%w{ 01 01 01 }), int3
+  end
+
+  def test_cons_explicit_tagging
+    #content = [ OpenSSL::ASN1::PrintableString.new('abc') ]
+    #seq = OpenSSL::ASN1::Sequence.new(content, 2, :EXPLICIT)
+    # TODO: Import Issue
+    # RuntimeError: No message available
+    #encode_test B(%w{ A2 07 30 05 13 03 61 62 63 }), seq
+    #seq2 = OpenSSL::ASN1::Sequence.new(content, 3, :EXPLICIT, :APPLICATION)
+    # RuntimeError: No message available
+    #encode_test B(%w{ 63 07 30 05 13 03 61 62 63 }), seq2
+
+    #content3 = [ OpenSSL::ASN1::PrintableString.new('abc'),
+    #             OpenSSL::ASN1::EndOfContent.new() ]
+    #seq3 = OpenSSL::ASN1::Sequence.new(content3, 2, :EXPLICIT)
+    #seq3.indefinite_length = true
+    # RuntimeError: No message available
+    #encode_test B(%w{ A2 80 30 80 13 03 61 62 63 00 00 00 00 }), seq3
+  end
+
+  def test_cons_implicit_tagging
+    #content = [ OpenSSL::ASN1::Null.new(nil) ]
+    #seq = OpenSSL::ASN1::Sequence.new(content, 1, :IMPLICIT)
+    # TODO: Import Issue
+    # <"\xA1\x02\x05\x00"> expected but was <"0\x02\x05\x00">
+    #encode_test B(%w{ A1 02 05 00 }), seq
+    #seq2 = OpenSSL::ASN1::Sequence.new(content, 1, :IMPLICIT, :APPLICATION)
+    # <"a\x02\x05\x00"> expected but was <"0\x02\x05\x00">
+    #encode_test B(%w{ 61 02 05 00 }), seq2
+
+    #content3 = [ OpenSSL::ASN1::Null.new(nil),
+    #             OpenSSL::ASN1::EndOfContent.new() ]
+    #seq3 = OpenSSL::ASN1::Sequence.new(content3, 1, :IMPLICIT)
+    #seq3.indefinite_length = true
+    # <"\xA1\x80\x05\x00\x00\x00"> expected but was <"0\x80\x05\x00\x00\x00">
+    #encode_test B(%w{ A1 80 05 00 00 00 }), seq3
+
+    # Special behavior: Encoding universal types with non-default 'tag'
+    # attribute and nil tagging method.
+    #seq4 = OpenSSL::ASN1::Sequence.new([], 1)
+    # <"!\x00"> expected but was <"0\x00">
+    #encode_test B(%w{ 21 00 }), seq4
+  end
+
+  def test_octet_string_constructed_tagging
+    #octets = [ OpenSSL::ASN1::OctetString.new('aaa') ]
+    #cons = OpenSSL::ASN1::Constructive.new(octets, 0, :IMPLICIT)
+    # TODO: Import Issues
+    # OpenSSL::ASN1::ASN1Error: Constructive shall only be used with indefinite length
+    #encode_test B(%w{ A0 05 04 03 61 61 61 }), cons
+
+    #octets = [ OpenSSL::ASN1::OctetString.new('aaa'),
+    #           OpenSSL::ASN1::EndOfContent.new() ]
+    #cons = OpenSSL::ASN1::Constructive.new(octets, 0, :IMPLICIT)
+    #cons.indefinite_length = true
+    # Java::JavaLang::UnsupportedOperationException:
+    # #<OpenSSL::ASN1::Constructive:0x4a86be01 @tag=0,
+    # @value=[#<OpenSSL::ASN1::OctetString:0x53b907d9 @tag=4, @value="aaa",
+    # @tag_class=:UNIVERSAL, @tagging=nil, @indefinite_length=false>,
+    # #<OpenSSL::ASN1::EndOfContent:0x2c3b0cc8 @tag=0, @value="",
+    # @tag_class=:UNIVERSAL>], @tag_class=:CONTEXT_SPECIFIC, @tagging=:IMPLICIT, @indefinite_length=true>
+    #encode_test B(%w{ A0 80 04 03 61 61 61 00 00 }), cons
+  end
+
+  def test_recursive_octet_string_indefinite_length
+    #octets_sub1 = [ OpenSSL::ASN1::OctetString.new("\x01"),
+    #                OpenSSL::ASN1::EndOfContent.new() ]
+    #octets_sub2 = [ OpenSSL::ASN1::OctetString.new("\x02"),
+    #                OpenSSL::ASN1::EndOfContent.new() ]
+    #container1 = OpenSSL::ASN1::Constructive.new(octets_sub1, OpenSSL::ASN1::OCTET_STRING, nil, :UNIVERSAL)
+    #container1.indefinite_length = true
+    #container2 = OpenSSL::ASN1::Constructive.new(octets_sub2, OpenSSL::ASN1::OCTET_STRING, nil, :UNIVERSAL)
+    #container2.indefinite_length = true
+    #octets3 = OpenSSL::ASN1::OctetString.new("\x03")
+
+    #octets = [ container1, container2, octets3,
+    #           OpenSSL::ASN1::EndOfContent.new() ]
+    #cons = OpenSSL::ASN1::Constructive.new(octets, OpenSSL::ASN1::OCTET_STRING, nil, :UNIVERSAL)
+    #cons.indefinite_length = true
+    #raw = B(%w{ 24 80 24 80 04 01 01 00 00 24 80 04 01 02 00 00 04 01 03 00 00 })
+    # TODO: Implict Issue
+    # Java::JavaLang::UnsupportedOperationException
+    #  org.jruby.ext.openssl.ASN1$Constructive$InternalEncodable.toASN1Primitive(ASN1.java:1961)
+    #  org.jruby.ext.openssl.ASN1$Constructive.octetStringToDER(ASN1.java:1904)
+    #  org.jruby.ext.openssl.ASN1$Constructive.toDER(ASN1.java:1873)
+    #  org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
+    #assert_equal(raw, cons.to_der)
+    # <"$\x80$\x80\x04\x01\x01\x00\x00$\x80\x04\x01\x02\x00\x00\x04\x01\x03\x00\x00"> expected but was <"$\x80\x04\x03\x01\x02\x03\x00\x00">
+    #assert_equal(raw, OpenSSL::ASN1.decode(raw).to_der)
+  end
+
+  def test_recursive_octet_string_parse
+    raw = B(%w{ 24 80 24 80 04 01 01 00 00 24 80 04 01 02 00 00 04 01 03 00 00 })
+    asn1 = OpenSSL::ASN1.decode(raw)
+    assert_equal(OpenSSL::ASN1::Constructive, asn1.class)
+    # TODO: Import Issue
+    # <false> expected but was <true>
+    #assert_universal(OpenSSL::ASN1::OCTET_STRING, asn1)
+    assert_equal(true, asn1.indefinite_length)
+    # <3> expected but was <2>
+    #assert_equal(3, asn1.value.size)
+    nested1 = asn1.value[0]
+    # <OpenSSL::ASN1::Constructive> expected but was <OpenSSL::ASN1::OctetString>
+    #assert_equal(OpenSSL::ASN1::Constructive, nested1.class)
+    assert_universal(OpenSSL::ASN1::OCTET_STRING, nested1)
+    # <true> expected but was <false>
+    #assert_equal(true, nested1.indefinite_length)
+    # <1> expected but was <3>
+    #assert_equal(1, nested1.value.size)
+    #oct1 = nested1.value[0]
+    #   NoMethodError: undefined method `tag' for "\x01":String
+    #     Did you mean?  tap
+    #     src/test/ruby/test_asn1.rb:1286:in `assert_universal'
+    #assert_universal(OpenSSL::ASN1::OCTET_STRING, oct1)
+    # NoMethodError: undefined method `indefinite_length' for "\x01":String
+    #assert_equal(false, oct1.indefinite_length)
+    #nested2 = asn1.value[1]
+    # <OpenSSL::ASN1::Constructive> expected but was <OpenSSL::ASN1::EndOfContent>
+    #assert_equal(OpenSSL::ASN1::Constructive, nested2.class)
+    # <4> expected but was <0>
+    #assert_universal(OpenSSL::ASN1::OCTET_STRING, nested2)
+    # <true> expected but was <nil>
+    #assert_equal(true, nested2.indefinite_length)
+    # <1> expected but was <0>
+    #assert_equal(1, nested2.value.size)
+    #oct2 = nested2.value[0]
+    # NoMethodError: undefined method `tag' for nil:NilClass
+    #assert_universal(OpenSSL::ASN1::OCTET_STRING, oct2)
+    # NoMethodError: undefined method `indefinite_length' for nil:NilClass
+    #assert_equal(false, oct2.indefinite_length)
+    #oct3 = asn1.value[2]
+    # NoMethodError: undefined method `tag' for nil:NilClass
+    #assert_universal(OpenSSL::ASN1::OCTET_STRING, oct3)
+    # NoMethodError: undefined method `indefinite_length' for nil:NilClass
+    #assert_equal(false, oct3.indefinite_length)
+  end
+
+  def test_decode_constructed_overread
+    #test = %w{ 31 06 31 02 30 02 05 00 }
+    ##                          ^ <- invalid
+    #raw = [test.join].pack("H*")
+    #ret = []
+    # <OpenSSL::ASN1::ASN1Error> exception was expected but none was thrown.
+    #assert_raise(OpenSSL::ASN1::ASN1Error) {
+    #  OpenSSL::ASN1.traverse(raw) { |x| ret << x }
+    #}
+    # <2> expected but was <0>
+    #assert_equal 2, ret.size
+    # NoMethodError: undefined method `[]' for nil:NilClass
+    #assert_equal 17, ret[0][6]
+    #assert_equal 17, ret[1][6]
+
+    #test = %w{ 31 80 30 03 00 00 }
+    ##                    ^ <- invalid
+    #raw = [test.join].pack("H*")
+    #ret = []
+    # <OpenSSL::ASN1::ASN1Error> exception was expected but none was thrown.
+    #assert_raise(OpenSSL::ASN1::ASN1Error) {
+    #  OpenSSL::ASN1.traverse(raw) { |x| ret << x }
+    #}
+    #assert_equal 1, ret.size
+    #assert_equal 17, ret[0][6]
   end
 
   def test_constructive_nesting
@@ -822,6 +1221,13 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     # This fails with:
     # <"\x1E\x02\x00\x01">(US-ASCII) expected but was <"\x1E\x04\x00\x00\x00\x01">(ASCII-8BIT)
     #test.(30, OpenSSL::ASN1::BMPString)
+  end
+
+  def test_constructive_each
+    data = [OpenSSL::ASN1::Integer.new(0), OpenSSL::ASN1::Integer.new(1)]
+    seq = OpenSSL::ASN1::Sequence.new data
+
+    assert_equal data, seq.entries
   end
 
   def test_decode_all
