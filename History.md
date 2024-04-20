@@ -1,3 +1,8 @@
+## 0.14.5
+
+* [fix] OpenSSL::X509::Request#verify with DSA public key
+  (this was a regression introduced in JOSSL 0.14.4)
+
 ## 0.14.4
 
 * [fix] convert `OpenSSL::ASN1::Sequence` to an array on #to_der (#265)
