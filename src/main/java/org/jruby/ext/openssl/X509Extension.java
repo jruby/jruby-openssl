@@ -799,7 +799,7 @@ public class X509Extension extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject to_der() {
+    public RubyString to_der() {
         try {
             return StringHelper.newString(getRuntime(), toDER());
         }

@@ -350,8 +350,12 @@ public class OCSPBasicResponse extends RubyObject {
         }
         
         try {
-            Extension[] respExtAry = new Extension[extensions.size()];
-            Extensions respExtensions = new Extensions(extensions.toArray(respExtAry));
+            final Extensions respExtensions;
+            if (extensions != null && extensions.size() > 0) {
+                respExtensions = new Extensions(extensions.toArray(new Extension[extensions.size()]));
+            } else {
+                respExtensions = null;
+            }
             BasicOCSPResp bcBasicOCSPResp = respBuilder.setResponseExtensions(respExtensions).build(contentSigner, chain, producedAt);
             asn1BCBasicOCSPResp = BasicOCSPResponse.getInstance(bcBasicOCSPResp.getEncoded());
         }
@@ -586,22 +590,21 @@ public class OCSPBasicResponse extends RubyObject {
         return new ASN1GeneralizedTime(retTime);
     }
     
-    private Extensions convertRubyExtensions(IRubyObject extensions) {
-        if (extensions.isNil()) return null;
-        List<Extension> retExtensions = new ArrayList<Extension>();
-        Iterator<IRubyObject> rubyExtensions = ((RubyArray)extensions).iterator();
-        while (rubyExtensions.hasNext()) {
-            X509Extension rubyExt = (X509Extension)rubyExtensions.next();
-            Extension ext = Extension.getInstance(((RubyString)rubyExt.to_der()).getBytes());
-            retExtensions.add(ext);
+    private Extensions convertRubyExtensions(final IRubyObject arg) {
+        if (arg.isNil()) return null;
+        final RubyArray rubyExts = arg.convertToArray(); // Array<X509Extension>
+        if (rubyExts.isEmpty()) return null;
+
+        final Extension[] extensions = new Extension[rubyExts.size()];
+        for (int i = 0; i<extensions.length; i++) {
+            X509Extension rubyExt = (X509Extension) rubyExts.eltInternal(i);
+            extensions[i] = Extension.getInstance((rubyExt.to_der()).getBytes());
         }
-        Extension[] exts = new Extension[retExtensions.size()];
-        retExtensions.toArray(exts);
-        return new Extensions(exts);
+        return new Extensions(extensions);
     }
     
     private List<java.security.cert.Certificate> convertRubyCerts(IRubyObject certificates) {
-        Iterator<java.security.cert.Certificate> it = ((RubyArray)certificates).iterator();
+        Iterator<java.security.cert.Certificate> it = certificates.convertToArray().iterator();
         List<java.security.cert.Certificate> ret = new ArrayList<java.security.cert.Certificate>();
         while (it.hasNext()) {
             ret.add(it.next());
