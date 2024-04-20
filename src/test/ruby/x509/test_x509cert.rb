@@ -329,7 +329,7 @@ EOF
     cert = OpenSSL::X509::Certificate.new File.read(crt)
 
     p cert if $VERBOSE
-    key_id = '8D:7C:C3:13:84:30:96:E4:06:A0:2B:7B:7A:6B:0F:CE:C5:03:D3:E5'
+    key_id = '8F:B4:94:C8:7F:CB:EF:00:89:B2:F6:C1:BE:44:4B:1C:12:54:3B:28'
 
     assert cert.to_text.index('X509v3 Authority Key Identifier:')
     assert cert.to_text.match /X509v3 Authority Key Identifier:\s*?keyid:#{key_id}/m
