@@ -5,7 +5,7 @@ class TestRSA < TestCase
 
   def setup
     super
-    self.class.disable_security_restrictions!
+
     require 'base64'
   end
 

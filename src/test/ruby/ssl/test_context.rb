@@ -110,8 +110,6 @@ class TestSSLContext < TestCase
   end if RUBY_VERSION > '2.3'
 
   def test_context_ciphers
-    self.class.disable_security_restrictions
-
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = "ALL"
 

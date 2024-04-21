@@ -101,26 +101,6 @@ class TestCase
     end
   end
 
-  def self.disable_security_restrictions!; end # do nothing on MRI
-
-  @@security_restrictions = ''
-
-  def self.disable_security_restrictions!
-    debug = OpenSSL.debug
-    begin
-      OpenSSL.debug = true
-      #org.jruby.ext.openssl.util.CryptoSecurity.unrestrictSecurity
-      #org.jruby.ext.openssl.util.CryptoSecurity.setAllPermissionPolicy
-      @@security_restrictions = OpenSSL.send :_disable_security_restrictions!
-    ensure
-      OpenSSL.debug = debug
-    end
-  end if defined? JRUBY_VERSION
-
-  def self.disable_security_restrictions
-    disable_security_restrictions! if @@security_restrictions.eql?('')
-  end
-
   def self.java8?; java_version.last.to_i == 8 end
 
   def self.java_version

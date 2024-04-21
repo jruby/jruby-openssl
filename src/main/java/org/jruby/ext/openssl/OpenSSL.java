@@ -30,6 +30,7 @@ import org.bouncycastle.util.Arrays;
 import org.jruby.*;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
+import org.jruby.common.IRubyWarnings;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -194,17 +195,13 @@ public final class OpenSSL {
     // internal (package-level) helpers :
 
     /**
-     * PRIMARILY MEANT FOR TESTING ONLY, USAGE IS DISCOURAGED!
-     * @see org.jruby.ext.openssl.util.CryptoSecurity
+     * @deprecated
      */
     @JRubyMethod(name = "_disable_security_restrictions!", visibility = Visibility.PRIVATE, meta = true)
     public static IRubyObject _disable_security_restrictions(ThreadContext context, IRubyObject self) {
-        Boolean unrestrict = org.jruby.ext.openssl.util.CryptoSecurity.unrestrictSecurity();
-        Boolean allPerm = org.jruby.ext.openssl.util.CryptoSecurity.setAllPermissionPolicy();
-        if ( unrestrict == null || allPerm == null ) return context.nil;
-        return context.runtime.newBoolean( unrestrict && allPerm );
+        warnDeprecated(context, "OpenSSL._disable_security_restrictions! is deprecated for removal");
+        return context.nil;
     }
-
 
     private static boolean debug;
 
@@ -251,7 +248,6 @@ public final class OpenSSL {
             }
         }
     }
-
     static void warn(final ThreadContext context, final CharSequence msg) {
         if ( warn ) warn(context, RubyString.newString(context.runtime, msg));
     }
@@ -262,6 +258,12 @@ public final class OpenSSL {
 
     static void warn(final ThreadContext context, final IRubyObject msg) {
         if ( warn ) context.runtime.getModule("OpenSSL").callMethod(context, "warn", msg);
+    }
+
+    public static void warnDeprecated(final ThreadContext context, final CharSequence msg) {
+        if ( warn ) {
+            context.runtime.getWarnings().warn(IRubyWarnings.ID.DEPRECATED_METHOD, msg.toString());
+        }
     }
 
     private static String javaVersion(final String def, final int len) {

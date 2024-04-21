@@ -250,7 +250,6 @@ class TestEC < TestCase
 
   def setup
     super
-    self.class.disable_security_restrictions!
 
     @groups = []; @keys = []
 

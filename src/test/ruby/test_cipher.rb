@@ -3,11 +3,6 @@ require File.expand_path('test_helper', File.dirname(__FILE__))
 
 class TestCipher < TestCase
 
-  def setup
-    super
-    self.class.disable_security_restrictions!
-  end
-
   def test_cipher_new
     OpenSSL::Cipher.new 'AES-256-CBC'
     # NOTE: MRI 1.9.3 raises RuntimeError :
