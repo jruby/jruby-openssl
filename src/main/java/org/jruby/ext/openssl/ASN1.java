@@ -963,8 +963,8 @@ public class ASN1 {
             return ASN1.getClass("Integer").newInstance(context, val, Block.NULL_BLOCK);
         }
 
-        if ( obj instanceof DERBitString ) {
-            final DERBitString derObj = (DERBitString) obj;
+        if ( obj instanceof ASN1BitString ) {
+            final ASN1BitString derObj = (ASN1BitString) obj;
             RubyString str = runtime.newString( new ByteList(derObj.getBytes(), false) );
             IRubyObject bitString = ASN1.getClass("BitString").newInstance(context, str, Block.NULL_BLOCK);
             bitString.callMethod(context, "unused_bits=", runtime.newFixnum( derObj.getPadBits() ));
@@ -974,31 +974,31 @@ public class ASN1 {
             final Integer typeId = typeId( obj.getClass() );
             String type = typeId == null ? null : (String) ( ASN1_INFO[typeId][2] );
             final ByteList bytes;
-            if ( obj instanceof DERUTF8String ) {
+            if ( obj instanceof ASN1UTF8String ) {
                 if ( type == null ) type = "UTF8String";
-                bytes = new ByteList(((DERUTF8String) obj).getString().getBytes("UTF-8"), false);
+                bytes = new ByteList(((ASN1UTF8String) obj).getString().getBytes("UTF-8"), false);
             }
             else {
                 if ( type == null ) {
-                    if ( obj instanceof DERNumericString ) {
+                    if ( obj instanceof ASN1NumericString ) {
                         type = "NumericString";
                     }
-                    else if ( obj instanceof DERPrintableString ) {
+                    else if ( obj instanceof ASN1PrintableString ) {
                         type = "PrintableString";
                     }
-                    else if ( obj instanceof DERIA5String ) {
+                    else if ( obj instanceof ASN1IA5String ) {
                         type = "IA5String";
                     }
-                    else if ( obj instanceof DERT61String ) {
+                    else if ( obj instanceof ASN1T61String ) {
                         type = "T61String";
                     }
-                    else if ( obj instanceof DERGeneralString ) {
+                    else if ( obj instanceof ASN1GeneralString ) {
                         type = "GeneralString";
                     }
-                    else if ( obj instanceof DERUniversalString ) {
+                    else if ( obj instanceof ASN1UniversalString ) {
                         type = "UniversalString";
                     }
-                    else if ( obj instanceof DERBMPString ) {
+                    else if ( obj instanceof ASN1BMPString ) {
                         type = "BMPString";
                     }
                     else {
@@ -1010,11 +1010,6 @@ public class ASN1 {
             }
             return ASN1.getClass(type).newInstance(context, runtime.newString(bytes), Block.NULL_BLOCK);
         }
-
-        //if ( obj instanceof DEROctetString ) {
-        //    byte[] octets = ((ASN1OctetString) obj).getOctets();
-        //    if ( (octets[0] & 0xFF) == 0xD1 ) Thread.dumpStack();
-        //}
 
         if ( obj instanceof ASN1OctetString ) {
             final ByteList octets = new ByteList(((ASN1OctetString) obj).getOctets(), false);
