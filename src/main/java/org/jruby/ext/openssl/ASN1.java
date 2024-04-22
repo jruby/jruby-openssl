@@ -967,7 +967,7 @@ public class ASN1 {
             final ASN1BitString derObj = (ASN1BitString) obj;
             RubyString str = runtime.newString( new ByteList(derObj.getBytes(), false) );
             IRubyObject bitString = ASN1.getClass("BitString").newInstance(context, str, Block.NULL_BLOCK);
-            bitString.callMethod(context, "unused_bits=", runtime.newFixnum( derObj.getPadBits() ));
+            bitString.getInstanceVariables().setInstanceVariable("@unused_bits", runtime.newFixnum(derObj.getPadBits()));
             return bitString;
         }
         if ( obj instanceof ASN1String ) {
