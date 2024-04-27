@@ -1220,31 +1220,16 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     }
     test.(4, OpenSSL::ASN1::OctetString)
     test.(12, OpenSSL::ASN1::UTF8String)
-    # TODO: Import Issue
-    # The below tests cause NPEs in the first call to `encode_test` above
-    # org.jruby.ext.openssl.ASN1$Primitive.toDER(ASN1.java:1610)
-    # org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
-    # org.jruby.ext.openssl.ASN1$Primitive.to_der(ASN1.java:1522)
-    # org.jruby.ext.openssl.ASN1$Primitive$INVOKER$i$0$0$to_der.call(ASN1$Primitive$INVOKER$i$0$0$to_der.gen)
-    #test.(18, OpenSSL::ASN1::NumericString)
-    #test.(19, OpenSSL::ASN1::PrintableString)
-    #test.(20, OpenSSL::ASN1::T61String)
-    #test.(21, OpenSSL::ASN1::VideotexString)
+    test.(18, OpenSSL::ASN1::NumericString)
+    test.(19, OpenSSL::ASN1::PrintableString)
+    test.(20, OpenSSL::ASN1::T61String)
+    test.(21, OpenSSL::ASN1::VideotexString)
     test.(22, OpenSSL::ASN1::IA5String)
-    # See above
-    #test.(25, OpenSSL::ASN1::GraphicString)
-    #test.(26, OpenSSL::ASN1::ISO64String)
-    #test.(27, OpenSSL::ASN1::GeneralString)
-
-    # TODO: Import Issue
-    # This fails with:
-    # <""> expected but was <"#1C00">
-    #test.(28, OpenSSL::ASN1::UniversalString)
-
-    # TODO: Import Issue
-    # This fails with:
-    # <"\x1E\x02\x00\x01">(US-ASCII) expected but was <"\x1E\x04\x00\x00\x00\x01">(ASCII-8BIT)
-    #test.(30, OpenSSL::ASN1::BMPString)
+    test.(25, OpenSSL::ASN1::GraphicString)
+    test.(26, OpenSSL::ASN1::ISO64String)
+    test.(27, OpenSSL::ASN1::GeneralString)
+    test.(28, OpenSSL::ASN1::UniversalString)
+    test.(30, OpenSSL::ASN1::BMPString)
   end
 
   def test_constructive_each

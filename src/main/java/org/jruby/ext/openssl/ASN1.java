@@ -31,9 +31,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.Enumeration;
@@ -548,12 +547,12 @@ public class ASN1 {
         { "NUMERICSTRING", org.bouncycastle.asn1.DERNumericString.class, "NumericString" },
         { "PRINTABLESTRING", org.bouncycastle.asn1.DERPrintableString.class, "PrintableString" },
         { "T61STRING", org.bouncycastle.asn1.DERT61String.class, "T61String" },
-        { "VIDEOTEXSTRING", null, "VideotexString" },
+        { "VIDEOTEXSTRING", org.bouncycastle.asn1.DERVideotexString.class, "VideotexString" },
         { "IA5STRING", org.bouncycastle.asn1.DERIA5String.class, "IA5String" },
         { "UTCTIME", org.bouncycastle.asn1.DERUTCTime.class, "UTCTime" },
         { "GENERALIZEDTIME", org.bouncycastle.asn1.DERGeneralizedTime.class, "GeneralizedTime" },
-        { "GRAPHICSTRING", null, "GraphicString" },
-        { "ISO64STRING", null, "ISO64String" },
+        { "GRAPHICSTRING", org.bouncycastle.asn1.DERGraphicString.class, "GraphicString" },
+        { "ISO64STRING", org.bouncycastle.asn1.DERVisibleString.class, "ISO64String" },
         { "GENERALSTRING",  org.bouncycastle.asn1.DERGeneralString.class, "GeneralString" },
         // OpenSSL::ASN1::UNIVERSALSTRING (28) :
         { "UNIVERSALSTRING", org.bouncycastle.asn1.DERUniversalString.class, "UniversalString" },
@@ -660,25 +659,6 @@ public class ASN1 {
     static Class<? extends ASN1Encodable> typeClassSafe(final int typeId) {
         if (typeId >= ASN1_INFO.length || typeId < 0) return null;
         return typeClass(typeId);
-    }
-
-    static ASN1Encodable typeInstance(Class<? extends ASN1Encodable> type, Object value)
-        throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        Method getInstance = null;
-        try {
-            getInstance = type.getMethod("getInstance", Object.class);
-        }
-        catch (NoSuchMethodException e) {
-            Class superType = type.getSuperclass();
-            try {
-                if ( superType != Object.class ) {
-                    getInstance = type.getSuperclass().getMethod("getInstance", Object.class);
-                }
-            }
-            catch (NoSuchMethodException e2) { }
-            if ( getInstance == null ) throw e;
-        }
-        return (ASN1Encodable) getInstance.invoke(null, value);
     }
 
     public static void createASN1(final Ruby runtime, final RubyModule OpenSSL, final RubyClass OpenSSLError) {
@@ -976,7 +956,22 @@ public class ASN1 {
             final ByteList bytes;
             if ( obj instanceof ASN1UTF8String ) {
                 if ( type == null ) type = "UTF8String";
-                bytes = new ByteList(((ASN1UTF8String) obj).getString().getBytes("UTF-8"), false);
+                bytes = new ByteList(((ASN1UTF8String) obj).getString().getBytes(StandardCharsets.UTF_8), false);
+            }
+            else if ( obj instanceof ASN1UniversalString ) {
+                if ( type == null ) type = "UniversalString";
+                bytes = new ByteList(((ASN1UniversalString) obj).getOctets(), false);
+            }
+            else if ( obj instanceof ASN1BMPString ) {
+                if ( type == null ) type = "BMPString";
+                final String val = ((ASN1BMPString) obj).getString();
+                final byte[] valBytes = new byte[val.length() * 2];
+                for (int i = 0; i < val.length(); i++) {
+                    char c = val.charAt(i);
+                    valBytes[i * 2] = (byte) ((c >> 8) & 0xff);
+                    valBytes[i * 2 + 1] = (byte) (c & 0xff);
+                }
+                bytes = new ByteList(valBytes, false);
             }
             else {
                 if ( type == null ) {
@@ -995,14 +990,16 @@ public class ASN1 {
                     else if ( obj instanceof ASN1GeneralString ) {
                         type = "GeneralString";
                     }
-                    else if ( obj instanceof ASN1UniversalString ) {
-                        type = "UniversalString";
+                    else if ( obj instanceof ASN1VideotexString ) {
+                        type = "VideotexString";
                     }
-                    else if ( obj instanceof ASN1BMPString ) {
-                        type = "BMPString";
+                    else if ( obj instanceof ASN1VisibleString ) {
+                        type = "ISO64String";
+                    }
+                    else if ( obj instanceof ASN1GraphicString ) {
+                        type = "GraphicString";
                     }
                     else {
-                        // NOTE "VideotexString", "GraphicString", "ISO64String" not-handled in BC !
                         throw new IllegalArgumentException("could not handle ASN1 string type: " + obj + " (" + obj.getClass().getName() + ")");
                     }
                 }
@@ -1652,38 +1649,50 @@ public class ASN1 {
                 return new DERUTF8String( val.asString().toString() );
             }
             if ( type == DERBMPString.class ) {
-                return new DERBMPString( val.asString().toString() );
+                return new DERBMPString(new String(toBMPChars(val.asString().getByteList())));
             }
             if ( type == DERUniversalString.class ) {
                 return new DERUniversalString( val.asString().getBytes() );
             }
 
             if ( type == DERGeneralString.class ) {
-                return ASN1GeneralString.getInstance( val.asString().getBytes() );
+                return new DERGeneralString( val.asString().toString() );
             }
             if ( type == DERVisibleString.class ) {
-                return ASN1VisibleString.getInstance( val.asString().getBytes() );
+                return new DERVisibleString( val.asString().toString() );
             }
             if ( type == DERNumericString.class ) {
-                return ASN1NumericString.getInstance( val.asString().getBytes() );
+                return new DERNumericString( val.asString().toString() );
+            }
+            if ( type == DERPrintableString.class ) {
+                return new DERPrintableString( val.asString().toString() );
+            }
+            if ( type == DERT61String.class ) {
+                return new DERT61String( val.asString().toString() );
+            }
+            if ( type == DERVideotexString.class ) {
+                return new DERVideotexString( val.asString().getBytes() );
+            }
+            if ( type == DERGraphicString.class ) {
+                return new DERGraphicString( val.asString().getBytes() );
             }
 
-            if ( val instanceof RubyString ) {
-                try {
-                    return typeInstance(type, ( (RubyString) val ).getBytes());
-                }
-                catch (Exception e) { // TODO exception handling
-                    debugStackTrace(context.runtime, e);
-                    throw Utils.newError(context.runtime, context.runtime.getRuntimeError(), e);
-                }
-            }
-
-            // TODO throw an exception here too?
-            if ( isDebug(context.runtime) ) {
+            if (isDebug(context.runtime)) {
                 debug(this + " toASN1() could not handle class " + getMetaClass() + " and value " + val.inspect() + " (" + val.getClass().getName() + ")");
             }
-            warn(context, "WARNING: unimplemented method called: OpenSSL::ASN1Data#toASN1 (" + type + ")");
-            return null;
+            throw context.runtime.newNotImplementedError("unimplemented method called: OpenSSL::ASN1Data#toASN1 (" + type + ")");
+        }
+
+        private static char[] toBMPChars(final ByteList string) {
+            assert string.length() % 2 == 0;
+
+            final int len = string.length() / 2;
+            final char[] chars = new char[len];
+            for (int i = 0; i < len; i++) {
+                int si = i * 2;
+                chars[i] = (char)((string.get(si) << 8) | (string.get(si + 1) & 0xff));
+            }
+            return chars;
         }
 
         private static BigInteger bigIntegerValue(final IRubyObject val) {
