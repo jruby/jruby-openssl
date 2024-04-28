@@ -1341,7 +1341,20 @@ public class ASN1 {
         boolean isImplicitTagging() { return true; }
 
         int getTag(final ThreadContext context) {
-            return RubyNumeric.fix2int(callMethod(context, "tag"));
+            return RubyNumeric.fix2int(getInstanceVariable("@tag"));
+        }
+
+        int getTagClass(final ThreadContext context) {
+            IRubyObject tag_class = getInstanceVariable("@tag_class");
+            if (tag_class instanceof RubySymbol) {
+                if ("APPLICATION".equals(tag_class.toString())) {
+                    return BERTags.APPLICATION;
+                }
+                if ("CONTEXT_SPECIFIC".equals(tag_class.toString())) {
+                    return BERTags.CONTEXT_SPECIFIC;
+                }
+            }
+            return BERTags.UNIVERSAL; // 0
         }
 
         ASN1Encodable toASN1(final ThreadContext context) {
@@ -1775,8 +1788,7 @@ public class ASN1 {
         @Override
         boolean isExplicitTagging() {
             IRubyObject tagging = getInstanceVariable("@tagging");
-            if ( tagging.isNil() ) return true;
-            return "EXPLICIT".equals( tagging.toString() );
+            return tagging.isNil() || "EXPLICIT".equals( tagging.toString() );
         }
 
         @Override
@@ -1830,22 +1842,21 @@ public class ASN1 {
                 if ( isSequence() ) {
                     return sequenceToDER(context);
                 }
-                else if ( isSet() ) {
+                if ( isSet() ) {
                     return setToDER(context);
                 }
-                else { // "raw" Constructive
-                    switch ( getTag(context) ) {
-                    case OCTET_STRING:
-                        return octetStringToDER(context);
-                    case BIT_STRING:
-                        return bitStringToDER(context);
-                    case SEQUENCE:
-                        return sequenceToDER(context);
-                    case SET:
-                        return setToDER(context);
-                    }
-                    throw new UnsupportedOperationException( this.inspect().toString() );
+                // "raw" Constructive
+                switch ( getTag(context) ) {
+                case OCTET_STRING:
+                    return octetStringToDER(context);
+                case BIT_STRING:
+                    return bitStringToDER(context);
+                case SEQUENCE:
+                    return sequenceToDER(context);
+                case SET:
+                    return setToDER(context);
                 }
+                throw new UnsupportedOperationException( this.inspect().toString() );
             }
 
             return super.toDER(context);
