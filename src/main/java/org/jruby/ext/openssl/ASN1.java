@@ -1336,6 +1336,10 @@ public class ASN1 {
             return "EndOfContent".equals( getClassBaseName() );
         }
 
+        IRubyObject tagging() {
+            return getInstanceVariable("@tagging");
+        }
+
         boolean isExplicitTagging() { return ! isImplicitTagging(); }
 
         boolean isImplicitTagging() { return true; }
@@ -1364,19 +1368,24 @@ public class ASN1 {
         final ASN1TaggedObject toASN1TaggedObject(final ThreadContext context) {
             final int tag = getTag(context);
 
-            final IRubyObject val = callMethod(context, "value");
-            if ( val instanceof RubyArray ) {
-                final RubyArray arr = (RubyArray) val;
+            final IRubyObject value = callMethod(context, "value");
+            if (value instanceof RubyArray) {
+                final RubyArray arr = (RubyArray) value;
                 assert ! arr.isEmpty();
 
                 ASN1EncodableVector vec = new ASN1EncodableVector();
-                for ( final IRubyObject obj : arr.toJavaArray() ) {
+                for (final IRubyObject obj : arr.toJavaArray()) {
                     ASN1Encodable data = ((ASN1Data) obj).toASN1(context);
-                    if ( data == null ) break; vec.add( data );
+                    if ( data == null ) break;
+                    vec.add( data );
                 }
                 return new DERTaggedObject(isExplicitTagging(), tag, new DERSequence(vec));
             }
-            return new DERTaggedObject(isExplicitTagging(), tag, ((ASN1Data) val).toASN1(context));
+
+            if (!(value instanceof ASN1Data)) {
+                throw new UnsupportedOperationException("toASN1 " + inspect() + " value: " + value.inspect() + " (" + value.getMetaClass() + ")");
+            }
+            return new DERTaggedObject(isExplicitTagging(), tag, ((ASN1Data) value).toASN1(context));
         }
 
         @JRubyMethod
@@ -1559,9 +1568,13 @@ public class ASN1 {
             self.setInstanceVariable("@indefinite_length", runtime.getFalse());
         }
 
+        boolean isTagged() {
+            return !tagging().isNil();
+        }
+
         @Override
         boolean isExplicitTagging() {
-            return "EXPLICIT".equals( getInstanceVariable("@tagging").toString() );
+            return "EXPLICIT".equals( tagging().toString() );
         }
 
         @Override
@@ -1581,19 +1594,16 @@ public class ASN1 {
             return toASN1(context).toASN1Primitive().getEncoded(ASN1Encoding.DER);
         }
 
-        /*
-        private static final Class DERBooleanClass;
-        static {
-            Class klass;
-            try {
-                klass = Class.forName("org.bouncycastle.asn1.DERBoolean");
-            }
-            catch(ClassNotFoundException e) { klass = null; }
-            DERBooleanClass = klass;
-        } */
-
         @Override
         ASN1Encodable toASN1(final ThreadContext context) {
+            final ASN1Encodable primitive = toASN1Primitive(context);
+            if (isTagged()) {
+                return new DERTaggedObject(isExplicitTagging(), getTagClass(context), getTag(context), primitive);
+            }
+            return primitive;
+        }
+
+        private ASN1Encodable toASN1Primitive(final ThreadContext context) {
             Class<? extends ASN1Encodable> type = typeClass( getMetaClass() );
             if ( type == null ) {
                 final int tag = getTag(context);
@@ -1691,9 +1701,9 @@ public class ASN1 {
             }
 
             if (isDebug(context.runtime)) {
-                debug(this + " toASN1() could not handle class " + getMetaClass() + " and value " + val.inspect() + " (" + val.getClass().getName() + ")");
+                debug(this + " toASN1() could not handle class " + getMetaClass() + " and value: " + val.inspect() + " (" + val.getMetaClass() + ")");
             }
-            throw context.runtime.newNotImplementedError("unimplemented method called: OpenSSL::ASN1Data#toASN1 (" + type + ")");
+            throw new UnsupportedOperationException("OpenSSL::ASN1Data#toASN1 (" + type + ") not implemented"); // should not happen
         }
 
         private static char[] toBMPChars(final ByteList string) {
@@ -1785,15 +1795,18 @@ public class ASN1 {
             return getInstanceVariable("@indefinite_length").isTrue();
         }
 
+        private boolean isTagged() {
+            return !tagging().isNil();
+        }
+
         @Override
         boolean isExplicitTagging() {
-            IRubyObject tagging = getInstanceVariable("@tagging");
-            return tagging.isNil() || "EXPLICIT".equals( tagging.toString() );
+            return "EXPLICIT".equals( tagging().toString() ); // nil.toString() == ""
         }
 
         @Override
         boolean isImplicitTagging() {
-            return "IMPLICIT".equals( getInstanceVariable("@tagging").toString() );
+            return "IMPLICIT".equals( tagging().toString() );
         }
 
         @Override
@@ -1940,8 +1953,7 @@ public class ASN1 {
 
         }
 
-        private static boolean addEntry(final ThreadContext context,
-            final ASN1EncodableVector vec, final IRubyObject entry) {
+        private static boolean addEntry(final ThreadContext context, final ASN1EncodableVector vec, final IRubyObject entry) {
             try {
                 if ( entry instanceof Constructive ) {
                     final Constructive constructive = (Constructive) entry;

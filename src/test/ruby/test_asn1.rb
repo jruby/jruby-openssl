@@ -608,35 +608,25 @@ class TestASN1 < TestCase
   end
 
   def test_prim_explicit_tagging
-    # TODO: Import Issue
-    # <"\xA0\x03\x04\x01a"> expected but was <"\x04\x01a">
-    #oct_str = OpenSSL::ASN1::OctetString.new("a", 0, :EXPLICIT)
-    #encode_test B(%w{ A0 03 04 01 61 }), oct_str
-    # <"a\x03\x04\x01a"> expected but was <"\x04\x01a">
+    oct_str = OpenSSL::ASN1::OctetString.new("a", 0, :EXPLICIT)
+    encode_test B(%w{ A0 03 04 01 61 }), oct_str
     oct_str2 = OpenSSL::ASN1::OctetString.new("a", 1, :EXPLICIT, :APPLICATION)
-    #encode_test B(%w{ 61 03 04 01 61 }), oct_str2
+    encode_test B(%w{ 61 03 04 01 61 }), oct_str2
 
     decoded = OpenSSL::ASN1.decode(oct_str2.to_der)
-    # <:APPLICATION> expected but was <:UNIVERSAL>
-    #assert_equal :APPLICATION, decoded.tag_class
-    # <1> expected but was <4>
-    #assert_equal 1, decoded.tag
+    assert_equal :APPLICATION, decoded.tag_class
+    assert_equal 1, decoded.tag
     assert_equal 1, decoded.value.size
-    #inner = decoded.value[0]
-    # <OpenSSL::ASN1::OctetString> expected but was <String>
-    #assert_equal OpenSSL::ASN1::OctetString, inner.class
-    # NoMethodError: undefined method `value' for "a":String
-    #assert_equal B(%w{ 61 }), inner.value
+    inner = decoded.value[0]
+    assert_equal OpenSSL::ASN1::OctetString, inner.class
+    assert_equal B(%w{ 61 }), inner.value
   end
 
   def test_prim_implicit_tagging
-    #int = OpenSSL::ASN1::Integer.new(1, 0, :IMPLICIT)
-    # TODO: Import Issue
-    # <"\x80\x01\x01"> expected but was <"\x02\x01\x01">
-    #encode_test B(%w{ 80 01 01 }), int
-    #int2 = OpenSSL::ASN1::Integer.new(1, 1, :IMPLICIT, :APPLICATION)
-    # <"A\x01\x01"> expected but was <"\x02\x01\x01">
-    #encode_test B(%w{ 41 01 01 }), int2
+    int = OpenSSL::ASN1::Integer.new(1, 0, :IMPLICIT)
+    encode_test B(%w{ 80 01 01 }), int
+    int2 = OpenSSL::ASN1::Integer.new(1, 1, :IMPLICIT, :APPLICATION)
+    encode_test B(%w{ 41 01 01 }), int2
     #decoded = OpenSSL::ASN1.decode(int2.to_der)
     # <:APPLICATION> expected but was <:UNIVERSAL>
     #assert_equal :APPLICATION, decoded.tag_class
@@ -907,8 +897,7 @@ class TestASN1 < TestCase
                                                   nil,
                                                   :UNIVERSAL )
     assert_equal false, inf_octets.infinite_length
-    # The real value of inf_octets is "\x01\x02", i.e. the concatenation
-    # of partial1 and partial2
+    # The real value of inf_octets is "\x01\x02", i.e. the concatenation of partial1 and partial2
     inf_octets.infinite_length = true
     assert_equal true, inf_octets.infinite_length
 
