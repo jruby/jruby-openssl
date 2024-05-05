@@ -1357,21 +1357,14 @@ public class ASN1 {
             final IRubyObject val = callMethod(context, "value");
             if ( val instanceof RubyArray ) {
                 final RubyArray arr = (RubyArray) val;
-                if ( arr.size() > 1 ) {
-                    ASN1EncodableVector vec = new ASN1EncodableVector();
-                    for ( final IRubyObject obj : arr.toJavaArray() ) {
-                        ASN1Encodable data = ((ASN1Data) obj).toASN1(context);
-                        if ( data == null ) break; vec.add( data );
-                    }
-                    return new DERTaggedObject(isExplicitTagging(), tag, new DERSequence(vec));
+                assert ! arr.isEmpty();
+
+                ASN1EncodableVector vec = new ASN1EncodableVector();
+                for ( final IRubyObject obj : arr.toJavaArray() ) {
+                    ASN1Encodable data = ((ASN1Data) obj).toASN1(context);
+                    if ( data == null ) break; vec.add( data );
                 }
-                else if ( arr.size() == 1 ) {
-                    ASN1Encodable data = ((ASN1Data) arr.entry(0)).toASN1(context);
-                    return new DERTaggedObject(isExplicitTagging(), tag, data);
-                }
-                else {
-                    throw new IllegalStateException("empty array detected");
-                }
+                return new DERTaggedObject(isExplicitTagging(), tag, new DERSequence(vec));
             }
             return new DERTaggedObject(isExplicitTagging(), tag, ((ASN1Data) val).toASN1(context));
         }

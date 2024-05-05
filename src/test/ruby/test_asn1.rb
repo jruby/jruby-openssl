@@ -260,6 +260,30 @@ class TestASN1 < TestCase
     assert_raise(TypeError) { OpenSSL::ASN1::Boolean.new(nil).to_der }
   end
 
+  def test_encode_data_integer
+    data = OpenSSL::ASN1::ASN1Data.new([OpenSSL::ASN1::Integer.new(90)], 1, :CONTEXT_SPECIFIC)
+    der = data.to_der
+    assert_equal "\xA1\x03\x02\x01Z", der
+
+    dec = OpenSSL::ASN1.decode(der)
+    # #<OpenSSL::ASN1::ASN1Data:0x000077be141e1e60
+    #  @indefinite_length=false,
+    #  @tag=1,
+    #  @tag_class=:CONTEXT_SPECIFIC,
+    #  @value=[#<OpenSSL::ASN1::Integer:0x000077be141e1e88 @indefinite_length=false, @tag=2, @tag_class=:UNIVERSAL, @tagging=nil, @value=#<OpenSSL::BN 1>>]>
+    assert_equal OpenSSL::ASN1::ASN1Data, dec.class
+    assert_equal :CONTEXT_SPECIFIC, dec.tag_class
+    assert_equal 1, dec.tag
+
+    assert_equal Array, dec.value.class
+    assert_equal 1, dec.value.size
+    int = dec.value[0]
+    assert_equal OpenSSL::ASN1::Integer, int.class
+    assert_equal 2, int.tag
+    assert_equal :UNIVERSAL, int.tag_class
+    assert_equal OpenSSL::BN.new(90), int.value
+  end
+
   def test_object_identifier
     encode_decode_test B(%w{ 06 01 00 }), OpenSSL::ASN1::ObjectId.new("0.0".b)
     encode_decode_test B(%w{ 06 01 28 }), OpenSSL::ASN1::ObjectId.new("1.0".b)
