@@ -952,7 +952,7 @@ public class SSLSocket extends RubyObject {
         }
         catch (IOException ex) {
             debugStackTrace(runtime, "SSLSocket.syswriteImpl", ex);
-            throw Utils.newError(runtime, runtime.getIOError(), ex);
+            throw runtime.newIOErrorFromException(ex);
         }
     }
 
