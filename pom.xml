@@ -63,12 +63,12 @@ DO NOT MODIFY - GENERATED CODE
     <bc.versions>1.78</bc.versions>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <invoker.test>${bc.versions}</invoker.test>
-    <jruby.plugins.version>2.0.1</jruby.plugins.version>
+    <jruby.plugins.version>3.0.2</jruby.plugins.version>
     <jruby.switches>-W0</jruby.switches>
     <jruby.version>9.2.19.0</jruby.version>
     <jruby.versions>9.2.19.0</jruby.versions>
-    <mavengem-wagon.version>1.0.3</mavengem-wagon.version>
-    <mavengem.wagon.version>1.0.3</mavengem.wagon.version>
+    <mavengem-wagon.version>2.0.2</mavengem-wagon.version>
+    <mavengem.wagon.version>2.0.2</mavengem.wagon.version>
     <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
     <polyglot.dump.readonly>false</polyglot.dump.readonly>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
@@ -122,12 +122,12 @@ DO NOT MODIFY - GENERATED CODE
   <build>
     <extensions>
       <extension>
-        <groupId>org.torquebox.mojo</groupId>
+        <groupId>org.jruby.maven</groupId>
         <artifactId>mavengem-wagon</artifactId>
         <version>${mavengem.wagon.version}</version>
       </extension>
       <extension>
-        <groupId>de.saumya.mojo</groupId>
+        <groupId>org.jruby.maven</groupId>
         <artifactId>gem-with-jar-extension</artifactId>
         <version>${jruby.plugins.version}</version>
       </extension>
@@ -181,7 +181,7 @@ DO NOT MODIFY - GENERATED CODE
         </executions>
       </plugin>
       <plugin>
-        <groupId>de.saumya.mojo</groupId>
+        <groupId>org.jruby.maven</groupId>
         <artifactId>gem-maven-plugin</artifactId>
         <version>${jruby.plugins.version}</version>
         <executions>
@@ -351,7 +351,7 @@ DO NOT MODIFY - GENERATED CODE
         </executions>
       </plugin>
       <plugin>
-        <groupId>de.saumya.mojo</groupId>
+        <groupId>org.jruby.maven</groupId>
         <artifactId>runit-maven-plugin</artifactId>
         <version>${jruby.plugins.version}</version>
         <executions>
