@@ -107,15 +107,15 @@ supported_bc_versions = %w{ 1.60 1.61 1.62 1.63 1.64 1.65 1.66 1.67 1.68 }
 default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
 
-properties( 'jruby.plugins.version' => '2.0.1', # 2.0.1
+properties( 'jruby.plugins.version' => '3.0.2',
             'jruby.switches' => '-W0', # https://github.com/torquebox/jruby-maven-plugins/issues/94
             'bc.versions' => default_bc_version,
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
-            'mavengem.wagon.version' => '1.0.3', # for jruby plugin
-            'mavengem-wagon.version' => '1.0.3', # for polyglot-ruby
+            'mavengem.wagon.version' => '2.0.2', # for jruby plugin
+            'mavengem-wagon.version' => '2.0.2', # for polyglot-ruby
             # use this version of jruby for the jruby-maven-plugins
             'jruby.versions' => MVN_JRUBY_VERSION, 'jruby.version' => MVN_JRUBY_VERSION,
             # dump pom.xml when running 'rmvn'
