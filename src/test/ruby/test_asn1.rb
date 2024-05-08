@@ -245,9 +245,7 @@ class TestASN1 < TestCase
   end
 
   def test_null
-    # TODO: Import Issue -- Is this related to the comment below in test_encode_all?
-    # TypeError: nil value
-    #encode_decode_test B(%w{ 05 00 }), OpenSSL::ASN1::Null.new(nil)
+    encode_decode_test B(%w{ 05 00 }), OpenSSL::ASN1::Null.new(nil)
     assert_raise(OpenSSL::ASN1::ASN1Error) {
       OpenSSL::ASN1.decode(B(%w{ 05 01 00 }))
     }
@@ -384,13 +382,11 @@ class TestASN1 < TestCase
 
   def test_sequence
     encode_decode_test B(%w{ 30 00 }), OpenSSL::ASN1::Sequence.new([])
-    # TODO: Import Issue
-    # TypeError: nil value
-    #encode_decode_test B(%w{ 30 07 05 00 30 00 04 01 00 }), OpenSSL::ASN1::Sequence.new([
-    #  OpenSSL::ASN1::Null.new(nil),
-    #  OpenSSL::ASN1::Sequence.new([]),
-    #  OpenSSL::ASN1::OctetString.new(B(%w{ 00 }))
-    #])
+    encode_decode_test B(%w{ 30 07 05 00 30 00 04 01 00 }), OpenSSL::ASN1::Sequence.new([
+     OpenSSL::ASN1::Null.new(nil),
+     OpenSSL::ASN1::Sequence.new([]),
+     OpenSSL::ASN1::OctetString.new(B(%w{ 00 }))
+    ])
 
     expected = OpenSSL::ASN1::Sequence.new([OpenSSL::ASN1::OctetString.new(B(%w{ 00 }))])
     expected.indefinite_length = true

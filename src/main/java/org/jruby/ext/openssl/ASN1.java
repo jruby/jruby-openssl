@@ -1506,7 +1506,7 @@ public class ASN1 {
         @Override
         @JRubyMethod
         public IRubyObject to_der(final ThreadContext context) {
-            if ( value(context).isNil() ) {
+            if ( value(context).isNil() && !isNull() ) {
                 // MRI compatibility but avoids Java exceptions as well e.g.
                 // Java::JavaLang::NumberFormatException
                 //    java.math.BigInteger.<init>(BigInteger.java:296)
@@ -1596,7 +1596,7 @@ public class ASN1 {
 
         @Override
         boolean isImplicitTagging() {
-            IRubyObject tagging = getInstanceVariable("@tagging");
+            IRubyObject tagging = tagging();
             if ( tagging.isNil() ) return true;
             return "IMPLICIT".equals( tagging.toString() );
         }
@@ -1604,6 +1604,10 @@ public class ASN1 {
         @Override
         boolean isEOC() {
             return false;
+        }
+
+        private boolean isNull() {
+            return "Null".equals(getMetaClass().getRealClass().getBaseName());
         }
 
         @Override
