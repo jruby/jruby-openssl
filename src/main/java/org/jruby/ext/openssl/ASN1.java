@@ -1072,10 +1072,15 @@ public class ASN1 {
             }
 
             if (taggedObj.getTagClass() == BERTags.APPLICATION) {
-                final ASN1Sequence sequence = (ASN1Sequence) taggedObj.getBaseUniversal(false, SEQUENCE);
-                @SuppressWarnings("unchecked")
-                final RubyArray valArr = decodeObjects(context, ASN1, sequence.getObjects());
-                return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
+                try {
+                    final ASN1Sequence sequence = (ASN1Sequence) taggedObj.getBaseUniversal(false, SEQUENCE);
+                    @SuppressWarnings("unchecked")
+                    final RubyArray valArr = decodeObjects(context, ASN1, sequence.getObjects());
+                    return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
+                } catch (IllegalStateException e) {
+                    IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject()).callMethod(context, "value");
+                    return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { val, tag, tag_class }, Block.NULL_BLOCK);
+                }
             } else {
                 IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject());
                 final RubyArray valArr = runtime.newArray(val);
@@ -1444,11 +1449,6 @@ public class ASN1 {
                 throw context.runtime.newTypeError(
                         "no implicit conversion of " + value.getMetaClass().getBaseName() + " into String");
             }
-
-            if (!(value instanceof ASN1Data)) {
-                throw new UnsupportedOperationException("toASN1 " + inspect() + " value: " + value.inspect() + " (" + value.getMetaClass() + ")");
-            }
-            return new DERTaggedObject(isExplicitTagging(), tagClass, tag, ((ASN1Data) value).toASN1(context));
         }
 
         @JRubyMethod
