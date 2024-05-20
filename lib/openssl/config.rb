@@ -14,6 +14,8 @@
 require 'stringio'
 
 module OpenSSL
+  class ConfigError;end
+
   ##
   # = OpenSSL::Config
   #
@@ -26,6 +28,9 @@ module OpenSSL
   # See also http://www.openssl.org/docs/apps/config.html
   class Config
     include Enumerable
+
+    # on MRI this constant is set by calling the openssl C function: CONF_get1_default_config_file
+    DEFAULT_CONFIG_FILE = nil
 
     class << self
 
