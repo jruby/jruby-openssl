@@ -52,7 +52,11 @@ module OpenSSL
       # Raises a ConfigError on invalid configuration data.
       def parse_config(io)
         begin
-          parse_config_lines(io)
+          if(io.instance_of?(String))
+            parse(io)
+          else
+            parse_config_lines(io)
+          end
         rescue => error
           raise ConfigError, "error in line #{io.lineno}: " + error.message
         end
