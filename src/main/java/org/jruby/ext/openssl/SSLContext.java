@@ -339,11 +339,6 @@ public class SSLContext extends RubyObject {
 
         if ( isFrozen() ) return runtime.getNil();
 
-        synchronized(this) {
-            if ( isFrozen() ) return runtime.getNil();
-            this.freeze(context);
-        }
-
         final X509Store certStore = getCertStore();
 
         // TODO: handle tmp_dh_callback :
@@ -512,6 +507,8 @@ public class SSLContext extends RubyObject {
         catch (GeneralSecurityException e) {
             throw newSSLError(runtime, e);
         }
+
+        this.freeze(context);
 
         return runtime.getTrue();
     }
