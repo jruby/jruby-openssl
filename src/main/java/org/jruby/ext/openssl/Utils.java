@@ -30,6 +30,7 @@ package org.jruby.ext.openssl;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
+import java.util.function.Function;
 
 import org.jruby.*;
 import org.jruby.exceptions.RaiseException;
@@ -90,6 +91,12 @@ final class Utils {
 
     static RaiseException newError(Ruby runtime, RubyClass errorClass, String msg, Throwable e) {
         RaiseException ex = newError(runtime, errorClass, msg);
+        ex.initCause(e);
+        return ex;
+    }
+
+    static <T extends Throwable> RaiseException newError(Function<T, RaiseException> errorFunction, T e) {
+        RaiseException ex = errorFunction.apply(e);
         ex.initCause(e);
         return ex;
     }
