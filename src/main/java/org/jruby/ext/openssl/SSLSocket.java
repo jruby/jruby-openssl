@@ -162,19 +162,18 @@ public class SSLSocket extends RubyObject {
         final Ruby runtime = context.runtime;
 
         if (Arity.checkArgumentCount(runtime, args, 1, 2) == 1) {
-            sslContext = new SSLContext(runtime).initializeImpl();
+            this.sslContext = new SSLContext(runtime).initializeImpl();
         } else {
             if (!(args[1] instanceof SSLContext)) {
                 throw runtime.newTypeError(args[1], "OpenSSL::SSL::SSLContext");
             }
-            sslContext = (SSLContext) args[1];
+            this.sslContext = (SSLContext) args[1];
         }
 
         if (!(args[0] instanceof RubyIO)) {
             throw runtime.newTypeError("IO expected but got " + args[0].getMetaClass().getName());
         }
-        setInstanceVariable("@context", this.sslContext); // only compat (we do not use @context)
-        setInstanceVariable("@io", this.io = (RubyIO) args[0]);
+        setInstanceVariable("@io", this.io = (RubyIO) args[0]); // RubyBasicSocket extends RubyIO
         set_io_nonblock_checked(context, runtime.getTrue());
         // This is a bit of a hack: SSLSocket should share code with
         // RubyBasicSocket, which always sets sync to true.
@@ -182,6 +181,7 @@ public class SSLSocket extends RubyObject {
         set_sync(context, runtime.getTrue()); // io.sync = true
         setInstanceVariable("@sync_close", runtime.getFalse()); // self.sync_close = false
         sslContext.setup(context);
+        setInstanceVariable("@context", sslContext); // only compat (we do not use @context)
 
         this.initializeTime = System.currentTimeMillis();
 
