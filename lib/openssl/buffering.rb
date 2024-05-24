@@ -101,6 +101,14 @@ module OpenSSL::Buffering
 
   public
 
+  # call-seq:
+  #   ssl.getbyte => 81
+  #
+  # Get the next 8bit byte from `ssl`.  Returns `nil` on EOF
+  def getbyte
+    read(1)&.ord
+  end
+
   ##
   # Reads _size_ bytes from the stream.  If _buf_ is provided it must
   # reference a string which will receive the data.

@@ -492,4 +492,44 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
     assert_equal 'unable to get issuer certificate', cert_store.error_string
   end
 
+  def test_getbyte
+    start_server(OpenSSL::SSL::VERIFY_NONE, true) { |_, port|
+      server_connect(port) { |ssl|
+        str = +("x" * 100 + "\n")
+        ssl.syswrite(str)
+        newstr = str.bytesize.times.map { |i|
+          ssl.getbyte
+        }.pack("C*")
+        assert_equal(str, newstr)
+      }
+    }
+  end
+
+  def test_sync_close
+    start_server(OpenSSL::SSL::VERIFY_NONE, true) do |_, port|
+      begin
+        sock = TCPSocket.new("127.0.0.1", port)
+        ssl = OpenSSL::SSL::SSLSocket.new(sock)
+        ssl.connect
+        ssl.puts "abc"; assert_equal "abc\n", ssl.gets
+        ssl.close
+        assert_not_predicate sock, :closed?
+      ensure
+        sock&.close
+      end
+
+      begin
+        sock = TCPSocket.new("127.0.0.1", port)
+        ssl = OpenSSL::SSL::SSLSocket.new(sock)
+        ssl.sync_close = true  # !!
+        ssl.connect
+        ssl.puts "abc"; assert_equal "abc\n", ssl.gets
+        ssl.close
+        assert_predicate sock, :closed?
+      ensure
+        sock&.close
+      end
+    end
+  end
+
 end
