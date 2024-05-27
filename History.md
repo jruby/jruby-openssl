@@ -1,6 +1,15 @@
+## 0.14.6
+
+* [compat] OpenSSL::ConfigError and DEFAULT_CONFIG_FILE (#304)
+* [fix] `OpenSSL::PKey::DH#set_pqg` regression (#300)
+* Convert `IOException` to Ruby exception correctly (#242)
+* [refactor] add exception debugging within SSLSocket#waitSelect
+* [fix] sync `SSLContext#setup` as it could be shared (#302)
+* [refactor] organize i-var sets (set `@context` after setup)
+
 ## 0.14.5
 
-* [fix] OpenSSL::X509::Request#verify with DSA public key
+* [fix] `OpenSSL::X509::Request#verify` with DSA public key
   (this was a regression introduced in JOSSL 0.14.4)
 
 ## 0.14.4
