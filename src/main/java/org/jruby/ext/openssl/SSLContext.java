@@ -334,10 +334,15 @@ public class SSLContext extends RubyObject {
     final SSLContext initializeImpl() { return this; }
 
     @JRubyMethod
-    public synchronized IRubyObject setup(final ThreadContext context) {
-        final Ruby runtime = context.runtime;
+    public IRubyObject setup(final ThreadContext context) {
+        if (isFrozen()) return context.nil;
+        return doSetup(context);
+    }
 
-        if ( isFrozen() ) return runtime.getNil();
+    private synchronized IRubyObject doSetup(final ThreadContext context) {
+        if (isFrozen()) return context.nil;
+
+        final Ruby runtime = context.runtime;
 
         final X509Store certStore = getCertStore();
 
