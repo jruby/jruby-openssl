@@ -14,9 +14,9 @@ module OpenSSL
 
       def set_pqg(p, q, g)
         self.p = p
-        if respond_to?(:q)
+        if respond_to?(:q=)
           self.q = q
-        else # TODO self.q = q
+        else
           OpenSSL.warn "JRuby-OpenSSL does not support setting q param on #{inspect}" if q
         end
         self.g = g
