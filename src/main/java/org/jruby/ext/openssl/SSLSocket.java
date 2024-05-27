@@ -162,19 +162,18 @@ public class SSLSocket extends RubyObject {
         final Ruby runtime = context.runtime;
 
         if (Arity.checkArgumentCount(runtime, args, 1, 2) == 1) {
-            sslContext = new SSLContext(runtime).initializeImpl();
+            this.sslContext = new SSLContext(runtime).initializeImpl();
         } else {
             if (!(args[1] instanceof SSLContext)) {
                 throw runtime.newTypeError(args[1], "OpenSSL::SSL::SSLContext");
             }
-            sslContext = (SSLContext) args[1];
+            this.sslContext = (SSLContext) args[1];
         }
 
         if (!(args[0] instanceof RubyIO)) {
             throw runtime.newTypeError("IO expected but got " + args[0].getMetaClass().getName());
         }
-        setInstanceVariable("@context", this.sslContext); // only compat (we do not use @context)
-        setInstanceVariable("@io", this.io = (RubyIO) args[0]);
+        setInstanceVariable("@io", this.io = (RubyIO) args[0]); // RubyBasicSocket extends RubyIO
         set_io_nonblock_checked(context, runtime.getTrue());
         // This is a bit of a hack: SSLSocket should share code with
         // RubyBasicSocket, which always sets sync to true.
@@ -182,6 +181,7 @@ public class SSLSocket extends RubyObject {
         set_sync(context, runtime.getTrue()); // io.sync = true
         setInstanceVariable("@sync_close", runtime.getFalse()); // self.sync_close = false
         sslContext.setup(context);
+        setInstanceVariable("@context", sslContext); // only compat (we do not use @context)
 
         this.initializeTime = System.currentTimeMillis();
 
@@ -471,8 +471,8 @@ public class SSLSocket extends RubyObject {
                             writeWouldBlock(runtime, exception, result);
                         }
                     }
-                }
-                catch (IOException ioe) {
+                } catch (IOException ioe) {
+                    debugStackTrace(runtime, "SSLSocket.waitSelect", ioe);
                     throw runtime.newRuntimeError("Error with selector: " + ioe.getMessage());
                 }
             } else {
@@ -483,6 +483,7 @@ public class SSLSocket extends RubyObject {
                             result[0] = selector.select();
                         }
                         catch (IOException ioe) {
+                            debugStackTrace(runtime, "SSLSocket.waitSelect", ioe);
                             throw runtime.newRuntimeError("Error with selector: " + ioe.getMessage());
                         }
                     }
@@ -505,32 +506,27 @@ public class SSLSocket extends RubyObject {
                     //JRuby <= 9.1.2.0 that makes this not always the case, so we have to check
                     return selector.selectedKeys().contains(key) ?  Boolean.TRUE : Boolean.FALSE;
             }
-        }
-        catch (InterruptedException interrupt) { return Boolean.FALSE; }
-        finally {
-            // Note: I don't like ignoring these exceptions, but it's
-            // unclear how likely they are to happen or what damage we
-            // might do by ignoring them. Note that the pieces are separate
-            // so that we can ensure one failing does not affect the others
-            // running.
+        } catch (InterruptedException interrupt) {
+            debug(runtime, "SSLSocket.waitSelect", interrupt);
+            return Boolean.FALSE;
+        } finally {
+            // Note: I don't like ignoring these exceptions, but it's unclear how likely they are to happen or what
+            // damage we might do by ignoring them. Note that the pieces are separate so that we can ensure one failing
+            // does not affect the others running.
 
             // clean up the key in the selector
             try {
                 if ( key != null ) key.cancel();
                 if ( selector != null ) selector.selectNow();
-            }
-            catch (Exception e) { // ignore
-                debugStackTrace(runtime, e);
+            } catch (Exception e) { // ignore
+                debugStackTrace(runtime, "SSLSocket.waitSelect (ignored)", e);
             }
 
             // shut down and null out the selector
             try {
-                if ( selector != null ) {
-                    runtime.getSelectorPool().put(selector);
-                }
-            }
-            catch (Exception e) { // ignore
-                debugStackTrace(runtime, e);
+                if ( selector != null ) runtime.getSelectorPool().put(selector);
+            } catch (Exception e) { // ignore
+                debugStackTrace(runtime, "SSLSocket.waitSelect (ignored)", e);
             }
 
             if (blocking) {
@@ -810,8 +806,11 @@ public class SSLSocket extends RubyObject {
         flushData(true);
     }
 
-    private IRubyObject sysreadImpl(final ThreadContext context,
-        IRubyObject len, IRubyObject buff, final boolean blocking, final boolean exception) {
+    /**
+     * @return the (@link RubyString} buffer or :wait_readable / :wait_writeable {@link RubySymbol}
+     */
+    private IRubyObject sysreadImpl(final ThreadContext context, final IRubyObject len, final IRubyObject buff,
+                                    final boolean blocking, final boolean exception) {
         final Ruby runtime = context.runtime;
 
         final int length = RubyNumeric.fix2int(len);

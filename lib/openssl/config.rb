@@ -14,6 +14,7 @@
 require 'stringio'
 
 module OpenSSL
+  class ConfigError < OpenSSLError; end
   ##
   # = OpenSSL::Config
   #
@@ -26,6 +27,8 @@ module OpenSSL
   # See also http://www.openssl.org/docs/apps/config.html
   class Config
     include Enumerable
+
+    DEFAULT_CONFIG_FILE = nil # JRuby: compatibility (we do not read openssl.cnf)
 
     class << self
 

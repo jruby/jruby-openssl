@@ -43,6 +43,7 @@ end
 
 module OpenSSL
   autoload :Config, 'openssl/config' unless const_defined?(:Config, false)
+  autoload :ConfigError, 'openssl/config' unless const_defined?(:ConfigError, false)
   autoload :PKCS12, 'openssl/pkcs12'
 end
 

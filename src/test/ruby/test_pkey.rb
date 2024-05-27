@@ -83,6 +83,20 @@ class TestPKey < TestCase
     end
   end
 
+  def test_pkey_dh
+    dh = OpenSSL::PKey::DH.new
+    assert_equal nil, dh.p
+    assert_equal nil, dh.priv_key
+
+    # OpenSSL::PKey::PKeyError: dh#set_pqg= is incompatible with OpenSSL 3.0
+    if defined? JRUBY_VERSION
+      dh.set_pqg(1_000_000, nil, 10)
+      assert_equal 1_000_000, dh.p
+      assert_equal 10, dh.g
+    end
+    assert_equal nil, dh.q
+  end
+
   def test_to_java
     pkey = OpenSSL::PKey.read(KEY)
     assert_kind_of java.security.PublicKey, pkey.to_java

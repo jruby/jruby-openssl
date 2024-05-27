@@ -315,7 +315,7 @@ public class SSLContext extends RubyObject {
     //private int sessionCacheMode; // 2 default on MRI
     private int sessionCacheSize; // 20480
 
-    private InternalContext internalContext;
+    private volatile InternalContext internalContext;
 
     @JRubyMethod(required = 0, optional = 1, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(IRubyObject[] args) {
@@ -334,15 +334,10 @@ public class SSLContext extends RubyObject {
     final SSLContext initializeImpl() { return this; }
 
     @JRubyMethod
-    public IRubyObject setup(final ThreadContext context) {
+    public synchronized IRubyObject setup(final ThreadContext context) {
         final Ruby runtime = context.runtime;
 
         if ( isFrozen() ) return runtime.getNil();
-
-        synchronized(this) {
-            if ( isFrozen() ) return runtime.getNil();
-            this.freeze(context);
-        }
 
         final X509Store certStore = getCertStore();
 
@@ -512,6 +507,8 @@ public class SSLContext extends RubyObject {
         catch (GeneralSecurityException e) {
             throw newSSLError(runtime, e);
         }
+
+        this.freeze(context);
 
         return runtime.getTrue();
     }
