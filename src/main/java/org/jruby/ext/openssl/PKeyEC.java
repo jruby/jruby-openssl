@@ -931,42 +931,51 @@ public final class PKeyEC extends PKey {
             return Utils.newError(runtime, Error, message);
         }
 
-        @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
-        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
-            final Ruby runtime = context.runtime;
+        @JRubyMethod(visibility = Visibility.PRIVATE)
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject groupOrPoint) {
+            getPointAndGroup(context, groupOrPoint);
 
-            final int argc = Arity.checkArgumentCount(runtime, args, 1, 2);
-            final IRubyObject arg = args[0];
+            return this;
+        }
 
-            if ( arg instanceof Point ) {
-                this.group = ((Point) arg).group;
-                this.point = ((Point) arg).point;
+        @JRubyMethod(visibility = Visibility.PRIVATE)
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject groupOrPoint, final IRubyObject bn) {
+            if (getPointAndGroup(context, groupOrPoint)) {
                 return this;
             }
 
-            if ( arg instanceof Group ) {
-                this.group = (Group) arg;
+            final byte[] encoded;
+            if (bn instanceof BN) {
+                encoded = ((BN) bn).getValue().abs().toByteArray();
             } else {
-                throw runtime.newTypeError(arg, _EC(runtime).getClass("Group"));
+                encoded = bn.convertToString().getBytes();
             }
-
-            if ( argc == 2 ) { // (group, bn)
-                final byte[] encoded;
-                if (args[1] instanceof BN) {
-                    encoded = ((BN) args[1]).getValue().abs().toByteArray();
-                } else {
-                    encoded = args[1].convertToString().getBytes();
-                }
-                try {
-                    this.point = ECPointUtil.decodePoint(group.getCurve(), encoded);
-                }
-                catch (IllegalArgumentException ex) {
-                    // MRI: OpenSSL::PKey::EC::Point::Error: invalid encoding
-                    throw newError(context.runtime, ex.getMessage());
-                }
+            try {
+                this.point = ECPointUtil.decodePoint(group.getCurve(), encoded);
+            }
+            catch (IllegalArgumentException ex) {
+                // MRI: OpenSSL::PKey::EC::Point::Error: invalid encoding
+                throw newError(context.runtime, ex.getMessage());
             }
 
             return this;
+        }
+
+        private boolean getPointAndGroup(ThreadContext context, IRubyObject groupOrPoint) {
+            final Ruby runtime = context.runtime;
+
+            if ( groupOrPoint instanceof Point) {
+                this.group = ((Point) groupOrPoint).group;
+                this.point = ((Point) groupOrPoint).point;
+                return true;
+            }
+
+            if ( groupOrPoint instanceof Group) {
+                this.group = (Group) groupOrPoint;
+            } else {
+                throw runtime.newTypeError(groupOrPoint, _EC(runtime).getClass("Group"));
+            }
+            return false;
         }
 
         @Override
@@ -1057,6 +1066,20 @@ public final class PKeyEC extends PKey {
         public IRubyObject inspect() {
             VariableEntry entry = new VariableEntry( "group", group == null ? (Object) "nil" : group );
             return ObjectSupport.inspect(this, (List) Collections.singletonList(entry));
+        }
+
+        @Deprecated
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+            final int argc = Arity.checkArgumentCount(context.runtime, args, 1, 2);
+
+            switch (argc) {
+                case 1:
+                    return initialize(context, args[0]);
+                case 2:
+                    return initialize(context, args[0], args[1]);
+                default:
+                    throw context.runtime.newArgumentError(args.length, 1);
+            }
         }
 
     }
