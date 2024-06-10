@@ -418,6 +418,8 @@ module OpenSSL
       @data.keys
     end
 
+    alias keys sections
+
     ##
     # Get the parsable form of the current configuration
     #
