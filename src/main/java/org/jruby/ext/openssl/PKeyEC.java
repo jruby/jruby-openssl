@@ -58,10 +58,14 @@ import org.bouncycastle.jce.ECPointUtil;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
 
+import org.bouncycastle.math.ec.ECAlgorithms;
+import org.bouncycastle.math.ec.ECCurve;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
+import org.jruby.RubyBignum;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
@@ -972,6 +976,7 @@ public final class PKeyEC extends PKey {
 
             if ( groupOrPoint instanceof Group) {
                 this.group = (Group) groupOrPoint;
+                this.point = (ECPoint) ((Group) groupOrPoint).generator(context);
             } else {
                 throw runtime.newTypeError(groupOrPoint, _EC(runtime).getClass("Group"));
             }
@@ -1066,6 +1071,76 @@ public final class PKeyEC extends PKey {
         public IRubyObject inspect() {
             VariableEntry entry = new VariableEntry( "group", group == null ? (Object) "nil" : group );
             return ObjectSupport.inspect(this, (List) Collections.singletonList(entry));
+        }
+
+        @JRubyMethod(name = "mul", required = 1, optional = 2)
+        public IRubyObject mul(final ThreadContext context, final IRubyObject[] args) {
+            Ruby runtime = context.runtime;
+
+            org.bouncycastle.math.ec.ECPoint pointSelf, pointResult;
+
+            Group groupV = this.group;
+
+            Point result;
+
+            BigInteger bn_g = null;
+
+            ECCurve selfCurve = EC5Util.convertCurve(group.getCurve());
+            pointSelf = EC5Util.convertPoint(selfCurve, asECPoint());
+
+            result = new Point(runtime, getMetaClass());
+            result.initialize(context, groupV);
+            ECCurve resultCurve = EC5Util.convertCurve(result.group.getCurve());
+            pointResult = EC5Util.convertPoint(resultCurve, result.point);
+
+            int argc = Arity.checkArgumentCount(runtime, args, 1, 3);
+            IRubyObject arg1 = null, arg2 = null;
+            switch (argc) {
+                case 2:
+                    arg2 = args[1];
+                case 1:
+                    arg1 = args[0];
+            }
+            if (!(arg1 instanceof RubyArray)) {
+                BigInteger bn;
+                if (arg1 instanceof RubyFixnum) {
+                    bn = BigInteger.valueOf(arg1.convertToInteger().getLongValue());
+                } else if (arg1 instanceof RubyBignum) {
+                    bn = ((RubyBignum) arg1).getValue();
+                } else if (arg1 instanceof BN) {
+                    bn = ((BN) arg1).getValue();
+                } else {
+                    throw runtime.newTypeError(arg1, runtime.getInteger());
+                }
+
+                if (arg2 != null) {
+                    if (arg2 instanceof RubyFixnum) {
+                        bn_g = BigInteger.valueOf(arg2.convertToInteger().getLongValue());
+                    } else if (arg2 instanceof RubyBignum) {
+                        bn_g = ((RubyBignum) arg2).getValue();
+                    } else if (arg2 instanceof BN) {
+                        bn_g = ((BN) arg2).getValue();
+                    } else {
+                        throw runtime.newTypeError(arg2, runtime.getInteger());
+                    }
+                }
+
+                if (bn_g == null) {
+                    org.bouncycastle.math.ec.ECPoint mulPoint = ECAlgorithms.referenceMultiply(pointSelf, bn);
+                    result = new Point(runtime, EC5Util.convertPoint(mulPoint), result.group);
+                } else {
+                    org.bouncycastle.math.ec.ECPoint mulPoint = ECAlgorithms.sumOfTwoMultiplies(pointResult, bn_g, pointSelf, bn);
+                    result = new Point(runtime, EC5Util.convertPoint(mulPoint), result.group);
+                }
+
+                if (result == null) {
+                    newECError(runtime, "bad multiply result");
+                }
+            } else {
+                throw runtime.newNotImplementedError("calling #mul with arrays is not supported by this OpenSSL version");
+            }
+
+            return result;
         }
 
         @Deprecated
