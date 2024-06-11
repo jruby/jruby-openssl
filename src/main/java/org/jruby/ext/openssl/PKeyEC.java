@@ -23,6 +23,7 @@ import java.security.PublicKey;
 
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECFieldFp;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
@@ -740,16 +741,52 @@ public final class PKeyEC extends PKey {
         public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
             final Ruby runtime = context.runtime;
 
-            if ( Arity.checkArgumentCount(runtime, args, 1, 4) == 1 ) {
-                IRubyObject arg = args[0];
+            switch ( Arity.checkArgumentCount(runtime, args, 1, 4) ) {
+                case 1: {
+                    IRubyObject arg = args[0];
 
-                if ( arg instanceof Group ) {
-                    this.curve_name = ((Group) arg).implCurveName(runtime);
-                    return this;
+                    if (arg instanceof Group) {
+                        this.curve_name = ((Group) arg).implCurveName(runtime);
+                        return this;
+                    }
+
+                    this.curve_name = arg.convertToString();
+                    break;
                 }
+                case 4: {
+                    if (args[0] instanceof RubySymbol) {
+                        RubyString curveName = args[0].asString();
+                        String curveID = curveName.toString();
 
-                this.curve_name = arg.convertToString();
+                        BigInteger p = getBigInteger(context, args[1]);
+                        BigInteger a = getBigInteger(context, args[2]);
+                        BigInteger b = getBigInteger(context, args[3]);
+
+                        EllipticCurve curve;
+
+                        if (curveID.equals("GFp")) {
+                            this.curve_name = curveName;
+                            curve = new EllipticCurve(new ECFieldFp(p), a, b);
+
+                            // unsure how to implement this... what to use for `m` in ECFieldF2m constructor?
+//                        } else if (curveID.equals("GF2m")) {
+//                            this.curve_name = curveName;
+//                            curve = new EllipticCurve(new ECFieldF2m(1, p), a, b);
+                        } else {
+                            throw runtime.newArgumentError("unknown symbol, must be :GFp or :GF2m");
+                        }
+
+                        this.paramSpec = PKeyEC.getParamSpec(curveID, curve);
+                    } else {
+                        throw runtime.newArgumentError("unknown argument, must be :GFp or :GF2m");
+                    }
+
+                    break;
+                }
+                default:
+                    throw context.runtime.newArgumentError("wrong number of arguments");
             }
+
             return this;
         }
 
