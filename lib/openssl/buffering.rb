@@ -135,14 +135,7 @@ module OpenSSL::Buffering
   # See IO#readpartial for full details.
 
   def readpartial(maxlen, buf=nil)
-    if maxlen == 0
-      if buf
-        buf.clear
-        return buf
-      else
-        return ""
-      end
-    end
+    # JRuby: sysread does `maxlen == 0` short-circuit check internally
     if @rbuffer.empty?
       begin
         return sysread(maxlen, buf)
@@ -150,12 +143,7 @@ module OpenSSL::Buffering
         retry
       end
     end
-    ret = consume_rbuff(maxlen)
-    if buf
-      buf.replace(ret)
-      ret = buf
-    end
-    ret
+    do_consume_rbuff(maxlen, buf)
   end
 
   ##
@@ -193,6 +181,15 @@ module OpenSSL::Buffering
   # it will return +nil+ instead of raising EOFError.
 
   def read_nonblock(maxlen, buf=nil, exception: true)
+    # JRuby: sysread does `maxlen == 0` short-circuit check internally
+    if @rbuffer.empty?
+      return sysread_nonblock(maxlen, buf, exception: exception)
+    end
+    do_consume_rbuff(maxlen, buf)
+  end
+
+  # @private
+  def do_consume_rbuff(maxlen, buf)
     if maxlen == 0
       if buf
         buf.clear
@@ -201,9 +198,7 @@ module OpenSSL::Buffering
         return ""
       end
     end
-    if @rbuffer.empty?
-      return sysread_nonblock(maxlen, buf, exception: exception)
-    end
+
     ret = consume_rbuff(maxlen)
     if buf
       buf.replace(ret)
@@ -211,6 +206,7 @@ module OpenSSL::Buffering
     end
     ret
   end
+  private :do_consume_rbuff
 
   ##
   # Reads the next "line" from the stream.  Lines are separated by _eol_.  If
@@ -335,9 +331,8 @@ module OpenSSL::Buffering
   # buffer is flushed to the underlying socket.
 
   def do_write(s)
-    @wbuffer = Buffer.new unless defined? @wbuffer
+    @wbuffer ||= Buffer.new
     @wbuffer << s
-    @wbuffer.force_encoding(Encoding::BINARY)
     @sync ||= false
     if @sync or @wbuffer.size > BLOCK_SIZE
       until @wbuffer.empty?
@@ -424,11 +419,12 @@ module OpenSSL::Buffering
     s = Buffer.new
     if args.empty?
       s << "\n"
+    else
+      args.each do |arg|
+        s << arg.to_s
+        s.sub!(/(?<!\n)\z/, "\n")
+      end
     end
-    args.each{|arg|
-      s << arg.to_s
-      s.sub!(/(?<!\n)\z/, "\n")
-    }
     do_write(s)
     nil
   end
