@@ -945,7 +945,7 @@ public class ASN1 {
 
         if ( obj instanceof ASN1BitString ) {
             final ASN1BitString derObj = (ASN1BitString) obj;
-            RubyString str = runtime.newString( new ByteList(derObj.getBytes(), false) );
+            RubyString str = runtime.newString(new ByteList(derObj.getBytes(), false));
             IRubyObject bitString = ASN1.getClass("BitString").newInstance(context, str, Block.NULL_BLOCK);
             bitString.getInstanceVariables().setInstanceVariable("@unused_bits", runtime.newFixnum(derObj.getPadBits()));
             return bitString;
@@ -1669,22 +1669,16 @@ public class ASN1 {
                 return new DEROctetString( val.asString().getBytes() );
             }
             if ( type == DERBitString.class ) {
-                final byte[] bs = val.asString().getBytes();
-                int unused = 0;
-                for ( int i = (bs.length - 1); i > -1; i-- ) {
-                    if (bs[i] == 0) unused += 8;
-                    else {
-                        byte v2 = bs[i];
-                        int x = 8;
-                        while ( v2 != 0 ) {
-                            v2 <<= 1;
-                            x--;
-                        }
-                        unused += x;
+                final byte[] data = val.asString().getBytes();
+                int padBits = 0; // padBits < 8 && padBits >= 0
+                for (int i = (data.length - 1); i > -1; i--) {
+                    int b = Byte.toUnsignedInt(data[i]);
+                    if (b != 0) {
+                        padBits = Integer.numberOfTrailingZeros(b);
                         break;
                     }
                 }
-                return new DERBitString(bs, unused);
+                return new DERBitString(data, padBits);
             }
             if ( type == DERIA5String.class ) {
                 return new DERIA5String( val.asString().toString() );
