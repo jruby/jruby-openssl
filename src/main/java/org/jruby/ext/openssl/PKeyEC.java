@@ -1073,6 +1073,32 @@ public final class PKeyEC extends PKey {
             return ObjectSupport.inspect(this, (List) Collections.singletonList(entry));
         }
 
+        @JRubyMethod(name = "add")
+        public IRubyObject add(final ThreadContext context, final IRubyObject other) {
+            Ruby runtime = context.runtime;
+
+            org.bouncycastle.math.ec.ECPoint pointSelf, pointOther, pointResult;
+
+            Group groupV = this.group;
+            Point result;
+
+            ECCurve selfCurve = EC5Util.convertCurve(groupV.getCurve());
+            pointSelf = EC5Util.convertPoint(selfCurve, asECPoint());
+
+            Point otherPoint = (Point) other;
+            ECCurve otherCurve = EC5Util.convertCurve(otherPoint.group.getCurve());
+            pointOther = EC5Util.convertPoint(otherCurve, otherPoint.asECPoint());
+
+            pointResult = pointSelf.add(pointOther);
+            if (pointResult == null) {
+                newECError(runtime, "EC_POINT_add");
+            }
+
+            result = new Point(runtime, EC5Util.convertPoint(pointResult), group);
+
+            return result;
+        }
+
         @JRubyMethod(name = "mul", required = 1, optional = 2)
         public IRubyObject mul(final ThreadContext context, final IRubyObject[] args) {
             Ruby runtime = context.runtime;
