@@ -1099,74 +1099,64 @@ public final class PKeyEC extends PKey {
             return result;
         }
 
-        @JRubyMethod(name = "mul", required = 1, optional = 2)
-        public IRubyObject mul(final ThreadContext context, final IRubyObject[] args) {
+        @JRubyMethod(name = "mul")
+        public IRubyObject mul(final ThreadContext context, final IRubyObject bn1) {
             Ruby runtime = context.runtime;
+
+            if (bn1 instanceof RubyArray) {
+                throw runtime.newNotImplementedError("calling #mul with arrays is not supported by this OpenSSL version");
+            }
+
+            org.bouncycastle.math.ec.ECPoint pointSelf;
+
+            Group groupV = this.group;
+
+            ECCurve selfCurve = EC5Util.convertCurve(groupV.getCurve());
+            pointSelf = EC5Util.convertPoint(selfCurve, asECPoint());
+
+            BigInteger bn = getBigInteger(context, bn1);
+
+            org.bouncycastle.math.ec.ECPoint mulPoint = ECAlgorithms.referenceMultiply(pointSelf, bn);
+            if (mulPoint == null) {
+                throw newECError(runtime, "bad multiply result");
+            }
+
+            return new Point(runtime, EC5Util.convertPoint(mulPoint), groupV);
+        }
+
+        @JRubyMethod(name = "mul")
+        public IRubyObject mul(final ThreadContext context, final IRubyObject bn1, final IRubyObject bn2) {
+            Ruby runtime = context.runtime;
+
+            if (bn1 instanceof RubyArray) {
+                throw runtime.newNotImplementedError("calling #mul with arrays is not supported by this OpenSSL version");
+            }
 
             org.bouncycastle.math.ec.ECPoint pointSelf, pointResult;
 
             Group groupV = this.group;
 
-            Point result;
-
-            BigInteger bn_g = null;
-
-            ECCurve selfCurve = EC5Util.convertCurve(group.getCurve());
+            ECCurve selfCurve = EC5Util.convertCurve(groupV.getCurve());
             pointSelf = EC5Util.convertPoint(selfCurve, asECPoint());
 
-            result = new Point(runtime, getMetaClass());
-            result.initialize(context, groupV);
-            ECCurve resultCurve = EC5Util.convertCurve(result.group.getCurve());
-            pointResult = EC5Util.convertPoint(resultCurve, result.point);
+            ECCurve resultCurve = EC5Util.convertCurve(groupV.getCurve());
+            pointResult = EC5Util.convertPoint(resultCurve, ((Point) groupV.generator(context)).asECPoint());
 
-            int argc = Arity.checkArgumentCount(runtime, args, 1, 3);
-            IRubyObject arg1 = null, arg2 = null;
-            switch (argc) {
-                case 2:
-                    arg2 = args[1];
-                case 1:
-                    arg1 = args[0];
-            }
-            if (!(arg1 instanceof RubyArray)) {
-                BigInteger bn;
-                if (arg1 instanceof RubyFixnum) {
-                    bn = BigInteger.valueOf(arg1.convertToInteger().getLongValue());
-                } else if (arg1 instanceof RubyBignum) {
-                    bn = ((RubyBignum) arg1).getValue();
-                } else if (arg1 instanceof BN) {
-                    bn = ((BN) arg1).getValue();
-                } else {
-                    throw runtime.newTypeError(arg1, runtime.getInteger());
-                }
+            BigInteger bn = getBigInteger(context, bn1);
+            BigInteger bn_g = getBigInteger(context, bn2);
 
-                if (arg2 != null) {
-                    if (arg2 instanceof RubyFixnum) {
-                        bn_g = BigInteger.valueOf(arg2.convertToInteger().getLongValue());
-                    } else if (arg2 instanceof RubyBignum) {
-                        bn_g = ((RubyBignum) arg2).getValue();
-                    } else if (arg2 instanceof BN) {
-                        bn_g = ((BN) arg2).getValue();
-                    } else {
-                        throw runtime.newTypeError(arg2, runtime.getInteger());
-                    }
-                }
+            org.bouncycastle.math.ec.ECPoint mulPoint = ECAlgorithms.sumOfTwoMultiplies(pointResult, bn_g, pointSelf, bn);
 
-                if (bn_g == null) {
-                    org.bouncycastle.math.ec.ECPoint mulPoint = ECAlgorithms.referenceMultiply(pointSelf, bn);
-                    result = new Point(runtime, EC5Util.convertPoint(mulPoint), result.group);
-                } else {
-                    org.bouncycastle.math.ec.ECPoint mulPoint = ECAlgorithms.sumOfTwoMultiplies(pointResult, bn_g, pointSelf, bn);
-                    result = new Point(runtime, EC5Util.convertPoint(mulPoint), result.group);
-                }
-
-                if (result == null) {
-                    newECError(runtime, "bad multiply result");
-                }
-            } else {
-                throw runtime.newNotImplementedError("calling #mul with arrays is not supported by this OpenSSL version");
+            if (mulPoint == null) {
+                throw newECError(runtime, "bad multiply result");
             }
 
-            return result;
+            return new Point(runtime, EC5Util.convertPoint(mulPoint), groupV);
+        }
+
+        @JRubyMethod(name = "mul")
+        public IRubyObject mul(final ThreadContext context, final IRubyObject bns, final IRubyObject points, final IRubyObject bn2) {
+            throw context.runtime.newNotImplementedError("calling #mul with arrays is not supported by this OpenSSL version");
         }
 
         @Deprecated
@@ -1183,6 +1173,21 @@ public final class PKeyEC extends PKey {
             }
         }
 
+    }
+
+    private static BigInteger getBigInteger(ThreadContext context, IRubyObject arg1) {
+        BigInteger bn;
+        if (arg1 instanceof RubyFixnum) {
+            bn = BigInteger.valueOf(arg1.convertToInteger().getLongValue());
+        } else if (arg1 instanceof RubyBignum) {
+            bn = ((RubyBignum) arg1).getValue();
+        } else if (arg1 instanceof BN) {
+            bn = ((BN) arg1).getValue();
+        } else {
+            Ruby runtime = context.runtime;
+            throw runtime.newTypeError(arg1, runtime.getInteger());
+        }
+        return bn;
     }
 
     static byte[] encode(final ECPublicKey pubKey) {
