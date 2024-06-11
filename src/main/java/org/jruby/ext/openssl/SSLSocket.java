@@ -816,10 +816,10 @@ public class SSLSocket extends RubyObject {
         final int length = RubyNumeric.fix2int(len);
         final RubyString buffStr;
 
-        if ( buff != null && ! buff.isNil() ) {
-            buffStr = buff.asString();
+        if ( !buff.isNil() ) {
+            buffStr = buff.convertToString();
         } else {
-            buffStr = RubyString.newEmptyString(runtime); // fine since we're setValue
+            buffStr = RubyString.newEmptyString(runtime); // fine since we'll setValue
         }
         if ( length == 0 ) {
             buffStr.clear();
@@ -848,7 +848,7 @@ public class SSLSocket extends RubyObject {
 
                 if ( read == -1 ) {
                     if ( exception ) throw runtime.newEOFError();
-                    return runtime.getNil();
+                    return context.nil;
                 }
 
                 if ( read == 0 && status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) {
@@ -873,7 +873,7 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject sysread(ThreadContext context, IRubyObject len) {
-        return sysreadImpl(context, len, null, true, true);
+        return sysreadImpl(context, len, context.nil, true, true);
     }
 
     @JRubyMethod
@@ -895,14 +895,14 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod
     public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len) {
-        return sysreadImpl(context, len, null, false, true);
+        return sysreadImpl(context, len, context.nil, false, true);
     }
 
     @JRubyMethod
     public IRubyObject sysread_nonblock(ThreadContext context, IRubyObject len, IRubyObject arg) {
         if ( arg instanceof RubyHash ) { // exception: false
             // NOTE: on Ruby 2.3 this is expected to raise a TypeError (but not on 2.2)
-            return sysreadImpl(context, len, null, false, getExceptionOpt(context, arg));
+            return sysreadImpl(context, len, context.nil, false, getExceptionOpt(context, arg));
         }
         return sysreadImpl(context, len, arg, false, true); // buffer arg
     }
