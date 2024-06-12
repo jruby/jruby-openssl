@@ -86,15 +86,17 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       DEFAULT_CERT_STORE.set_default_paths
       DEFAULT_CERT_STORE.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL
 
-      # A callback invoked when DH parameters are required.
+      # A callback invoked when DH parameters are required for ephemeral DH key
+      # exchange.
       #
-      # The callback is invoked with the Session for the key exchange, an
+      # The callback is invoked with the SSLSocket, a
       # flag indicating the use of an export cipher and the keylength
       # required.
       #
       # The callback must return an OpenSSL::PKey::DH instance of the correct
       # key length.
-
+      #
+      # <b>Deprecated in version 3.0.</b> Use #tmp_dh= instead.
       attr_accessor :tmp_dh_callback
 
       # A callback invoked at connect time to distinguish between multiple
@@ -117,6 +119,8 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       # def initialize(version = nil)
       #   self.options |= OpenSSL::SSL::OP_ALL
       #   self.ssl_version = version if version
+      #   self.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      #   self.verify_hostname = false
       # end
 
       ##
@@ -355,18 +359,18 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       include Buffering
       include SocketForwarder
 
-      # attr_reader :hostname
-      #
-      # # The underlying IO object.
-      # attr_reader :io
-      # alias :to_io :io
-      #
-      # # The SSLContext object used in this connection.
-      # attr_reader :context
-      #
-      # # Whether to close the underlying socket as well, when the SSL/TLS
-      # # connection is shut down. This defaults to +false+.
-      # attr_accessor :sync_close
+      #attr_reader :hostname
+
+      # The underlying IO object.
+      #attr_reader :io
+      #alias :to_io :io
+
+      # The SSLContext object used in this connection.
+      #attr_reader :context
+
+      # Whether to close the underlying socket as well, when the SSL/TLS
+      # connection is shut down. This defaults to +false+.
+      #attr_accessor :sync_close
 
       # call-seq:
       #    ssl.sysclose => nil
@@ -379,7 +383,7 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
         return if closed?
         stop
         io.close if sync_close
-      end unless method_defined? :sysclose
+      end
 
       # call-seq:
       #   ssl.post_connection_check(hostname) -> true
@@ -429,10 +433,6 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
 
       def tmp_dh_callback
         @context.tmp_dh_callback || OpenSSL::SSL::SSLContext::DEFAULT_TMP_DH_CALLBACK
-      end
-
-      def tmp_ecdh_callback
-        @context.tmp_ecdh_callback
       end
 
       def session_new_cb

@@ -50,20 +50,20 @@ module OpenSSL
         to_der == other.to_der
       end
 
-      # def to_s # "oid = critical, value"
-      #   str = self.oid
-      #   str << " = "
-      #   str << "critical, " if self.critical?
-      #   str << self.value.gsub(/\n/, ", ")
-      # end
-      #
-      # def to_h # {"oid"=>sn|ln, "value"=>value, "critical"=>true|false}
-      #   {"oid"=>self.oid,"value"=>self.value,"critical"=>self.critical?}
-      # end
-      #
-      # def to_a
-      #   [ self.oid, self.value, self.critical? ]
-      # end
+      def to_s # "oid = critical, value"
+        str = self.oid
+        str << " = "
+        str << "critical, " if self.critical?
+        str << self.value.gsub(/\n/, ", ")
+      end
+
+      def to_h # {"oid"=>sn|ln, "value"=>value, "critical"=>true|false}
+        {"oid"=>self.oid,"value"=>self.value,"critical"=>self.critical?}
+      end
+
+      def to_a
+        [ self.oid, self.value, self.critical? ]
+      end
 
       module Helpers
         def find_extension(oid)
@@ -187,17 +187,17 @@ module OpenSSL
 
         private
 
-          def parse_aia_asn1
-            ext = find_extension("authorityInfoAccess")
-            return nil if ext.nil?
+        def parse_aia_asn1
+          ext = find_extension("authorityInfoAccess")
+          return nil if ext.nil?
 
-            aia_asn1 = ASN1.decode(ext.value_der)
-            if ext.critical? || aia_asn1.tag_class != :UNIVERSAL || aia_asn1.tag != ASN1::SEQUENCE
-              raise ASN1::ASN1Error, "invalid extension"
-            end
-
-            aia_asn1
+          aia_asn1 = ASN1.decode(ext.value_der)
+          if ext.critical? || aia_asn1.tag_class != :UNIVERSAL || aia_asn1.tag != ASN1::SEQUENCE
+            raise ASN1::ASN1Error, "invalid extension"
           end
+
+          aia_asn1
+        end
       end
     end
 
@@ -265,7 +265,7 @@ module OpenSSL
                   next
                 elsif remain.length > 2 && remain[0] == ?+
                   raise OpenSSL::X509::NameError,
-                    "multi-valued RDN is not supported: #{dn}"
+                        "multi-valued RDN is not supported: #{dn}"
                 elsif remain.empty?
                   break
                 end
@@ -279,11 +279,29 @@ module OpenSSL
       end
 
       class << self
+        # Parses the UTF-8 string representation of a distinguished name,
+        # according to RFC 2253.
+        #
+        # See also #to_utf8 for the opposite operation.
         def parse_rfc2253(str, template=OBJECT_TYPE_TEMPLATE)
           ary = OpenSSL::X509::Name::RFC2253DN.scan(str)
           self.new(ary, template)
         end
 
+        # Parses the string representation of a distinguished name. Two
+        # different forms are supported:
+        #
+        # - \OpenSSL format (<tt>X509_NAME_oneline()</tt>) used by
+        #   <tt>#to_s</tt>. For example: <tt>/DC=com/DC=example/CN=nobody</tt>
+        # - \OpenSSL format (<tt>X509_NAME_print()</tt>)
+        #   used by <tt>#to_s(OpenSSL::X509::Name::COMPAT)</tt>. For example:
+        #   <tt>DC=com, DC=example, CN=nobody</tt>
+        #
+        # Neither of them is standardized and has quirks and inconsistencies
+        # in handling of escaped characters or multi-valued RDNs.
+        #
+        # Use of this method is discouraged in new applications. See
+        # Name.parse_rfc2253 and #to_utf8 for the alternative.
         def parse_openssl(str, template=OBJECT_TYPE_TEMPLATE)
           if str.start_with?("/")
             # /A=B/C=D format
@@ -337,6 +355,10 @@ module OpenSSL
           q.text 'not_before='; q.pp self.not_before; q.text ','; q.breakable
           q.text 'not_after='; q.pp self.not_after
         }
+      end
+
+      def self.load_file(path)
+        load(File.binread(path))
       end
     end
 

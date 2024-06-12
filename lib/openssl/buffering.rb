@@ -31,7 +31,7 @@ module OpenSSL::Buffering
 
       force_encoding(BINARY)
     end
-    
+
     def << string
       if string.encoding == BINARY
         super(string)
@@ -93,9 +93,7 @@ module OpenSSL::Buffering
       nil
     else
       size = @rbuffer.size unless size
-      ret = @rbuffer[0, size]
-      @rbuffer[0, size] = ""
-      ret
+      @rbuffer.slice!(0, size)
     end
   end
 
