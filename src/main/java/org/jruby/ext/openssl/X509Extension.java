@@ -39,7 +39,6 @@ import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1IA5String;
-import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
@@ -62,7 +61,6 @@ import org.bouncycastle.util.encoders.Hex;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
-import org.jruby.RubyHash;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
@@ -78,7 +76,6 @@ import org.jruby.util.ConvertBytes;
 import static org.jruby.ext.openssl.ASN1._ASN1;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.OpenSSL.*;
-import static org.jruby.ext.openssl.StringHelper.*;
 
 /**
  * OpenSSL::X509::Extension
@@ -844,44 +841,6 @@ public class X509Extension extends RubyObject {
     @Override
     public IRubyObject eql_p(IRubyObject obj) {
         return equalImpl(getRuntime(), obj);
-    }
-
-    // [ self.oid, self.value, self.critical? ]
-    @JRubyMethod
-    public RubyArray to_a(final ThreadContext context) {
-        RubyArray array = RubyArray.newArray(context.runtime, 3);
-        array.append(oid(context));
-        array.append(value(context));
-        array.append(critical_p(context));
-        return array;
-    }
-
-    // {"oid"=>self.oid,"value"=>self.value,"critical"=>self.critical?
-    @JRubyMethod
-    public RubyHash to_h(final ThreadContext context) {
-        final Ruby runtime = context.runtime;
-        RubyHash hash = RubyHash.newHash(runtime);
-        hash.op_aset(context, newStringFrozen(runtime, "oid"), oid(context));
-        hash.op_aset(context, newStringFrozen(runtime, "value"), value(context));
-        hash.op_aset(context, newStringFrozen(runtime, "critical"), critical_p(context));
-        return hash;
-    }
-
-    // "oid = critical, value"
-    @JRubyMethod
-    public RubyString to_s(final ThreadContext context) {
-        final Ruby runtime = context.runtime;
-        final RubyString str = RubyString.newString(runtime, oidSym(runtime));
-        str.getByteList().append(' ').append('=').append(' ');
-        if ( isRealCritical() ) str.getByteList().append(critical__);
-        // self.value.gsub(/\n/, ", ")
-        final RubyString value = value(context);
-        value.callMethod(context, "gsub!", new IRubyObject[] {
-            RubyString.newStringShared(runtime, StringHelper.NEW_LINE),
-            RubyString.newStringShared(runtime, StringHelper.COMMA_SPACE)
-        });
-        str.getByteList().append(value.getByteList());
-        return str;
     }
 
     @Override
