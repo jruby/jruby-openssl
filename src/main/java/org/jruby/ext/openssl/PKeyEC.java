@@ -976,7 +976,7 @@ public final class PKeyEC extends PKey {
 
             if ( groupOrPoint instanceof Group) {
                 this.group = (Group) groupOrPoint;
-                this.point = (ECPoint) ((Group) groupOrPoint).generator(context);
+                this.point = this.group.getParamSpec().getGenerator();
             } else {
                 throw runtime.newTypeError(groupOrPoint, _EC(runtime).getClass("Group"));
             }
