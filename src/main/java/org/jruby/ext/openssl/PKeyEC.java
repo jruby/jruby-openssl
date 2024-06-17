@@ -58,10 +58,14 @@ import org.bouncycastle.jce.ECPointUtil;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
 
+import org.bouncycastle.math.ec.ECAlgorithms;
+import org.bouncycastle.math.ec.ECCurve;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
+import org.jruby.RubyBignum;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
@@ -931,42 +935,52 @@ public final class PKeyEC extends PKey {
             return Utils.newError(runtime, Error, message);
         }
 
-        @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
-        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
-            final Ruby runtime = context.runtime;
+        @JRubyMethod(visibility = Visibility.PRIVATE)
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject groupOrPoint) {
+            getPointAndGroup(context, groupOrPoint);
 
-            final int argc = Arity.checkArgumentCount(runtime, args, 1, 2);
-            final IRubyObject arg = args[0];
+            return this;
+        }
 
-            if ( arg instanceof Point ) {
-                this.group = ((Point) arg).group;
-                this.point = ((Point) arg).point;
+        @JRubyMethod(visibility = Visibility.PRIVATE)
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject groupOrPoint, final IRubyObject bn) {
+            if (getPointAndGroup(context, groupOrPoint)) {
                 return this;
             }
 
-            if ( arg instanceof Group ) {
-                this.group = (Group) arg;
+            final byte[] encoded;
+            if (bn instanceof BN) {
+                encoded = ((BN) bn).getValue().abs().toByteArray();
             } else {
-                throw runtime.newTypeError(arg, _EC(runtime).getClass("Group"));
+                encoded = bn.convertToString().getBytes();
             }
-
-            if ( argc == 2 ) { // (group, bn)
-                final byte[] encoded;
-                if (args[1] instanceof BN) {
-                    encoded = ((BN) args[1]).getValue().abs().toByteArray();
-                } else {
-                    encoded = args[1].convertToString().getBytes();
-                }
-                try {
-                    this.point = ECPointUtil.decodePoint(group.getCurve(), encoded);
-                }
-                catch (IllegalArgumentException ex) {
-                    // MRI: OpenSSL::PKey::EC::Point::Error: invalid encoding
-                    throw newError(context.runtime, ex.getMessage());
-                }
+            try {
+                this.point = ECPointUtil.decodePoint(group.getCurve(), encoded);
+            }
+            catch (IllegalArgumentException ex) {
+                // MRI: OpenSSL::PKey::EC::Point::Error: invalid encoding
+                throw newError(context.runtime, ex.getMessage());
             }
 
             return this;
+        }
+
+        private boolean getPointAndGroup(ThreadContext context, IRubyObject groupOrPoint) {
+            final Ruby runtime = context.runtime;
+
+            if ( groupOrPoint instanceof Point) {
+                this.group = ((Point) groupOrPoint).group;
+                this.point = ((Point) groupOrPoint).point;
+                return true;
+            }
+
+            if ( groupOrPoint instanceof Group) {
+                this.group = (Group) groupOrPoint;
+                this.point = this.group.getParamSpec().getGenerator();
+            } else {
+                throw runtime.newTypeError(groupOrPoint, _EC(runtime).getClass("Group"));
+            }
+            return false;
         }
 
         @Override
@@ -1059,6 +1073,121 @@ public final class PKeyEC extends PKey {
             return ObjectSupport.inspect(this, (List) Collections.singletonList(entry));
         }
 
+        @JRubyMethod(name = "add")
+        public IRubyObject add(final ThreadContext context, final IRubyObject other) {
+            Ruby runtime = context.runtime;
+
+            org.bouncycastle.math.ec.ECPoint pointSelf, pointOther, pointResult;
+
+            Group groupV = this.group;
+            Point result;
+
+            ECCurve selfCurve = EC5Util.convertCurve(groupV.getCurve());
+            pointSelf = EC5Util.convertPoint(selfCurve, asECPoint());
+
+            Point otherPoint = (Point) other;
+            ECCurve otherCurve = EC5Util.convertCurve(otherPoint.group.getCurve());
+            pointOther = EC5Util.convertPoint(otherCurve, otherPoint.asECPoint());
+
+            pointResult = pointSelf.add(pointOther);
+            if (pointResult == null) {
+                newECError(runtime, "EC_POINT_add");
+            }
+
+            result = new Point(runtime, EC5Util.convertPoint(pointResult), group);
+
+            return result;
+        }
+
+        @JRubyMethod(name = "mul")
+        public IRubyObject mul(final ThreadContext context, final IRubyObject bn1) {
+            Ruby runtime = context.runtime;
+
+            if (bn1 instanceof RubyArray) {
+                throw runtime.newNotImplementedError("calling #mul with arrays is not supported by this OpenSSL version");
+            }
+
+            org.bouncycastle.math.ec.ECPoint pointSelf;
+
+            Group groupV = this.group;
+
+            ECCurve selfCurve = EC5Util.convertCurve(groupV.getCurve());
+            pointSelf = EC5Util.convertPoint(selfCurve, asECPoint());
+
+            BigInteger bn = getBigInteger(context, bn1);
+
+            org.bouncycastle.math.ec.ECPoint mulPoint = ECAlgorithms.referenceMultiply(pointSelf, bn);
+            if (mulPoint == null) {
+                throw newECError(runtime, "bad multiply result");
+            }
+
+            return new Point(runtime, EC5Util.convertPoint(mulPoint), groupV);
+        }
+
+        @JRubyMethod(name = "mul")
+        public IRubyObject mul(final ThreadContext context, final IRubyObject bn1, final IRubyObject bn2) {
+            Ruby runtime = context.runtime;
+
+            if (bn1 instanceof RubyArray) {
+                throw runtime.newNotImplementedError("calling #mul with arrays is not supported by this OpenSSL version");
+            }
+
+            org.bouncycastle.math.ec.ECPoint pointSelf, pointResult;
+
+            Group groupV = this.group;
+
+            ECCurve selfCurve = EC5Util.convertCurve(groupV.getCurve());
+            pointSelf = EC5Util.convertPoint(selfCurve, asECPoint());
+
+            ECCurve resultCurve = EC5Util.convertCurve(groupV.getCurve());
+            pointResult = EC5Util.convertPoint(resultCurve, ((Point) groupV.generator(context)).asECPoint());
+
+            BigInteger bn = getBigInteger(context, bn1);
+            BigInteger bn_g = getBigInteger(context, bn2);
+
+            org.bouncycastle.math.ec.ECPoint mulPoint = ECAlgorithms.sumOfTwoMultiplies(pointResult, bn_g, pointSelf, bn);
+
+            if (mulPoint == null) {
+                throw newECError(runtime, "bad multiply result");
+            }
+
+            return new Point(runtime, EC5Util.convertPoint(mulPoint), groupV);
+        }
+
+        @JRubyMethod(name = "mul")
+        public IRubyObject mul(final ThreadContext context, final IRubyObject bns, final IRubyObject points, final IRubyObject bn2) {
+            throw context.runtime.newNotImplementedError("calling #mul with arrays is not supported by this OpenSSL version");
+        }
+
+        @Deprecated
+        public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
+            final int argc = Arity.checkArgumentCount(context.runtime, args, 1, 2);
+
+            switch (argc) {
+                case 1:
+                    return initialize(context, args[0]);
+                case 2:
+                    return initialize(context, args[0], args[1]);
+                default:
+                    throw context.runtime.newArgumentError(args.length, 1);
+            }
+        }
+
+    }
+
+    private static BigInteger getBigInteger(ThreadContext context, IRubyObject arg1) {
+        BigInteger bn;
+        if (arg1 instanceof RubyFixnum) {
+            bn = BigInteger.valueOf(arg1.convertToInteger().getLongValue());
+        } else if (arg1 instanceof RubyBignum) {
+            bn = ((RubyBignum) arg1).getValue();
+        } else if (arg1 instanceof BN) {
+            bn = ((BN) arg1).getValue();
+        } else {
+            Ruby runtime = context.runtime;
+            throw runtime.newTypeError(arg1, runtime.getInteger());
+        }
+        return bn;
     }
 
     static byte[] encode(final ECPublicKey pubKey) {
