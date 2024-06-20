@@ -81,7 +81,7 @@ module SSLTestHelper
     ctx_proc.call(context) if ctx_proc
 
     Socket.do_not_reverse_lookup = true
-    tcp_server = nil
+
     port = port0
     begin
       tcp_server = TCPServer.new("127.0.0.1", port)
@@ -93,13 +93,16 @@ module SSLTestHelper
     ssls = OpenSSL::SSL::SSLServer.new(tcp_server, context)
     ssls.start_immediately = start_immediately
 
+    test_method = caller_locations(1, 1)[0]
+    test_method = test_method.label.index('block in') ? "#{test_method.path}:#{test_method.lineno}" : test_method.label
+
     begin
       server = Thread.new do
         Thread.current.abort_on_exception = true
         server_loop0(context, ssls, server_proc)
       end
 
-      $stderr.printf("%s started: pid=%d port=%d\n", SSL_SERVER, $$, port) #if $DEBUG
+      printf("(%s) started: pid=%d port=%d\n", test_method, $$, port) if $VERBOSE
 
       block.call(server, port.to_i)
     ensure
@@ -136,10 +139,12 @@ module SSLTestHelper
       ssls = OpenSSL::SSL::SSLServer.new(tcps, ctx)
       ssls.start_immediately = start_immediately
 
+      test_method = caller_locations(3, 1)[0].label
+
       threads = []
       begin
         server = Thread.new do
-          # Thread.current.abort_on_exception = true
+          Thread.current.report_on_exception = false
           begin
             server_loop(ctx, ssls, stop_pipe_r, ignore_listener_error, server_proc, threads)
           ensure
@@ -148,17 +153,31 @@ module SSLTestHelper
         end
         threads.unshift server
 
-        $stderr.printf("SSL server started: pid=%d port=%d\n", $$, port) if $DEBUG
+        printf("SSL server started (#{test_method}): pid=%d port=%d\n", $$, port) if $VERBOSE
 
         client = Thread.new do
           begin
             block.call(server, port.to_i)
           ensure
+            # Stop accepting new connection
             stop_pipe_w.close
+            server.join
           end
         end
         threads.unshift client
       ensure
+        # Terminate existing connections. If a thread did 'pend', re-raise it.
+        pend = nil
+        threads.each { |th|
+          begin
+            th.join(5) or th.raise(RuntimeError, "[start_server] thread did not exit in 5 secs")
+          rescue Test::Unit::PendedError
+            pend = $!
+          rescue Exception
+            warn "#{__method__} (#{test_method}): #{$!.inspect}" if $DEBUG
+          end
+        }
+        raise pend if pend
         assert_join_threads(threads)
       end
     end
@@ -185,23 +204,8 @@ module SSLTestHelper
     tcp_server.close if tcp_server
   end
 
-  def tcp_server_close(thread, tcp_server)
-    tcp_server.close if (tcp_server)
-    if thread
-      thread.join(5)
-      if thread.alive?
-        thread.kill
-        thread.join
-        flunk("TCPServer was closed and SSLServer is still alive") unless $!
-      end
-    end
-  end if RUBY_VERSION < '1.9.0' ||
-  ( defined? JRUBY_VERSION && JRUBY_VERSION < '1.7.0' )
-  private :tcp_server_close
-
   def server_loop0(context, server, server_proc)
     loop do
-      ssl = nil
       begin
         ssl = server.accept
       rescue OpenSSL::SSL::SSLError
@@ -209,11 +213,12 @@ module SSLTestHelper
       end
 
       Thread.start do
-        Thread.current.abort_on_exception = true
+        Thread.current.report_on_exception = false
         server_proc.call(context, ssl)
       end
     end
-  rescue Errno::EBADF, IOError, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET
+  rescue IOError, Errno::EBADF, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET
+    warn "#{__method__}: #{$!.inspect}" if $DEBUG
   end
 
   def server_loop(ctx, ssls, stop_pipe_r, ignore_listener_error, server_proc, threads)
@@ -222,15 +227,18 @@ module SSLTestHelper
         readable, = IO.select([ssls, stop_pipe_r])
         return if readable.include? stop_pipe_r
         ssl = ssls.accept
-      rescue OpenSSL::SSL::SSLError
+      rescue OpenSSL::SSL::SSLError, IOError, Errno::EBADF, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET
         if ignore_listener_error
+          warn "#{__method__} (retry): #{$!.inspect}" if $DEBUG
           retry
         else
-          raise
+          warn "#{__method__}: #{$!.inspect}" if $DEBUG
         end
+        raise
       end
 
       threads << Thread.start do
+        Thread.current.report_on_exception = false
         begin
           server_proc.call(ctx, ssl)
         ensure
@@ -238,9 +246,8 @@ module SSLTestHelper
         end
       end
     end
-  rescue Errno::EBADF, IOError, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET => ex
+  rescue IOError, Errno::EBADF, Errno::EINVAL, Errno::ECONNABORTED, Errno::ENOTSOCK, Errno::ECONNRESET => ex
     raise(ex) unless ignore_listener_error
-    puts ex.inspect if $VERBOSE
   end
 
   def server_connect(port, ctx = nil)
@@ -273,6 +280,7 @@ module SSLTestHelper
       ssl.write(line)
     end
   rescue IOError, OpenSSL::SSL::SSLError
+    warn "#{__method__}: #{$!.inspect}" if $DEBUG
   ensure
     ssl.close rescue nil
   end
