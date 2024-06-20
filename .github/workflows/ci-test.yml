@@ -14,10 +14,8 @@ jobs:
     strategy:
       matrix:
         java-version: [ 8, 11, 21 ]
-        ruby-version: [ jruby-9.4.6.0 ]
+        ruby-version: [ jruby-9.4.7.0 ]
         include:
-          - java-version: 8
-            ruby-version: jruby-9.1.17.0
           - java-version: 8
             ruby-version: jruby-9.2.19.0
           - java-version: 11
@@ -31,7 +29,7 @@ jobs:
           - java-version: 11
             ruby-version: jruby-9.4.5.0
           - java-version: 17
-            ruby-version: jruby-9.4.5.0
+            ruby-version: jruby-9.4.6.0
       fail-fast: false
 
     steps:
