@@ -1,3 +1,26 @@
+## 0.15.0
+
+This version upgraded to latest Bouncy-Castle (1.78) and the minimum supported
+JRuby is now 9.2.
+
+* [refactor] propagate IOError from selector exception
+* [fix] convert IOException to Ruby exception correctly
+  follow up on the fix (#242) in 0.14.6
+* [fix] implement `OpenSSL::PKey::EC::Point#mul` and `#add` (#307)
+* [fix] ASN.1 BitString pad bits being out of range
+* [compat] support base64digest on `OpenSSL::HMAC`
+* [compat] add `Buffering#getbyte` for `SSLSocket`
+* [refactor] drop (unused) Config native impl
+* [refactor] less locking when there's a shared SSLContext
+* [fix] encoding of ASN1::Null primitive to_der
+* [fix] ASN.1 tagged object tag-class encoding/decoding
+* [fix] ASN1 primitive tagging (encoding) part (#122)
+* [fix] encoding/decoding of all ASN1 string types
+* [fix] ASN1Data encoding with Array primitive value (#119)
+* [refactor] drop security restriction JCE work-around
+* [refactor] drop long deprecated OpenSSLReal Java class
+* [deps] upgrade BC to version 1.78
+
 ## 0.14.6
 
 * [compat] OpenSSL::ConfigError and DEFAULT_CONFIG_FILE (#304)

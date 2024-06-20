@@ -1,5 +1,5 @@
 module JOpenSSL
-  VERSION = '0.15.0.dev'
+  VERSION = '0.15.0'
   BOUNCY_CASTLE_VERSION = '1.78'
 end
 
