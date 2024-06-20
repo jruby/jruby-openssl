@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -452,9 +453,9 @@ public class SSLSocket extends RubyObject {
                 try {
                     result[0] = selector.selectNow();
 
-                    if ( result[0] == 0 ) {
+                    if (result[0] == 0) {
                         if ((operations & SelectionKey.OP_READ) != 0 && (operations & SelectionKey.OP_WRITE) != 0) {
-                            if ( key.isReadable() ) {
+                            if (key.isReadable()) {
                                 writeWouldBlock(runtime, exception, result);
                             }
                             //else if ( key.isWritable() ) {
@@ -463,28 +464,27 @@ public class SSLSocket extends RubyObject {
                             else { //neither, pick one
                                 readWouldBlock(runtime, exception, result);
                             }
-                        }
-                        else if ((operations & SelectionKey.OP_READ) != 0) {
+                        } else if ((operations & SelectionKey.OP_READ) != 0) {
                             readWouldBlock(runtime, exception, result);
-                        }
-                        else if ((operations & SelectionKey.OP_WRITE) != 0) {
+                        } else if ((operations & SelectionKey.OP_WRITE) != 0) {
                             writeWouldBlock(runtime, exception, result);
                         }
                     }
-                } catch (IOException ioe) {
-                    debugStackTrace(runtime, "SSLSocket.waitSelect", ioe);
-                    throw runtime.newRuntimeError("Error with selector: " + ioe.getMessage());
+                } catch (ClosedSelectorException ex) {
+                    throw Utils.newRuntimeError(runtime, "selector closed", ex);
+                } catch (IOException ex) {
+                    throw Utils.newIOError(runtime, ex);
                 }
             } else {
                 io.addBlockingThread(thread);
                 thread.executeBlockingTask(new RubyThread.BlockingTask() {
-                    public void run() throws InterruptedException {
+                    public void run() {
                         try {
                             result[0] = selector.select();
-                        }
-                        catch (IOException ioe) {
-                            debugStackTrace(runtime, "SSLSocket.waitSelect", ioe);
-                            throw runtime.newRuntimeError("Error with selector: " + ioe.getMessage());
+                        } catch (ClosedSelectorException ex) {
+                            throw Utils.newRuntimeError(runtime, "selector closed", ex);
+                        } catch (IOException ex) {
+                            throw Utils.newIOError(runtime, ex);
                         }
                     }
 

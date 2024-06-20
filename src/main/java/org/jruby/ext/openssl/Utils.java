@@ -49,17 +49,25 @@ final class Utils {
     private Utils() {}
 
     static RaiseException newIOError(Ruby runtime, IOException e) {
-        RaiseException ex = newIOError(runtime, e.getMessage());
-        ex.initCause(e);
-        return ex;
+        return newIOError(runtime, e.getMessage(), e);
     }
 
     static RaiseException newIOError(Ruby runtime, String msg) {
         return new RaiseException(runtime, runtime.getIOError(), msg, true);
     }
 
+    static RaiseException newIOError(Ruby runtime, String msg, Exception e) {
+        RaiseException ex = newIOError(runtime, msg);
+        ex.initCause(e);
+        return ex;
+    }
+
     static RaiseException newRuntimeError(Ruby runtime, Exception e) {
-        RaiseException ex = newRuntimeError(runtime, e.getMessage());
+        return newRuntimeError(runtime, e.getMessage(), e);
+    }
+
+    static RaiseException newRuntimeError(Ruby runtime, String msg, Exception e) {
+        RaiseException ex = newRuntimeError(runtime, msg);
         ex.initCause(e);
         return ex;
     }
