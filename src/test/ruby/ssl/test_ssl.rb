@@ -53,8 +53,8 @@ class TestSSL < TestCase
       cert = ssl.peer_cert
       assert OpenSSL::SSL.verify_certificate_identity(cert, "localhost.localdomain")
       assert OpenSSL::SSL.verify_certificate_identity(cert, "127.0.0.1")
-      assert ! OpenSSL::SSL.verify_certificate_identity(cert, "localhost")
-      assert ! OpenSSL::SSL.verify_certificate_identity(cert, "foo.example.com")
+      refute OpenSSL::SSL.verify_certificate_identity(cert, "localhost")
+      refute OpenSSL::SSL.verify_certificate_identity(cert, "foo.example.com")
     end
 
     now = Time.now
@@ -74,9 +74,9 @@ class TestSSL < TestCase
       assert_raise(sslerr) { ssl.post_connection_check("foo.example.com") }
       cert = ssl.peer_cert
       assert OpenSSL::SSL.verify_certificate_identity(cert, "localhost.localdomain")
-      assert ! OpenSSL::SSL.verify_certificate_identity(cert, "127.0.0.1")
-      assert ! OpenSSL::SSL.verify_certificate_identity(cert, "localhost")
-      assert ! OpenSSL::SSL.verify_certificate_identity(cert, "foo.example.com")
+      refute OpenSSL::SSL.verify_certificate_identity(cert, "127.0.0.1")
+      refute OpenSSL::SSL.verify_certificate_identity(cert, "localhost")
+      refute OpenSSL::SSL.verify_certificate_identity(cert, "foo.example.com")
     end
   end
 
