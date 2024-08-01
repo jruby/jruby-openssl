@@ -251,6 +251,36 @@ class TestASN1 < TestCase
     }
   end
 
+  def test_encode_asn1_data
+    ai = OpenSSL::ASN1::ASN1Data.new(i = "bla", 0, :APPLICATION)
+    ai2 = OpenSSL::ASN1.decode(ai.to_der)
+    assert_equal :APPLICATION, ai2.tag_class
+    assert_equal 0, ai2.tag
+    assert_equal i, ai2.value
+
+    ai = OpenSSL::ASN1::ASN1Data.new(i = "bla", 4, :UNIVERSAL)
+    ai2 = OpenSSL::ASN1.decode(ai.to_der)
+    assert_equal :UNIVERSAL, ai2.tag_class
+    assert_equal 4, ai2.tag
+    assert_equal i, ai2.value
+
+    ai = OpenSSL::ASN1::ASN1Data.new(i = ["bla"], 0, :APPLICATION)
+    ai2 = OpenSSL::ASN1.decode(ai.to_der)
+    assert_equal :APPLICATION, ai2.tag_class
+    assert_equal 0, ai2.tag
+    assert_equal "bla", ai2.value
+
+    ai = OpenSSL::ASN1::ASN1Data.new(i = ["bla", "bla"], 0, :APPLICATION)
+    ai2 = OpenSSL::ASN1.decode(ai.to_der)
+    assert_equal :APPLICATION, ai2.tag_class
+    assert_equal 0, ai2.tag
+    assert_equal "blabla", ai2.value
+
+    assert_raise(ArgumentError) { OpenSSL::ASN1::ASN1Data.new(1).to_der }
+    assert_raise("no implicit conversion of Integer into String") { OpenSSL::ASN1::ASN1Data.new(1, 0, :APPLICATION).to_der }
+    assert_raise("no implicit conversion of Integer into String") { OpenSSL::ASN1::ASN1Data.new(1, 0, :CONTEXT_SPECIFIC).to_der }
+  end
+
   def test_encode_nil
     #Primitives raise TypeError, Constructives NoMethodError
 
@@ -1161,7 +1191,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
   # This is from the upstream MRI tests, might be superseded by `test_bit_string_infinite_length`?
   def test_bitstring
     # TODO: Import Issue
-    # fails <nil> expected but was <0> 
+    # fails <nil> expected but was <0>
     #encode_decode_test B(%w{ 03 01 00 }), OpenSSL::ASN1::BitString.new(B(%w{}))
     # TODO: Import Issue
     # fails with <nil> expected but was <0>
