@@ -1,5 +1,3 @@
-warn 'Loading jruby-openssl gem in a non-JRuby interpreter' unless defined? JRUBY_VERSION
-
 require 'jopenssl/version'
 
 # NOTE: assuming user does pull in BC .jars from somewhere else on the CP
@@ -25,16 +23,7 @@ unless ENV_JAVA['jruby.openssl.load.jars'].eql?('false')
 end
 
 require 'jopenssl.jar'
-
-if JRuby::Util.respond_to?(:load_ext) # JRuby 9.2
-  JRuby::Util.load_ext('org.jruby.ext.openssl.OpenSSL')
-else; require 'jruby'
-  org.jruby.ext.openssl.OpenSSL.load(JRuby.runtime)
-end
-
-if RUBY_VERSION > '2.3'
-  load 'jopenssl/_compat23.rb'
-end
+JRuby::Util.load_ext('org.jruby.ext.openssl.OpenSSL')
 
 # NOTE: content bellow should live in *lib/openssl.rb* but due RubyGems/Bundler
 # `autoload :OpenSSL` this will cause issues if an older version (0.11) is the
@@ -61,7 +50,6 @@ end
 require 'openssl/bn'
 require 'openssl/pkey'
 require 'openssl/cipher'
-#require 'openssl/config' if OpenSSL.const_defined?(:Config, false)
 require 'openssl/digest'
 require 'openssl/hmac'
 require 'openssl/x509'
@@ -81,3 +69,5 @@ module OpenSSL
     OpenSSL.fixed_length_secure_compare(hashed_a, hashed_b) && a == b
   end
 end
+
+load 'jopenssl/_compat23.rb'
