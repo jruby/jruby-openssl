@@ -1,3 +1,7 @@
+## 0.15.1
+
+* [deps] upgrade BC to version 1.78.1
+
 ## 0.15.0
 
 This version upgraded to latest Bouncy-Castle (1.78) and the minimum supported
