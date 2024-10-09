@@ -27,6 +27,11 @@ class TestOpenSSL < TestCase
     assert /\AOpenSSL +0\./ !~ OpenSSL::OPENSSL_LIBRARY_VERSION
   end
 
+  # some gems check this - better to be conservative until 3.0.0 APIs are fully supported
+  def test_version_lt_3_0_0
+    assert OpenSSL::OPENSSL_VERSION_NUMBER < 3 * 0x10000000
+  end
+
   def test_debug
     debug = OpenSSL.debug
     assert (OpenSSL.debug == true || OpenSSL.debug == false)

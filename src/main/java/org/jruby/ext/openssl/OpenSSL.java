@@ -89,7 +89,7 @@ public final class OpenSSL {
 
         runtime.getLoadService().require("jopenssl/version");
 
-        final byte[] version = { '2','.','2','.','3' };
+        final byte[] version = { '2','.','2','.','3' }; // C OpenSSL gem version
 
         _OpenSSL.setConstant("VERSION", StringHelper.newString(runtime, version));
 
@@ -97,12 +97,17 @@ public final class OpenSSL {
         final RubyString jVERSION = JOpenSSL.getConstantAt("VERSION").asString();
 
         final byte[] JRuby_OpenSSL_ = { 'J','R','u','b','y','-','O','p','e','n','S','S','L',' ' };
-        final int OPENSSL_VERSION_NUMBER = 999999999; // NOTE: smt more useful?
-
         ByteList OPENSSL_VERSION = new ByteList( jVERSION.getByteList().getRealSize() + JRuby_OpenSSL_.length );
         OPENSSL_VERSION.setEncoding( jVERSION.getEncoding() );
         OPENSSL_VERSION.append( JRuby_OpenSSL_ );
         OPENSSL_VERSION.append( jVERSION.getByteList() );
+
+        // < 3.0.0 until we have decent (full) compatibility
+        final byte OPENSSL_VERSION_MAJOR = 2;
+        final byte OPENSSL_VERSION_MINOR = 9;
+        final byte OPENSSL_VERSION_PATCH = 9;
+        final byte OPENSSL_VERSION_PRE_RELEASE = 0;
+        final int OPENSSL_VERSION_NUMBER = OPENSSL_VERSION_MAJOR << 28 | OPENSSL_VERSION_MINOR << 20 | OPENSSL_VERSION_PATCH << 4 | OPENSSL_VERSION_PRE_RELEASE;
 
         final RubyString VERSION;
         _OpenSSL.setConstant("OPENSSL_VERSION", VERSION = runtime.newString(OPENSSL_VERSION));
