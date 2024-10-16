@@ -258,7 +258,7 @@ public final class PKeyEC extends PKey {
         final RubyString str = readInitArg(context, arg);
         final String strJava = str.toString();
 
-        if (!strJava.isEmpty() && isCurveName(strJava)) {
+        if (isCurveName(strJava)) {
             this.curveName = strJava;
             return this;
         }
@@ -349,8 +349,9 @@ public final class PKeyEC extends PKey {
     private void setCurveNameFromPublicKeyIfNeeded() {
         if (curveName == null && publicKey != null) {
             final String oid = getCurveNameObjectIdFromKey(getRuntime(), publicKey);
-            if (isCurveName(oid)) {
-                this.curveName = getCurveName(new ASN1ObjectIdentifier(oid));
+            final Optional<ASN1ObjectIdentifier> curveId = getCurveOID(oid);
+            if (curveId.isPresent()) {
+                this.curveName = getCurveName(curveId.get());
             }
         }
     }
