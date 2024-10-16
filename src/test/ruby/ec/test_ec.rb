@@ -370,6 +370,124 @@ class TestEC < TestCase
     assert_raise(OpenSSL::PKey::ECError) { key.dsa_verify_asn1(data1, malformed_sig) }
   end
 
+  def test_new_from_der
+    priv_key_hex = '05768F097A19FFE5022D4A862CDBAE22019695D1C2F88FD41607417AD45E2F55'
+    pub_key_hex = '04B827833DC1BC38CE0BBE36E0357B1D08AB0BFA05DBD211F0FC677FF9913FAF0EB3A3CC562EEAE8D841B112DBFDAD494E10CFBD4964DC2D175D06F17ACC5771CF'
+    do_test_from_sequence('prime256v1', pub_key_hex, priv_key_hex)
+    do_test_from_sequence('prime256v1', pub_key_hex, nil)
+
+    priv_key_hex = 'D4E775192298037DAD55150AE76C8585CE4AD628897F5F9F02762C416F1D4A33'
+    pub_key_hex = '0456D3DD1587DE605D167AB037FF9856B58705970BA3AE49E68CDFA8A5D580EC506E1D6F1AEFE5621EF458322F68C59D461FC5D3633881D82BD8E4AF7924306979'
+    do_test_from_sequence('prime256v1', pub_key_hex, priv_key_hex)
+    do_test_from_sequence('prime256v1', pub_key_hex, nil)
+
+    priv_key_hex = '9174C3E24DBA2AADE34D4885371B0AEA89D44CFEC70348C9FF5EB3207550F18A'
+    pub_key_hex = '048344CA3520410CFD1D77FEA79AF543A2769545D6D143A12E86AC8F65D9280049FDC88A883D748C6229D9210AD0984DD4ED8F7742ECC0588409446FF6BC8830AA'
+    do_test_from_sequence('prime256v1', pub_key_hex, priv_key_hex)
+    do_test_from_sequence('prime256v1', pub_key_hex, nil)
+  end
+
+  def do_test_from_sequence(curve, pub_key_hex, priv_key_hex)
+    group = OpenSSL::PKey::EC::Group.new(curve)
+    d = OpenSSL::BN.new(priv_key_hex, 16) if priv_key_hex # private_key
+    point = OpenSSL::PKey::EC::Point.new(group, OpenSSL::BN.new(pub_key_hex, 16)) # public_key (x, y)
+
+    sequence = if priv_key_hex
+                 # https://datatracker.ietf.org/doc/html/rfc5915.html
+                 # ECPrivateKey ::= SEQUENCE {
+                 #   version        INTEGER { ecPrivkeyVer1(1) } (ecPrivkeyVer1),
+                 #   privateKey     OCTET STRING,
+                 #   parameters [0] ECParameters {{ NamedCurve }} OPTIONAL,
+                 #   publicKey  [1] BIT STRING OPTIONAL
+                 # }
+
+                 OpenSSL::ASN1::Sequence([
+                                           OpenSSL::ASN1::Integer(1),
+                                           OpenSSL::ASN1::OctetString(d.to_s(2)),
+                                           OpenSSL::ASN1::ObjectId(curve, 0, :EXPLICIT),
+                                           OpenSSL::ASN1::BitString(point.to_octet_string(:uncompressed), 1, :EXPLICIT)
+                                         ])
+               else
+                 OpenSSL::ASN1::Sequence([
+                                           OpenSSL::ASN1::Sequence([OpenSSL::ASN1::ObjectId('id-ecPublicKey'), OpenSSL::ASN1::ObjectId(curve)]),
+                                           OpenSSL::ASN1::BitString(point.to_octet_string(:uncompressed))
+                                         ])
+               end
+
+    key = OpenSSL::PKey::EC.new(sequence.to_der)
+    assert_equal group.curve_name, key.group.curve_name
+    assert_equal group, key.group
+    assert_equal point, key.public_key
+    assert_equal d, key.private_key if d
+  end
+  private :do_test_from_sequence
+
+  def test_new_from_der_jwt_style
+    jwk_x = "g0TKNSBBDP0dd_6nmvVDonaVRdbRQ6EuhqyPZdkoAEk"
+    jwk_y = "_ciKiD10jGIp2SEK0JhN1O2Pd0LswFiECURv9ryIMKo"
+    do_test_from_sequence_with_packed_point('prime256v1', jwk_x, jwk_y)
+
+    jwk_x = "ts5_Jv5_QkWPVkaC_Y7rGZ2gdeJSkDR3I96M2CuVNtU"
+    jwk_y = "fCLLRp7lX_Q8g60IRhT8sNONGTjNmoTWUny8FPe91Gs"
+    do_test_from_sequence_with_packed_point('prime256v1', jwk_x, jwk_y)
+
+    jwk_x = "iIv_aqVNBfTBr3C7u8E3kYrWbYXjHnH9jLzbBkl1PqA"
+    jwk_y = "sXueAB7o9QmrmDQGGy7hqN0bx5gOxYDJyLQAMDNMRBw"
+    jwk_d = "-KgbRgiVEztCTgxSZmScegXkBVNokqZlCodlpakFtFc"
+    do_test_from_sequence_with_packed_point('prime256v1', jwk_x, jwk_y, jwk_d)
+    do_test_from_sequence_with_packed_point('prime256v1', jwk_x, jwk_y)
+
+    jwk_x = "mAObq2aOmjkZwS5ruLmZITbXKTepItbnyrMm1VWGeeg"
+    jwk_y = "EtQDulK7N-v_0mdbFQe-bNCyc-ey1sPRa1l--_7vAiA"
+    do_test_from_sequence_with_packed_point('prime256v1', jwk_x, jwk_y) # GH-318
+  end
+
+  def do_test_from_sequence_with_packed_point(curve, jwk_x, jwk_y, jwk_d = nil)
+    group = OpenSSL::PKey::EC::Group.new(curve)
+    d = OpenSSL::BN.new(decode_octets(jwk_d), 2) if jwk_d
+
+    x_octets = decode_octets(jwk_x)
+    y_octets = decode_octets(jwk_y)
+
+    point = OpenSSL::PKey::EC::Point.new(group, OpenSSL::BN.new([0x04, x_octets, y_octets].pack('Ca*a*'), 2))
+
+    sequence = if jwk_d
+                 # https://datatracker.ietf.org/doc/html/rfc5915.html
+                 # ECPrivateKey ::= SEQUENCE {
+                 #   version        INTEGER { ecPrivkeyVer1(1) } (ecPrivkeyVer1),
+                 #   privateKey     OCTET STRING,
+                 #   parameters [0] ECParameters {{ NamedCurve }} OPTIONAL,
+                 #   publicKey  [1] BIT STRING OPTIONAL
+                 # }
+
+                 OpenSSL::ASN1::Sequence([
+                                           OpenSSL::ASN1::Integer(1),
+                                           OpenSSL::ASN1::OctetString(OpenSSL::BN.new(decode_octets(jwk_d), 2).to_s(2)),
+                                           OpenSSL::ASN1::ObjectId(curve, 0, :EXPLICIT),
+                                           OpenSSL::ASN1::BitString(point.to_octet_string(:uncompressed), 1, :EXPLICIT)
+                                         ])
+               else
+                 OpenSSL::ASN1::Sequence([
+                                           OpenSSL::ASN1::Sequence([OpenSSL::ASN1::ObjectId('id-ecPublicKey'), OpenSSL::ASN1::ObjectId(curve)]),
+                                           OpenSSL::ASN1::BitString(point.to_octet_string(:uncompressed))
+                                         ])
+               end
+
+    key = OpenSSL::PKey::EC.new(sequence.to_der)
+    assert_equal group.curve_name, key.group.curve_name
+    assert_equal group, key.group
+    assert_equal point, key.public_key
+    assert_equal d, key.private_key if d
+  end
+  private :do_test_from_sequence
+
+  def decode_octets(base64_encoded_coordinate); require 'base64'
+    bytes = ::Base64.urlsafe_decode64(base64_encoded_coordinate)
+    assert_false bytes.bytesize.odd?
+    bytes
+  end
+  private :decode_octets
+
 #  def test_dh_compute_key
 #    for key in @keys
 #      k = OpenSSL::PKey::EC.new(key.group)
