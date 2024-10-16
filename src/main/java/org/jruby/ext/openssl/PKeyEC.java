@@ -171,7 +171,10 @@ public final class PKeyEC extends PKey {
         return curves;
     }
 
-    private static Optional<ASN1ObjectIdentifier> getCurveOID(final String curveName) {
+    private static Optional<ASN1ObjectIdentifier> getCurveOID(String curveName) {
+        if (curveName == null) return Optional.empty();
+        // work-around getNamedCurveOid not being able to handle "... " (assuming spacePos + 1 is valid index)
+        if (curveName.indexOf(' ') == curveName.length() - 1) return Optional.empty();
         return Optional.ofNullable(ECUtil.getNamedCurveOid(curveName));
     }
 
