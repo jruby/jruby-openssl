@@ -13,22 +13,30 @@ jobs:
 
     strategy:
       matrix:
-        java-version: [ 8, 11, 21 ]
         ruby-version: [ jruby-9.4.8.0 ]
+        java-version: [ 8, 11, 21, 23 ]
+        distribution: [ temurin ]
         include:
           - java-version: 8
+            distribution: temurin
             ruby-version: jruby-9.2.19.0
           - java-version: 11
+            distribution: temurin
             ruby-version: jruby-9.2.20.1
           - java-version: 8
+            distribution: temurin
             ruby-version: jruby-9.3.3.0
           - java-version: 11
+            distribution: temurin
             ruby-version: jruby-9.3.13.0
-          - java-version: 15
+          - java-version: 21
+            distribution: oracle
             ruby-version: jruby-9.3.13.0
           - java-version: 11
+            distribution: zulu
             ruby-version: jruby-9.4.5.0
           - java-version: 17
+            distribution: oracle
             ruby-version: jruby-9.4.7.0
       fail-fast: false
 
@@ -37,9 +45,10 @@ jobs:
         uses: actions/checkout@v2
 
       - name: set up java ${{ matrix.java-version }}
-        uses: actions/setup-java@v1.4.3
+        uses: actions/setup-java@v4
         with:
           java-version: ${{ matrix.java-version }}
+          distribution: ${{ matrix.distribution }}
 
       - name: set up ${{ matrix.ruby-version }}
         uses: ruby/setup-ruby@v1
