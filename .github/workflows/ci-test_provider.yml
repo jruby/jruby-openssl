@@ -9,12 +9,12 @@ env:
 jobs:
 
   maven-test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04 # ubuntu-latest
 
     strategy:
       matrix:
         java-version: [ 11, 21 ]
-        ruby-version: [ jruby-9.4.6.0 ]
+        ruby-version: [ jruby-9.4.8.0 ]
         include:
           - java-version: 17
             ruby-version: jruby-9.3.13.0
