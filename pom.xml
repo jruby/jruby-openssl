@@ -60,13 +60,13 @@ DO NOT MODIFY - GENERATED CODE
     </snapshotRepository>
   </distributionManagement>
   <properties>
-    <bc.versions>1.78.1</bc.versions>
+    <bc.versions>1.79</bc.versions>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <invoker.test>${bc.versions}</invoker.test>
     <jruby.plugins.version>3.0.2</jruby.plugins.version>
     <jruby.switches>-W0</jruby.switches>
-    <jruby.version>9.1.17.0</jruby.version>
-    <jruby.versions>9.1.17.0</jruby.versions>
+    <jruby.version>9.2.19.0</jruby.version>
+    <jruby.versions>9.2.19.0</jruby.versions>
     <mavengem-wagon.version>2.0.2</mavengem-wagon.version>
     <mavengem.wagon.version>2.0.2</mavengem.wagon.version>
     <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
@@ -77,22 +77,22 @@ DO NOT MODIFY - GENERATED CODE
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk18on</artifactId>
-      <version>1.78.1</version>
+      <version>1.79</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk18on</artifactId>
-      <version>1.78.1</version>
+      <version>1.79</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bctls-jdk18on</artifactId>
-      <version>1.78.1</version>
+      <version>1.79</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcutil-jdk18on</artifactId>
-      <version>1.78.1</version>
+      <version>1.79</version>
     </dependency>
     <dependency>
       <groupId>org.jruby</groupId>
@@ -274,6 +274,7 @@ DO NOT MODIFY - GENERATED CODE
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
+          <release>8</release>
           <encoding>UTF-8</encoding>
           <debug>true</debug>
           <showWarnings>true</showWarnings>
