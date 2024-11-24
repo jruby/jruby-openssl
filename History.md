@@ -1,3 +1,9 @@
+## 0.15.2
+
+* [deps] upgrade BC to version 1.79
+* [fix] avoid PKey::EC.new failing with specific DER (#318)
+* [fix] have a useful OPENSSL_VERSION_NUMBER
+
 ## 0.15.1
 
 * [deps] upgrade BC to version 1.78.1
