@@ -40,6 +40,51 @@ class TestRSA < TestCase
     #end
   end
 
+  def test_dup
+    key = Fixtures.pkey("rsa1024")
+    key2 = key.dup
+    assert_equal key.params, key2.params
+
+    # PKey is immutable in OpenSSL >= 3.0
+    #if !openssl?(3, 0, 0)
+      key2.set_key(key2.n, 3, key2.d)
+      assert_not_equal key.params, key2.params
+    #end
+  end
+
+  def test_new
+    key = OpenSSL::PKey::RSA.new(512)
+    assert_equal 512, key.n.num_bits
+    assert_equal 65537, key.e
+    assert_not_nil key.d
+
+    # Specify public exponent
+    key2 = OpenSSL::PKey::RSA.new(512, 3)
+    assert_equal 512, key2.n.num_bits
+    assert_equal 3, key2.e
+    assert_not_nil key2.d
+  end
+
+  def test_s_generate
+    key1 = OpenSSL::PKey::RSA.generate(512)
+    assert_equal 512, key1.n.num_bits
+    assert_equal 65537, key1.e
+
+    # Specify public exponent
+    key2 = OpenSSL::PKey::RSA.generate(512, 3)
+    assert_equal 512, key2.n.num_bits
+    assert_equal 3, key2.e
+    assert_not_nil key2.d
+  end
+
+  # TODO: not implemented properly
+  # def test_new_break
+  #   assert_nil(OpenSSL::PKey::RSA.new(1024) { break })
+  #   assert_raise(RuntimeError) do
+  #     OpenSSL::PKey::RSA.new(1024) { raise }
+  #   end
+  # end
+
   def test_oid
     key = OpenSSL::PKey::RSA.new
     assert_equal 'rsaEncryption', key.oid
