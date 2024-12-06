@@ -7,6 +7,18 @@ class TestDSA < TestCase
     super
   end
 
+  def test_dup
+    key = Fixtures.pkey("dsa1024")
+    key2 = key.dup
+    assert_equal key.params, key2.params
+
+    # PKey is immutable in OpenSSL >= 3.0
+    #if !openssl?(3, 0, 0)
+      key2.set_pqg(key2.p, key2.q, key2.g + 1)
+      assert_not_equal key.params, key2.params
+    #end
+  end
+
   def test_dsa_param_accessors
     key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
     key = OpenSSL::PKey::DSA.new(File.read(key_file))
@@ -65,7 +77,7 @@ class TestDSA < TestCase
     doc = 'Sign ME!'
     digest = OpenSSL::Digest::SHA1.digest(doc)
     sig = dsa.syssign(digest)
-    puts sig.inspect if $VERBOSE
+    #puts sig.inspect if $VERBOSE
     assert dsa.sysverify(digest, sig).eql?(true)
   end
 

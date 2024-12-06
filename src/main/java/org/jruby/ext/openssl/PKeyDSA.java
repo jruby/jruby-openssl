@@ -450,11 +450,11 @@ public class PKeyDSA extends PKey {
     }
 
     private synchronized BigInteger getP() {
+        if (dsa_p != null) return dsa_p;
+
         DSAKey key = getDsaKey();
-        if (key != null) {
-            return key.getParams().getP();
-        }
-        return dsa_p;
+        if (key != null) return key.getParams().getP();
+        return null;
     }
 
     @JRubyMethod(name = "p")
@@ -468,11 +468,11 @@ public class PKeyDSA extends PKey {
     }
 
     private synchronized BigInteger getQ() {
+        if (dsa_q != null) return dsa_q;
+
         DSAKey key = getDsaKey();
-        if (key != null) {
-            return key.getParams().getQ();
-        }
-        return dsa_q;
+        if (key != null) return key.getParams().getQ();
+        return null;
     }
 
     @JRubyMethod(name = "q")
@@ -486,11 +486,11 @@ public class PKeyDSA extends PKey {
     }
 
     private synchronized BigInteger getG() {
+        if (dsa_g != null) return dsa_g;
+
         DSAKey key = getDsaKey();
-        if (key != null) {
-            return key.getParams().getG();
-        }
-        return dsa_g;
+        if (key != null) return key.getParams().getG();
+        return null;
     }
 
     @JRubyMethod(name = "g")
@@ -501,6 +501,15 @@ public class PKeyDSA extends PKey {
     @JRubyMethod(name = "g=")
     public synchronized IRubyObject set_g(IRubyObject g) {
         return setKeySpecComponent(SPEC_G, g);
+    }
+
+    @JRubyMethod
+    public IRubyObject set_pqg(IRubyObject p, IRubyObject q, IRubyObject g) {
+        this.dsa_p = BN.getBigInteger(p);
+        this.dsa_q = BN.getBigInteger(q);
+        this.dsa_g = BN.getBigInteger(g);
+        generateKeyInternal();
+        return this;
     }
 
     @JRubyMethod(name = "priv_key")
@@ -533,7 +542,6 @@ public class PKeyDSA extends PKey {
 
     private IRubyObject setKeySpecComponent(final int index, final IRubyObject value) {
         final BigInteger val = BN.getBigInteger(value);
-
         switch (index) {
             case SPEC_X: this.dsa_x = val; break;
             case SPEC_Y: this.dsa_y = val; break;
@@ -542,19 +550,49 @@ public class PKeyDSA extends PKey {
             case SPEC_G: this.dsa_g = val; break;
         }
 
+        generateKeyInternal();
+        return value;
+    }
+
+    private BigInteger getX() {
+        if (dsa_x != null) return dsa_x;
+
+        DSAPrivateKey key;
+        if ((key = this.privateKey) != null) {
+            return key.getX();
+        }
+        return null;
+    }
+
+    private BigInteger getY() {
+        if (dsa_y != null) return dsa_y;
+
+        DSAPublicKey key;
+        if ((key = this.publicKey) != null) {
+            return key.getY();
+        }
+        return null;
+    }
+
+    private void generateKeyInternal() {
         // Don't access the dsa_p, dsa_q and dsa_g fields directly. They may
         // have already been consumed and cleared.
-        BigInteger _dsa_p = getP();
-        BigInteger _dsa_q = getQ();
-        BigInteger _dsa_g = getG();
+        final BigInteger dsa_p = getP();
+        final BigInteger dsa_q = getQ();
+        final BigInteger dsa_g = getG();
 
-        if ( dsa_x != null && _dsa_p != null && _dsa_q != null && _dsa_g != null ) {
+        final BigInteger dsa_x = getX();
+        final BigInteger dsa_y = getY();
+
+        if ( dsa_x != null && dsa_p != null && dsa_q != null && dsa_g != null ) {
             // we now have all private key components. create the key :
-            DSAPrivateKeySpec spec = new DSAPrivateKeySpec(dsa_x, _dsa_p, _dsa_q, _dsa_g);
+            DSAPrivateKeySpec spec = new DSAPrivateKeySpec(dsa_x, dsa_p, dsa_q, dsa_g);
             try {
                 this.privateKey = (DSAPrivateKey) SecurityHelper.getKeyFactory("DSA").generatePrivate(spec);
             }
             catch (InvalidKeySpecException e) {
+                e.printStackTrace();
+
                 throw newDSAError(getRuntime(), "invalid keyspec", e);
             }
             catch (NoSuchAlgorithmException e) {
@@ -564,9 +602,9 @@ public class PKeyDSA extends PKey {
             this.dsa_x = this.dsa_p = this.dsa_q = this.dsa_g = null;
         }
 
-        if ( dsa_y != null && _dsa_p != null && _dsa_q != null && _dsa_g != null ) {
+        if ( dsa_y != null && dsa_p != null && dsa_q != null && dsa_g != null ) {
             // we now have all public key components. create the key :
-            DSAPublicKeySpec spec = new DSAPublicKeySpec(dsa_y, _dsa_p, _dsa_q, _dsa_g);
+            DSAPublicKeySpec spec = new DSAPublicKeySpec(dsa_y, dsa_p, dsa_q, dsa_g);
             try {
                 this.publicKey = (DSAPublicKey) SecurityHelper.getKeyFactory("DSA").generatePublic(spec);
             }
@@ -579,8 +617,6 @@ public class PKeyDSA extends PKey {
             // clear out the specValues
             this.dsa_y = this.dsa_p = this.dsa_q = this.dsa_g = null;
         }
-
-        return value;
     }
 
     private static final int SPEC_X = 0;
