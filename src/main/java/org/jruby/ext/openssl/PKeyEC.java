@@ -616,12 +616,12 @@ public final class PKeyEC extends PKey {
         }
     }
 
-    @JRubyMethod(name = "public_key?")
+    @JRubyMethod(name = "public?", alias = "public_key?")
     public RubyBoolean public_p() {
         return publicKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
-    @JRubyMethod(name = "private_key?")
+    @JRubyMethod(name = "private?", alias = "private_key?")
     public RubyBoolean private_p() {
         return privateKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
