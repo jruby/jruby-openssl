@@ -7,6 +7,23 @@ class TestDSA < TestCase
     super
   end
 
+  def test_private
+    key = Fixtures.pkey("dsa1024")
+    assert_equal true, key.private?
+    key2 = OpenSSL::PKey::DSA.new(key.to_der)
+    assert_equal true, key2.private?
+    key3 = key.public_key
+    assert_equal false, key3.private?
+    key4 = OpenSSL::PKey::DSA.new(key3.to_der)
+    assert_equal false, key4.private?
+  end
+
+  def test_new
+    key = OpenSSL::PKey::DSA.new(2048)
+    pem  = key.public_key.to_pem
+    OpenSSL::PKey::DSA.new pem
+  end
+
   def test_dup
     key = Fixtures.pkey("dsa1024")
     key2 = key.dup
