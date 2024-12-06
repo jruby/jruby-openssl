@@ -610,96 +610,80 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="iqmp")
     public synchronized IRubyObject get_iqmp() {
-        BigInteger iqmp;
-        if (privateKey instanceof RSAPrivateCrtKey) {
+        BigInteger iqmp = rsa_iqmp;
+        if (iqmp == null && privateKey instanceof RSAPrivateCrtKey) {
             iqmp = ((RSAPrivateCrtKey) privateKey).getCrtCoefficient();
-        } else {
-            iqmp = rsa_iqmp;
         }
-        if (iqmp != null) {
-            return BN.newBN(getRuntime(), iqmp);
-        }
+
+        if (iqmp != null) return BN.newBN(getRuntime(), iqmp);
         return getRuntime().getNil();
     }
 
     @JRubyMethod(name="dmp1")
     public synchronized IRubyObject get_dmp1() {
-        BigInteger dmp1;
-        if (privateKey instanceof RSAPrivateCrtKey) {
+        BigInteger dmp1 = rsa_dmp1;
+        if (dmp1 == null && privateKey instanceof RSAPrivateCrtKey) {
             dmp1 = ((RSAPrivateCrtKey) privateKey).getPrimeExponentP();
-        } else {
-            dmp1 = rsa_dmp1;
         }
-        if (dmp1 != null) {
-            return BN.newBN(getRuntime(), dmp1);
-        }
+
+        if (dmp1 != null) return BN.newBN(getRuntime(), dmp1);
         return getRuntime().getNil();
     }
 
     @JRubyMethod(name="dmq1")
     public synchronized IRubyObject get_dmq1() {
-        BigInteger dmq1;
-        if (privateKey instanceof RSAPrivateCrtKey) {
+        BigInteger dmq1 = rsa_dmq1;
+        if (dmq1 != null && privateKey instanceof RSAPrivateCrtKey) {
             dmq1 = ((RSAPrivateCrtKey) privateKey).getPrimeExponentQ();
-        } else {
-            dmq1 = rsa_dmq1;
         }
-        if (dmq1 != null) {
-            return BN.newBN(getRuntime(), dmq1);
-        }
+
+        if (dmq1 != null) return BN.newBN(getRuntime(), dmq1);
         return getRuntime().getNil();
     }
 
     @JRubyMethod(name="d")
     public synchronized IRubyObject get_d() {
-        BigInteger d;
-        if (privateKey != null) {
-            d = privateKey.getPrivateExponent();
-        } else {
-            d = rsa_d;
-        }
-        if (d != null) {
-            return BN.newBN(getRuntime(), d);
-        }
+        final BigInteger d = getPrivateExponent();
+        if (d != null) return BN.newBN(getRuntime(), d);
         return getRuntime().getNil();
+    }
+
+    private BigInteger getPrivateExponent() {
+        BigInteger d = rsa_d;
+        if (d == null && privateKey != null) {
+            d = privateKey.getPrivateExponent();
+        }
+        return d;
     }
 
     @JRubyMethod(name="p")
     public synchronized IRubyObject get_p() {
-        BigInteger p;
-        if (privateKey instanceof RSAPrivateCrtKey) {
+        BigInteger p = rsa_p;
+        if (p == null && privateKey instanceof RSAPrivateCrtKey) {
             p = ((RSAPrivateCrtKey) privateKey).getPrimeP();
-        } else {
-            p = rsa_p;
         }
-        if (p != null) {
-            return BN.newBN(getRuntime(), p);
-        }
+
+        if (p != null) return BN.newBN(getRuntime(), p);
         return getRuntime().getNil();
     }
 
     @JRubyMethod(name="q")
     public synchronized IRubyObject get_q() {
-        BigInteger q;
-        if (privateKey instanceof RSAPrivateCrtKey) {
+        BigInteger q = rsa_q;
+        if (q == null && privateKey instanceof RSAPrivateCrtKey) {
             q = ((RSAPrivateCrtKey) privateKey).getPrimeQ();
-        } else {
-            q = rsa_q;
         }
-        if (q != null) {
-            return BN.newBN(getRuntime(), q);
-        }
+
+        if (q != null) return BN.newBN(getRuntime(), q);
         return getRuntime().getNil();
     }
 
     private BigInteger getPublicExponent() {
-        if (publicKey != null) {
-            return publicKey.getPublicExponent();
-        } else if (privateKey instanceof RSAPrivateCrtKey) {
-            return ((RSAPrivateCrtKey) privateKey).getPublicExponent();
-        } else {
-            return rsa_e;
-        }
+        if (rsa_e != null) return rsa_e;
+
+        if (publicKey != null) return publicKey.getPublicExponent();
+        if (privateKey instanceof RSAPrivateCrtKey) return ((RSAPrivateCrtKey) privateKey).getPublicExponent();
+        return null;
     }
 
     @JRubyMethod(name="e")
@@ -726,13 +710,11 @@ public class PKeyRSA extends PKey {
     }
 
     private BigInteger getModulus() {
-        if (publicKey != null) {
-            return publicKey.getModulus();
-        } else if (privateKey != null) {
-            return privateKey.getModulus();
-        } else {
-            return rsa_n;
-        }
+        if (rsa_n != null) return rsa_n;
+
+        if (publicKey != null) return publicKey.getModulus();
+        if (privateKey != null) return privateKey.getModulus();
+        return null;
     }
 
     @JRubyMethod(name="n")
@@ -819,10 +801,11 @@ public class PKeyRSA extends PKey {
 
         // Don't access the rsa_n and rsa_e fields directly. They may have
         // already been consumed and cleared by generatePublicKeyIfParams.
-        BigInteger _rsa_n = getModulus();
-        BigInteger _rsa_e = getPublicExponent();
+        final BigInteger rsa_n = getModulus();
+        final BigInteger rsa_e = getPublicExponent();
+        final BigInteger rsa_d = getPrivateExponent();
 
-        if (_rsa_n != null && _rsa_e != null && rsa_d != null) {
+        if (rsa_n != null && rsa_e != null && rsa_d != null) {
             final KeyFactory rsaFactory;
             try {
                 rsaFactory = SecurityHelper.getKeyFactory("RSA");
@@ -834,17 +817,17 @@ public class PKeyRSA extends PKey {
             if (rsa_p != null && rsa_q != null && rsa_dmp1 != null && rsa_dmq1 != null && rsa_iqmp != null) {
                 try {
                     privateKey = (RSAPrivateCrtKey) rsaFactory.generatePrivate(
-                            new RSAPrivateCrtKeySpec(_rsa_n, _rsa_e, rsa_d, rsa_p, rsa_q, rsa_dmp1, rsa_dmq1, rsa_iqmp)
+                            new RSAPrivateCrtKeySpec(rsa_n, rsa_e, rsa_d, rsa_p, rsa_q, rsa_dmp1, rsa_dmq1, rsa_iqmp)
                     );
                 } catch (InvalidKeySpecException e) {
                     throw newRSAError(runtime, "invalid parameters", e);
                 }
-                rsa_n = null; rsa_e = null; rsa_d = null;
-                rsa_p = null; rsa_q = null;
-                rsa_dmp1 = null; rsa_dmq1 = null; rsa_iqmp = null;
+                this.rsa_n = this.rsa_e = this.rsa_d = null;
+                this.rsa_p = this.rsa_q = null;
+                this.rsa_dmp1 = this.rsa_dmq1 = this.rsa_iqmp = null;
             } else {
                 try {
-                    privateKey = (RSAPrivateKey) rsaFactory.generatePrivate(new RSAPrivateKeySpec(_rsa_n, rsa_d));
+                    privateKey = (RSAPrivateKey) rsaFactory.generatePrivate(new RSAPrivateKeySpec(rsa_n, rsa_d));
                 } catch (InvalidKeySpecException e) {
                     throw newRSAError(runtime, "invalid parameters", e);
                 }
