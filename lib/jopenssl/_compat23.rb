@@ -42,30 +42,6 @@ module OpenSSL
 
     end
 
-    class RSA
-
-      def set_key(n, e, d)
-        self.n = n
-        self.e = e
-        self.d = d
-        self
-      end
-
-      def set_factors(p, q)
-        self.p = p
-        self.q = q
-        self
-      end
-
-      def set_crt_params(dmp1, dmq1, iqmp)
-        self.dmp1 = dmp1
-        self.dmq1 = dmq1
-        self.iqmp = iqmp
-        self
-      end
-
-    end
-
   end
 
 end
