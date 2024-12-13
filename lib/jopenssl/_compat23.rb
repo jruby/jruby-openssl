@@ -25,16 +25,6 @@ module OpenSSL
 
     end
 
-    class DSA
-
-      def set_key(pub_key, priv_key)
-        self.pub_key = pub_key
-        self.priv_key = priv_key
-        self
-      end
-
-    end
-
   end
 
 end

@@ -512,6 +512,14 @@ public class PKeyDSA extends PKey {
         return this;
     }
 
+    @JRubyMethod
+    public IRubyObject set_key(final ThreadContext context, IRubyObject pub_key, IRubyObject priv_key) {
+        this.dsa_y = BN.getBigInteger(pub_key);
+        this.dsa_x = BN.getBigInteger(priv_key);
+        generateKeyInternal();
+        return this;
+    }
+
     @JRubyMethod(name = "priv_key")
     public synchronized IRubyObject get_priv_key() {
         DSAPrivateKey key;
