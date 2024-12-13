@@ -381,6 +381,16 @@ public class PKeyDH extends PKey {
         return context.nil;
     }
 
+    @JRubyMethod
+    public IRubyObject set_pqg(final ThreadContext context, IRubyObject p, IRubyObject q, IRubyObject g) {
+        set_p(p);
+        if (!q.isNil()) {
+            OpenSSL.warn(context, "JRuby-OpenSSL does not support setting q param on " + inspect());
+        }
+        set_g(g);
+        return this;
+    }
+
     // don't need synchronized as value is volatile
     @JRubyMethod(name = "pub_key")
     public IRubyObject pub_key() {
@@ -419,6 +429,13 @@ public class PKeyDH extends PKey {
     public synchronized IRubyObject set_priv_key(IRubyObject arg) {
         this.dh_x = BN.asBigInteger(arg);
         return arg;
+    }
+
+    @JRubyMethod
+    public IRubyObject set_key(final ThreadContext context, IRubyObject pub_key, IRubyObject priv_key) {
+        set_pub_key(pub_key);
+        set_priv_key(priv_key);
+        return this;
     }
 
     private IRubyObject newBN(BigInteger value) {

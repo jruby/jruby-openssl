@@ -69,5 +69,3 @@ module OpenSSL
     OpenSSL.fixed_length_secure_compare(hashed_a, hashed_b) && a == b
   end
 end
-
-load 'jopenssl/_compat23.rb'
