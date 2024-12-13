@@ -138,7 +138,7 @@ public class PKey {
     }
 
     // d2i_PUBKEY_bio
-    public static PublicKey readPublicKey(byte[] input) throws IOException {
+    public static PublicKey readPublicKey(final byte[] input) throws IOException {
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(input))) {
             Object pemObject = new PEMParser(in).readObject();
             SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
@@ -292,10 +292,7 @@ public class PKey {
 
     public static byte[] toDerRSAKey(RSAPublicKey pubKey, RSAPrivateCrtKey privKey) throws IOException {
         if ( pubKey != null && privKey == null ) {
-            // pubKey.getEncoded() :
-            return KeyUtil.getEncodedSubjectPublicKeyInfo(
-                new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE), toASN1Primitive(pubKey)
-            );
+            return toDerRSAPublicKey(pubKey);
         }
         ASN1EncodableVector vec = new ASN1EncodableVector();
         vec.add(new ASN1Integer(BigInteger.ZERO));
@@ -310,6 +307,13 @@ public class PKey {
         return new DERSequence(vec).toASN1Primitive().getEncoded(ASN1Encoding.DER);
     }
 
+    public static byte[] toDerRSAPublicKey(final RSAPublicKey pubKey) throws IOException {
+        // pubKey.getEncoded() :
+        return KeyUtil.getEncodedSubjectPublicKeyInfo(
+                new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE), toASN1Primitive(pubKey)
+        );
+    }
+
     public static ASN1Sequence toASN1Primitive(final RSAPublicKey publicKey) {
         assert publicKey != null : "null public key";
         ASN1EncodableVector vec = new ASN1EncodableVector();
@@ -320,20 +324,7 @@ public class PKey {
 
     public static byte[] toDerDSAKey(DSAPublicKey pubKey, DSAPrivateKey privKey) throws IOException {
         if ( pubKey != null && privKey == null ) {
-            // pubKey.getEncoded() :
-            final DSAParams params = pubKey.getParams();
-            if (params == null) {
-                return new SubjectPublicKeyInfo(
-                        new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa),
-                        toASN1Primitive(pubKey)
-                ).getEncoded(ASN1Encoding.DER);
-            }
-            return new SubjectPublicKeyInfo(
-                    new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
-                            new DSAParameter(params.getP(), params.getQ(), params.getG())
-                    ),
-                    toASN1Primitive(pubKey)
-            ).getEncoded(ASN1Encoding.DER);
+            return toDerDSAPublicKey(pubKey);
         }
         if ( privKey != null && pubKey != null ) {
             ASN1EncodableVector vec = new ASN1EncodableVector();
@@ -354,6 +345,23 @@ public class PKey {
                 new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
                         new DSAParameter(params.getP(), params.getQ(), params.getG())),
                 new ASN1Integer(privKey.getX())
+        ).getEncoded(ASN1Encoding.DER);
+    }
+
+    public static byte[] toDerDSAPublicKey(final DSAPublicKey pubKey) throws IOException {
+        // pubKey.getEncoded() :
+        final DSAParams params = pubKey.getParams();
+        if (params == null) {
+            return new SubjectPublicKeyInfo(
+                    new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa),
+                    toASN1Primitive(pubKey)
+            ).getEncoded(ASN1Encoding.DER);
+        }
+        return new SubjectPublicKeyInfo(
+                new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
+                        new DSAParameter(params.getP(), params.getQ(), params.getG())
+                ),
+                toASN1Primitive(pubKey)
         ).getEncoded(ASN1Encoding.DER);
     }
 

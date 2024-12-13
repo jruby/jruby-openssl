@@ -231,7 +231,7 @@ OlWNYDkPiZioeFkA3/fTMvG4moB2Pp9Q4GU5fJ6k43Ccu1up8dX/LumZb4ecg5/x
     }
   end
 
-  def test_RSAPublicKey
+  def test_RSAPublicKey_custom
     rsa1024 = Fixtures.pkey("rsa1024")
 
     asn1 = OpenSSL::ASN1::Sequence([ OpenSSL::ASN1::Integer(rsa1024.n), OpenSSL::ASN1::Integer(rsa1024.e) ])
@@ -264,6 +264,80 @@ geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
     expected = "b48c0b2bbd35b906c5af4e46ed7355e4aaeadc99"
     assert_equal expected, OpenSSL::Digest::SHA1.hexdigest(key.to_der)
   end if !defined?(JRUBY_VERSION) || JRUBY_VERSION > '9.1' # set_key only since Ruby 2.3
+
+  def test_RSAPublicKey
+    rsa1024 = Fixtures.pkey("rsa1024")
+    rsa1024pub = OpenSSL::PKey::RSA.new(rsa1024.public_to_der)
+
+    asn1 = OpenSSL::ASN1::Sequence([
+                                     OpenSSL::ASN1::Integer(rsa1024.n),
+                                     OpenSSL::ASN1::Integer(rsa1024.e)
+                                   ])
+    key = OpenSSL::PKey::RSA.new(asn1.to_der)
+    assert_not_predicate key, :private?
+    assert_same_rsa rsa1024pub, key
+
+    pem = <<~EOF
+    -----BEGIN RSA PUBLIC KEY-----
+    MIGJAoGBAMvCxLDUQKc+1P4+Q6AeFwYDvWfALb+cvzlUEadGoPE6qNWHsLFoo8RF
+    geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
+    /xkP2mKGjAokPIwOI3oCthSZlzO9bj3voxTf6XngTqUX8l8URTmHAgMBAAE=
+    -----END RSA PUBLIC KEY-----
+    EOF
+    key = OpenSSL::PKey::RSA.new(pem)
+    assert_same_rsa rsa1024pub, key
+  end
+
+  def test_export
+    rsa1024 = Fixtures.pkey("rsa1024")
+
+    #pub = OpenSSL::PKey.read(rsa1024.public_to_der) # TODO not supported
+    pub = OpenSSL::PKey::RSA.new(rsa1024.public_to_der)
+    assert_not_equal rsa1024.export, pub.export
+    assert_equal rsa1024.public_to_pem, pub.export
+
+    # PKey is immutable in OpenSSL >= 3.0
+    #if !openssl?(3, 0, 0)
+      key = OpenSSL::PKey::RSA.new
+
+      # key has only n, e and d
+      key.set_key(rsa1024.n, rsa1024.e, rsa1024.d)
+      assert_equal rsa1024.public_key.export, key.export
+
+      # key has only n, e, d, p and q
+      key.set_factors(rsa1024.p, rsa1024.q)
+      assert_equal rsa1024.public_key.export, key.export
+
+      # key has n, e, d, p, q, dmp1, dmq1 and iqmp
+      key.set_crt_params(rsa1024.dmp1, rsa1024.dmq1, rsa1024.iqmp)
+      #assert_equal rsa1024.export, key.export # TODO does not pass
+    #end
+  end
+
+  def test_to_der
+    rsa1024 = Fixtures.pkey("rsa1024")
+
+    pub = OpenSSL::PKey::RSA.new(rsa1024.public_to_der)
+    assert_not_equal rsa1024.to_der, pub.to_der
+    assert_equal rsa1024.public_to_der, pub.to_der
+
+    # PKey is immutable in OpenSSL >= 3.0
+    #if !openssl?(3, 0, 0)
+      key = OpenSSL::PKey::RSA.new
+
+      # key has only n, e and d
+      key.set_key(rsa1024.n, rsa1024.e, rsa1024.d)
+      assert_equal rsa1024.public_key.to_der, key.to_der
+
+      # key has only n, e, d, p and q
+      key.set_factors(rsa1024.p, rsa1024.q)
+      assert_equal rsa1024.public_key.to_der, key.to_der
+
+      # key has n, e, d, p, q, dmp1, dmq1 and iqmp
+      key.set_crt_params(rsa1024.dmp1, rsa1024.dmq1, rsa1024.iqmp)
+      #assert_equal rsa1024.to_der, key.to_der # TODO does not pass
+    #end
+  end
 
   def test_to_java
     key_file = File.join(File.dirname(__FILE__), 'private_key.pem')

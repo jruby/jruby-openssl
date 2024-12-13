@@ -77,6 +77,7 @@ import static org.jruby.ext.openssl.impl.PKey.readRSAPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readRSAPublicKey;
 import static org.jruby.ext.openssl.impl.PKey.toASN1Primitive;
 import static org.jruby.ext.openssl.impl.PKey.toDerRSAKey;
+import static org.jruby.ext.openssl.impl.PKey.toDerRSAPublicKey;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -356,6 +357,21 @@ public class PKeyRSA extends PKey {
         return getRuntime().newBoolean(isPrivateKey());
     }
 
+    @JRubyMethod(name = "public_to_der")
+    public RubyString public_to_der(ThreadContext context) {
+        final byte[] bytes;
+        try {
+            bytes = toDerRSAPublicKey(publicKey);
+        }
+        catch (NoClassDefFoundError e) {
+            throw newRSAError(context.runtime, bcExceptionMessage(e));
+        }
+        catch (Exception e) {
+            throw newRSAError(getRuntime(), e.getMessage(), e);
+        }
+        return StringHelper.newString(context.runtime, bytes);
+    }
+
     @Override
     @JRubyMethod(name = "to_der")
     public RubyString to_der() {
@@ -366,8 +382,8 @@ public class PKeyRSA extends PKey {
         catch (NoClassDefFoundError e) {
             throw newRSAError(getRuntime(), bcExceptionMessage(e));
         }
-        catch (IOException e) {
-            throw newRSAError(getRuntime(), e.getMessage());
+        catch (Exception e) {
+            throw newRSAError(getRuntime(), e.getMessage(), e);
         }
         return StringHelper.newString(getRuntime(), bytes);
     }
@@ -460,6 +476,21 @@ public class PKeyRSA extends PKey {
             else {
                 PEMInputOutput.writeRSAPublicKey(writer, publicKey);
             }
+            return RubyString.newString(context.runtime, writer.getBuffer());
+        }
+        catch (NoClassDefFoundError ncdfe) {
+            throw newRSAError(context.runtime, bcExceptionMessage(ncdfe));
+        }
+        catch (IOException ioe) {
+            throw newRSAError(context.runtime, ioe.getMessage());
+        }
+    }
+
+    @JRubyMethod
+    public RubyString public_to_pem(ThreadContext context) {
+        try {
+            final StringWriter writer = new StringWriter();
+            PEMInputOutput.writeRSAPublicKey(writer, publicKey);
             return RubyString.newString(context.runtime, writer.getBuffer());
         }
         catch (NoClassDefFoundError ncdfe) {
@@ -745,6 +776,7 @@ public class PKeyRSA extends PKey {
         this.rsa_n = BN.getBigInteger(n);
         this.rsa_e = BN.getBigInteger(e);
         this.rsa_d = BN.getBigInteger(d);
+        generatePublicKeyIfParams(context);
         generatePrivateKeyIfParams(context);
         return this;
     }
@@ -768,8 +800,6 @@ public class PKeyRSA extends PKey {
 
     private void generatePublicKeyIfParams(final ThreadContext context) {
         final Ruby runtime = context.runtime;
-
-        if ( publicKey != null ) throw newRSAError(runtime, "illegal modification");
 
         // Don't access the rsa_n and rsa_e fields directly. They may have
         // already been consumed and cleared by generatePrivateKeyIfParams.
