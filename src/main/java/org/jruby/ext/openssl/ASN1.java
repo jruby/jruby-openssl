@@ -915,6 +915,14 @@ public class ASN1 {
             return runtime.newString( getObjectID(runtime, self.callMethod(context, "value").toString()).getId() );
         }
 
+        @JRubyMethod(name = "==")
+        public static IRubyObject eq(final ThreadContext context, final IRubyObject self, final IRubyObject other) {
+            if (!other.getMetaClass().equals(_ASN1(context.runtime).getClass("ObjectId"))) {
+                return context.runtime.getFalse();
+            }
+            return self.callMethod(context, "value").op_eqq(context, other.callMethod(context, "value"));
+        }
+
         private static RubyString name(final ThreadContext context, IRubyObject value,
             final boolean longName) {
             final Ruby runtime = context.runtime;

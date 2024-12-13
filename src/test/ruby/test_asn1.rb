@@ -337,6 +337,10 @@ class TestASN1 < TestCase
     #assert_raise(TypeError) {
     #  OpenSSL::ASN1::ObjectId.new("authorityKeyIdentifier") == nil
     #}
+
+    oid = OpenSSL::ASN1::ObjectId.new("2.5.29.14")
+    assert_equal true, oid == OpenSSL::ASN1::ObjectId.new("2.5.29.14")
+    assert_equal false, oid == OpenSSL::ASN1::ObjectId.new("2.5.29.35")
   end
 
   def test_instantiate
