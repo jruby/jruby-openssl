@@ -67,6 +67,7 @@ import static org.jruby.ext.openssl.impl.PKey.readDSAPrivateKey;
 import static org.jruby.ext.openssl.impl.PKey.readDSAPublicKey;
 import static org.jruby.ext.openssl.impl.PKey.toASN1Primitive;
 import static org.jruby.ext.openssl.impl.PKey.toDerDSAKey;
+import static org.jruby.ext.openssl.impl.PKey.toDerDSAPublicKey;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -298,6 +299,21 @@ public class PKeyDSA extends PKey {
         return privateKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
+    @JRubyMethod(name = "public_to_der")
+    public RubyString public_to_der(ThreadContext context) {
+        final byte[] bytes;
+        try {
+            bytes = toDerDSAPublicKey(publicKey);
+        }
+        catch (NoClassDefFoundError e) {
+            throw newDSAError(getRuntime(), bcExceptionMessage(e));
+        }
+        catch (IOException e) {
+            throw newDSAError(getRuntime(), e.getMessage(), e);
+        }
+        return StringHelper.newString(context.runtime, bytes);
+    }
+
     @Override
     @JRubyMethod(name = "to_der")
     public RubyString to_der() {
@@ -388,6 +404,21 @@ public class PKeyDSA extends PKey {
             else {
                 PEMInputOutput.writeDSAPublicKey(writer, publicKey);
             }
+            return RubyString.newString(context.runtime, writer.getBuffer());
+        }
+        catch (NoClassDefFoundError ncdfe) {
+            throw newDSAError(context.runtime, bcExceptionMessage(ncdfe));
+        }
+        catch (IOException e) {
+            throw newDSAError(context.runtime, e.getMessage(), e);
+        }
+    }
+
+    @JRubyMethod
+    public RubyString public_to_pem(ThreadContext context) {
+        try {
+            final StringWriter writer = new StringWriter();
+            PEMInputOutput.writeDSAPublicKey(writer, publicKey);
             return RubyString.newString(context.runtime, writer.getBuffer());
         }
         catch (NoClassDefFoundError ncdfe) {

@@ -102,26 +102,26 @@ class TestDSA < TestCase
     # OpenSSL DSAPrivateKey format; similar to RSAPrivateKey
     dsa512 = Fixtures.pkey("dsa512")
     asn1 = OpenSSL::ASN1::Sequence([
-      OpenSSL::ASN1::Integer(0),
-      OpenSSL::ASN1::Integer(dsa512.p),
-      OpenSSL::ASN1::Integer(dsa512.q),
-      OpenSSL::ASN1::Integer(dsa512.g),
-      OpenSSL::ASN1::Integer(dsa512.pub_key),
-      OpenSSL::ASN1::Integer(dsa512.priv_key)
-    ])
+                                     OpenSSL::ASN1::Integer(0),
+                                     OpenSSL::ASN1::Integer(dsa512.p),
+                                     OpenSSL::ASN1::Integer(dsa512.q),
+                                     OpenSSL::ASN1::Integer(dsa512.g),
+                                     OpenSSL::ASN1::Integer(dsa512.pub_key),
+                                     OpenSSL::ASN1::Integer(dsa512.priv_key)
+                                   ])
     key = OpenSSL::PKey::DSA.new(asn1.to_der)
     assert_predicate key, :private?
     assert_same_dsa dsa512, key
 
-    pem = <<-EOF
------BEGIN DSA PRIVATE KEY-----
-MIH4AgEAAkEA5lB4GvEwjrsMlGDqGsxrbqeFRh6o9OWt6FgTYiEEHaOYhkIxv0Ok
-RZPDNwOG997mDjBnvDJ1i56OmS3MbTnovwIVAJgub/aDrSDB4DZGH7UyarcaGy6D
-AkB9HdFw/3td8K4l1FZHv7TCZeJ3ZLb7dF3TWoGUP003RCqoji3/lHdKoVdTQNuR
-S/m6DlCwhjRjiQ/lBRgCLCcaAkEAjN891JBjzpMj4bWgsACmMggFf57DS0Ti+5++
-Q1VB8qkJN7rA7/2HrCR3gTsWNb1YhAsnFsoeRscC+LxXoXi9OAIUBG98h4tilg6S
-55jreJD3Se3slps=
------END DSA PRIVATE KEY-----
+    pem = <<~EOF
+    -----BEGIN DSA PRIVATE KEY-----
+    MIH4AgEAAkEA5lB4GvEwjrsMlGDqGsxrbqeFRh6o9OWt6FgTYiEEHaOYhkIxv0Ok
+    RZPDNwOG997mDjBnvDJ1i56OmS3MbTnovwIVAJgub/aDrSDB4DZGH7UyarcaGy6D
+    AkB9HdFw/3td8K4l1FZHv7TCZeJ3ZLb7dF3TWoGUP003RCqoji3/lHdKoVdTQNuR
+    S/m6DlCwhjRjiQ/lBRgCLCcaAkEAjN891JBjzpMj4bWgsACmMggFf57DS0Ti+5++
+    Q1VB8qkJN7rA7/2HrCR3gTsWNb1YhAsnFsoeRscC+LxXoXi9OAIUBG98h4tilg6S
+    55jreJD3Se3slps=
+    -----END DSA PRIVATE KEY-----
     EOF
     key = OpenSSL::PKey::DSA.new(pem)
     assert_same_dsa dsa512, key
@@ -133,18 +133,18 @@ Q1VB8qkJN7rA7/2HrCR3gTsWNb1YhAsnFsoeRscC+LxXoXi9OAIUBG98h4tilg6S
   def test_DSAPrivateKey_encrypted
     # key = abcdef
     dsa512 = Fixtures.pkey("dsa512")
-    pem = <<-EOF
------BEGIN DSA PRIVATE KEY-----
-Proc-Type: 4,ENCRYPTED
-DEK-Info: AES-128-CBC,F8BB7BFC7EAB9118AC2E3DA16C8DB1D9
+    pem = <<~EOF
+    -----BEGIN DSA PRIVATE KEY-----
+    Proc-Type: 4,ENCRYPTED
+    DEK-Info: AES-128-CBC,F8BB7BFC7EAB9118AC2E3DA16C8DB1D9
 
-D2sIzsM9MLXBtlF4RW42u2GB9gX3HQ3prtVIjWPLaKBYoToRUiv8WKsjptfZuLSB
-74ZPdMS7VITM+W1HIxo/tjS80348Cwc9ou8H/E6WGat8ZUk/igLOUEII+coQS6qw
-QpuLMcCIavevX0gjdjEIkojBB81TYDofA1Bp1z1zDI/2Zhw822xapI79ZF7Rmywt
-OSyWzFaGipgDpdFsGzvT6//z0jMr0AuJVcZ0VJ5lyPGQZAeVBlbYEI4T72cC5Cz7
-XvLiaUtum6/sASD2PQqdDNpgx/WA6Vs1Po2kIUQIM5TIwyJI0GdykZcYm6xIK/ta
-Wgx6c8K+qBAIVrilw3EWxw==
------END DSA PRIVATE KEY-----
+    D2sIzsM9MLXBtlF4RW42u2GB9gX3HQ3prtVIjWPLaKBYoToRUiv8WKsjptfZuLSB
+    74ZPdMS7VITM+W1HIxo/tjS80348Cwc9ou8H/E6WGat8ZUk/igLOUEII+coQS6qw
+    QpuLMcCIavevX0gjdjEIkojBB81TYDofA1Bp1z1zDI/2Zhw822xapI79ZF7Rmywt
+    OSyWzFaGipgDpdFsGzvT6//z0jMr0AuJVcZ0VJ5lyPGQZAeVBlbYEI4T72cC5Cz7
+    XvLiaUtum6/sASD2PQqdDNpgx/WA6Vs1Po2kIUQIM5TIwyJI0GdykZcYm6xIK/ta
+    Wgx6c8K+qBAIVrilw3EWxw==
+    -----END DSA PRIVATE KEY-----
     EOF
     key = OpenSSL::PKey::DSA.new(pem, "abcdef")
     assert_same_dsa dsa512, key
@@ -196,6 +196,12 @@ oXi9OA==
 
     ##
     assert_equal der, key.to_der
+    assert_equal pem, key.export
+
+    assert_equal der, dsa512.public_to_der
+    assert_equal der, key.public_to_der
+    assert_equal pem, dsa512.public_to_pem
+    assert_equal pem, key.public_to_pem
 
     dup_der = dup_public(dsa512).to_der
     # pp OpenSSL::ASN1.decode(dup_der)
