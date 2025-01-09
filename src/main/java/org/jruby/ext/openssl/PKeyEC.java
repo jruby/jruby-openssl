@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import javax.crypto.KeyAgreement;
+
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1InputStream;
@@ -45,19 +46,27 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OutputStream;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.DERSequence;
-
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.asn1.x9.X962Parameters;
+import org.bouncycastle.asn1.x9.X9ECParameters;
+import org.bouncycastle.asn1.x9.X9ECPoint;
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.jcajce.provider.asymmetric.util.EC5Util;
 import org.bouncycastle.jcajce.provider.asymmetric.util.ECUtil;
+import org.bouncycastle.jcajce.provider.config.ProviderConfiguration;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.ECPointUtil;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
-
 import org.bouncycastle.math.ec.ECAlgorithms;
 import org.bouncycastle.math.ec.ECCurve;
 import org.jruby.Ruby;
@@ -82,12 +91,14 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.component.VariableEntry;
 
 import org.jruby.ext.openssl.impl.CipherSpec;
-import static org.jruby.ext.openssl.OpenSSL.debug;
-import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
 import org.jruby.ext.openssl.impl.ECPrivateKeyWithName;
-import static org.jruby.ext.openssl.impl.PKey.readECPrivateKey;
+
 import org.jruby.ext.openssl.util.ByteArrayOutputStream;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
+
+import static org.jruby.ext.openssl.OpenSSL.debug;
+import static org.jruby.ext.openssl.OpenSSL.debugStackTrace;
+import static org.jruby.ext.openssl.impl.PKey.readECPrivateKey;
 
 /**
  * OpenSSL::PKey::EC implementation.
@@ -626,27 +637,111 @@ public final class PKeyEC extends PKey {
         return privateKey != null ? getRuntime().getTrue() : getRuntime().getFalse();
     }
 
+    @JRubyMethod
+    public RubyString public_to_der(ThreadContext context) {
+        return public_to_der(context.runtime);
+    }
+
+    private RubyString public_to_der(final Ruby runtime) {
+        final byte[] bytes;
+        try {
+            bytes = publicKey.getEncoded();
+        } catch (Exception e) {
+            throw newECError(runtime, e.getMessage(), e);
+        }
+        return StringHelper.newString(runtime, bytes);
+    }
+
     @Override
     @JRubyMethod(name = "to_der")
     public RubyString to_der() {
-        final byte[] bytes;
-        try {
-            bytes = toDER();
+        final Ruby runtime = getRuntime();
+        if (publicKey != null && privateKey == null) {
+            return public_to_der(runtime);
         }
-        catch (IOException e) {
-            throw newECError(getRuntime(), e.getMessage());
-        }
-        return StringHelper.newString(getRuntime(), bytes);
-    }
-
-    private byte[] toDER() throws IOException {
-        if ( publicKey != null && privateKey == null ) {
-            return publicKey.getEncoded();
-        }
-        if ( privateKey == null ) {
+        if (privateKey == null) {
             throw new IllegalStateException("private key as well as public key are null");
         }
-        return privateKey.getEncoded();
+
+        try {
+            byte[] encoded = toPrivateKeyStructure((ECPrivateKey) privateKey, publicKey, false).getEncoded(ASN1Encoding.DER);
+            return StringHelper.newString(runtime, encoded);
+        } catch (Exception e) {
+            throw newECError(runtime, e.getMessage(), e);
+        }
+    }
+
+    @JRubyMethod
+    public RubyString private_to_der(ThreadContext context) {
+        return private_to_der(context.runtime);
+    }
+
+    private RubyString private_to_der(final Ruby runtime) {
+        final byte[] encoded;
+        if (privateKey instanceof ECPrivateKey) {
+            try {
+                encoded = toPrivateKeyInfo((ECPrivateKey) privateKey, publicKey).getEncoded(ASN1Encoding.DER);
+            } catch (IOException e) {
+                throw newECError(runtime, e.getMessage(), e);
+            }
+        } else {
+            try {
+                encoded = privateKey.getEncoded();
+            } catch (Exception e) {
+                throw newECError(runtime, e.getMessage(), e);
+            }
+        }
+        return StringHelper.newString(runtime, encoded);
+    }
+
+    private static org.bouncycastle.asn1.sec.ECPrivateKey toPrivateKeyStructure(final ECPrivateKey privateKey,
+                                                                                final ECPublicKey publicKey,
+                                                                                final boolean compressed) throws IOException {
+        final ProviderConfiguration configuration = BouncyCastleProvider.CONFIGURATION;
+        final ECParameterSpec ecSpec = privateKey.getParams();
+        final X962Parameters params = getDomainParametersFromName(ecSpec, compressed);
+
+        int orderBitLength = ECUtil.getOrderBitLength(configuration, ecSpec == null ? null : ecSpec.getOrder(), privateKey.getS());
+
+        if (publicKey == null) {
+            return new org.bouncycastle.asn1.sec.ECPrivateKey(orderBitLength, privateKey.getS(), params);
+        }
+
+        SubjectPublicKeyInfo info = SubjectPublicKeyInfo.getInstance(ASN1Primitive.fromByteArray(publicKey.getEncoded()));
+        return new org.bouncycastle.asn1.sec.ECPrivateKey(orderBitLength, privateKey.getS(), info.getPublicKeyData(), params);
+    }
+
+    private static PrivateKeyInfo toPrivateKeyInfo(final ECPrivateKey privateKey,
+                                                   final ECPublicKey publicKey) throws IOException {
+        final ECParameterSpec ecSpec = privateKey.getParams();
+        final X962Parameters params = getDomainParametersFromName(ecSpec, false);
+
+        org.bouncycastle.asn1.sec.ECPrivateKey keyStructure = toPrivateKeyStructure(privateKey, publicKey, false);
+        return new PrivateKeyInfo(new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, params), keyStructure);
+    }
+
+    private static X962Parameters getDomainParametersFromName(ECParameterSpec ecSpec, boolean compressed) {
+        if (ecSpec instanceof ECNamedCurveSpec) {
+            ASN1ObjectIdentifier curveOid = ECUtil.getNamedCurveOid(((ECNamedCurveSpec)ecSpec).getName());
+            if (curveOid == null)
+            {
+                curveOid = new ASN1ObjectIdentifier(((ECNamedCurveSpec)ecSpec).getName());
+            }
+            return new X962Parameters(curveOid);
+        }
+        if (ecSpec == null) {
+            return new X962Parameters(DERNull.INSTANCE);
+        }
+        ECCurve curve = EC5Util.convertCurve(ecSpec.getCurve());
+
+        X9ECParameters ecParameters = new X9ECParameters(
+                curve,
+                new X9ECPoint(EC5Util.convertPoint(curve, ecSpec.getGenerator()), compressed),
+                ecSpec.getOrder(),
+                BigInteger.valueOf(ecSpec.getCofactor()),
+                ecSpec.getCurve().getSeed());
+
+        return new X962Parameters(ecParameters);
     }
 
     @Override
@@ -660,17 +755,26 @@ public final class PKeyEC extends PKey {
             if ( args.length > 1 ) passwd = password(context, args[1], null);
         }
 
+        if (privateKey == null) {
+            return public_to_pem(context);
+        }
+
         try {
             final StringWriter writer = new StringWriter();
-            if ( privateKey != null ) {
-                PEMInputOutput.writeECPrivateKey(writer, (ECPrivateKey) privateKey, spec, passwd);
-            }
-            else {
-                PEMInputOutput.writeECPublicKey(writer, publicKey);
-            }
+            PEMInputOutput.writeECPrivateKey(writer, (ECPrivateKey) privateKey, spec, passwd);
             return RubyString.newString(context.runtime, writer.getBuffer());
+        } catch (IOException ex) {
+            throw newECError(context.runtime, ex.getMessage());
         }
-        catch (IOException ex) {
+    }
+
+    @JRubyMethod
+    public RubyString public_to_pem(ThreadContext context) {
+        try {
+            final StringWriter writer = new StringWriter();
+            PEMInputOutput.writeECPublicKey(writer, publicKey);
+            return RubyString.newString(context.runtime, writer.getBuffer());
+        } catch (IOException ex) {
             throw newECError(context.runtime, ex.getMessage());
         }
     }

@@ -3,6 +3,80 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestEC < TestCase
 
+  def test_PUBKEY
+    p256 = Fixtures.pkey("p256")
+    p256pub = OpenSSL::PKey::EC.new(p256.public_to_der)
+
+    public_to_der = "0Y0\x13\x06\a*\x86H\xCE=\x02\x01\x06\b*\x86H\xCE=\x03\x01\a\x03B\x00\x04\x16\td\xD9\xCF\xA8UB\nC\xAE\x1Edo[\x84\xB3OX\x1E\xE5I\x9F\xC0\xAC\xAE5xl\xB9\xC0\f\xD4\xFFA\xB9\xD5{m\t\xE0T\x97\xE3\x1A\x85\x9Bg\xF5\xF3\xB5$\xA7E\xE2\xA2fK\x7F]^zD6"
+    assert_equal public_to_der, p256.public_to_der
+
+    # MRI:
+    uncompressed_public_key = "\x04\x16\td\xD9\xCF\xA8UB\nC\xAE\x1Edo[\x84\xB3OX\x1E\xE5I\x9F\xC0\xAC\xAE5xl\xB9\xC0\f\xD4\xFFA\xB9\xD5{m\t\xE0T\x97\xE3\x1A\x85\x9Bg\xF5\xF3\xB5$\xA7E\xE2\xA2fK\x7F]^zD6"
+    assert_equal uncompressed_public_key, p256.public_key.to_octet_string(:uncompressed)
+
+    asn1 = OpenSSL::ASN1::Sequence([
+                                     OpenSSL::ASN1::Sequence([
+                                                               OpenSSL::ASN1::ObjectId("id-ecPublicKey"),
+                                                               OpenSSL::ASN1::ObjectId("prime256v1")
+                                                             ]),
+                                     OpenSSL::ASN1::BitString(
+                                       p256.public_key.to_octet_string(:uncompressed)
+                                     )
+                                   ])
+    assert_equal public_to_der, asn1.to_der
+
+    to_der = "0w\x02\x01\x01\x04 \x80\xF8\xF4P\xEAq\xFDN\xD5\xE3\xBC\xB1\xA4\xE0\e\xBD\x14mt0\xF4Z\xB0\xB1\xE9b\x8A\xDD\x9AZ\x11\xF5\xA0\n\x06\b*\x86H\xCE=\x03\x01\a\xA1D\x03B\x00\x04\x16\td\xD9\xCF\xA8UB\nC\xAE\x1Edo[\x84\xB3OX\x1E\xE5I\x9F\xC0\xAC\xAE5xl\xB9\xC0\f\xD4\xFFA\xB9\xD5{m\t\xE0T\x97\xE3\x1A\x85\x9Bg\xF5\xF3\xB5$\xA7E\xE2\xA2fK\x7F]^zD6"
+    #pp OpenSSL::ASN1.decode(to_der)
+    # #<OpenSSL::ASN1::Sequence:0x000072229cabc698
+    # @indefinite_length=false,
+    #   @tag=16,
+    #   @tag_class=:UNIVERSAL,
+    #   @tagging=nil,
+    #   @value=
+    #     [#<OpenSSL::ASN1::Integer:0x000072229cabc8c8 @indefinite_length=false, @tag=2, @tag_class=:UNIVERSAL, @tagging=nil, @value=#<OpenSSL::BN 1>>,
+    #       #<OpenSSL::ASN1::OctetString:0x000072229cabc828 @indefinite_length=false, @tag=4, @tag_class=:UNIVERSAL, @tagging=nil, @value="\x80\xF8\xF4P\xEAq\xFDN\xD5\xE3\xBC\xB1\xA4\xE0\e\xBD\x14mt0\xF4Z\xB0\xB1\xE9b\x8A\xDD\x9AZ\x11\xF5">,
+    #       #<OpenSSL::ASN1::ASN1Data:0x000072229cabc760
+    #       @indefinite_length=false,
+    #       @tag=0,
+    #       @tag_class=:CONTEXT_SPECIFIC,
+    #       @value=[#<OpenSSL::ASN1::ObjectId:0x000072229cabc7b0 @indefinite_length=false, @tag=6, @tag_class=:UNIVERSAL, @tagging=nil, @value="prime256v1">]>,
+    #         #<OpenSSL::ASN1::ASN1Data:0x000072229cabc6c0
+    #         @indefinite_length=false,
+    #         @tag=1,
+    #         @tag_class=:CONTEXT_SPECIFIC,
+    #         @value=
+    #           [#<OpenSSL::ASN1::BitString:0x000072229cabc6e8
+    #             @indefinite_length=false,
+    #             @tag=3,
+    #             @tag_class=:UNIVERSAL,
+    #             @tagging=nil,
+    #             @unused_bits=0,
+    #             @value="\x04\x16\td\xD9\xCF\xA8UB\n" + "C\xAE\x1Edo[\x84\xB3OX\x1E\xE5I\x9F\xC0\xAC\xAE5xl\xB9\xC0\f\xD4\xFFA\xB9\xD5{m\t\xE0T\x97\xE3\x1A\x85\x9Bg\xF5\xF3\xB5$\xA7E\xE2\xA2fK\x7F]^zD6">]>]>
+
+    assert_equal to_der, p256.to_der
+
+    key = OpenSSL::PKey::EC.new(asn1.to_der)
+    assert_not_predicate key, :private?
+    assert_same_ec p256pub, key
+
+    pem = <<~EOF
+    -----BEGIN PUBLIC KEY-----
+    MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFglk2c+oVUIKQ64eZG9bhLNPWB7l
+    SZ/ArK41eGy5wAzU/0G51XttCeBUl+MahZtn9fO1JKdF4qJmS39dXnpENg==
+    -----END PUBLIC KEY-----
+    EOF
+    key = OpenSSL::PKey::EC.new(pem)
+    assert_same_ec p256pub, key
+
+    assert_equal asn1.to_der, key.to_der
+    assert_equal pem, key.export
+
+    assert_equal asn1.to_der, p256.public_to_der
+    assert_equal asn1.to_der, key.public_to_der
+    assert_equal pem, p256.public_to_pem
+    assert_equal pem, key.public_to_pem
+  end
+
   def test_oid
     key = OpenSSL::PKey::EC.new
     assert_equal 'id-ecPublicKey', key.oid
@@ -285,7 +359,7 @@ class TestEC < TestCase
   end
 
   def test_sign_verify
-    p256 = Fixtures.pkey("p256.pem")
+    p256 = Fixtures.pkey("p256")
     data = "Sign me!"
     signature = p256.sign("SHA1", data)
     assert_equal true, p256.verify("SHA1", signature, data)
@@ -356,7 +430,7 @@ class TestEC < TestCase
   end
 
   def test_sign_verify_raw
-    key = Fixtures.pkey("p256.pem")
+    key = Fixtures.pkey("p256")
     data1 = "foo"
     data2 = "bar"
 
@@ -501,4 +575,19 @@ class TestEC < TestCase
 #    end
 #  end
 
+  private
+
+  def B(ary)
+    [Array(ary).join].pack("H*")
+  end
+
+  def assert_same_ec(expected, key)
+    check_component(expected, key, [:group, :public_key, :private_key])
+  end
+
+  def check_component(base, test, keys)
+    keys.each { |comp|
+      assert_equal base.send(comp), test.send(comp)
+    }
+  end
 end
