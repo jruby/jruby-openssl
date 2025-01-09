@@ -1678,13 +1678,10 @@ public class ASN1 {
             }
             if ( type == DERBitString.class ) {
                 final byte[] data = val.asString().getBytes();
-                int padBits = 0; // padBits < 8 && padBits >= 0
-                for (int i = (data.length - 1); i > -1; i--) {
-                    int b = Byte.toUnsignedInt(data[i]);
-                    if (b != 0) {
-                        padBits = Integer.numberOfTrailingZeros(b);
-                        break;
-                    }
+                int padBits = 0;
+                IRubyObject unused_bits = getInstanceVariable("@unused_bits");
+                if (unused_bits != null) {
+                    padBits = unused_bits.convertToInteger("to_i").getIntValue();
                 }
                 return new DERBitString(data, padBits);
             }

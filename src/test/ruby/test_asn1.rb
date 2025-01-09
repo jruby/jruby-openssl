@@ -1189,6 +1189,16 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     #}
   end
 
+  def test_bit_string_unused_length
+    asn = "\x00\x04".b
+    asn.prepend "\x03#{asn.bytesize.chr}"
+    bs = OpenSSL::ASN1.decode(asn)
+    assert_equal asn, bs.to_der
+
+    bs.unused_bits = 6
+    assert_equal "\x03\x02\x06\x00", bs.to_der
+  end
+
   def test_bit_string_infinite_length
     begin
       content = [ OpenSSL::ASN1::BitString.new("\x01"), OpenSSL::ASN1::EndOfContent.new() ]
