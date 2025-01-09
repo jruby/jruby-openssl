@@ -785,18 +785,16 @@ public final class PKeyEC extends PKey {
         final ECParameterSpec spec = getParamSpec();
         result.append("Private-Key: (").append(spec.getOrder().bitLength()).append(" bit)").append('\n');
 
-        if (privateKey != null) {
+        if (privateKey instanceof ECPrivateKey) {
             result.append("priv:");
             addSplittedAndFormatted(result, ((ECPrivateKey) privateKey).getS());
         }
 
         if (publicKey != null) {
             result.append("pub:");
-            final byte[] pubBytes = encodeUncompressed(getGroup(true).getBitLength(), publicKey.getW());
+            final byte[] pubBytes = encodeCompressed(publicKey.getW());
             final StringBuilder hexBytes = new StringBuilder(pubBytes.length * 2);
-            for (byte b: pubBytes) {
-                hexBytes.append(Integer.toHexString(Byte.toUnsignedInt(b)));
-            }
+            for (byte b: pubBytes) hexBytes.append(Integer.toHexString(Byte.toUnsignedInt(b)));
             addSplittedAndFormatted(result, hexBytes);
         }
         result.append("ASN1 OID: ").append(getCurveName()).append('\n');
@@ -815,12 +813,8 @@ public final class PKeyEC extends PKey {
     @JRubyClass(name = "OpenSSL::PKey::EC::Group")
     public static final class Group extends RubyObject {
 
-        private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
-            public Group allocate(Ruby runtime, RubyClass klass) { return new Group(runtime, klass); }
-        };
-
         static void createGroup(final Ruby runtime, final RubyClass EC, final RubyClass OpenSSLError) {
-            RubyClass Group = EC.defineClassUnder("Group", runtime.getObject(), ALLOCATOR);
+            RubyClass Group = EC.defineClassUnder("Group", runtime.getObject(), Group::new);
 
             // OpenSSL::PKey::EC::Group::Error
             Group.defineClassUnder("Error", OpenSSLError, OpenSSLError.getAllocator());
@@ -1006,12 +1000,8 @@ public final class PKeyEC extends PKey {
     @JRubyClass(name = "OpenSSL::PKey::EC::Point")
     public static final class Point extends RubyObject {
 
-        private static final ObjectAllocator ALLOCATOR = new ObjectAllocator() {
-            public Point allocate(Ruby runtime, RubyClass klass) { return new Point(runtime, klass); }
-        };
-
         static void createPoint(final Ruby runtime, final RubyClass EC, final RubyClass OpenSSLError) {
-            RubyClass Point = EC.defineClassUnder("Point", runtime.getObject(), ALLOCATOR);
+            RubyClass Point = EC.defineClassUnder("Point", runtime.getObject(), Point::new);
 
             // OpenSSL::PKey::EC::Point::Error
             Point.defineClassUnder("Error", OpenSSLError, OpenSSLError.getAllocator());

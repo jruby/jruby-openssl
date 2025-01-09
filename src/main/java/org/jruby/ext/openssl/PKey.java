@@ -380,16 +380,16 @@ public abstract class PKey extends RubyObject {
     }
 
     static void addSplittedAndFormatted(StringBuilder result, CharSequence v) {
-        if ((v.length() % 2) != 0) v = '0' + v.toString();
+        if ((v.length() % 2) != 0) v = "0" + v;
 
-        String sep = "";
+        char sep = '\0';
         for (int i = 0; i < v.length(); i += 2) {
             result.append(sep);
             if ((i % 30) == 0) {
                 result.append("\n    ");
             }
             result.append(v, i, i + 2);
-            sep = ":";
+            sep = ':';
         }
         result.append('\n');
     }
