@@ -1162,14 +1162,11 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     #assert_equal calulated_sig, sig_val.value
   end
 
-  # This is from the upstream MRI tests, might be superseded by `test_bit_string_infinite_length`?
+  # This is from the upstream MRI tests
   def test_bitstring
-    # TODO: Import Issue
-    # fails <nil> expected but was <0> 
-    #encode_decode_test B(%w{ 03 01 00 }), OpenSSL::ASN1::BitString.new(B(%w{}))
-    # TODO: Import Issue
-    # fails with <nil> expected but was <0>
-    #encode_decode_test B(%w{ 03 02 00 01 }), OpenSSL::ASN1::BitString.new(B(%w{ 01 }))
+    encode_decode_test B(%w{ 03 01 00 }), OpenSSL::ASN1::BitString.new(B(%w{}))
+    encode_decode_test B(%w{ 03 02 00 01 }), OpenSSL::ASN1::BitString.new(B(%w{ 01 }))
+
     obj = OpenSSL::ASN1::BitString.new(B(%w{ F0 }))
     obj.unused_bits = 4
     encode_decode_test B(%w{ 03 02 04 F0 }), obj

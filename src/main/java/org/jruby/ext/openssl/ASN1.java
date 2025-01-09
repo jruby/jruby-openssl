@@ -1574,16 +1574,21 @@ public class ASN1 {
 
             // NOTE: Primitive only
             final String baseName = self.getMetaClass().getRealClass().getBaseName();
-            if ( "ObjectId".equals( baseName ) ) {
-                final String name;
-                try {
-                    name = oid2Sym( runtime, getObjectID(runtime, value.toString()), true );
-                }
-                catch (IllegalArgumentException e) {
-                    // e.g. in case of nil "string  not an OID"
-                    throw runtime.newTypeError(e.getMessage());
-                }
-                if ( name != null ) value = runtime.newString(name);
+            switch (baseName) {
+                case "ObjectId":
+                    final String name;
+                    try {
+                        name = oid2Sym( runtime, getObjectID(runtime, value.toString()), true );
+                    }
+                    catch (IllegalArgumentException e) {
+                        // e.g. in case of nil "string  not an OID"
+                        throw runtime.newTypeError(e.getMessage());
+                    }
+                    if ( name != null ) value = runtime.newString(name);
+                    break;
+                case "BitString":
+                    self.setInstanceVariable("@unused_bits", runtime.newFixnum(0));
+                    break;
             }
 
             self.setInstanceVariable("@tag", tag);
