@@ -1683,7 +1683,11 @@ public class ASN1 {
                 if (unused_bits != null) {
                     padBits = unused_bits.convertToInteger("to_i").getIntValue();
                 }
-                return new DERBitString(data, padBits);
+                try {
+                    return new DERBitString(data, padBits);
+                } catch (IllegalArgumentException e) {
+                    throw newASN1Error(context.runtime, e.getMessage());
+                }
             }
             if ( type == DERIA5String.class ) {
                 return new DERIA5String( val.asString().toString() );

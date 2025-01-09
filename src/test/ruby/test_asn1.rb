@@ -1180,13 +1180,11 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
       OpenSSL::ASN1.decode(B(%w{ 03 03 08 FF 00 }))
     }
 
-    # TODO: Import Issue
-    # exception was expected but none was thrown.
-    #assert_raise(OpenSSL::ASN1::ASN1Error) {
-    #  obj = OpenSSL::ASN1::BitString.new(B(%w{ FF FF }))
-    #  obj.unused_bits = 8
-    #  obj.to_der
-    #}
+    assert_raise(OpenSSL::ASN1::ASN1Error) {
+      obj = OpenSSL::ASN1::BitString.new(B(%w{ FF FF }))
+      obj.unused_bits = 8
+      obj.to_der
+    }
   end
 
   def test_bit_string_unused_length
