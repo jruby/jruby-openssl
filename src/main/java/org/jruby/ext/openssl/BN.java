@@ -292,8 +292,8 @@ public class BN extends RubyObject {
         return context.runtime.newFixnum(hashCode());
     }
 
-    @JRubyMethod(name = "to_i")
-    public RubyInteger to_i() {
+    @JRubyMethod(name = "to_int", alias = "to_i")
+    public RubyInteger to_int() {
         if ( value.compareTo( MAX_LONG ) > 0 || value.compareTo( MIN_LONG ) < 0 ) {
             return RubyBignum.newBignum(getRuntime(), value);
         }
@@ -306,7 +306,6 @@ public class BN extends RubyObject {
     }
 
     @JRubyMethod(name="coerce")
-    // FIXME: is this right? don't see how it would be useful...
     public IRubyObject coerce(IRubyObject other) {
         final Ruby runtime = getRuntime();
         IRubyObject self;
@@ -314,7 +313,7 @@ public class BN extends RubyObject {
             self = runtime.newString(value.toString());
         }
         else if ( other instanceof RubyInteger ) {
-            self = to_i();
+            self = to_int();
         }
         else if ( other instanceof BN ) {
             self = this;
@@ -323,6 +322,26 @@ public class BN extends RubyObject {
             throw runtime.newTypeError("don't know how to coerce to " + other.getMetaClass().getName());
         }
         return runtime.newArray(other, self);
+    }
+
+    @JRubyMethod(name="-@")
+    public IRubyObject op_uminus(final ThreadContext context) {
+        return newBN(context.runtime, value.negate());
+    }
+
+    @JRubyMethod(name="+@")
+    public IRubyObject op_uplus(final ThreadContext context) {
+        return newBN(context.runtime, value);
+    }
+
+    @JRubyMethod
+    public IRubyObject abs(final ThreadContext context) {
+        return newBN(context.runtime, value.abs());
+    }
+
+    @JRubyMethod(name="negative?")
+    public IRubyObject negative_p(final ThreadContext context) {
+        return context.runtime.newBoolean(value.signum() == -1);
     }
 
     @JRubyMethod(name="zero?")

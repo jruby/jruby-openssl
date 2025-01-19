@@ -2,6 +2,85 @@ require File.expand_path('test_helper', File.dirname(__FILE__))
 
 class TestBN < TestCase
 
+  def setup
+    super
+    @e1 = OpenSSL::BN.new(999.to_s(16), 16) # OpenSSL::BN.new(str, 16) must be most stable
+    @e2 = OpenSSL::BN.new("-" + 999.to_s(16), 16)
+    @e3 = OpenSSL::BN.new((2**107-1).to_s(16), 16)
+    @e4 = OpenSSL::BN.new("-" + (2**107-1).to_s(16), 16)
+  end
+
+  def test_to_int
+    assert_equal(999, @e1.to_i)
+    assert_equal(-999, @e2.to_i)
+    assert_equal(2**107-1, @e3.to_i)
+    assert_equal(-(2**107-1), @e4.to_i)
+
+    assert_equal(999, @e1.to_int)
+  end
+
+  def test_coerce
+    assert_equal(["", "-999"], @e2.coerce(""))
+    assert_equal([1000, -999], @e2.coerce(1000))
+    assert_raise(TypeError) { @e2.coerce(Class.new.new) }
+  end
+
+  def test_zero_p
+    assert_equal(true, 0.to_bn.zero?)
+    assert_equal(false, 1.to_bn.zero?)
+  end
+
+  def test_one_p
+    assert_equal(true, 1.to_bn.one?)
+    assert_equal(false, 2.to_bn.one?)
+  end
+
+  def test_odd_p
+    assert_equal(true, 1.to_bn.odd?)
+    assert_equal(false, 2.to_bn.odd?)
+  end
+
+  def test_negative_p
+    assert_equal(false, 0.to_bn.negative?)
+    assert_equal(false, @e1.negative?)
+    assert_equal(true, @e2.negative?)
+  end
+
+  def test_abs
+    assert_equal(@e1, @e2.abs)
+    assert_equal(@e3, @e4.abs)
+    assert_not_equal(@e2, @e2.abs)
+    assert_not_equal(@e4, @e4.abs)
+    assert_equal(false, @e2.abs.negative?)
+    assert_equal(false, @e4.abs.negative?)
+    assert_equal(true, (-@e1.abs).negative?)
+    assert_equal(true, (-@e2.abs).negative?)
+    assert_equal(true, (-@e3.abs).negative?)
+    assert_equal(true, (-@e4.abs).negative?)
+  end
+
+  def test_unary_plus_minus
+    assert_equal(999, +@e1)
+    assert_equal(-999, +@e2)
+    assert_equal(-999, -@e1)
+    assert_equal(+999, -@e2)
+
+    # These methods create new BN instances due to BN mutability
+    # Ensure that the instance isn't the same
+    e1_plus = +@e1
+    e1_minus = -@e1
+    assert_equal(false, @e1.equal?(e1_plus))
+    assert_equal(true, @e1 == e1_plus)
+    assert_equal(false, @e1.equal?(e1_minus))
+  end
+
+  def test_mod
+    assert_equal(1, 1.to_bn % 2)
+    assert_equal(0, 2.to_bn % 1)
+    #assert_equal(-2, -2.to_bn % 7)
+  end
+
+
   def test_new
     bn = OpenSSL::BN.new('0') unless defined? JRUBY_VERSION
     assert_equal ( bn || OpenSSL::BN.new(0) ).to_s, '0'
