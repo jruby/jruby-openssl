@@ -641,7 +641,7 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="iqmp")
     public synchronized IRubyObject get_iqmp() {
-        BigInteger iqmp = rsa_iqmp;
+        BigInteger iqmp = this.rsa_iqmp;
         if (iqmp == null && privateKey instanceof RSAPrivateCrtKey) {
             iqmp = ((RSAPrivateCrtKey) privateKey).getCrtCoefficient();
         }
@@ -652,7 +652,7 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="dmp1")
     public synchronized IRubyObject get_dmp1() {
-        BigInteger dmp1 = rsa_dmp1;
+        BigInteger dmp1 = this.rsa_dmp1;
         if (dmp1 == null && privateKey instanceof RSAPrivateCrtKey) {
             dmp1 = ((RSAPrivateCrtKey) privateKey).getPrimeExponentP();
         }
@@ -663,8 +663,8 @@ public class PKeyRSA extends PKey {
 
     @JRubyMethod(name="dmq1")
     public synchronized IRubyObject get_dmq1() {
-        BigInteger dmq1 = rsa_dmq1;
-        if (dmq1 != null && privateKey instanceof RSAPrivateCrtKey) {
+        BigInteger dmq1 = this.rsa_dmq1;
+        if (dmq1 == null && privateKey instanceof RSAPrivateCrtKey) {
             dmq1 = ((RSAPrivateCrtKey) privateKey).getPrimeExponentQ();
         }
 
