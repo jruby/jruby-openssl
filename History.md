@@ -1,3 +1,22 @@
+## 0.15.3
+
+* [fix] keep curve name when group is set into another key
+* [fix] make sure `OpenSSL::PKey::EC#dup` (copying) works
+* [compat] make sure `OpenSSL::PKey::EC#generate_key!` exists
+* [compat] missing OpenSSL:BN `to_int`, `-@`, `+@`, `abs`, `negative?`
+* [compat] implement PKey::EC `public_to_pem` and `xxx_to_der`
+* [fix] initialize @unused_bits = 0 for BitString
+* [fix] raise ASN1Error when unused_bits out of range
+* [fix] respect @unused_bits in BitString (#323)
+* [fix] missing `OpenSSL::ASN1::ObjectId#==` (#311)
+* [compat] implement PKey::DSA `public_to_der` and `public_to_pem`
+* [compat] implement PKey::RSA `public_to_der` and `public_to_pem`
+* [fix] DSA private key should generate after `set_key`
+* [refactor] RSA key internals to always consider params
+* [fix] DSA key compatibility when `set_pqg`
+* [fix] RSA private key should generate after `set_key`
+* [compat] add private? and public? methods on `PKey::EC`
+
 ## 0.15.2
 
 * [deps] upgrade BC to version 1.79
