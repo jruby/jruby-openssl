@@ -399,6 +399,20 @@ public final class PKeyEC extends PKey {
         this.curveName = this.group.getCurveName();
     }
 
+    @Override
+    public IRubyObject initialize_copy(final IRubyObject original) {
+        if (this == original) return this;
+        checkFrozen();
+
+        final PKeyEC that = (PKeyEC) original;
+        this.publicKey = that.publicKey;
+        this.privateKey = that.privateKey;
+        this.curveName = that.curveName;
+        this.group = that.group;
+
+        return this;
+    }
+
     //private static ECNamedCurveParameterSpec readECParameters(final byte[] input) throws IOException {
     //    ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.getInstance(input);
     //    return ECNamedCurveTable.getParameterSpec(oid.getId());

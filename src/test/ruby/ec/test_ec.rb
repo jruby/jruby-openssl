@@ -3,6 +3,50 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestEC < TestCase
 
+  def test_ec_key
+    builtin_curves = OpenSSL::PKey::EC.builtin_curves
+    assert_not_empty builtin_curves
+
+    builtin_curves.each do |curve_name, comment|
+      # Oakley curves and X25519 are not suitable for signing and causes
+      # FIPS-selftest failure on some environment, so skip for now.
+      next if ["Oakley", "X25519"].any? { |n| curve_name.start_with?(n) }
+
+      key = OpenSSL::PKey::EC.generate(curve_name)
+      assert_predicate key, :private?
+      assert_predicate key, :public?
+      assert_nothing_raised { key.check_key }
+    end
+
+    key1 = OpenSSL::PKey::EC.generate("prime256v1")
+
+    # PKey is immutable in OpenSSL >= 3.0; constructing an empty EC object is deprecated
+    #if !openssl?(3, 0, 0)
+    #   key2 = OpenSSL::PKey::EC.new
+    #   key2.group = key1.group
+    #   key2.private_key = key1.private_key
+    #   key2.public_key = key1.public_key
+    #   assert_equal key1.to_der, key2.to_der
+    #end
+
+    key3 = OpenSSL::PKey::EC.new(key1)
+    assert_equal key1.to_der, key3.to_der
+
+    key4 = OpenSSL::PKey::EC.new(key1.to_der)
+    assert_equal key1.to_der, key4.to_der
+
+    key5 = key1.dup
+    assert_equal key1.to_der, key5.to_der
+
+    # PKey is immutable in OpenSSL >= 3.0; EC object should not be modified
+    #if !openssl?(3, 0, 0)
+      key_tmp = OpenSSL::PKey::EC.generate("prime256v1")
+      key5.private_key = key_tmp.private_key
+      key5.public_key = key_tmp.public_key
+      assert_not_equal key1.to_der, key5.to_der
+    #end
+  end
+
   def test_generate
     assert_raise(OpenSSL::PKey::ECError) { OpenSSL::PKey::EC.generate("non-existent") }
     g = OpenSSL::PKey::EC::Group.new("prime256v1")
