@@ -409,7 +409,7 @@ public final class PKeyEC extends PKey {
         return context.runtime.getTrue(); // TODO not implemented stub
     }
 
-    @JRubyMethod(name = "generate_key")
+    @JRubyMethod(name = "generate_key!", alias = "generate_key")
     public PKeyEC generate_key(final ThreadContext context) {
         try {
             ECGenParameterSpec genSpec = new ECGenParameterSpec(getCurveName());

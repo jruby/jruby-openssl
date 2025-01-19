@@ -3,6 +3,22 @@ require File.expand_path('../test_helper', File.dirname(__FILE__))
 
 class TestEC < TestCase
 
+  def test_generate
+    assert_raise(OpenSSL::PKey::ECError) { OpenSSL::PKey::EC.generate("non-existent") }
+    g = OpenSSL::PKey::EC::Group.new("prime256v1")
+    ec = OpenSSL::PKey::EC.generate(g)
+    assert_equal(true, ec.private?)
+    ec = OpenSSL::PKey::EC.generate("prime256v1")
+    assert_equal(true, ec.private?)
+  end
+
+  def test_generate_key
+    ec = OpenSSL::PKey::EC.new("prime256v1")
+    assert_equal false, ec.private?
+    ec.generate_key!
+    assert_equal true, ec.private?
+  end #if !openssl?(3, 0, 0)
+
   def test_PUBKEY
     p256 = Fixtures.pkey("p256")
     p256pub = OpenSSL::PKey::EC.new(p256.public_to_der)
