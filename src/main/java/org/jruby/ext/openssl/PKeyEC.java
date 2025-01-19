@@ -227,10 +227,14 @@ public final class PKeyEC extends PKey {
 
     private String curveName;
 
-    private String getCurveName() { return curveName; }
+    private String getCurveName() {
+        if (curveName == null && group != null) {
+            curveName = group.getCurveName();
+        }
+        return curveName;
+    }
 
     private ECNamedCurveParameterSpec getParameterSpec() {
-        assert curveName != null;
         return ECNamedCurveTable.getParameterSpec(getCurveName());
     }
 
@@ -836,12 +840,12 @@ public final class PKeyEC extends PKey {
             Group.defineAnnotatedMethods(Group.class);
         }
 
-        private transient PKeyEC key;
         private transient ECParameterSpec paramSpec;
 
         private PointConversion conversionForm = PointConversion.UNCOMPRESSED;
 
-        private RubyString curve_name;
+        private String curveName;
+        private RubyString impl_curve_name;
 
         public Group(Ruby runtime, RubyClass type) {
             super(runtime, type);
@@ -849,7 +853,7 @@ public final class PKeyEC extends PKey {
 
         Group(Ruby runtime, PKeyEC key) {
             this(runtime, _EC(runtime).getClass("Group"));
-            this.key = key;
+            setCurveName(runtime, key.getCurveName());
         }
 
         @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
@@ -860,19 +864,21 @@ public final class PKeyEC extends PKey {
                 IRubyObject arg = args[0];
 
                 if ( arg instanceof Group ) {
-                    this.curve_name = ((Group) arg).implCurveName(runtime);
+                    this.curveName = ((Group) arg).curveName;
                     return this;
                 }
 
-                this.curve_name = arg.convertToString();
+                this.impl_curve_name = arg.convertToString();
             }
             return this;
         }
 
         private String getCurveName() {
-            if (key != null) return key.getCurveName();
-            assert curve_name != null;
-            return curve_name.toString();
+            if (curveName == null) {
+                assert impl_curve_name != null;
+                return impl_curve_name.asJavaString();
+            }
+            return curveName;
         }
 
         @Override
@@ -892,16 +898,21 @@ public final class PKeyEC extends PKey {
         }
 
         private RubyString implCurveName(final Ruby runtime) {
-            if (curve_name == null) {
-                assert key != null;
-                String prefix, curveName = key.getCurveName();
-                // BC 1.54: "brainpoolP512t1" 1.55: "brainpoolp512t1"
-                if (curveName.startsWith(prefix = "brainpoolp")) {
-                    curveName = "brainpoolP" + curveName.substring(prefix.length());
-                }
-                curve_name = RubyString.newString(runtime, curveName);
+            if (impl_curve_name == null && curveName != null) {
+                setCurveName(runtime, curveName);
             }
-            return curve_name;
+            return impl_curve_name;
+        }
+
+        private void setCurveName(final Ruby runtime, String curveName) {
+            assert curveName != null;
+            this.curveName = curveName;
+            String prefix;
+            // BC 1.54: "brainpoolP512t1" 1.55: "brainpoolp512t1"
+            if (curveName.startsWith(prefix = "brainpoolp")) {
+                curveName = "brainpoolP" + curveName.substring(prefix.length());
+            }
+            impl_curve_name = RubyString.newString(runtime, curveName);
         }
 
         @JRubyMethod
@@ -956,11 +967,7 @@ public final class PKeyEC extends PKey {
 
         private ECParameterSpec getParamSpec() {
             if (paramSpec == null) {
-                if (key != null) {
-                    return paramSpec = key.getParamSpec();
-                }
-                assert curve_name != null;
-                return paramSpec = PKeyEC.getParamSpec(getCurveName());
+                paramSpec = PKeyEC.getParamSpec(getCurveName());
             }
             return paramSpec;
         }

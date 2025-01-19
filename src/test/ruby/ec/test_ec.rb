@@ -22,11 +22,11 @@ class TestEC < TestCase
 
     # PKey is immutable in OpenSSL >= 3.0; constructing an empty EC object is deprecated
     #if !openssl?(3, 0, 0)
-    #   key2 = OpenSSL::PKey::EC.new
-    #   key2.group = key1.group
-    #   key2.private_key = key1.private_key
-    #   key2.public_key = key1.public_key
-    #   assert_equal key1.to_der, key2.to_der
+      key2 = OpenSSL::PKey::EC.new
+      key2.group = key1.group
+      key2.private_key = key1.private_key
+      key2.public_key = key1.public_key
+      assert_equal key1.to_der, key2.to_der
     #end
 
     key3 = OpenSSL::PKey::EC.new(key1)
