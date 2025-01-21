@@ -80,6 +80,33 @@ class TestSSL < TestCase
     end
   end
 
+  def test_post_connection_check_othername_subject_alt_name
+    sslerr = OpenSSL::SSL::SSLError
+
+    fixtures_path = File.expand_path('fixtures/othername_cert', File.dirname(__FILE__))
+
+    @ca_cert = OpenSSL::X509::Certificate.new(File.read(File.join(fixtures_path, 'othername.crt')))
+    @svr_cert = OpenSSL::X509::Certificate.new(File.read(File.join(fixtures_path, 'othername.crt')))
+    @svr_key  = OpenSSL::PKey.read(File.read(File.join(fixtures_path, 'othername.key')))
+
+    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.connect
+
+      assert ssl.post_connection_check("localhost.localdomain")
+      assert ssl.post_connection_check("127.0.0.1")
+      assert_raise(sslerr) { ssl.post_connection_check("localhost") }
+      assert_raise(sslerr) { ssl.post_connection_check("foo.example.com") }
+
+      cert = ssl.peer_cert
+      assert OpenSSL::SSL.verify_certificate_identity(cert, "localhost.localdomain")
+      assert OpenSSL::SSL.verify_certificate_identity(cert, "127.0.0.1")
+      refute OpenSSL::SSL.verify_certificate_identity(cert, "localhost")
+      refute OpenSSL::SSL.verify_certificate_identity(cert, "foo.example.com")
+    end
+  end
+
   def test_post_connect_check_with_anon_ciphers
     unless OpenSSL::ExtConfig::TLS_DH_anon_WITH_AES_256_GCM_SHA384
       return skip('OpenSSL::ExtConfig::TLS_DH_anon_WITH_AES_256_GCM_SHA384 not enabled')

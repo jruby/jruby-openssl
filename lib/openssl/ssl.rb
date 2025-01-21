@@ -270,26 +270,21 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       should_verify_common_name = true
       cert.extensions.each{|ext|
         next if ext.oid != "subjectAltName"
-        ext.value.split(/,\s+/).each { |general_name|
-          #case san.tag
-          # MRI 2.2.3 (JRuby parses ASN.1 differently)
-          #when 2 # dNSName in GeneralName (RFC5280)
-          if /\ADNS:(.*)/ =~ general_name
+        ostr = OpenSSL::ASN1.decode(ext.to_der).value.last
+        sequence = OpenSSL::ASN1.decode(ostr.value)
+        sequence.value.each{|san|
+          case san.tag
+          when 2 # dNSName in GeneralName (RFC5280)
             should_verify_common_name = false
-            return true if verify_hostname(hostname, $1)
-          # MRI 2.2.3 (JRuby parses ASN.1 differently)
-          #when 7 # iPAddress in GeneralName (RFC5280)
-          elsif /\AIP(?: Address)?:(.*)/ =~ general_name
+            return true if verify_hostname(hostname, san.value.last.value)
+          when 7 # iPAddress in GeneralName (RFC5280)
             should_verify_common_name = false
-            return true if $1 == hostname
-            # NOTE: bellow logic makes little sense JRuby reads exts differently
-            # follows GENERAL_NAME_print() in x509v3/v3_alt.c
-            # if san.value.size == 4 || san.value.size == 16
-            #    begin
-            #      return true if $1 == IPAddr.new(hostname).to_s
-            #    rescue IPAddr::InvalidAddressError
-            #    end
-            # end
+            if san.value.last.value.size == 4 || san.value.last.value.size == 16
+              begin
+                return true if san.value.last.value == IPAddr.new(hostname).hton
+              rescue IPAddr::InvalidAddressError
+              end
+            end
           end
         }
       }
