@@ -314,7 +314,7 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       san_parts = san.downcase.split(".")
 
       # TODO: this behavior should probably be more strict
-      return san == hostname if san_parts.size < 2
+      return san.downcase == hostname.downcase if san_parts.size < 2
 
       # Matching is case-insensitive.
       host_parts = hostname.downcase.split(".")
