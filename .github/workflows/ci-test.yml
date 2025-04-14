@@ -41,6 +41,12 @@ jobs:
           - java-version: 21
             distribution: oracle
             ruby-version: jruby-9.4.8.0
+          - java-version: 21
+            distribution: zulu
+            ruby-version: jruby-head # 10.0
+          - java-version: 24
+            distribution: corretto
+            ruby-version: jruby-head # 10.0
       fail-fast: false
 
     steps:
