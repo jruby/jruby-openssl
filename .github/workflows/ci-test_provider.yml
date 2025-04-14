@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        ruby-version: [ jruby-9.4.8.0 ]
+        ruby-version: [ jruby-9.4.12.0 ]
         java-version: [ 21, 23 ]
         distribution: [ temurin, oracle ]
         include:
