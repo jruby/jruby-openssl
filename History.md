@@ -1,3 +1,7 @@
+## 0.15.4
+
+* [fix] Verify hostname by default (CVE-2025-46551)
+
 ## 0.15.3
 
 * [fix] keep curve name when group is set into another key
