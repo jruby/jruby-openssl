@@ -1071,15 +1071,14 @@ public class ASN1 {
                     break;
             }
 
-            if (taggedObj.getTagClass() == BERTags.APPLICATION) {
+            try {
                 final ASN1Sequence sequence = (ASN1Sequence) taggedObj.getBaseUniversal(false, SEQUENCE);
                 @SuppressWarnings("unchecked")
                 final RubyArray valArr = decodeObjects(context, ASN1, sequence.getObjects());
                 return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
-            } else {
-                IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject());
-                final RubyArray valArr = runtime.newArray(val);
-                return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { valArr, tag, tag_class }, Block.NULL_BLOCK);
+            } catch (IllegalStateException e) {
+                IRubyObject val = decodeObject(context, ASN1, taggedObj.getBaseObject()).callMethod(context, "value");
+                return ASN1.getClass("ASN1Data").newInstance(context, new IRubyObject[] { val, tag, tag_class }, Block.NULL_BLOCK);
             }
         }
 
@@ -1357,6 +1356,10 @@ public class ASN1 {
             return "EndOfContent".equals( getClassBaseName() );
         }
 
+        boolean isUniversal(final ThreadContext context) {
+            return "ASN1Data".equals(getClassBaseName()) && getTagClass(context) == 0;
+        }
+
         IRubyObject tagging() {
             return getInstanceVariable("@tagging");
         }
@@ -1395,22 +1398,51 @@ public class ASN1 {
 
             final IRubyObject value = callMethod(context, "value");
             if (value instanceof RubyArray) {
+                // Cruby openssl joins elements of array and casts to string
                 final RubyArray arr = (RubyArray) value;
-                assert ! arr.isEmpty();
 
+                StringBuilder values = new StringBuilder();
                 ASN1EncodableVector vec = new ASN1EncodableVector();
-                for (final IRubyObject obj : arr.toJavaArray()) {
-                    ASN1Encodable data = ((ASN1Data) obj).toASN1(context);
-                    if ( data == null ) break;
-                    vec.add( data );
-                }
-                return new DERTaggedObject(isExplicitTagging(), tag, new DERSequence(vec));
-            }
 
-            if (!(value instanceof ASN1Data)) {
-                throw new UnsupportedOperationException("toASN1 " + inspect() + " value: " + value.inspect() + " (" + value.getMetaClass() + ")");
+                for (final IRubyObject obj : arr.toJavaArray()) {
+                    if (obj instanceof ASN1Data) {
+                        ASN1Encodable data = ((ASN1Data) obj).toASN1(context);
+                        if (data == null) break;
+                        vec.add(data);
+                    } else {
+                        final IRubyObject string = obj.checkStringType();
+                        if (string instanceof RubyString) {
+                            values.append(string.asJavaString());
+                        } else {
+                            throw context.runtime.newTypeError(
+                                    "no implicit conversion of " + obj.getMetaClass().getBaseName() + " into String");
+                        }
+                    }
+                }
+
+                if (vec.size() > 0) {
+                    // array of asn1 objects as value
+                    return new DERTaggedObject(isExplicitTagging(), tag, new DERSequence(vec));
+                }
+
+                // array of strings as value (default)
+                return new DERTaggedObject(isExplicitTagging(), tagClass, tag,
+                        new DERGeneralString(values.toString()));
+            } else if (value instanceof ASN1Data) {
+                return new DERTaggedObject(isExplicitTagging(), tagClass, tag, ((ASN1Data) value).toASN1(context));
+            } else if (value instanceof RubyObject) {
+                final IRubyObject string = value.checkStringType();
+                if (string instanceof RubyString) {
+                    return new DERTaggedObject(isExplicitTagging(), tagClass, tag,
+                            new DERGeneralString(string.asJavaString()));
+                } else {
+                    throw context.runtime.newTypeError(
+                            "no implicit conversion of " + value.getMetaClass().getBaseName() + " into String");
+                }
+            } else {
+                throw context.runtime.newTypeError(
+                        "no implicit conversion of " + value.getMetaClass().getBaseName() + " into String");
             }
-            return new DERTaggedObject(isExplicitTagging(), tagClass, tag, ((ASN1Data) value).toASN1(context));
         }
 
         @JRubyMethod
@@ -1426,6 +1458,41 @@ public class ASN1 {
 
         byte[] toDER(final ThreadContext context) throws IOException {
             if ( isEOC() ) return new byte[] { 0x00, 0x00 };
+
+            if (isUniversal(context)) {
+                // handstitch conversion
+                final java.io.ByteArrayOutputStream out = new ByteArrayOutputStream();
+                final IRubyObject value = callMethod(context, "value");
+
+                final byte[] valueBytes;
+                if (value instanceof RubyArray) {
+                    final RubyArray arr = (RubyArray) value;
+                    final java.io.ByteArrayOutputStream valueOut = new ByteArrayOutputStream();
+
+                    for (final IRubyObject obj : arr.toJavaArray()) {
+                        final IRubyObject string = value.checkStringType();
+                        if (string instanceof RubyString) {
+                            valueOut.write(((RubyString) string).getBytes());
+                        } else {
+                            throw context.runtime.newTypeError(
+                                    "no implicit conversion of " + obj.getMetaClass().getBaseName() + " into String");
+                        }
+                    }
+                    valueBytes = valueOut.toByteArray();
+                } else {
+                    final IRubyObject string = value.checkStringType();
+                    if (string instanceof RubyString) {
+                        valueBytes = ((RubyString) string).getBytes();
+                    } else {
+                        throw context.runtime.newTypeError(
+                                "no implicit conversion of " + value.getMetaClass().getBaseName() + " into String");
+                    }
+                }
+                out.write(getTag(context));
+                out.write(valueBytes.length);
+                out.write(valueBytes);
+                return out.toByteArray();
+            }
             return toASN1(context).toASN1Primitive().getEncoded(ASN1Encoding.DER);
         }
 
@@ -1616,6 +1683,11 @@ public class ASN1 {
 
         @Override
         boolean isEOC() {
+            return false;
+        }
+
+        @Override
+        boolean isUniversal(final ThreadContext context) {
             return false;
         }
 
