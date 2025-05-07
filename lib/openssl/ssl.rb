@@ -20,7 +20,7 @@ module OpenSSL
       DEFAULT_PARAMS = { # :nodoc:
         :min_version => OpenSSL::SSL::TLS1_VERSION,
         :verify_mode => OpenSSL::SSL::VERIFY_PEER,
-        :verify_hostname => nil, # TODO => true needs JRuby support to call verify_certificate_identity
+        :verify_hostname => true,
         :options => OpenSSL::SSL::OP_ALL | OpenSSL::SSL::OP_NO_COMPRESSION
       }
 
