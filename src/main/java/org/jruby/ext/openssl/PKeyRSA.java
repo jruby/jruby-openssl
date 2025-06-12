@@ -574,8 +574,9 @@ public class PKeyRSA extends PKey {
         }
     }
 
+    @Override
     @JRubyMethod
-    public IRubyObject oid() {
+    public RubyString oid() {
         return getRuntime().newString("rsaEncryption");
     }
 
