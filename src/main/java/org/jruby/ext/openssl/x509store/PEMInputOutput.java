@@ -98,6 +98,7 @@ import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.cms.ContentInfo;
+import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.EncryptionScheme;
 import org.bouncycastle.asn1.pkcs.PBES2Parameters;
 import org.bouncycastle.asn1.pkcs.PBKDF2Params;
@@ -263,6 +264,9 @@ public class PEMInputOutput {
                     throw new IOException("problem creating X509 REQ: " + e.toString(), e);
                 }
             }
+            else if ( line.indexOf(BEF_G) != -1 ) {
+                throw new IOException("unknown PEM object: " + line);
+            }
         }
         return null;
     }
@@ -304,6 +308,9 @@ public class PEMInputOutput {
                 } catch (Exception e) {
                     throw new IOException("problem reading PEM X509 REQ: " + e.toString(), e);
                 }
+            }
+            else if ( line.indexOf(BEF_G) != -1 ) {
+                throw new IOException("unknown PEM object: " + line);
             }
         }
         return null;
@@ -1498,6 +1505,12 @@ public class PEMInputOutput {
         }
         if (X9ObjectIdentifiers.id_dsa.equals(algIdentifier)) {
             return Type.DSA;
+        }
+        if (EdECObjectIdentifiers.id_X25519.equals(algIdentifier)) {
+            return Type.X25519;
+        }
+        if (EdECObjectIdentifiers.id_Ed25519.equals(algIdentifier)) {
+            return Type.Ed25519;
         }
 
         return Type.valueOf(algIdentifier.getId());
