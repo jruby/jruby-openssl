@@ -1295,7 +1295,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal 'o=Telstra', asn1_data.value[1].value
     assert_equal OpenSSL::ASN1::ASN1Data, asn1_data.value[2].class
     assert_equal :CONTEXT_SPECIFIC,  asn1_data.value[2].tag_class
-#    assert_equal 'ess', asn1_data.value[2].value
+    assert_equal 'ess', asn1_data.value[2].value
 
 #    assert_equal raw, asn1.to_der
   end
