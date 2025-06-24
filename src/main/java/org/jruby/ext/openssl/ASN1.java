@@ -1474,6 +1474,13 @@ public class ASN1 {
                     }
                     valueBytes = valueOut.toByteArray();
                 } else {
+                    if (isIndefiniteLength) {
+                        throw newASN1Error(
+                            context.runtime,
+                            "indefinite length form cannot be used with primitive encoding"
+                        );
+                    }
+
                     final IRubyObject string = value.checkStringType();
                     if (string instanceof RubyString) {
                         valueBytes = ((RubyString) string).getBytes();
