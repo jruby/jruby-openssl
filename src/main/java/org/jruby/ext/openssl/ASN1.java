@@ -1166,19 +1166,60 @@ public class ASN1 {
 
     private static IRubyObject decodeImpl(final ThreadContext context, final RubyModule ASN1, final BytesInputStream in)
         throws IOException, IllegalArgumentException {
+        final byte[] asn1 = in.bytes();
+        int offset = in.offset();
+        final int tag = asn1[offset] & 0xFF;
+
+        if ( ( tag & BERTags.CONSTRUCTED ) == 0 ) {
+            return decodeObject(context, ASN1, readObject(in));
+        }
+
         // NOTE: need to handle OpenSSL::ASN1::Constructive wrapping by hand :
-        final Integer tag = getConstructiveTag(in.bytes(), in.offset());
-        IRubyObject decoded = decodeObject(context, ASN1, readObject( in ));
-        if ( tag != null ) { // OpenSSL::ASN1::Constructive.new( arg ) :
-            if ( tag.intValue() == SEQUENCE ) {
-                //type = "Sequence"; // got a OpenSSL::ASN1::Sequence already :
-                return Constructive.setInfiniteLength(context, decoded);
+        int tagNo = tag & 0x1f;
+        if (tagNo == 0x1f)
+        {
+            tagNo = 0;
+            int b = asn1[ ++offset ];
+
+            // X.690-0207 8.1.2.4.2
+            // "c) bits 7 to 1 of the first subsequent octet shall not all be zero."
+            if ((b & 0x7f) == 0) // Note: -1 will pass
+            {
+                throw new IOException("corrupted stream - invalid high tag number found");
             }
-            if ( tag.intValue() == SET ) {
-                //type = "Set"; // got a OpenSSL::ASN1::Set already :
-                return Constructive.setInfiniteLength(context, decoded);
+
+            while ((b >= 0) && ((b & 0x80) != 0))
+            {
+                tagNo |= (b & 0x7f);
+                tagNo <<= 7;
+                b = asn1[ ++offset ];
             }
-            return Constructive.newInfiniteConstructive(context, "Constructive", context.runtime.newArray(decoded), tag);
+
+            if (b < 0)
+            {
+                throw new IOException("EOF found inside tag value.");
+            }
+
+            tagNo |= (b & 0x7f);
+        }
+        final int length = asn1[ ++offset ] & 0xFF;
+        final boolean isIndefiniteLength = length == 0x80;
+
+        IRubyObject decoded = decodeObject(context, ASN1, readObject(in));
+        final boolean isUniversal = ((ASN1Data) decoded).isUniversal(context);
+
+        if (isIndefiniteLength) {
+            if (tagNo == BERTags.SEQUENCE || tagNo == BERTags.SET) {
+                return ASN1Data.setInfiniteLength(context, decoded);
+            } else if (isUniversal) {
+                decoded = Constructive.newInfiniteLength(context, context.runtime.newArray(decoded), tagNo);
+            } else {
+                if (decoded instanceof ASN1Data) {
+                    return ASN1Data.setInfiniteLength(context, decoded);
+                } else {
+                    decoded = ASN1Data.newInfiniteLength(context, context.runtime.newArray(decoded), tagNo, ((ASN1Data) decoded).tagClass());
+                }
+            }
         }
         return decoded;
     }
@@ -1235,89 +1276,6 @@ public class ASN1 {
         return new ASN1InputStream(bytes).readObject();
     }
 
-    // NOTE: BC's ASNInputStream internals "reinvented" a bit :
-    private static Integer getConstructiveTag(final byte[] asn1, int offset) {
-        final int tag = asn1[ offset ] & 0xFF;
-        if ( ( tag & BERTags.CONSTRUCTED ) != 0 ) { // isConstructed
-            //
-            // calculate tag number
-            //
-            // readTagNumber(asn1, ++offset, tag) :
-            int tagNo = tag & 0x1f;
-            //
-            // with tagged object tag number is bottom 5 bits, or stored at the start of the content
-            //
-            if (tagNo == 0x1f)
-            {
-                tagNo = 0;
-
-                int b = asn1[ ++offset ]; //s.read();
-
-                // X.690-0207 8.1.2.4.2
-                // "c) bits 7 to 1 of the first subsequent octet shall not all be zero."
-                if ((b & 0x7f) == 0) // Note: -1 will pass
-                {
-                    return null; //throw new IOException("corrupted stream - invalid high tag number found");
-                }
-
-                while ((b >= 0) && ((b & 0x80) != 0))
-                {
-                    tagNo |= (b & 0x7f);
-                    tagNo <<= 7;
-                    b = asn1[ ++offset ]; //s.read();
-                }
-
-                if (b < 0)
-                {
-                    return null; //throw new EOFException("EOF found inside tag value.");
-                }
-
-                tagNo |= (b & 0x7f);
-            }
-
-            //
-            // calculate length
-            //
-            final int length = asn1[ ++offset ] & 0xFF;
-
-            if ( length == 0x80 ) {
-                // return -1; // indefinite-length encoding
-            }
-            else {
-                return null;
-            }
-
-            if ((tag & BERTags.APPLICATION) != 0) {
-                //return new BERApplicationSpecificParser(tagNo, sp).getLoadedObject();
-            }
-
-            if ((tag & BERTags.TAGGED) != 0) {
-                //return new BERTaggedObjectParser(true, tagNo, sp).getLoadedObject();
-            }
-
-            //System.out.println(" tagNo = 0x" + Integer.toHexString(tagNo));
-            // TODO There are other tags that may be constructed (e.g. BIT_STRING)
-            switch (tagNo) {
-                case BERTags.SEQUENCE :
-                    //return new BERSequenceParser(sp).getLoadedObject();
-                    return Integer.valueOf( SEQUENCE ); //return "Sequence";
-                case BERTags.SET :
-                    //return new BERSetParser(sp).getLoadedObject();
-                    return Integer.valueOf( SET ); //return "Set";
-                case BERTags.OCTET_STRING :
-                    return Integer.valueOf( OCTET_STRING );
-                    //return new BEROctetStringParser(sp).getLoadedObject();
-                case BERTags.EXTERNAL :
-                    //return new DERExternalParser(sp).getLoadedObject();
-                default:
-                    return Integer.valueOf( 0 ); //return "Constructive";
-                    //throw new IOException("unknown BER object encountered");
-            }
-        }
-
-        return null;
-    }
-
     public static class ASN1Data extends RubyObject {
         private static final long serialVersionUID = 6117598347932209839L;
 
@@ -1340,7 +1298,36 @@ public class ASN1 {
             this.callMethod(context, "tag=", tag);
             this.callMethod(context, "value=", value);
             this.callMethod(context, "tag_class=", tag_class);
+            this.setInstanceVariable("@indefinite_length", context.runtime.getFalse());
             return this;
+        }
+
+        static ASN1Data newInfiniteLength(final ThreadContext context,
+            final IRubyObject value, final int defaultTag, final IRubyObject tagClass) {
+            final Ruby runtime = context.runtime;
+
+            final RubyClass klass = _ASN1(runtime).getClass("ASN1Data");
+            final ASN1Data self = new Constructive(runtime, klass);
+
+            ASN1Data.newInfiniteLengthImpl(context, self, value, defaultTag, tagClass);
+            return self;
+        }
+
+        static void newInfiniteLengthImpl(final ThreadContext context, final ASN1Data self, final IRubyObject value, final int defaultTag, final IRubyObject tagClass) {
+            self.setInstanceVariable("@tag", context.runtime.newFixnum(defaultTag));
+            self.setInstanceVariable("@value", value);
+            self.setInstanceVariable("@tag_class", tagClass);
+            self.setInstanceVariable("@tagging", context.nil);
+
+            setInfiniteLength(context, self);
+        }
+
+        static ASN1Data setInfiniteLength(final ThreadContext context, final IRubyObject constructive) {
+            final ASN1Data instance = ((ASN1Data) constructive);
+            final IRubyObject value = instance.value(context);
+            value.callMethod(context, "<<", EndOfContent.newInstance(context));
+            instance.setInstanceVariable("@indefinite_length", context.runtime.getTrue());
+            return instance;
         }
 
         private void checkTag(final Ruby runtime, final IRubyObject tag, final IRubyObject tagClass) {
@@ -1357,11 +1344,15 @@ public class ASN1 {
         }
 
         boolean isUniversal(final ThreadContext context) {
-            return "ASN1Data".equals(getClassBaseName()) && getTagClass(context) == 0;
+            return getTagClass(context) == BERTags.UNIVERSAL;
         }
 
         IRubyObject tagging() {
             return getInstanceVariable("@tagging");
+        }
+
+        IRubyObject tagClass() {
+            return getInstanceVariable("@tag_class");
         }
 
         boolean isExplicitTagging() { return ! isImplicitTagging(); }
@@ -1459,7 +1450,9 @@ public class ASN1 {
         byte[] toDER(final ThreadContext context) throws IOException {
             if ( isEOC() ) return new byte[] { 0x00, 0x00 };
 
-            if (isUniversal(context)) {
+            final boolean isIndefiniteLength = getInstanceVariable("@indefinite_length").isTrue();
+
+            if ("ASN1Data".equals(getClassBaseName()) && isUniversal(context)) {
                 // handstitch conversion
                 final java.io.ByteArrayOutputStream out = new ByteArrayOutputStream();
                 final IRubyObject value = callMethod(context, "value");
@@ -1686,11 +1679,6 @@ public class ASN1 {
             return false;
         }
 
-        @Override
-        boolean isUniversal(final ThreadContext context) {
-            return false;
-        }
-
         private boolean isNull() {
             return "Null".equals(getMetaClass().getRealClass().getBaseName());
         }
@@ -1857,27 +1845,15 @@ public class ASN1 {
             return this;
         }
 
-        static Constructive newInfiniteConstructive(final ThreadContext context,
-            final String type, final IRubyObject value, final int defaultTag) {
+        static Constructive newInfiniteLength(final ThreadContext context,
+            final IRubyObject value, final int defaultTag) {
             final Ruby runtime = context.runtime;
 
-            final RubyClass klass = _ASN1(context.runtime).getClass(type);
+            final RubyClass klass = _ASN1(context.runtime).getClass("Constructive");
             final Constructive self = new Constructive(runtime, klass);
 
-            self.setInstanceVariable("@tag", runtime.newFixnum(defaultTag));
-            self.setInstanceVariable("@value", value);
-            self.setInstanceVariable("@tag_class", runtime.newSymbol("UNIVERSAL"));
-            self.setInstanceVariable("@tagging", context.nil);
-
-            return setInfiniteLength(context, self);
-        }
-
-        static Constructive setInfiniteLength(final ThreadContext context, final IRubyObject constructive) {
-            final Constructive instance = ((Constructive) constructive);
-            final IRubyObject value = instance.value(context);
-            value.callMethod(context, "<<", EndOfContent.newInstance(context));
-            instance.setInstanceVariable("@indefinite_length", context.runtime.getTrue());
-            return instance;
+            ASN1Data.newInfiniteLengthImpl(context, self, value, defaultTag, runtime.newSymbol("UNIVERSAL"));
+            return self;
         }
 
         private boolean rawConstructive() {
