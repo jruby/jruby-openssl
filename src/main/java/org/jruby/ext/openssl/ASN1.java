@@ -1611,11 +1611,20 @@ public class ASN1 {
 
     }
 
-    public static class EndOfContent {
+    public static class EndOfContent extends ASN1Data {
 
-        private EndOfContent() {}
+        static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+            public IRubyObject allocate(Ruby runtime, RubyClass klass) {
+                return new EndOfContent(runtime, klass);
+            }
+        };
 
-        @JRubyMethod(visibility = Visibility.PRIVATE)
+        public EndOfContent(Ruby runtime, RubyClass type) {
+            super(runtime,type);
+        }
+
+
+        @JRubyMethod(required = 0, optional = 0, visibility = Visibility.PRIVATE)
         public static IRubyObject initialize(final ThreadContext context, final IRubyObject self) {
             final Ruby runtime = context.runtime;
             self.getInstanceVariables().setInstanceVariable("@tag", runtime.newFixnum(0));
@@ -1629,6 +1638,12 @@ public class ASN1 {
             return klass.newInstance(context, Block.NULL_BLOCK);
         }
 
+        @Override
+        boolean isImplicitTagging() {
+            IRubyObject tagging = tagging();
+            if ( tagging.isNil() ) return true;
+            return "IMPLICIT".equals( tagging.toString() );
+        }
     }
 
     public static class Primitive extends ASN1Data {
