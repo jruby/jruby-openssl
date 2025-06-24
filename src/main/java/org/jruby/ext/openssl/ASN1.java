@@ -1411,17 +1411,18 @@ public class ASN1 {
                     }
                 }
 
-                if (vec.size() > 0) {
-                    // array of asn1 objects as value
-                    return new DERTaggedObject(isExplicitTagging(), tag, new DERSequence(vec));
+                if (values.length() > 0) {
+                    return new DERTaggedObject(isExplicitTagging(), tagClass, tag, new DERGeneralString(values.toString()));
+                } else {
+                    // array of strings as value (default)
+                    return new DERTaggedObject(isExplicitTagging(), tagClass, tag, new BERSequence(vec));
                 }
-
-                // array of strings as value (default)
-                return new DERTaggedObject(isExplicitTagging(), tagClass, tag,
-                        new DERGeneralString(values.toString()));
             } else if (value instanceof ASN1Data) {
                 return new DERTaggedObject(isExplicitTagging(), tagClass, tag, ((ASN1Data) value).toASN1(context));
             } else if (value instanceof RubyObject) {
+                if (isEOC()) {
+                    return null;
+                }
                 final IRubyObject string = value.checkStringType();
                 if (string instanceof RubyString) {
                     return new DERTaggedObject(isExplicitTagging(), tagClass, tag,
@@ -1481,12 +1482,77 @@ public class ASN1 {
                                 "no implicit conversion of " + value.getMetaClass().getBaseName() + " into String");
                     }
                 }
-                out.write(getTag(context));
-                out.write(valueBytes.length);
+                // tag
+                writeDERIdentifier(getTag(context), getTagClass(context), out);
+                writeDERLength(valueBytes.length, out);
+                // value
                 out.write(valueBytes);
+
                 return out.toByteArray();
             }
-            return toASN1(context).toASN1Primitive().getEncoded(ASN1Encoding.DER);
+            final ASN1Primitive prim = toASN1(context).toASN1Primitive();
+
+            if (isIndefiniteLength) {
+                final java.io.ByteArrayOutputStream tagOut = new ByteArrayOutputStream();
+                final java.io.ByteArrayOutputStream contentOut = new ByteArrayOutputStream();
+                final java.io.ByteArrayOutputStream out = new ByteArrayOutputStream();
+                prim.encodeTo(contentOut, ASN1Encoding.DER);
+                writeDERIdentifier(getTag(context), getTagClass(context) | BERTags.CONSTRUCTED, tagOut);
+
+                byte[] tagOutArr = tagOut.toByteArray();
+                byte[] contentOutArr = contentOut.toByteArray();
+
+                out.write(tagOutArr);
+                out.write(0x80);
+                out.write(contentOutArr, tagOutArr.length + 1, contentOutArr.length - tagOutArr.length - 1);
+                out.write(0x00);
+                out.write(0x00);
+
+                return out.toByteArray();
+             } else {
+                return prim.getEncoded(ASN1Encoding.DER);
+            }
+        }
+
+        void writeDERIdentifier(int tag, int flags, java.io.ByteArrayOutputStream out) {
+            if (tag > 0x1f) {
+                byte[] stack = new byte[6];
+                int pos = stack.length;
+
+                stack[--pos] = (byte)(tag & 0x7F);
+                while (tag > 127)
+                {
+                    tag >>>= 7;
+                    stack[--pos] = (byte)(tag & 0x7F | 0x80);
+                }
+
+                stack[--pos] = (byte)(flags | 0x1F);
+
+                out.write(stack, pos, stack.length - pos);
+            } else {
+                out.write(flags | tag);
+            }
+        }
+
+        void writeDERLength(int length, java.io.ByteArrayOutputStream out) {
+            if (length < 128) {
+                out.write(length);
+            } else {
+                byte[] stack = new byte[5];
+                int pos = stack.length;
+
+                do
+                {
+                    stack[--pos] = (byte)length;
+                    length >>>= 8;
+                }
+                while (length != 0);
+
+                int count = stack.length - pos;
+                stack[--pos] = (byte)(0x80 | count);
+
+                out.write(stack, pos, count - pos);
+            }
         }
 
         protected IRubyObject defaultTag() {
