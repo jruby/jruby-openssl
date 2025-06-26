@@ -1339,8 +1339,8 @@ public class ASN1 {
             }
         }
 
-        boolean isEOC() {
-            return "EndOfContent".equals( getClassBaseName() );
+        boolean isEOC(final ThreadContext context) {
+            return getTag(context) == 0 && isUniversal((context));
         }
 
         boolean isUniversal(final ThreadContext context) {
@@ -1420,7 +1420,7 @@ public class ASN1 {
             } else if (value instanceof ASN1Data) {
                 return new DERTaggedObject(isExplicitTagging(), tagClass, tag, ((ASN1Data) value).toASN1(context));
             } else if (value instanceof RubyObject) {
-                if (isEOC()) {
+                if (isEOC(context)) {
                     return null;
                 }
                 final IRubyObject string = value.checkStringType();
@@ -1449,7 +1449,7 @@ public class ASN1 {
         }
 
         byte[] toDER(final ThreadContext context) throws IOException {
-            if ( isEOC() ) return new byte[] { 0x00, 0x00 };
+            if (isEOC(context)) return new byte[] { 0x00, 0x00 };
 
             final boolean isIndefiniteLength = getInstanceVariable("@indefinite_length").isTrue();
 
@@ -1771,7 +1771,7 @@ public class ASN1 {
         }
 
         @Override
-        boolean isEOC() {
+        boolean isEOC(final ThreadContext context) {
             return false;
         }
 
@@ -2139,7 +2139,7 @@ public class ASN1 {
                 }
                 else if ( entry instanceof ASN1Data ) {
                     final ASN1Data data = ( (ASN1Data) entry );
-                    if ( data.isEOC() ) return true;
+                    if ( data.isEOC(context) ) return true;
                     vec.add( data.toASN1(context) );
                 }
                 else {
