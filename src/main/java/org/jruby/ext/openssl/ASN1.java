@@ -1701,12 +1701,20 @@ public class ASN1 {
 
                 if ( tag.isNil() ) throw newASN1Error(runtime, "must specify tag number");
 
-                if ( tagging.isNil() ) tagging = runtime.newSymbol("EXPLICIT");
-                if ( ! (tagging instanceof RubySymbol) ) {
-                    throw newASN1Error(runtime, "invalid tag default");
+                if ( tagging.isNil()) {
+                    if (tag_class.isNil()) {
+                        tag_class = runtime.newSymbol("UNIVERSAL");
+                    }
+                } else {
+                    if (!(tagging instanceof RubySymbol)) {
+                        throw newASN1Error(runtime, "invalid tagging method");
+                    }
+
+                    if (tag_class.isNil()) {
+                        tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
+                    }
                 }
 
-                if ( tag_class.isNil() ) tag_class = runtime.newSymbol("CONTEXT_SPECIFIC");
                 if ( ! (tag_class instanceof RubySymbol) ) {
                     throw newASN1Error(runtime, "invalid tag class");
                 }
