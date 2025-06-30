@@ -703,6 +703,10 @@ public class ASN1 {
         Constructive.addReadWriteAttribute(context, "tagging");
         Constructive.defineAnnotatedMethods(Constructive.class);
 
+        final ObjectAllocator eocAllocator = EndOfContent.ALLOCATOR;
+        RubyClass EndOfContent = ASN1.defineClassUnder("EndOfContent", _ASN1Data, eocAllocator);
+        EndOfContent.defineAnnotatedMethods(EndOfContent.class);
+
         ASN1.defineClassUnder("Boolean", Primitive, primitiveAllocator); // OpenSSL::ASN1::Boolean <=> value is a Boolean
         ASN1.defineClassUnder("Integer", Primitive, primitiveAllocator); // OpenSSL::ASN1::Integer <=> value is a Number
         ASN1.defineClassUnder("Null", Primitive, primitiveAllocator); // OpenSSL::ASN1::Null <=> value is always nil
@@ -726,9 +730,6 @@ public class ASN1 {
 
         ASN1.defineClassUnder("UTCTime", Primitive, primitiveAllocator); // OpenSSL::ASN1::UTCTime <=> value is a Time
         ASN1.defineClassUnder("GeneralizedTime", Primitive, primitiveAllocator); // OpenSSL::ASN1::GeneralizedTime <=> value is a Time
-
-        ASN1.defineClassUnder("EndOfContent", _ASN1Data, asn1DataAllocator). // OpenSSL::ASN1::EndOfContent <=> value is always nil
-                defineAnnotatedMethods(EndOfContent.class);
 
         ASN1.defineClassUnder("ObjectId", Primitive, primitiveAllocator).
                 defineAnnotatedMethods(ObjectId.class);
