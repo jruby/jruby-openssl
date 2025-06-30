@@ -1204,8 +1204,10 @@ public class ASN1 {
         }
         final int length = asn1[ ++offset ] & 0xFF;
         final boolean isIndefiniteLength = length == 0x80;
+        IRubyObject decoded;
 
-        IRubyObject decoded = decodeObject(context, ASN1, readObject(in));
+        decoded = decodeObject(context, ASN1, readObject(in));
+
         final boolean isUniversal = ((ASN1Data) decoded).isUniversal(context);
 
         if (isIndefiniteLength) {

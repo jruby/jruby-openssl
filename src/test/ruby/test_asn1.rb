@@ -553,27 +553,19 @@ class TestASN1 < TestCase
   #
 
   def test_basic_constructed
-    #octet_string = OpenSSL::ASN1::OctetString.new(B(%w{ AB CD }))
-    # TODO: Import Issue
-    # OpenSSL::ASN1::ASN1Error: Constructive shall only be used with indefinite length
-    #encode_test B(%w{ 20 00 }), OpenSSL::ASN1::Constructive.new([], 0)
-    #encode_test B(%w{ 21 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :UNIVERSAL)
-    #encode_test B(%w{ A1 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :CONTEXT_SPECIFIC)
-    #encode_test B(%w{ 21 04 04 02 AB CD }), OpenSSL::ASN1::Constructive.new([octet_string], 1)
-    # Java::JavaLang::UnsupportedOperationException:
-    # #<OpenSSL::ASN1::Constructive:0x4fc256ec @tag=1, @value=[#<OpenSSL::ASN1::OctetString:0x7fc56d61
-    #   @tag=4, @value="\xAB\xCD", @tag_class=:UNIVERSAL, @tagging=nil, @indefinite_length=false>],
-    #   @tag_class=:CONTEXT_SPECIFIC, @tagging=:EXPLICIT, @indefinite_length=true>
-    #   org.jruby.ext.openssl.ASN1$Constructive.toDER(ASN1.java:1881)
-    #   org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
-    #   org.jruby.ext.openssl.ASN1$Constructive.to_der(ASN1.java:1858)
-    #obj = OpenSSL::ASN1::Constructive.new([octet_string], 1)
-    #obj.indefinite_length = true
-    #encode_decode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
-    # (see above) Java::JavaLang::UnsupportedOperationException
-    #obj = OpenSSL::ASN1::Constructive.new([octet_string, OpenSSL::ASN1::EndOfContent.new], 1)
-    #obj.indefinite_length = true
-    #encode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
+    octet_string = OpenSSL::ASN1::OctetString.new(B(%w{ AB CD }))
+    encode_test B(%w{ 20 00 }), OpenSSL::ASN1::Constructive.new([], 0)
+    encode_test B(%w{ 21 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :UNIVERSAL)
+    encode_test B(%w{ A1 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :CONTEXT_SPECIFIC)
+    encode_test B(%w{ 21 04 04 02 AB CD }), OpenSSL::ASN1::Constructive.new([octet_string], 1)
+    obj = OpenSSL::ASN1::Constructive.new([octet_string], 1)
+    obj.indefinite_length = true
+    encode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
+    # TODO: BC doesn't support decoding indef constructive asn1s from unsupported tag types.
+    # encode_decode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
+    obj = OpenSSL::ASN1::Constructive.new([octet_string, OpenSSL::ASN1::EndOfContent.new], 1)
+    obj.indefinite_length = true
+    encode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
   end
 
   def test_constructive
