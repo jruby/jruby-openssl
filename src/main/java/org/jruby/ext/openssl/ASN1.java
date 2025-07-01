@@ -913,7 +913,7 @@ public class ASN1 {
             if (!other.getMetaClass().equals(_ASN1(context.runtime).getClass("ObjectId"))) {
                 return context.runtime.getFalse();
             }
-            return self.callMethod(context, "value").op_eqq(context, other.callMethod(context, "value"));
+            return self.callMethod(context, "oid").op_eqq(context, other.callMethod(context, "oid"));
         }
 
         private static RubyString name(final ThreadContext context, IRubyObject value,
