@@ -509,66 +509,37 @@ class TestASN1 < TestCase
   end
 
   def test_basic_asn1data
-    # TODO: Import Issue
-    # Java::JavaLang::ClassCastException:
-    # class org.jruby.RubyString cannot be cast to class org.jruby.ext.openssl.ASN1$ASN1Data
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.toASN1TaggedObject(ASN1.java:1408)
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.toASN1(ASN1.java:1383)
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.toDER(ASN1.java:1424)
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
-    #encode_test B(%w{ 00 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 0, :UNIVERSAL)
-    #encode_test B(%w{ 01 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :UNIVERSAL)
-    #encode_decode_test B(%w{ 41 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :APPLICATION)
-    #encode_decode_test B(%w{ 81 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :CONTEXT_SPECIFIC)
-    #encode_decode_test B(%w{ C1 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :PRIVATE)
-    # TODO: Import Issue
-    # OpenSSL::ASN1::ASN1Error: tag number for :UNIVERSAL too large
-    #  org/jruby/RubyClass.java:942:in `new'
-    #encode_decode_test B(%w{ 1F 20 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 32, :UNIVERSAL)
-    #encode_decode_test B(%w{ 1F C0 20 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 8224, :UNIVERSAL)
-    # TODO: Import Issue (same as start of this test)
-    # Java::JavaLang::ClassCastException:
-    # class org.jruby.RubyString cannot be cast to class org.jruby.ext.openssl.ASN1$ASN1Data
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.toASN1TaggedObject(ASN1.java:1408)
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.toASN1(ASN1.java:1383)
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.toDER(ASN1.java:1424)
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
-    #encode_decode_test B(%w{ 41 02 AB CD }), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 1, :APPLICATION)
-    #encode_decode_test B(%w{ 41 81 80 } + %w{ AB CD } * 64), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD } * 64), 1, :APPLICATION)
-    #encode_decode_test B(%w{ 41 82 01 00 } + %w{ AB CD } * 128), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD } * 128), 1, :APPLICATION)
-    #encode_decode_test B(%w{ 61 00 }), OpenSSL::ASN1::ASN1Data.new([], 1, :APPLICATION)
-    #obj = OpenSSL::ASN1::ASN1Data.new([OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 2, :PRIVATE)], 1, :APPLICATION)
-    #obj.indefinite_length = true
-    #encode_decode_test B(%w{ 61 80 C2 02 AB CD 00 00 }), obj
-    #obj = OpenSSL::ASN1::ASN1Data.new([
-    #  OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 2, :PRIVATE),
-    #  OpenSSL::ASN1::EndOfContent.new
-    #], 1, :APPLICATION)
-    #obj.indefinite_length = true
-    #encode_test B(%w{ 61 80 C2 02 AB CD 00 00 }), obj
-    #obj = OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 1, :UNIVERSAL)
-    #obj.indefinite_length = true
-    # TODO: Import Issue
-    # <OpenSSL::ASN1::ASN1Error> expected but was <#<Java::JavaLang::ClassCastException: class org.jruby.RubyString cannot be cast to class org.jruby.ext.openssl.ASN1$ASN1Data
-    #assert_raise(OpenSSL::ASN1::ASN1Error) { obj.to_der }
+    encode_test B(%w{ 00 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 0, :UNIVERSAL)
+    encode_test B(%w{ 01 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :UNIVERSAL)
+    encode_decode_test B(%w{ 41 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :APPLICATION)
+    encode_decode_test B(%w{ 81 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :CONTEXT_SPECIFIC)
+    encode_decode_test B(%w{ C1 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 1, :PRIVATE)
+    # encode_decode_test B(%w{ 1F 20 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 32, :UNIVERSAL)
+    encode_decode_test B(%w{ 9F C0 20 00 }), OpenSSL::ASN1::ASN1Data.new(B(%w{}), 8224, :CONTEXT_SPECIFIC)
+    encode_decode_test B(%w{ 41 02 AB CD }), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 1, :APPLICATION)
+    encode_decode_test B(%w{ 41 81 80 } + %w{ AB CD } * 64), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD } * 64), 1, :APPLICATION)
+    encode_decode_test B(%w{ 41 82 01 00 } + %w{ AB CD } * 128), OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD } * 128), 1, :APPLICATION)
+    encode_decode_test B(%w{ 61 00 }), OpenSSL::ASN1::ASN1Data.new([], 1, :APPLICATION)
+    obj = OpenSSL::ASN1::ASN1Data.new([OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 2, :PRIVATE)], 1, :APPLICATION)
+    obj.indefinite_length = true
+    encode_decode_test B(%w{ 61 80 C2 02 AB CD 00 00 }), obj
+    obj = OpenSSL::ASN1::ASN1Data.new([
+      OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 2, :PRIVATE),
+      OpenSSL::ASN1::EndOfContent.new
+    ], 1, :APPLICATION)
+    obj.indefinite_length = true
+    encode_test B(%w{ 61 80 C2 02 AB CD 00 00 }), obj
+    obj = OpenSSL::ASN1::ASN1Data.new(B(%w{ AB CD }), 1, :UNIVERSAL)
+    obj.indefinite_length = true
+    assert_raise(OpenSSL::ASN1::ASN1Error) { obj.to_der }
   end
 
   def test_basic_primitive
-    # TODO: Import Issue
-    # Java::JavaLang::NullPointerException:
-    #  org.jruby.ext.openssl.ASN1$Primitive.toDER(ASN1.java:1610)
-    #  org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
-    #  org.jruby.ext.openssl.ASN1$Primitive.to_der(ASN1.java:1522)
-    #encode_test B(%w{ 00 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 0)
-    # TODO: Import Issue
-    # <"\x01\x00"> expected but was <"\x01\x01\xFF">
-    #encode_test B(%w{ 01 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 1, nil, :UNIVERSAL)
-    # <"\x81\x00"> expected but was <"\x01\x01\xFF">
-    #encode_test B(%w{ 81 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 1, nil, :CONTEXT_SPECIFIC)
-    # <"\x01\x02\xAB\xCD"> expected but was <"\x01\x01\xFF">
-    #encode_test B(%w{ 01 02 AB CD }), OpenSSL::ASN1::Primitive.new(B(%w{ AB CD }), 1)
-    # <TypeError> exception was expected but none was thrown.
-    #assert_raise(TypeError) { OpenSSL::ASN1::Primitive.new([], 1).to_der }
+    encode_test B(%w{ 00 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 0)
+    encode_test B(%w{ 01 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 1, nil, :UNIVERSAL)
+    encode_test B(%w{ 81 00 }), OpenSSL::ASN1::Primitive.new(B(%w{}), 1, nil, :CONTEXT_SPECIFIC)
+    encode_test B(%w{ 01 02 AB CD }), OpenSSL::ASN1::Primitive.new(B(%w{ AB CD }), 1)
+    assert_raise(TypeError) { OpenSSL::ASN1::Primitive.new([], 1).to_der }
 
     prim = OpenSSL::ASN1::Integer.new(50)
     assert_equal false, prim.indefinite_length
@@ -582,27 +553,19 @@ class TestASN1 < TestCase
   #
 
   def test_basic_constructed
-    #octet_string = OpenSSL::ASN1::OctetString.new(B(%w{ AB CD }))
-    # TODO: Import Issue
-    # OpenSSL::ASN1::ASN1Error: Constructive shall only be used with indefinite length
-    #encode_test B(%w{ 20 00 }), OpenSSL::ASN1::Constructive.new([], 0)
-    #encode_test B(%w{ 21 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :UNIVERSAL)
-    #encode_test B(%w{ A1 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :CONTEXT_SPECIFIC)
-    #encode_test B(%w{ 21 04 04 02 AB CD }), OpenSSL::ASN1::Constructive.new([octet_string], 1)
-    # Java::JavaLang::UnsupportedOperationException:
-    # #<OpenSSL::ASN1::Constructive:0x4fc256ec @tag=1, @value=[#<OpenSSL::ASN1::OctetString:0x7fc56d61
-    #   @tag=4, @value="\xAB\xCD", @tag_class=:UNIVERSAL, @tagging=nil, @indefinite_length=false>],
-    #   @tag_class=:CONTEXT_SPECIFIC, @tagging=:EXPLICIT, @indefinite_length=true>
-    #   org.jruby.ext.openssl.ASN1$Constructive.toDER(ASN1.java:1881)
-    #   org.jruby.ext.openssl.ASN1$ASN1Data.to_der(ASN1.java:1414)
-    #   org.jruby.ext.openssl.ASN1$Constructive.to_der(ASN1.java:1858)
-    #obj = OpenSSL::ASN1::Constructive.new([octet_string], 1)
-    #obj.indefinite_length = true
-    #encode_decode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
-    # (see above) Java::JavaLang::UnsupportedOperationException
-    #obj = OpenSSL::ASN1::Constructive.new([octet_string, OpenSSL::ASN1::EndOfContent.new], 1)
-    #obj.indefinite_length = true
-    #encode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
+    octet_string = OpenSSL::ASN1::OctetString.new(B(%w{ AB CD }))
+    encode_test B(%w{ 20 00 }), OpenSSL::ASN1::Constructive.new([], 0)
+    encode_test B(%w{ 21 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :UNIVERSAL)
+    encode_test B(%w{ A1 00 }), OpenSSL::ASN1::Constructive.new([], 1, nil, :CONTEXT_SPECIFIC)
+    encode_test B(%w{ 21 04 04 02 AB CD }), OpenSSL::ASN1::Constructive.new([octet_string], 1)
+    obj = OpenSSL::ASN1::Constructive.new([octet_string], 1)
+    obj.indefinite_length = true
+    encode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
+    # TODO: BC doesn't support decoding indef constructive asn1s from unsupported tag types.
+    # encode_decode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
+    obj = OpenSSL::ASN1::Constructive.new([octet_string, OpenSSL::ASN1::EndOfContent.new], 1)
+    obj.indefinite_length = true
+    encode_test B(%w{ 21 80 04 02 AB CD 00 00 }), obj
   end
 
   def test_constructive
@@ -1295,7 +1258,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal 'o=Telstra', asn1_data.value[1].value
     assert_equal OpenSSL::ASN1::ASN1Data, asn1_data.value[2].class
     assert_equal :CONTEXT_SPECIFIC,  asn1_data.value[2].tag_class
-#    assert_equal 'ess', asn1_data.value[2].value
+    assert_equal 'ess', asn1_data.value[2].value
 
 #    assert_equal raw, asn1.to_der
   end
