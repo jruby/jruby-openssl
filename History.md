@@ -1,3 +1,25 @@
+## 0.15.5
+
+* [deps] upgrade BC to version 1.81
+* Improving completeness of ASN1 encoding/decoding (#335)
+* [fix] OpenSSL::X509::CRL#to_pem when building CRL from scratch (#163)
+* [fix] OpenSSL::ASN1::ASN1Data encoding/decoding compatibility (#265)
+
+## 0.15.4
+
+* Verify hostname by default
+
+This addresses **CVE-2025-46551** and **GHSA-72qj-48g4-5xgx**.
+
+Users can work around this by applying this patch manually to their
+own jruby-openssl and jruby installs, or by re-enabling hostname
+verification with the following code early in application boot:
+```ruby
+require 'openssl'
+
+OpenSSL::SSL::SSLContext::DEFAULT_PARAMS[:verify_hostname] = true
+```
+
 ## 0.15.3
 
 * [fix] keep curve name when group is set into another key
