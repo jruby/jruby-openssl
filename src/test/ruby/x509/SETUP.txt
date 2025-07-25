@@ -1,15 +1,24 @@
-$ /usr/lib/ssl/misc/CA.sh -newca
+$ /usr/lib/ssl/misc/CA.sh -newca # Only does something if demoCA does not exist
 
-$ /usr/lib/ssl/misc/CA.sh -newreq
+$ /usr/lib/ssl/misc/CA.sh -newreq # Use any password for the private key, leave the password empty for the CSR
+Country Name (2 letter code) [AU]:AU
+State or Province Name (full name) [Some-State]:None
+Locality Name (eg, city) []:.
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:JRuby Dev Team
+Organizational Unit Name (eg, section) []:JOSSL 
+Common Name (e.g. server FQDN or YOUR name) []:jruby.org
+Email Address []:.
 
-$ /usr/lib/ssl/misc/CA.sh -sign
+$ /usr/lib/ssl/misc/CA.sh -sign # CA key password in demoCA/private/cakey.pem.passwd
 Signed certificate is in newcert.pem
+
+$ rm -f javastore.ts
 
 $ keytool -importcert --file demoCA/cacert.pem -alias demoCA -keystore javastore.ts -storetype jks -storepass keystore
 Trust this certificate? [no]:  y
 Certificate was added to keystore
 
-$ keytool -list -keystore javastore.ts
+$ keytool -list -keystore javastore.ts -storepass keystore
 Enter keystore password:
 Keystore type: JKS
 Keystore provider: SUN
