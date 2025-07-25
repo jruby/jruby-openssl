@@ -171,6 +171,7 @@ public class BN extends RubyObject {
         }
     }
 
+    @JRubyMethod(visibility = Visibility.PRIVATE)
     @Override
     public IRubyObject initialize_copy(final IRubyObject that) {
         super.initialize_copy(that);

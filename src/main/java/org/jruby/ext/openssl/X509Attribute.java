@@ -120,6 +120,7 @@ public class X509Attribute extends RubyObject {
         return this;
     }
 
+    @JRubyMethod(visibility = Visibility.PRIVATE)
     @Override
     public IRubyObject initialize_copy(final IRubyObject original) {
         if (this == original) return this;

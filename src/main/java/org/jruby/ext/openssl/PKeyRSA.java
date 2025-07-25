@@ -148,6 +148,7 @@ public class PKeyRSA extends PKey {
     private transient volatile BigInteger rsa_dmq1;
     private transient volatile BigInteger rsa_iqmp;
 
+    @JRubyMethod(visibility = Visibility.PRIVATE)
     @Override
     public IRubyObject initialize_copy(final IRubyObject original) {
         if (this == original) return this;

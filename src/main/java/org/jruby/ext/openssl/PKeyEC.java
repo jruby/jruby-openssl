@@ -403,6 +403,7 @@ public final class PKeyEC extends PKey {
         this.curveName = this.group.getCurveName();
     }
 
+    @JRubyMethod(visibility = Visibility.PRIVATE)
     @Override
     public IRubyObject initialize_copy(final IRubyObject original) {
         if (this == original) return this;

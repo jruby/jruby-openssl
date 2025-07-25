@@ -101,6 +101,7 @@ public class PKeyDH extends PKey {
         super(runtime, clazz);
     }
 
+    @JRubyMethod(visibility = Visibility.PRIVATE)
     @Override
     public IRubyObject initialize_copy(final IRubyObject original) {
         if (this == original) return this;

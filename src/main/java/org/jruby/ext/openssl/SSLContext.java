@@ -324,6 +324,7 @@ public class SSLContext extends RubyObject {
         return initializeImpl();
     }
 
+    @JRubyMethod(visibility = Visibility.PRIVATE)
     @Override // NOTE: instance variables (no internal state) on #dup
     public IRubyObject initialize_copy(IRubyObject original) {
         SSLContext copy = (SSLContext) super.initialize_copy(original);

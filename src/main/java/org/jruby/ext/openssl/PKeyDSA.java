@@ -117,6 +117,7 @@ public class PKeyDSA extends PKey {
     private transient volatile BigInteger dsa_q;
     private transient volatile BigInteger dsa_g;
 
+    @JRubyMethod(visibility = Visibility.PRIVATE)
     @Override
     public IRubyObject initialize_copy(final IRubyObject original) {
         if (this == original) return this;
