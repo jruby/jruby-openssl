@@ -739,26 +739,19 @@ public class ASN1 {
     }
 
     static ASN1ObjectIdentifier getObjectID(final Ruby runtime, final String nameOrOid)
-        throws IllegalArgumentException {
+        throws RaiseException {
         final String name = nameOrOid.toLowerCase();
 
         ASN1ObjectIdentifier objectId = getOIDLookup(runtime).get( name );
         if ( objectId != null ) return objectId;
 
         final String objectIdStr = ASN1Registry.getOIDLookup().get( name );
-        if ( objectIdStr != null ) return toObjectID(objectIdStr, false);
+        if ( objectIdStr != null ) return new ASN1ObjectIdentifier(objectIdStr);
 
-        return new ASN1ObjectIdentifier( nameOrOid );
-    }
-
-    static ASN1ObjectIdentifier toObjectID(final String oid, final boolean silent)
-        throws IllegalArgumentException {
         try {
-            return new ASN1ObjectIdentifier(oid);
-        }
-        catch (IllegalArgumentException e) {
-            if ( silent ) return null;
-            throw e;
+            return new ASN1ObjectIdentifier( nameOrOid );
+        } catch (IllegalArgumentException e) {
+            throw newASN1Error(runtime, "invalid OBJECT ID " + nameOrOid + ": " + e.getMessage());
         }
     }
 
@@ -920,7 +913,7 @@ public class ASN1 {
             if (!other.getMetaClass().equals(_ASN1(context.runtime).getClass("ObjectId"))) {
                 return context.runtime.getFalse();
             }
-            return self.callMethod(context, "value").op_eqq(context, other.callMethod(context, "value"));
+            return self.callMethod(context, "oid").op_eqq(context, other.callMethod(context, "oid"));
         }
 
         private static RubyString name(final ThreadContext context, IRubyObject value,
@@ -1776,17 +1769,6 @@ public class ASN1 {
             // NOTE: Primitive only
             final String baseName = self.getMetaClass().getRealClass().getBaseName();
             switch (baseName) {
-                case "ObjectId":
-                    final String name;
-                    try {
-                        name = oid2Sym( runtime, getObjectID(runtime, value.toString()), true );
-                    }
-                    catch (IllegalArgumentException e) {
-                        // e.g. in case of nil "string  not an OID"
-                        throw runtime.newTypeError(e.getMessage());
-                    }
-                    if ( name != null ) value = runtime.newString(name);
-                    break;
                 case "BitString":
                     self.setInstanceVariable("@unused_bits", runtime.newFixnum(0));
                     break;
@@ -1858,7 +1840,9 @@ public class ASN1 {
 
             final IRubyObject val = value(context);
             if ( type == ASN1ObjectIdentifier.class ) {
-                return getObjectID(context.runtime, val.toString());
+                final String oidStr = val.convertToString().toString();
+
+                return getObjectID(context.runtime, oidStr);
             }
             if ( type == DERNull.class || type == ASN1Null.class ) {
                 return DERNull.INSTANCE;
