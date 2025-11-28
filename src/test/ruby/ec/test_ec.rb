@@ -1,5 +1,6 @@
 # coding: US-ASCII
 require File.expand_path('../test_helper', File.dirname(__FILE__))
+require 'base64'
 
 class TestEC < TestCase
 
@@ -250,8 +251,6 @@ class TestEC < TestCase
     assert_equal point.to_bn, point3.to_bn
     assert_equal point.to_octet_string(:uncompressed), point3.to_octet_string(:uncompressed)
   end
-
-  require File.expand_path('base64.rb', File.dirname(__FILE__))
 
   def test_encrypt
     p256dh = "BNFege3oh74znsDbVkGf5CRAtLVUHlo5NTU9-inepE_HpUBWUq3FP_dJR-WDORPvKL7fM_AKyfYch-nKY7kDOe0="
