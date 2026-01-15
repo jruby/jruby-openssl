@@ -37,24 +37,24 @@ class IntegrationSSLTest < TestCase
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     res = http.get('/')
-    #assert_equal '200', res.code
+    assert_equal Net::HTTPOK, res.class
   end
 
   def test_connect_net_http_tls12; require 'uri'; require 'net/https'
     puts "\n"
     puts "------------------------------------------------------------"
-    puts "-- Net::HTTP.new '#{url = 'https://fancyssl.hboeck.de'}'"
+    puts "-- Net::HTTP.new '#{url = 'https://www.howsmyssl.com/a/check'}'"
     puts "------------------------------------------------------------"
 
     uri = URI.parse(url)
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     http.ssl_version = :TLSv1_2
-    res = http.get('/')
-    #assert_equal Net::HTTPOK, res.class
+    res = http.get(uri.path || '/', 'Content-Type' => 'application/json')
+    assert_equal Net::HTTPOK, res.class
+    puts res.body
   end
 
-  # TODO https://www.howsmyssl.com/a/check
   def test_connect_net_http_tls13; require 'uri'; require 'net/https'
     puts "\n"
     puts "------------------------------------------------------------"
@@ -65,8 +65,8 @@ class IntegrationSSLTest < TestCase
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     http.ssl_version = :TLSv1_3
-    res = http.get'/', 'Accept' => 'application/json', 'User-Agent' => ''
-    #assert_equal '200', res.code
+    res = http.get uri.path, 'Accept' => 'application/json', 'User-Agent' => ''
+    assert_equal '200', res.code
     puts res.body
   end
 
@@ -110,7 +110,7 @@ class IntegrationSSLTest < TestCase
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
     res = http.get('/')
-    #assert_equal Net::HTTPOK, res.class
+    assert_equal Net::HTTPOK, res.class
   end
 
   def test_faraday_get; require 'faraday'
