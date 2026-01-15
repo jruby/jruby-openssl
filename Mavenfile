@@ -102,7 +102,7 @@ plugin :deploy, '2.8.1' do
   execute_goals( :deploy, :skip => false )
 end
 
-supported_bc_versions = %w{ 1.60 1.61 1.62 1.63 1.64 1.65 1.66 1.67 1.68 }
+supported_bc_versions = %w{ 1.78 1.79 1.80 1.81 1.82 1.83 }
 
 default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
@@ -146,19 +146,22 @@ invoker_run_options = {
       'runit.dir' => '${runit.dir}' }
 }
 
-jruby_9_K_versions  = %w{ 9.1.2.0 9.1.8.0 9.1.12.0 9.1.16.0 9.1.17.0 }
-jruby_9_K_versions += %w{ 9.2.0.0 9.2.5.0 9.2.10.0 9.2.17.0 9.2.19.0 }
+jruby_versions = []
+jruby_versions += %w{ 9.2.19.0 9.2.20.1 }
+jruby_versions += %w{ 9.3.3.0 9.3.13.0 }
+jruby_versions += %w{ 9.4.8.0 9.4.14.0 }
+jruby_versions += %w{ 10.0.2.0 }
 
-jruby_9_K_versions.each { |version|
-profile :id => "test-#{version}" do
-  plugin :invoker, '1.8' do
-    execute_goals( :install, :run, invoker_run_options )
+jruby_versions.each do |version|
+  profile :id => "test-#{version}" do
+    plugin :invoker, '1.8' do
+      execute_goals( :install, :run, invoker_run_options )
+    end
+    properties 'jruby.version' => version,
+               'jruby.versions' => version,
+               'bc.versions' => supported_bc_versions.join(',')
   end
-  properties 'jruby.version' => version,
-             'jruby.versions' => version,
-             'bc.versions' => supported_bc_versions.join(',')
 end
-}
 
 profile :id => 'release' do
   plugin :gpg, '1.6' do
