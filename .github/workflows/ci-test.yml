@@ -13,8 +13,8 @@ jobs:
 
     strategy:
       matrix:
-        ruby-version: [ jruby-9.4.13.0 ]
-        java-version: [ 8, 11, 21, 23 ]
+        ruby-version: [ jruby-9.4.14.0 ]
+        java-version: [ 8, 11, 21, 25 ]
         distribution: [ temurin ]
         include:
           - java-version: 8
@@ -40,13 +40,16 @@ jobs:
             ruby-version: jruby-9.4.8.0
           - java-version: 21
             distribution: temurin
-            ruby-version: jruby-10.0.1.0
+            ruby-version: jruby-10.0.2.0
           - java-version: 24
             distribution: zulu
             ruby-version: jruby-10.0.1.0
+          - java-version: 25
+            distribution: temurin
+            ruby-version: jruby-10.0.2.0
           - java-version: 21
             distribution: corretto
-            ruby-version: jruby-head # 10.0
+            ruby-version: jruby-head # 10.X
       fail-fast: false
 
     steps:
