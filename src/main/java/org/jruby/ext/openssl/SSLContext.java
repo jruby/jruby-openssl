@@ -340,10 +340,14 @@ public class SSLContext extends RubyObject {
         return doSetup(context);
     }
 
-    private synchronized IRubyObject doSetup(final ThreadContext context) {
-        if (isFrozen()) return context.nil;
-
+    // NOTE: should be usable when context.setup isn't called, user code could:
+    // - context.set_params
+    // - context.freeze
+    // - SSLSocket.new(..., context)
+    synchronized IRubyObject doSetup(final ThreadContext context) {
         final Ruby runtime = context.runtime;
+ 
+        if (internalContext != null) return runtime.getFalse();
 
         final X509Store certStore = getCertStore();
 

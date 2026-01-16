@@ -181,7 +181,7 @@ public class SSLSocket extends RubyObject {
         // Instead we set it here for now.
         set_sync(context, runtime.getTrue()); // io.sync = true
         setInstanceVariable("@sync_close", runtime.getFalse()); // self.sync_close = false
-        sslContext.setup(context);
+        sslContext.doSetup(context);
         setInstanceVariable("@context", sslContext); // only compat (we do not use @context)
 
         this.initializeTime = System.currentTimeMillis();
