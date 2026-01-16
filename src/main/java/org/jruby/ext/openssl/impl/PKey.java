@@ -73,7 +73,10 @@ import org.bouncycastle.asn1.x509.DSAParameter;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.bouncycastle.jcajce.provider.asymmetric.util.KeyUtil;
+import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
 import org.jruby.ext.openssl.SecurityHelper;
@@ -141,8 +144,25 @@ public class PKey {
     public static PublicKey readPublicKey(final byte[] input) throws IOException {
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(input))) {
             Object pemObject = new PEMParser(in).readObject();
-            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
-            return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            try {
+                SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
+                return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            } catch (IllegalArgumentException e) {
+                if (pemObject instanceof PEMEncryptedKeyPair) {
+                    try {
+                        PEMEncryptedKeyPair encrypted = (PEMEncryptedKeyPair) pemObject;
+                        org.bouncycastle.openssl.PEMKeyPair pemKeyPair = encrypted.decryptKeyPair(new JcePEMDecryptorProviderBuilder().build((char[]) null));
+                        KeyPair keyPair = new JcaPEMKeyConverter().getKeyPair(pemKeyPair);
+                        return keyPair.getPublic();
+                    } catch (Exception ex) {
+                        throw new IOException("Encrypted private key requires password for public key reading", ex);
+                    }
+                } else if (pemObject instanceof KeyPair) {
+                    return ((KeyPair) pemObject).getPublic();
+                } else {
+                    throw e;
+                }
+            }
         }
     }
 
