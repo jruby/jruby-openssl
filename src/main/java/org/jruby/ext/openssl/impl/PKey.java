@@ -86,10 +86,12 @@ import org.jruby.ext.openssl.SecurityHelper;
  */
 public class PKey {
 
-    public enum Type { RSA, DSA, EC; }
+    public enum Type {
+        RSA, DSA, EC, Ed25519, X25519;
+    }
 
     public static KeyPair readPrivateKey(final Type type, final byte[] input)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         return readPrivateKey(type, mockPrivateKeyInfo(type, input));
     }
 
@@ -99,8 +101,10 @@ public class PKey {
     }
 
     public static KeyPair readPrivateKey(final Type type, final PrivateKeyInfo keyInfo)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        KeySpec pubSpec; KeySpec privSpec; ASN1Sequence seq;
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        KeySpec pubSpec;
+        KeySpec privSpec;
+        ASN1Sequence seq;
         switch (type) {
             case RSA:
                 seq = (ASN1Sequence) keyInfo.parsePrivateKey();
@@ -130,6 +134,10 @@ public class PKey {
                 break;
             case EC:
                 return readECPrivateKey(SecurityHelper.getKeyFactory("EC"), keyInfo);
+            case Ed25519:
+                return readEd25519PrivateKey(SecurityHelper.getKeyFactory("Ed25519"), keyInfo);
+            case X25519:
+                return readX25519PrivateKey(SecurityHelper.getKeyFactory("X25519"), keyInfo);
             default:
                 throw new AssertionError("unexpected key type: " + type);
         }
@@ -141,19 +149,25 @@ public class PKey {
     public static PublicKey readPublicKey(final byte[] input) throws IOException {
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(input))) {
             Object pemObject = new PEMParser(in).readObject();
-            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
-            return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            SubjectPublicKeyInfo publicKeyInfo;
+            try {
+                publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
+                return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            } catch (IllegalArgumentException ex) {
+                throw new IOException("problem parsing public key: " + ex + " (input: " + new String(input) + ")"
+                        + " pemObject: " + pemObject);
+            }
         }
     }
 
     // d2i_RSAPrivateKey_bio
     public static KeyPair readRSAPrivateKey(final byte[] input)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         return readRSAPrivateKey(SecurityHelper.getKeyFactory("RSA"), input);
     }
 
     public static KeyPair readRSAPrivateKey(final KeyFactory rsaFactory, final byte[] input)
-        throws IOException, InvalidKeySpecException {
+            throws IOException, InvalidKeySpecException {
         ASN1Sequence seq;
         ASN1Primitive obj = new ASN1InputStream(input).readObject();
         if (obj instanceof ASN1Sequence && (seq = (ASN1Sequence) obj).size() == 9) {
@@ -165,7 +179,8 @@ public class PKey {
             BigInteger primeep = ((ASN1Integer) seq.getObjectAt(6)).getValue();
             BigInteger primeeq = ((ASN1Integer) seq.getObjectAt(7)).getValue();
             BigInteger crtcoeff = ((ASN1Integer) seq.getObjectAt(8)).getValue();
-            PrivateKey priv = rsaFactory.generatePrivate(new RSAPrivateCrtKeySpec(mod, pubexp, privexp, primep, primeq, primeep, primeeq, crtcoeff));
+            PrivateKey priv = rsaFactory.generatePrivate(
+                    new RSAPrivateCrtKeySpec(mod, pubexp, privexp, primep, primeq, primeep, primeeq, crtcoeff));
             PublicKey pub = rsaFactory.generatePublic(new RSAPublicKeySpec(mod, pubexp));
             return new KeyPair(pub, priv);
         }
@@ -174,12 +189,12 @@ public class PKey {
 
     // d2i_RSAPublicKey_bio
     public static PublicKey readRSAPublicKey(final byte[] input)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         return readRSAPublicKey(SecurityHelper.getKeyFactory("RSA"), input);
     }
 
     public static PublicKey readRSAPublicKey(final KeyFactory rsaFactory, final byte[] input)
-        throws IOException, InvalidKeySpecException {
+            throws IOException, InvalidKeySpecException {
         ASN1Sequence seq;
         ASN1Primitive obj = new ASN1InputStream(input).readObject();
         if (obj instanceof ASN1Sequence && (seq = (ASN1Sequence) obj).size() == 2) {
@@ -192,12 +207,12 @@ public class PKey {
 
     // d2i_DSAPrivateKey_bio
     public static KeyPair readDSAPrivateKey(final byte[] input)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         return readDSAPrivateKey(SecurityHelper.getKeyFactory("DSA"), input);
     }
 
     public static KeyPair readDSAPrivateKey(final KeyFactory dsaFactory, final byte[] input)
-        throws IOException, InvalidKeySpecException {
+            throws IOException, InvalidKeySpecException {
         ASN1Sequence seq;
         ASN1Primitive obj = new ASN1InputStream(input).readObject();
         if (obj instanceof ASN1Sequence && (seq = (ASN1Sequence) obj).size() == 6) {
@@ -215,12 +230,12 @@ public class PKey {
 
     // d2i_DSA_PUBKEY_bio
     public static PublicKey readDSAPublicKey(final byte[] input)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         return readDSAPublicKey(SecurityHelper.getKeyFactory("DSA"), input);
     }
 
     public static PublicKey readDSAPublicKey(final KeyFactory dsaFactory, final byte[] input)
-        throws IOException, InvalidKeySpecException {
+            throws IOException, InvalidKeySpecException {
         ASN1Sequence seq;
         ASN1Primitive obj = new ASN1InputStream(input).readObject();
         if (obj instanceof ASN1Sequence) {
@@ -232,8 +247,8 @@ public class PKey {
                 BigInteger g = ((ASN1Integer) seq.getObjectAt(3)).getValue();
                 return dsaFactory.generatePublic(new DSAPublicKeySpec(y, p, q, g));
             } else if (seq.size() == 2 && seq.getObjectAt(1) instanceof DERBitString) {
-                ASN1Integer y = (ASN1Integer)
-                        new ASN1InputStream(((DERBitString) seq.getObjectAt(1)).getBytes()).readObject();
+                ASN1Integer y = (ASN1Integer) new ASN1InputStream(((DERBitString) seq.getObjectAt(1)).getBytes())
+                        .readObject();
                 seq = (ASN1Sequence) ((ASN1Sequence) seq.getObjectAt(0)).getObjectAt(1);
                 BigInteger p = ((ASN1Integer) seq.getObjectAt(0)).getValue();
                 BigInteger q = ((ASN1Integer) seq.getObjectAt(1)).getValue();
@@ -254,17 +269,17 @@ public class PKey {
     }
 
     public static KeyPair readECPrivateKey(final byte[] input)
-        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+            throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         return readECPrivateKey(SecurityHelper.getKeyFactory("EC"), input);
     }
 
     public static KeyPair readECPrivateKey(final KeyFactory keyFactory, final byte[] input)
-        throws IOException, InvalidKeySpecException {
+            throws IOException, InvalidKeySpecException {
         return readECPrivateKey(keyFactory, mockPrivateKeyInfo(Type.EC, input));
     }
 
     public static KeyPair readECPrivateKey(final KeyFactory keyFactory, final PrivateKeyInfo keyInfo)
-        throws IOException, InvalidKeySpecException {
+            throws IOException, InvalidKeySpecException {
         try {
             ASN1Sequence seq = ASN1Sequence.getInstance(keyInfo.parsePrivateKey());
 
@@ -276,23 +291,57 @@ public class PKey {
             final SubjectPublicKeyInfo pubInfo = new SubjectPublicKeyInfo(algId, key.getPublicKey().getBytes());
             final PrivateKeyInfo privInfo = new PrivateKeyInfo(algId, key);
 
-            ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(new PKCS8EncodedKeySpec(privInfo.getEncoded()));
+            ECPrivateKey privateKey = (ECPrivateKey) keyFactory
+                    .generatePrivate(new PKCS8EncodedKeySpec(privInfo.getEncoded()));
             if (algId.getParameters() instanceof ASN1ObjectIdentifier) {
                 privateKey = ECPrivateKeyWithName.wrap(privateKey, (ASN1ObjectIdentifier) algId.getParameters());
             }
             return new KeyPair(keyFactory.generatePublic(new X509EncodedKeySpec(pubInfo.getEncoded())), privateKey);
-        }
-        catch (ClassCastException ex) {
+        } catch (ClassCastException ex) {
             throw new IOException("wrong ASN.1 object found in stream", ex);
         }
-        //catch (Exception ex) {
-        //    throw new IOException("problem parsing EC private key: " + ex);
-        //}
+        // catch (Exception ex) {
+        // throw new IOException("problem parsing EC private key: " + ex);
+        // }
+    }
+
+    public static KeyPair readEd25519PrivateKey(final KeyFactory keyFactory, final byte[] input)
+            throws IOException, InvalidKeySpecException {
+        return readEd25519PrivateKey(keyFactory, mockPrivateKeyInfo(Type.Ed25519, input));
+    }
+
+    public static KeyPair readEd25519PrivateKey(final KeyFactory keyFactory, final PrivateKeyInfo keyInfo)
+            throws IOException, InvalidKeySpecException {
+        try {
+            ASN1Sequence seq = ASN1Sequence.getInstance(keyInfo.parsePrivateKey());
+            org.bouncycastle.crypto.params.AsymmetricKeyParameter key = org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil
+                    .parsePrivateKeyBlob(seq.getObjectAt(1).toASN1Primitive().getEncoded());
+            throw new IOException("key is " + key);
+
+        } catch (ClassCastException ex) {
+            throw new IOException("wrong ASN.1 object found in stream", ex);
+        }
+    }
+
+    public static KeyPair readX25519PrivateKey(final KeyFactory keyFactory, final PrivateKeyInfo keyInfo)
+            throws IOException, InvalidKeySpecException {
+                try {
+                    ASN1Sequence seq = ASN1Sequence.getInstance(keyInfo.parsePrivateKey());
+                    org.bouncycastle.crypto.params.AsymmetricKeyParameter key = org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil
+                            .parsePrivateKeyBlob(seq.getObjectAt(1).toASN1Primitive().getEncoded());
+                    throw new IOException("key is " + key);
+        
+                } catch (ClassCastException ex) {
+                    throw new IOException("wrong ASN.1 object found in stream", ex);
+                }
     }
 
     public static byte[] toDerRSAKey(RSAPublicKey pubKey, RSAPrivateCrtKey privKey) throws IOException {
-        if ( pubKey != null && privKey == null ) {
-            return toDerRSAPublicKey(pubKey);
+        if (pubKey != null && privKey == null) {
+            // pubKey.getEncoded() :
+            return KeyUtil.getEncodedSubjectPublicKeyInfo(
+                    new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE),
+                    toASN1Primitive(pubKey));
         }
         ASN1EncodableVector vec = new ASN1EncodableVector();
         vec.add(new ASN1Integer(BigInteger.ZERO));
@@ -310,8 +359,8 @@ public class PKey {
     public static byte[] toDerRSAPublicKey(final RSAPublicKey pubKey) throws IOException {
         // pubKey.getEncoded() :
         return KeyUtil.getEncodedSubjectPublicKeyInfo(
-                new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE), toASN1Primitive(pubKey)
-        );
+                new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE),
+                toASN1Primitive(pubKey));
     }
 
     public static ASN1Sequence toASN1Primitive(final RSAPublicKey publicKey) {
@@ -323,10 +372,20 @@ public class PKey {
     }
 
     public static byte[] toDerDSAKey(DSAPublicKey pubKey, DSAPrivateKey privKey) throws IOException {
-        if ( pubKey != null && privKey == null ) {
-            return toDerDSAPublicKey(pubKey);
+        if (pubKey != null && privKey == null) {
+            // pubKey.getEncoded() :
+            final DSAParams params = pubKey.getParams();
+            if (params == null) {
+                return new SubjectPublicKeyInfo(
+                        new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa),
+                        toASN1Primitive(pubKey)).getEncoded(ASN1Encoding.DER);
+            }
+            return new SubjectPublicKeyInfo(
+                    new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
+                            new DSAParameter(params.getP(), params.getQ(), params.getG())),
+                    toASN1Primitive(pubKey)).getEncoded(ASN1Encoding.DER);
         }
-        if ( privKey != null && pubKey != null ) {
+        if (privKey != null && pubKey != null) {
             ASN1EncodableVector vec = new ASN1EncodableVector();
             final DSAParams params = privKey.getParams();
             vec.add(new ASN1Integer(BigInteger.ZERO));
@@ -337,15 +396,14 @@ public class PKey {
             vec.add(new ASN1Integer(privKey.getX()));
             return new DERSequence(vec).toASN1Primitive().getEncoded(ASN1Encoding.DER);
         }
-        if ( privKey == null ) {
+        if (privKey == null) {
             throw new IllegalArgumentException("private key as well as public key are null");
         }
         final DSAParams params = privKey.getParams();
         return new PrivateKeyInfo(
                 new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
                         new DSAParameter(params.getP(), params.getQ(), params.getG())),
-                new ASN1Integer(privKey.getX())
-        ).getEncoded(ASN1Encoding.DER);
+                new ASN1Integer(privKey.getX())).getEncoded(ASN1Encoding.DER);
     }
 
     public static byte[] toDerDSAPublicKey(final DSAPublicKey pubKey) throws IOException {
@@ -354,15 +412,12 @@ public class PKey {
         if (params == null) {
             return new SubjectPublicKeyInfo(
                     new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa),
-                    toASN1Primitive(pubKey)
-            ).getEncoded(ASN1Encoding.DER);
+                    toASN1Primitive(pubKey)).getEncoded(ASN1Encoding.DER);
         }
         return new SubjectPublicKeyInfo(
                 new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
-                        new DSAParameter(params.getP(), params.getQ(), params.getG())
-                ),
-                toASN1Primitive(pubKey)
-        ).getEncoded(ASN1Encoding.DER);
+                        new DSAParameter(params.getP(), params.getQ(), params.getG())),
+                toASN1Primitive(pubKey)).getEncoded(ASN1Encoding.DER);
     }
 
     public static ASN1Primitive toASN1Primitive(DSAPublicKey pubKey) {
@@ -371,8 +426,10 @@ public class PKey {
 
     public static byte[] toDerDHKey(BigInteger p, BigInteger g) throws IOException {
         ASN1EncodableVector vec = new ASN1EncodableVector();
-        if ( p != null ) vec.add( new ASN1Integer(p) );
-        if ( g != null ) vec.add( new ASN1Integer(g) );
+        if (p != null)
+            vec.add(new ASN1Integer(p));
+        if (g != null)
+            vec.add(new ASN1Integer(g));
         return new DLSequence(vec).getEncoded();
     }
 }

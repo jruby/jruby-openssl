@@ -40,12 +40,17 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
+
+import javax.crypto.spec.DHParameterSpec;
 
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
+import org.jruby.RubyException;
+import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
@@ -124,6 +129,8 @@ public abstract class PKey extends RubyObject {
                 pass = args[1].isNil() ? null : args[1].toString().toCharArray();
             }
 
+            ArrayList<Exception> exceptions = new ArrayList<>();
+
             final RubyString str = readInitArg(context, data);
             KeyPair keyPair;
             // d2i_PrivateKey_bio
@@ -131,6 +138,7 @@ public abstract class PKey extends RubyObject {
                 keyPair = readPrivateKey(str, pass);
             } catch (IOException e) {
                 debugStackTrace(runtime, "PKey readPrivateKey", e); /* ignore */
+                exceptions.add(e);
                 keyPair = null;
             }
             // PEM_read_bio_PrivateKey
@@ -154,12 +162,14 @@ public abstract class PKey extends RubyObject {
                 if (pubKey != null) return new PKeyRSA(runtime, (RSAPublicKey) pubKey);
             } catch (IOException e) {
                 debugStackTrace(runtime, "PKey readRSAPublicKey", e); /* ignore */
+                exceptions.add(e);
             }
             try {
                 pubKey = PEMInputOutput.readDSAPublicKey(new StringReader(str.toString()), null);
                 if (pubKey != null) return new PKeyDSA(runtime, (DSAPublicKey) pubKey);
             } catch (IOException e) {
                 debugStackTrace(runtime, "PKey readDSAPublicKey", e); /* ignore */
+                exceptions.add(e);
             }
 
             final byte[] input = StringHelper.readX509PEM(context, str);
@@ -168,6 +178,7 @@ public abstract class PKey extends RubyObject {
                 pubKey = org.jruby.ext.openssl.impl.PKey.readPublicKey(input);
             } catch (IOException e) {
                 debugStackTrace(runtime, "PKey readPublicKey", e); /* ignore */
+                exceptions.add(e);
             }
             // PEM_read_bio_PUBKEY
             if (pubKey == null) {
@@ -175,7 +186,19 @@ public abstract class PKey extends RubyObject {
                     pubKey = PEMInputOutput.readPubKey(new StringReader(str.toString()));
                 } catch (IOException e) {
                     debugStackTrace(runtime, "PKey readPubKey", e); /* ignore */
+                    exceptions.add(e);
                 }
+            }
+
+            if (pubKey == null) {
+                try {
+                    final PKeyDH dh = new PKeyDH(runtime, str);
+                    return dh;
+                } catch (Exception e) {
+                    debugStackTrace(runtime, "PKey read DH", e); /* ignore */
+                    exceptions.add(e);
+                }
+                
             }
 
             if (pubKey instanceof RSAPublicKey) {
@@ -188,13 +211,34 @@ public abstract class PKey extends RubyObject {
                 return new PKeyEC(runtime, pubKey);
             }
 
-            throw newPKeyError(runtime, "Could not parse PKey: unsupported");
+            exceptions.stream().forEach(Throwable::printStackTrace);
+
+            throw newPKeyError(runtime, "Could not parse PKey: unsupported " + pubKey + " " + exceptions);
         }
 
         private static String getAlgorithm(final KeyPair key) {
             if ( key.getPrivate() != null ) return key.getPrivate().getAlgorithm();
             if ( key.getPublic() != null ) return key.getPublic().getAlgorithm();
             return null;
+        }
+
+        @JRubyMethod(name = "generate_key", meta = true, required = 1, optional = 1)
+        public static IRubyObject generateKey(final ThreadContext context, IRubyObject recv, IRubyObject[] args) {
+            if (!(args[0] instanceof RubyString)) {
+                throw context.getRuntime().newNotImplementedError("generate_key not implemented for " + args[0].getMetaClass().getName());
+            }
+
+
+            throw context.getRuntime().newNotImplementedError("generate_key not implemented for " + args[0].inspect());
+        }
+
+        @JRubyMethod(name = "generate_parameters", meta = true, required = 1, optional = 1)
+        public static IRubyObject generateParameters(final ThreadContext context, IRubyObject recv, IRubyObject[] args) {
+            if (!(args[0] instanceof RubyString)) {
+                throw context.getRuntime().newArgumentError("generate_parameters requires a string argument");
+            }
+
+            throw context.getRuntime().newNotImplementedError("generate_parameters not implemented for " + args[0].inspect() + " " + args[1].inspect());
         }
     }
 
@@ -222,6 +266,8 @@ public abstract class PKey extends RubyObject {
 
     public abstract RubyString to_pem(ThreadContext context, final IRubyObject[] args) ;
 
+    public abstract RubyString oid() ;
+
     @JRubyMethod(name = "sign")
     public IRubyObject sign(IRubyObject digest, IRubyObject data) {
         final Ruby runtime = getRuntime();
@@ -244,6 +290,27 @@ public abstract class PKey extends RubyObject {
             return ((ASN1Sequence) data).getObjectAt(1).toASN1Primitive();
         }
         return data;
+    }
+
+    @JRubyMethod(name = "inspect")
+    public IRubyObject inspect() {
+        final Ruby runtime = getRuntime();
+        final StringBuilder result = new StringBuilder();
+        result.append("#<").append(getMetaClass().getName()).append(" ");
+        result.append("oid=").append(this.oid().asJavaString());
+        result.append(">");
+        return runtime.newString(result.toString());
+    }
+
+    @JRubyMethod(name = "compare?", required = 1)
+    public IRubyObject compare(ThreadContext context, IRubyObject other) {
+        if (other instanceof PKey) {
+            final PKey otherKey = (PKey) other;
+            if (this.getAlgorithm().equals(otherKey.getAlgorithm())) {
+                return context.runtime.newBoolean(this.to_der().equals(otherKey.to_der()));
+            }
+        }
+        return context.runtime.getFalse();
     }
 
     @Override

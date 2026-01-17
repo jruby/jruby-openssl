@@ -468,7 +468,7 @@ public class PKeyDSA extends PKey {
     }
 
     @JRubyMethod
-    public IRubyObject oid() {
+    public RubyString oid() {
         return getRuntime().newString("DSA");
     }
 
