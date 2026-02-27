@@ -296,13 +296,14 @@ public class X509Request extends RubyObject {
 
     @JRubyMethod
     public IRubyObject sign(final ThreadContext context,
-        final IRubyObject key, final IRubyObject digest) {
+        final IRubyObject key, final IRubyObject _digest) {
         PrivateKey privateKey = ((PKey) key).getPrivateKey();
+        Digest digest = Digest.getDigest(context, _digest);
 
         final Ruby runtime = context.runtime;
-        supportedSignatureAlgorithm(runtime, _RequestError(runtime), public_key, (Digest) digest);
+        supportedSignatureAlgorithm(runtime, _RequestError(runtime), public_key, digest);
 
-        final String digAlg = ((Digest) digest).getShortAlgorithm();
+        final String digAlg = digest.getShortAlgorithm();
         try {
             request = null;
             getRequest().sign( privateKey, digAlg );

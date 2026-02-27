@@ -124,6 +124,15 @@ public class Digest extends RubyObject {
         }
     }
 
+    static Digest getDigest(ThreadContext context, IRubyObject digest) {
+        if (digest instanceof Digest) {
+            return (Digest) digest;
+        } else {
+            RubyString digestString = digest.convertToString();
+            return newInstance(context.runtime, digestString, context.nil);
+        }
+    }
+
     private static Digest newInstance(final Ruby runtime, final IRubyObject name, final IRubyObject data) {
         final RubyClass klass = _Digest(runtime);
         final Digest instance = new Digest(runtime, klass);
