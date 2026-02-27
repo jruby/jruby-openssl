@@ -123,7 +123,8 @@ public class X509Name extends RubyObject {
         final RubyFixnum IA5_STRING = runtime.newFixnum(BERTags.IA5_STRING);
 
         final ThreadContext context = runtime.getCurrentContext();
-        final RubyHash hash = new RubyHash(runtime, UTF8_STRING);
+        final RubyHash hash = RubyHash.newHash(runtime);
+        hash.default_value_set(context, UTF8_STRING);
         hash.op_aset(context, newString(runtime, new byte[] { 'C' }), PRINTABLE_STRING);
         final byte[] countryName = { 'c','o','u','n','t','r','y','N','a','m','e' };
         hash.op_aset(context, newString(runtime, countryName), PRINTABLE_STRING);
