@@ -13,6 +13,7 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -438,6 +439,9 @@ public final class PKeyEC extends PKey {
             this.publicKey = (ECPublicKey) pair.getPublic();
             this.privateKey = pair.getPrivate();
         }
+        catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException ex) {
+            throw newPKeyError(context.runtime, ex.getMessage());
+        }
         catch (GeneralSecurityException ex) {
             throw newECError(context.runtime, ex.toString());
         }
@@ -558,6 +562,9 @@ public final class PKeyEC extends PKey {
 
     private Group getGroup(boolean required) {
         if (group == null) {
+            if (curveName == null) {
+                return null;
+            }
             return group = new Group(getRuntime(), this);
         }
         return group;
@@ -857,6 +864,11 @@ public final class PKeyEC extends PKey {
             setCurveName(runtime, key.getCurveName());
         }
 
+        private static RaiseException newError(final Ruby runtime, final String message) {
+            final RubyClass Error = _EC(runtime).getClass("Group").getClass("Error");
+            return Utils.newError(runtime, Error, message);
+        }
+
         @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
             final Ruby runtime = context.runtime;
@@ -967,6 +979,9 @@ public final class PKeyEC extends PKey {
         }
 
         private ECParameterSpec getParamSpec() {
+            if (curveName == null) {
+                throw newError(getRuntime(), "unsupported field: curveName is null");
+            }
             if (paramSpec == null) {
                 paramSpec = PKeyEC.getParamSpec(getCurveName());
             }
