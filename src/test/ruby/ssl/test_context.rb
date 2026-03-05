@@ -127,12 +127,12 @@ class TestSSLContext < TestCase
     shared_ciphers = [
         jce_installed && "ECDHE-ECDSA-AES256-SHA",
         jce_installed && "ECDHE-RSA-AES256-SHA",
-        jce_installed && "AES256-SHA",
+        jce_installed && "AES256-SHA" && nil, # TLS_RSA_WITH_AES_256_CBC_SHA disabled/dropped in newer Java
         jce_installed && "DHE-RSA-AES256-SHA",
         jce_installed && "DHE-DSS-AES256-SHA",
         "ECDHE-ECDSA-AES128-SHA",
         "ECDHE-RSA-AES128-SHA",
-        "AES128-SHA",
+        "AES128-SHA" && nil, # TLS_RSA_WITH_AES_128_CBC_SHA disabled/dropped in newer Java
         "DHE-RSA-AES128-SHA",
         "DHE-DSS-AES128-SHA",
         "AECDH-AES128-SHA" && nil, # dropped in Java 11
@@ -178,7 +178,9 @@ class TestSSLContext < TestCase
     actual = context.ciphers.map { |cipher| cipher[0] }
     assert actual.include?("ECDHE-RSA-AES128-SHA")
     assert actual.include?("ECDHE-ECDSA-AES128-SHA")
-    assert actual.include?("AES128-SHA")
+    # AES128-SHA (TLS_RSA_WITH_AES_128_CBC_SHA) uses RSA key exchange (no forward secrecy)
+    # and may be disabled/removed from getSupportedCipherSuites() in newer Java security configurations
+    assert actual.include?("AES128-SHA") unless jruby? && self.class.java_version.last.to_i >= 11
   end
 
   def test_set_ciphers_by_cipher_name
