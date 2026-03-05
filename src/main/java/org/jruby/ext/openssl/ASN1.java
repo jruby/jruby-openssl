@@ -1841,6 +1841,17 @@ public class ASN1 {
                 return toDERInternal(context, false, false, string);
             }
 
+            // Special behavior: Encoding universal types with non-default 'tag'
+            // attribute and nil tagging method - replace the tag byte with the custom tag.
+            if ( !isTagged() && isUniversal(context) ) {
+                final IRubyObject defTag = defaultTag();
+                if ( !defTag.isNil() && getTag(context) != RubyNumeric.fix2int(defTag) ) {
+                    final byte[] encoded = toASN1Primitive(context).toASN1Primitive().getEncoded(ASN1Encoding.DER);
+                    encoded[0] = (byte) getTag(context);
+                    return encoded;
+                }
+            }
+
             return toASN1(context).toASN1Primitive().getEncoded(ASN1Encoding.DER);
         }
 
@@ -2033,11 +2044,18 @@ public class ASN1 {
             if ( isInfiniteLength() ) return super.toASN1(context);
 
             if ( isSequence() ) {
-                return new DERSequence( toASN1EncodableVector(context) );
+                final ASN1Encodable seq = new DERSequence( toASN1EncodableVector(context) );
+                if ( isTagged() ) {
+                    return new DERTaggedObject(isExplicitTagging(), getTagClass(context), getTag(context), seq);
+                }
+                return seq;
             }
             if ( isSet() ) {
-                return new DLSet( toASN1EncodableVector(context) ); // return new BERSet(values);
-                //return ASN1Set.getInstance(toASN1TaggedObject(context), isExplicitTagging());
+                final ASN1Encodable set = new DLSet( toASN1EncodableVector(context) );
+                if ( isTagged() ) {
+                    return new DERTaggedObject(isExplicitTagging(), getTagClass(context), getTag(context), set);
+                }
+                return set;
             }
             switch ( getTag(context) ) { // "raw" Constructive ?!?
             case OCTET_STRING:
@@ -2069,10 +2087,10 @@ public class ASN1 {
 
             if ( isIndefiniteLength ) {
                 if ( isSequence() || tagNo == SEQUENCE ) {
-                    return sequenceToDER(context);
+                    return applyIndefiniteTagging(context, sequenceToDER(context));
                 }
                 if ( isSet() || tagNo == SET)  {
-                    return setToDER(context);
+                    return applyIndefiniteTagging(context, setToDER(context));
                 }
                 // "raw" Constructive
                 switch ( getTag(context) ) {
@@ -2092,6 +2110,18 @@ public class ASN1 {
 
             if ( type == null ) {
                 return toDERInternal(context, true, isIndefiniteLength, valueAsArray(context));
+            }
+
+            // Special behavior: Encoding universal types with non-default 'tag'
+            // attribute and nil tagging method - replace the tag byte with the custom tag,
+            // preserving the CONSTRUCTED bit.
+            if ( !isTagged() && isUniversal(context) ) {
+                final IRubyObject defTag = defaultTag();
+                if ( !defTag.isNil() && tagNo != RubyNumeric.fix2int(defTag) ) {
+                    final byte[] encoded = toASN1(context).toASN1Primitive().getEncoded(ASN1Encoding.DER);
+                    encoded[0] = (byte) (BERTags.CONSTRUCTED | tagNo);
+                    return encoded;
+                }
             }
 
             return super.toDER(context);
@@ -2138,6 +2168,28 @@ public class ASN1 {
         private byte[] setToDER(final ThreadContext context) throws IOException {
             final ASN1EncodableVector values = toASN1EncodableVector(context);
             return new BERSet(values).toASN1Primitive().getEncoded();
+        }
+
+        // Applies EXPLICIT or IMPLICIT tagging to an already-encoded indefinite-length
+        // Sequence or Set byte array. For IMPLICIT, replaces the tag byte in-place.
+        // For EXPLICIT, wraps the inner bytes with an outer tag + indefinite-length header
+        // and appends the required outer EOC (0x00 0x00).
+        private byte[] applyIndefiniteTagging(final ThreadContext context, final byte[] innerBytes) throws IOException {
+            if ( !isTagged() ) return innerBytes;
+            final int tag = getTag(context);
+            final int tagClass = getTagClass(context);
+            if ( isImplicitTagging() ) {
+                innerBytes[0] = (byte) (tagClass | BERTags.CONSTRUCTED | tag);
+                return innerBytes;
+            } else { // EXPLICIT
+                final ByteArrayOutputStream out = new ByteArrayOutputStream(innerBytes.length + 4);
+                writeDERIdentifier(tag, tagClass | BERTags.CONSTRUCTED, out);
+                out.write(0x80); // indefinite length
+                out.write(innerBytes);
+                out.write(0x00); // outer EOC
+                out.write(0x00);
+                return out.toByteArray();
+            }
         }
 
         private ASN1EncodableVector toASN1EncodableVector(final ThreadContext context) {
