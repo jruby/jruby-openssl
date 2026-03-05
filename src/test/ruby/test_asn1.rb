@@ -232,6 +232,67 @@ class TestASN1 < TestCase
     encode_decode_test B(%w{ 0A 09 01 00 00 00 00 00 00 00 00 }), OpenSSL::ASN1::Enumerated.new(2 ** 64)
   end
 
+  def test_object_identifier
+    encode_decode_test B(%w{ 06 01 00 }), OpenSSL::ASN1::ObjectId.new("0.0".b)
+    encode_decode_test B(%w{ 06 01 28 }), OpenSSL::ASN1::ObjectId.new("1.0".b)
+    encode_decode_test B(%w{ 06 03 88 37 03 }), OpenSSL::ASN1::ObjectId.new("2.999.3".b)
+    encode_decode_test B(%w{ 06 05 2A 22 83 BB 55 }), OpenSSL::ASN1::ObjectId.new("1.2.34.56789".b)
+    obj = encode_decode_test B(%w{ 06 09 60 86 48 01 65 03 04 02 01 }), OpenSSL::ASN1::ObjectId.new("sha256")
+    assert_equal "2.16.840.1.101.3.4.2.1", obj.oid
+    assert_equal "SHA256", obj.sn
+    assert_equal "sha256", obj.ln
+    assert_raise(OpenSSL::ASN1::ASN1Error) {
+      OpenSSL::ASN1.decode(B(%w{ 06 00 }))
+    }
+    assert_raise(OpenSSL::ASN1::ASN1Error) {
+      OpenSSL::ASN1.decode(B(%w{ 06 01 80 }))
+    }
+    assert_raise(OpenSSL::ASN1::ASN1Error) { OpenSSL::ASN1::ObjectId.new("3.0".b).to_der }
+    assert_raise(OpenSSL::ASN1::ASN1Error) { OpenSSL::ASN1::ObjectId.new("0.40".b).to_der }
+
+    oid = (0...100).to_a.join(".").b
+    obj = OpenSSL::ASN1::ObjectId.new(oid)
+    assert_equal oid, obj.oid
+  end
+
+  def test_object_identifier_equality
+    aki = [
+      OpenSSL::ASN1::ObjectId.new("authorityKeyIdentifier"),
+      OpenSSL::ASN1::ObjectId.new("X509v3 Authority Key Identifier"),
+      OpenSSL::ASN1::ObjectId.new("2.5.29.35")
+    ]
+
+    ski = [
+      OpenSSL::ASN1::ObjectId.new("subjectKeyIdentifier"),
+      OpenSSL::ASN1::ObjectId.new("X509v3 Subject Key Identifier"),
+      OpenSSL::ASN1::ObjectId.new("2.5.29.14")
+    ]
+
+    aki.each do |a|
+      aki.each do |b|
+        puts "#{a.value} == #{b.value}"
+        assert_equal true, a == b
+      end
+
+      ski.each do |b|
+        puts "#{a.value} != #{b.value}"
+        assert_equal false, a == b
+      end
+    end
+
+    obj1 = OpenSSL::ASN1::ObjectId.new("1.2.34.56789.10")
+    obj2 = OpenSSL::ASN1::ObjectId.new("1.2.34.56789.10")
+    obj3 = OpenSSL::ASN1::ObjectId.new("1.2.34.56789.11")
+    # TODO: OidToNid and NidToOid logic is done in a bespoke manner in jruby-openssl.
+    # this should use the BC APIs to translated registered names to OID. They are a bit
+    # scattered all over though (BCStyle.attrNameToOID, SECNamedCurves.getOID, X509Name hashtables...)
+    # omit "OID 1.2.34.56789.10 is registered" if obj1.sn
+    assert_equal true, obj1 == obj2
+    assert_equal false, obj1 == obj3
+
+    assert_equal false, OpenSSL::ASN1::ObjectId.new("authorityKeyIdentifier") == nil
+  end
+
   def test_encode_nested_sequence_to_der
     data_sequence = ::OpenSSL::ASN1::Sequence([::OpenSSL::ASN1::Integer(0)])
     asn1 = ::OpenSSL::ASN1::Sequence(data_sequence)
@@ -310,67 +371,6 @@ class TestASN1 < TestCase
     assert_equal 2, int.tag
     assert_equal :UNIVERSAL, int.tag_class
     assert_equal OpenSSL::BN.new(90), int.value
-  end
-
-  def test_object_identifier
-    encode_decode_test B(%w{ 06 01 00 }), OpenSSL::ASN1::ObjectId.new("0.0".b)
-    encode_decode_test B(%w{ 06 01 28 }), OpenSSL::ASN1::ObjectId.new("1.0".b)
-    encode_decode_test B(%w{ 06 03 88 37 03 }), OpenSSL::ASN1::ObjectId.new("2.999.3".b)
-    encode_decode_test B(%w{ 06 05 2A 22 83 BB 55 }), OpenSSL::ASN1::ObjectId.new("1.2.34.56789".b)
-    obj = encode_decode_test B(%w{ 06 09 60 86 48 01 65 03 04 02 01 }), OpenSSL::ASN1::ObjectId.new("sha256")
-    assert_equal "2.16.840.1.101.3.4.2.1", obj.oid
-    assert_equal "SHA256", obj.sn
-    assert_equal "sha256", obj.ln
-    # TODO: Import Issue
-    # Fails with: <OpenSSL::ASN1::ASN1Error> expected but was <RuntimeError(<(TypeError) string  not an OID>)
-    #assert_raise(OpenSSL::ASN1::ASN1Error) {
-    #  OpenSSL::ASN1.decode(B(%w{ 06 00 }))
-    #}
-    #assert_raise(OpenSSL::ASN1::ASN1Error) {
-    #  OpenSSL::ASN1.decode(B(%w{ 06 01 80 }))
-    #}
-    # <OpenSSL::ASN1::ASN1Error> expected but was <TypeError(<string 3.0 not an OID>)
-    #assert_raise(OpenSSL::ASN1::ASN1Error) { OpenSSL::ASN1::ObjectId.new("3.0".b).to_der }
-    # <OpenSSL::ASN1::ASN1Error> exception was expected but none was thrown.
-    #assert_raise(OpenSSL::ASN1::ASN1Error) { OpenSSL::ASN1::ObjectId.new("0.40".b).to_der }
-
-    oid = (0...100).to_a.join(".").b
-    obj = OpenSSL::ASN1::ObjectId.new(oid)
-    assert_equal oid, obj.oid
-
-    aki = [
-      OpenSSL::ASN1::ObjectId.new("authorityKeyIdentifier"),
-      OpenSSL::ASN1::ObjectId.new("X509v3 Authority Key Identifier"),
-      OpenSSL::ASN1::ObjectId.new("2.5.29.35")
-    ]
-
-    ski = [
-      OpenSSL::ASN1::ObjectId.new("subjectKeyIdentifier"),
-      OpenSSL::ASN1::ObjectId.new("X509v3 Subject Key Identifier"),
-      OpenSSL::ASN1::ObjectId.new("2.5.29.14")
-    ]
-
-    aki.each do |a|
-      # TODO: Import Issue
-      # None of these are equivalent to each other
-      #aki.each do |b|
-      #  assert a == b
-      #end
-
-      ski.each do |b|
-        refute a == b
-      end
-    end
-
-    # TODO: Import Issue
-    # <TypeError> exception was expected but none was thrown.
-    #assert_raise(TypeError) {
-    #  OpenSSL::ASN1::ObjectId.new("authorityKeyIdentifier") == nil
-    #}
-
-    oid = OpenSSL::ASN1::ObjectId.new("2.5.29.14")
-    assert_equal true, oid == OpenSSL::ASN1::ObjectId.new("2.5.29.14")
-    assert_equal false, oid == OpenSSL::ASN1::ObjectId.new("2.5.29.35")
   end
 
   def test_instantiate
