@@ -40,16 +40,16 @@ jobs:
             ruby-version: jruby-9.4.8.0
           - java-version: 21
             distribution: temurin
-            ruby-version: jruby-10.0.2.0
+            ruby-version: jruby-10.0.4.0
           - java-version: 24
             distribution: zulu
             ruby-version: jruby-10.0.1.0
           - java-version: 25
             distribution: temurin
-            ruby-version: jruby-10.0.2.0
+            ruby-version: jruby-10.0.3.0
           - java-version: 21
             distribution: corretto
-            ruby-version: jruby-head # 10.X
+            ruby-version: jruby-head
       fail-fast: false
 
     steps:
