@@ -13,6 +13,7 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -438,8 +439,11 @@ public final class PKeyEC extends PKey {
             this.publicKey = (ECPublicKey) pair.getPublic();
             this.privateKey = pair.getPrivate();
         }
+        catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException ex) {
+            throw PKey.newPKeyError(context.runtime, ex.getMessage());
+        }
         catch (GeneralSecurityException ex) {
-            throw newECError(context.runtime, ex.toString());
+            throw (RaiseException) newECError(context.runtime, ex.toString()).initCause(ex);
         }
         return this;
     }
@@ -567,9 +571,15 @@ public final class PKeyEC extends PKey {
      * @return OpenSSL::PKey::EC::Group
      */
     @JRubyMethod
-    public IRubyObject group() {
-        final Group group = getGroup(false);
-        return group == null ? getRuntime().getNil() : group;
+    public IRubyObject group(ThreadContext context) {
+        Group group = this.group;
+        if (group != null) return group;
+
+        if (publicKey == null && publicKey == null) {
+            return context.nil; // PKey::EC.new
+        }
+        group = getGroup(false);
+        return group == null ? context.nil : group;
     }
 
     @JRubyMethod(name = "group=")
@@ -679,7 +689,7 @@ public final class PKeyEC extends PKey {
             return public_to_der(runtime);
         }
         if (privateKey == null) {
-            throw new IllegalStateException("private key as well as public key are null");
+            throw PKey.newPKeyError(runtime, "can't export - no public key set");
         }
 
         try {
@@ -841,6 +851,11 @@ public final class PKeyEC extends PKey {
             Group.defineAnnotatedMethods(Group.class);
         }
 
+        static RaiseException newError(final Ruby runtime, final String message) {
+            final RubyClass Error = _EC(runtime).getClass("Group").getClass("Error");
+            return Utils.newError(runtime, Error, message);
+        }
+
         private transient ECParameterSpec paramSpec;
 
         private PointConversion conversionForm = PointConversion.UNCOMPRESSED;
@@ -854,7 +869,8 @@ public final class PKeyEC extends PKey {
 
         Group(Ruby runtime, PKeyEC key) {
             this(runtime, _EC(runtime).getClass("Group"));
-            setCurveName(runtime, key.getCurveName());
+            final String curveName = key.getCurveName();
+            if (curveName != null) setCurveName(runtime, curveName);
         }
 
         @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
@@ -876,7 +892,9 @@ public final class PKeyEC extends PKey {
 
         private String getCurveName() {
             if (curveName == null) {
-                assert impl_curve_name != null;
+                if (impl_curve_name == null) {
+                    throw newError(getRuntime(), "no curve name");
+                }
                 return impl_curve_name.asJavaString();
             }
             return curveName;
