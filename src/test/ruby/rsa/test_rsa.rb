@@ -339,6 +339,76 @@ geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
     assert_same_rsa rsa1024pub, key
   end
 
+  def test_private_encoding
+    pkey = Fixtures.pkey("rsa-1.pem")
+    asn1 = OpenSSL::ASN1::Sequence([
+                                     OpenSSL::ASN1::Integer(0),
+                                     OpenSSL::ASN1::Sequence([
+                                                               OpenSSL::ASN1::ObjectId("rsaEncryption"),
+                                                               OpenSSL::ASN1::Null(nil)
+                                                             ]),
+                                     OpenSSL::ASN1::OctetString(pkey.to_der)
+                                   ])
+    assert_equal asn1.to_der, pkey.private_to_der
+    assert_same_rsa pkey, OpenSSL::PKey.read(asn1.to_der)
+
+    pem = der_to_pem(asn1.to_der, "PRIVATE KEY")
+    assert_equal pem, pkey.private_to_pem
+    assert_same_rsa pkey, OpenSSL::PKey.read(pem)
+  end
+
+  def test_private_encoding_encrypted
+    rsa = Fixtures.pkey("rsa2048")
+    encoded = rsa.private_to_der("aes-128-cbc", "abcdef")
+    asn1 = OpenSSL::ASN1.decode(encoded) # PKCS #8 EncryptedPrivateKeyInfo
+    assert_kind_of OpenSSL::ASN1::Sequence, asn1
+    assert_equal 2, asn1.value.size
+    assert_not_equal rsa.private_to_der, encoded
+    assert_same_rsa rsa, OpenSSL::PKey.read(encoded, "abcdef")
+    #assert_same_rsa rsa, OpenSSL::PKey.read(encoded) { "abcdef" }
+    #assert_raise(OpenSSL::PKey::PKeyError) { OpenSSL::PKey.read(encoded, "abcxyz") }
+
+    encoded = rsa.private_to_pem("aes-128-cbc", "abcdef")
+    assert_match (/BEGIN ENCRYPTED PRIVATE KEY/), encoded.lines[0]
+    assert_same_rsa rsa, OpenSSL::PKey.read(encoded, "abcdef")
+
+    # Use openssl instead of certtool due to https://gitlab.com/gnutls/gnutls/-/issues/1632
+    # openssl pkcs8 -in test/openssl/fixtures/pkey/rsa2048.pem -topk8 -v2 aes-128-cbc -passout pass:abcdef
+    pem = <<~EOF
+    -----BEGIN ENCRYPTED PRIVATE KEY-----
+    MIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQIay5V8CDQi5oCAggA
+    MAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAECBBB6eyagcbsvdQlM1kPcH7kiBIIE
+    0Ng1apIyoPAZ4BfC4kMNeSmeAv3XspxqYi3uWzXiNyTcoE6390swrwM6WvdpXvLI
+    /n/V06krxPZ9X4fBG2kLUzXt5f09lEvmQU1HW1wJGU5Sq3bNeXBrlJF4DzJE4WWd
+    whVVvNMm44ghdzN/jGSw3z+6d717N+waa7vrpBDsHjhsPNwxpyzUvcFPFysTazxx
+    kN/dziIBF6SRKi6w8VaJEMQ8czGu5T3jOc2e/1p3/AYhHLPS4NHhLR5OUh0TKqLK
+    tANAqI9YqCAjhqcYCmN3mMQXY52VfOqG9hlX1x9ZQyqiH7l102EWbPqouk6bCBLQ
+    wHepPg4uK99Wsdh65qEryNnXQ5ZmO6aGb6T3TFENCaNKmi8Nh+/5dr7J7YfhIwpo
+    FqHvk0hrZ8r3EQlr8/td0Yb1/IKzeQ34638uXf9UxK7C6o+ilsmJDR4PHJUfZL23
+    Yb9qWJ0GEzd5AMsI7x6KuUxSuH9nKniv5Tzyty3Xmb4FwXUyADWE19cVuaT+HrFz
+    GraKnA3UXbEgWAU48/l4K2HcAHyHDD2Kbp8k+o1zUkH0fWUdfE6OUGtx19Fv44Jh
+    B7xDngK8K48C6nrj06/DSYfXlb2X7WQiapeG4jt6U57tLH2XAjHCkvu0IBZ+//+P
+    yIWduEHQ3w8FBRcIsTNJo5CjkGk580TVQB/OBLWfX48Ay3oF9zgnomDIlVjl9D0n
+    lKxw/KMCLkvB78rUeGbr1Kwj36FhGpTBw3FgcYGa5oWFZTlcOgMTXLqlbb9JnDlA
+    Zs7Tu0WTyOTV/Dne9nEm39Dzu6wRojiIpmygTD4FI7rmOy3CYNvL3XPv7XQj0hny
+    Ee/fLxugYlQnwPZSqOVEQY2HsG7AmEHRsvy4bIWIGt+yzAPZixt9MUdJh91ttRt7
+    QA/8J1pAsGqEuQpF6UUINZop3J7twfhO4zWYN/NNQ52eWNX2KLfjfGRhrvatzmZ0
+    BuCsCI9hwEeE6PTlhbX1Rs177MrDc3vlqz2V3Po0OrFjXAyg9DR/OC4iK5wOG2ZD
+    7StVSP8bzwQXsz3fJ0ardKXgnU2YDAP6Vykjgt+nFI09HV/S2faOc2g/UK4Y2khl
+    J93u/GHMz/Kr3bKWGY1/6nPdIdFheQjsiNhd5gI4tWik2B3QwU9mETToZ2LSvDHU
+    jYCys576xJLkdMM6nJdq72z4tCoES9IxyHVs4uLjHKIo/ZtKr+8xDo8IL4ax3U8+
+    NMhs/lwReHmPGahm1fu9zLRbNCVL7e0zrOqbjvKcSEftObpV/LLcPYXtEm+lZcck
+    /PMw49HSE364anKEXCH1cyVWJwdZRpFUHvRpLIrpHru7/cthhiEMdLgK1/x8sLob
+    DiyieLxH1DPeXT4X+z94ER4IuPVOcV5AXc/omghispEX6DNUnn5jC4e3WyabjUbw
+    MuO9lVH9Wi2/ynExCqVmQkdbTXuLwjni1fJ27Q5zb0aCmhO8eq6P869NCjhJuiUj
+    NI9XtGLP50YVWE0kL8KEJqnyFudky8Khzk4/dyixQFqin5GfT4vetrLunGHy7lRB
+    3LpnFrpMOr+0xr1RW1k9vlmjRsJSiojJfReYO7gH3B5swiww2azogoL+4jhF1Jxh
+    OYLWdkKhP2jSVGqtIDtny0O4lBm2+hLpWjiI0mJQ7wdA
+    -----END ENCRYPTED PRIVATE KEY-----
+    EOF
+    assert_same_rsa rsa, OpenSSL::PKey.read(pem, "abcdef")
+  end
+
   def test_export
     rsa1024 = Fixtures.pkey("rsa1024")
 
@@ -416,6 +486,41 @@ geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
     keys.each { |comp| assert_equal base.send(comp), test.send(comp) }
   end
 
+  # def assert_sign_verify_false_or_error
+  #   ret = yield
+  # rescue => e
+  #   assert_kind_of(OpenSSL::PKey::PKeyError, e)
+  # else
+  #   assert_equal(false, ret)
+  # end
+
+  def der_to_pem(der, pem_header)
+    # RFC 7468
+    <<~EOS
+    -----BEGIN #{pem_header}-----
+    #{[der].pack("m0").scan(/.{1,64}/).join("\n")}
+    -----END #{pem_header}-----
+    EOS
+  end
+
+  def der_to_encrypted_pem(der, pem_header, password)
+    # OpenSSL encryption, non-standard
+    iv = 16.times.to_a.pack("C*")
+    encrypted = OpenSSL::Cipher.new("aes-128-cbc").encrypt.then { |cipher|
+      cipher.key = OpenSSL::Digest.digest("MD5", password + iv[0, 8])
+      cipher.iv = iv
+      cipher.update(der) << cipher.final
+    }
+    <<~EOS
+    -----BEGIN #{pem_header}-----
+    Proc-Type: 4,ENCRYPTED
+    DEK-Info: AES-128-CBC,#{iv.unpack1("H*").upcase}
+
+    #{[encrypted].pack("m0").scan(/.{1,64}/).join("\n")}
+    -----END #{pem_header}-----
+    EOS
+  end
+
   def dup_public(key)
     case key
     when OpenSSL::PKey::RSA
@@ -426,5 +531,4 @@ geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
       raise "unknown key type: #{key.class}"
     end
   end
-
 end

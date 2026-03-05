@@ -62,6 +62,7 @@ import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 
 import static org.jruby.ext.openssl.OpenSSL.*;
+import static org.jruby.ext.openssl.Cipher._Cipher;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -126,12 +127,21 @@ public abstract class PKey extends RubyObject {
 
             final RubyString str = readInitArg(context, data);
             KeyPair keyPair;
-            // d2i_PrivateKey_bio
+            // d2i_PrivateKey_bio (PEM formats: RSA PRIVATE KEY, DSA PRIVATE KEY, PRIVATE KEY, ENCRYPTED PRIVATE KEY)
             try {
                 keyPair = readPrivateKey(str, pass);
             } catch (IOException e) {
                 debugStackTrace(runtime, "PKey readPrivateKey", e); /* ignore */
                 keyPair = null;
+            }
+            // DER-encoded PKCS#8 PrivateKeyInfo or EncryptedPrivateKeyInfo
+            if (keyPair == null) {
+                try {
+                    final byte[] derInput = str.getBytes();
+                    keyPair = PEMInputOutput.readPrivateKeyFromDER(derInput, pass);
+                } catch (IOException e) {
+                    debugStackTrace(runtime, "PKey readPrivateKeyFromDER", e); /* ignore */
+                }
             }
             // PEM_read_bio_PrivateKey
             if (keyPair != null) {
@@ -395,9 +405,16 @@ public abstract class PKey extends RubyObject {
     }
 
     protected static CipherSpec cipherSpec(final IRubyObject cipher) {
-        if ( cipher != null && ! cipher.isNil() ) {
-            final Cipher c = (Cipher) cipher;
-            return new CipherSpec(c.getCipherInstance(), c.getName(), c.getKeyLength() * 8);
+        Cipher obj = null;
+        if (cipher instanceof RubyString) {
+            final Ruby runtime = cipher.getRuntime();
+            obj = new Cipher(runtime, _Cipher(runtime));
+            obj.initializeImpl(runtime, cipher.asString().toString());
+        } else if (cipher instanceof Cipher) {
+            obj = (Cipher) cipher;
+        }
+        if (obj != null) {
+            return new CipherSpec(obj.getCipherInstance(), obj.getName(), obj.getKeyLength() * 8);
         }
         return null;
     }
