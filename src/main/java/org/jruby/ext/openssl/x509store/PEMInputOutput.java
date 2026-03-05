@@ -112,6 +112,8 @@ import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.PBEParametersGenerator;
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
+import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.engines.DESedeEngine;
 import org.bouncycastle.crypto.engines.RC2Engine;
 import org.bouncycastle.crypto.generators.OpenSSLPBEParametersGenerator;
@@ -360,18 +362,56 @@ public class PEMInputOutput {
                 try {
                     byte[] bytes = readBase64Bytes(reader, BEF_E + PEM_STRING_PKCS8);
                     EncryptedPrivateKeyInfo eIn = EncryptedPrivateKeyInfo.getInstance(bytes);
-                    AlgorithmIdentifier algId = eIn.getEncryptionAlgorithm();
-                    PrivateKey privKey;
-                    if (algId.getAlgorithm().toString().equals("1.2.840.113549.1.5.13")) { // PBES2
-                        privKey = derivePrivateKeyPBES2(eIn, algId, passwd);
-                    } else {
-                        privKey = derivePrivateKeyPBES1(eIn, algId, passwd);
-                    }
-                    return new KeyPair(null, privKey);
+                    org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo encInfo =
+                        new org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo(eIn);
+                    org.bouncycastle.operator.InputDecryptorProvider decryptor =
+                        new org.bouncycastle.pkcs.jcajce.JcePKCSPBEInputDecryptorProviderBuilder()
+                            .setProvider(SecurityHelper.getSecurityProvider())
+                            .build(passwd);
+                    final PrivateKeyInfo keyInfo = encInfo.decryptPrivateKeyInfo(decryptor);
+                    final Type type = getPrivateKeyType(keyInfo.getPrivateKeyAlgorithm());
+                    return org.jruby.ext.openssl.impl.PKey.readPrivateKey(type, keyInfo);
                 }
                 catch (Exception e) {
                     throw mapReadException("problem creating private key: ", e);
                 }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Attempt to read a private key from DER-encoded PKCS#8 bytes (PrivateKeyInfo or
+     * EncryptedPrivateKeyInfo). Returns null if the input cannot be parsed as either format.
+     */
+    public static KeyPair readPrivateKeyFromDER(final byte[] input, final char[] passwd) throws IOException {
+        // Try as unencrypted PKCS#8 PrivateKeyInfo
+        try {
+            final PrivateKeyInfo keyInfo = PrivateKeyInfo.getInstance(ASN1Primitive.fromByteArray(input));
+            if (keyInfo != null) {
+                final Type type = getPrivateKeyType(keyInfo.getPrivateKeyAlgorithm());
+                return org.jruby.ext.openssl.impl.PKey.readPrivateKey(type, keyInfo);
+            }
+        } catch (Exception e) {
+            // Not a PrivateKeyInfo - try as EncryptedPrivateKeyInfo
+        }
+        // Try as encrypted PKCS#8 EncryptedPrivateKeyInfo
+        if (passwd != null) {
+            try {
+                EncryptedPrivateKeyInfo eIn = EncryptedPrivateKeyInfo.getInstance(ASN1Primitive.fromByteArray(input));
+                if (eIn != null) {
+                    org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo encInfo =
+                        new org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo(eIn);
+                    org.bouncycastle.operator.InputDecryptorProvider decryptor =
+                        new org.bouncycastle.pkcs.jcajce.JcePKCSPBEInputDecryptorProviderBuilder()
+                            .setProvider(SecurityHelper.getSecurityProvider())
+                            .build(passwd);
+                    final PrivateKeyInfo keyInfo = encInfo.decryptPrivateKeyInfo(decryptor);
+                    final Type type = getPrivateKeyType(keyInfo.getPrivateKeyAlgorithm());
+                    return org.jruby.ext.openssl.impl.PKey.readPrivateKey(type, keyInfo);
+                }
+            } catch (Exception e) {
+                throw new IOException("Could not decrypt PKCS#8 key: " + e.getMessage(), e);
             }
         }
         return null;
@@ -416,11 +456,19 @@ public class PEMInputOutput {
 
         EncryptionScheme scheme = pbeParams.getEncryptionScheme();
         BufferedBlockCipher cipher;
-        if ( scheme.getAlgorithm().equals( PKCSObjectIdentifiers.RC2_CBC ) ) {
+        ASN1ObjectIdentifier encOid = scheme.getAlgorithm();
+        if ( encOid.equals( PKCSObjectIdentifiers.RC2_CBC ) ) {
             RC2CBCParameter rc2Params = RC2CBCParameter.getInstance(scheme);
             byte[] iv = rc2Params.getIV();
             CipherParameters param = new ParametersWithIV(cipherParams, iv);
             cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new RC2Engine()));
+            cipher.init(false, param);
+        } else if ( encOid.equals( NISTObjectIdentifiers.id_aes128_CBC ) ||
+                    encOid.equals( NISTObjectIdentifiers.id_aes192_CBC ) ||
+                    encOid.equals( NISTObjectIdentifiers.id_aes256_CBC ) ) {
+            byte[] iv = ASN1OctetString.getInstance( scheme.getParameters() ).getOctets();
+            CipherParameters param = new ParametersWithIV(cipherParams, iv);
+            cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine()));
             cipher.init(false, param);
         } else {
             byte[] iv = ASN1OctetString.getInstance( scheme.getParameters() ).getOctets();
@@ -1051,6 +1099,18 @@ public class PEMInputOutput {
         } else {
             writePemPlain(out, PEM_STRING_EC, keyStruct.getEncoded());
         }
+    }
+
+    /** Writes a PKCS#8 unencrypted private key in PEM format ("PRIVATE KEY"). */
+    public static void writePKCS8PrivateKey(Writer _out, byte[] pkcs8Bytes) throws IOException {
+        BufferedWriter out = makeBuffered(_out);
+        writePemPlain(out, PEM_STRING_PKCS8INF, pkcs8Bytes);
+    }
+
+    /** Writes a PKCS#8 encrypted private key in PEM format ("ENCRYPTED PRIVATE KEY"). */
+    public static void writeEncryptedPKCS8PrivateKey(Writer _out, byte[] encryptedPKCS8Bytes) throws IOException {
+        BufferedWriter out = makeBuffered(_out);
+        writePemPlain(out, PEM_STRING_PKCS8, encryptedPKCS8Bytes);
     }
 
     public static void writeECParameters(Writer _out, ASN1ObjectIdentifier obj, CipherSpec cipher, char[] passwd) throws IOException {

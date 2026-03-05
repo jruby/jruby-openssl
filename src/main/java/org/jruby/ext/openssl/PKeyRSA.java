@@ -51,7 +51,15 @@ import java.security.spec.RSAPublicKeySpec;
 
 import static javax.crypto.Cipher.*;
 
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.operator.OutputEncryptor;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
+import org.bouncycastle.pkcs.jcajce.JcaPKCS8EncryptedPrivateKeyInfoBuilder;
+import org.bouncycastle.pkcs.jcajce.JcePKCSPBEOutputEncryptorBuilder;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyBignum;
@@ -499,6 +507,89 @@ public class PKeyRSA extends PKey {
         }
         catch (IOException ioe) {
             throw newRSAError(context.runtime, ioe.getMessage());
+        }
+    }
+
+    @JRubyMethod(rest = true)
+    public RubyString private_to_der(ThreadContext context, final IRubyObject[] args) {
+        Arity.checkArgumentCount(context.runtime, args, 0, 2);
+        if (privateKey == null) {
+            throw newRSAError(context.runtime, "private key is not available");
+        }
+        CipherSpec spec = null; char[] passwd = null;
+        if (args.length > 0) {
+            spec = cipherSpec(args[0]);
+            if (args.length > 1) passwd = password(context, args[1], null);
+        }
+        try {
+            if (spec != null && passwd != null) {
+                final ASN1ObjectIdentifier cipherOid = osslNameToCipherOid(spec.getOsslName());
+                final OutputEncryptor encryptor = new JcePKCSPBEOutputEncryptorBuilder(cipherOid)
+                        .setProvider(SecurityHelper.getSecurityProvider()).build(passwd);
+                final PKCS8EncryptedPrivateKeyInfo enc = new JcaPKCS8EncryptedPrivateKeyInfoBuilder(privateKey).build(encryptor);
+                return StringHelper.newString(context.runtime, enc.getEncoded());
+            }
+            return StringHelper.newString(context.runtime, privateKey.getEncoded());
+        }
+        catch (NoClassDefFoundError e) {
+            throw newRSAError(context.runtime, bcExceptionMessage(e));
+        }
+        catch (OperatorCreationException | IOException e) {
+            throw newRSAError(context.runtime, e.getMessage(), e);
+        }
+    }
+
+    @JRubyMethod(rest = true)
+    public RubyString private_to_pem(ThreadContext context, final IRubyObject[] args) {
+        Arity.checkArgumentCount(context.runtime, args, 0, 2);
+        if (privateKey == null) {
+            throw newRSAError(context.runtime, "private key is not available");
+        }
+        CipherSpec spec = null; char[] passwd = null;
+        if (args.length > 0) {
+            spec = cipherSpec(args[0]);
+            if (args.length > 1) passwd = password(context, args[1], null);
+        }
+        try {
+            final StringWriter writer = new StringWriter();
+            if (spec != null && passwd != null) {
+                final ASN1ObjectIdentifier cipherOid = osslNameToCipherOid(spec.getOsslName());
+                final OutputEncryptor encryptor = new JcePKCSPBEOutputEncryptorBuilder(cipherOid)
+                        .setProvider(SecurityHelper.getSecurityProvider()).build(passwd);
+                final PKCS8EncryptedPrivateKeyInfo enc = new JcaPKCS8EncryptedPrivateKeyInfoBuilder(privateKey).build(encryptor);
+                PEMInputOutput.writeEncryptedPKCS8PrivateKey(writer, enc.getEncoded());
+            } else {
+                PEMInputOutput.writePKCS8PrivateKey(writer, privateKey.getEncoded());
+            }
+            return RubyString.newString(context.runtime, writer.getBuffer());
+        }
+        catch (NoClassDefFoundError e) {
+            throw newRSAError(context.runtime, bcExceptionMessage(e));
+        }
+        catch (OperatorCreationException | IOException e) {
+            throw newRSAError(context.runtime, e.getMessage(), e);
+        }
+    }
+
+    private static ASN1ObjectIdentifier osslNameToCipherOid(final String osslName) {
+        switch (osslName.toUpperCase()) {
+            case "AES-128-CBC": return NISTObjectIdentifiers.id_aes128_CBC;
+            case "AES-192-CBC": return NISTObjectIdentifiers.id_aes192_CBC;
+            case "AES-256-CBC": return NISTObjectIdentifiers.id_aes256_CBC;
+            case "AES-128-ECB": return NISTObjectIdentifiers.id_aes128_ECB;
+            case "AES-192-ECB": return NISTObjectIdentifiers.id_aes192_ECB;
+            case "AES-256-ECB": return NISTObjectIdentifiers.id_aes256_ECB;
+            case "AES-128-OFB": return NISTObjectIdentifiers.id_aes128_OFB;
+            case "AES-192-OFB": return NISTObjectIdentifiers.id_aes192_OFB;
+            case "AES-256-OFB": return NISTObjectIdentifiers.id_aes256_OFB;
+            case "AES-128-CFB": return NISTObjectIdentifiers.id_aes128_CFB;
+            case "AES-192-CFB": return NISTObjectIdentifiers.id_aes192_CFB;
+            case "AES-256-CFB": return NISTObjectIdentifiers.id_aes256_CFB;
+            case "DES-EDE3-CBC":
+            case "DES-EDE-CBC":
+            case "DES3": return PKCSObjectIdentifiers.des_EDE3_CBC;
+            default:
+                throw new IllegalArgumentException("Unsupported cipher for PKCS8 encryption: " + osslName);
         }
     }
 
