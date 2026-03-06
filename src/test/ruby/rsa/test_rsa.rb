@@ -164,6 +164,38 @@ class TestRSA < TestCase
     assert_raise(OpenSSL::PKey::PKeyError){ key.private_encrypt(plain0, 666) }
   end
 
+  def test_sign_verify_raw
+    key  = Fixtures.pkey("rsa-1.pem")
+    data = "Sign me!"
+    hash = OpenSSL::Digest.digest("SHA256", data)
+
+    # PKCS#1 v1.5: sign pre-hashed bytes; signature must be compatible with standard verify
+    signature = key.sign_raw("SHA256", hash)
+    assert_equal true, key.verify_raw("SHA256", signature, hash)
+    assert_equal true, key.verify("SHA256", signature, data)
+
+    # verify_raw must return false for wrong hash (not raise)
+    wrong_hash = OpenSSL::Digest.digest("SHA256", data + "!")
+    assert_equal false, key.verify_raw("SHA256", signature, wrong_hash)
+
+    # Data exceeding the key modulus must raise PKeyError
+    assert_raise(OpenSSL::PKey::PKeyError) {
+      key.sign_raw("SHA1", "x" * (key.n.num_bytes + 1))
+    }
+
+    # RSA-PSS: sign_raw with pss options, verify with both verify and verify_raw
+    pssopts = {
+      "rsa_padding_mode" => "pss",
+      "rsa_pss_saltlen"  => 20,
+      "rsa_mgf1_md"      => "SHA256"
+    }
+    sig_pss = key.sign_raw("SHA256", hash, pssopts)
+    assert_equal true, key.verify("SHA256", sig_pss, data, pssopts)
+    assert_equal true, key.verify_raw("SHA256", sig_pss, hash, pssopts)
+    # PSS signature must not verify as PKCS#1 v1.5
+    assert_equal false, key.verify_raw("SHA256", sig_pss, hash)
+  end
+
   def test_rsa_param_accessors
     key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
     key = OpenSSL::PKey::RSA.new(File.read(key_file))
