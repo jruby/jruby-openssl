@@ -597,6 +597,20 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    // derive(peer_key) -- computes the ECDH shared secret with a peer EC public key.
+    // Equivalent to dh_compute_key(peer_key.public_key).
+    @JRubyMethod(name = "derive")
+    public IRubyObject derive(final ThreadContext context, final IRubyObject peer) {
+        if (!(peer instanceof PKeyEC)) {
+            throw context.runtime.newTypeError(peer, _EC(context.runtime));
+        }
+        final IRubyObject peerPublicKey = ((PKeyEC) peer).public_key(context);
+        if (peerPublicKey.isNil()) {
+            throw newECError(context.runtime, "no public key");
+        }
+        return dh_compute_key(context, peerPublicKey);
+    }
+
     @JRubyMethod
     public IRubyObject oid() {
         return getRuntime().newString("id-ecPublicKey");
@@ -617,8 +631,8 @@ public final class PKeyEC extends PKey {
         Group group = this.group;
         if (group != null) return group;
 
-        if (publicKey == null && publicKey == null) {
-            return context.nil; // PKey::EC.new
+        if (getCurveName() == null) {
+            return context.nil; // PKey::EC.new with no args / no curve configured
         }
         group = getGroup(false);
         return group == null ? context.nil : group;
