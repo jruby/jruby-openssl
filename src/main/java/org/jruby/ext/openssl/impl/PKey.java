@@ -139,11 +139,24 @@ public class PKey {
 
     // d2i_PUBKEY_bio
     public static PublicKey readPublicKey(final byte[] input) throws IOException {
+        // Try PEM first
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(input))) {
             Object pemObject = new PEMParser(in).readObject();
-            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
-            return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            if (pemObject != null) {
+                SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
+                return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            }
         }
+        // Fall back to DER-encoded SubjectPublicKeyInfo
+        try {
+            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(ASN1Primitive.fromByteArray(input));
+            if (publicKeyInfo != null) {
+                return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            }
+        } catch (Exception e) {
+            throw new IOException("Could not parse public key: " + e.getMessage(), e);
+        }
+        return null;
     }
 
     // d2i_RSAPrivateKey_bio

@@ -412,8 +412,7 @@ geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
   def test_export
     rsa1024 = Fixtures.pkey("rsa1024")
 
-    #pub = OpenSSL::PKey.read(rsa1024.public_to_der) # TODO not supported
-    pub = OpenSSL::PKey::RSA.new(rsa1024.public_to_der)
+    pub = OpenSSL::PKey.read(rsa1024.public_to_der)
     assert_not_equal rsa1024.export, pub.export
     assert_equal rsa1024.public_to_pem, pub.export
 
@@ -438,7 +437,7 @@ geyTgE8KQTduu1OE9Zz2SMcRBDu5/1jWtsLPSVrI2ofLLBARUsWanVyki39DeB4u
   def test_to_der
     rsa1024 = Fixtures.pkey("rsa1024")
 
-    pub = OpenSSL::PKey::RSA.new(rsa1024.public_to_der)
+    pub = OpenSSL::PKey.read(rsa1024.public_to_der)
     assert_not_equal rsa1024.to_der, pub.to_der
     assert_equal rsa1024.public_to_der, pub.to_der
 
