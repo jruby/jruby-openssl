@@ -336,7 +336,7 @@ public class PKeyRSA extends PKey {
         if ( key == null ) key = tryPKCS8EncodedKey(runtime, rsaFactory, str.getBytes());
         if ( key == null ) key = tryX509EncodedKey(runtime, rsaFactory, str.getBytes());
 
-        if ( key == null ) throw newRSAError(runtime, "Neither PUB key nor PRIV key:");
+        if ( key == null ) throw newPKeyError(runtime, "Neither PUB key nor PRIV key:");
 
         if ( key instanceof KeyPair ) {
             PublicKey publicKey = ((KeyPair) key).getPublic();
