@@ -118,6 +118,28 @@ class TestDSA < TestCase
     assert dsa.sysverify(digest, sig).eql?(true)
   end
 
+  def test_sign_verify_raw
+    key = Fixtures.pkey("dsa2048")
+    data = 'Sign me!'
+    digest = OpenSSL::Digest.digest('SHA1', data)
+
+    invalid_sig = key.sign_raw(nil, digest.succ)
+
+    # Sign by #syssign
+    sig = key.syssign(digest)
+    assert_equal true, key.sysverify(digest, sig)
+    assert_equal false, key.sysverify(digest, invalid_sig)
+    assert_equal true, key.verify_raw(nil, sig, digest)
+    assert_equal false, key.verify_raw(nil, invalid_sig, digest)
+
+    # Sign by #sign_raw
+    sig = key.sign_raw(nil, digest)
+    assert_equal true, key.sysverify(digest, sig)
+    assert_equal false, key.sysverify(digest, invalid_sig)
+    assert_equal true, key.verify_raw(nil, sig, digest)
+    assert_equal false, key.verify_raw(nil, invalid_sig, digest)
+  end
+
   def test_DSAPrivateKey
     # OpenSSL DSAPrivateKey format; similar to RSAPrivateKey
     dsa512 = Fixtures.pkey("dsa512")
