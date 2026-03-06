@@ -595,7 +595,7 @@ public class PKeyRSA extends PKey {
 
     private String getPadding(final int padding) {
         if ( padding < 1 || padding > 4 ) {
-            throw newRSAError(getRuntime(), "");
+            throw newPKeyError(getRuntime(), "");
         }
         // BC accepts "/NONE/*" but SunJCE doesn't. use "/ECB/*"
         String p = "/ECB/PKCS1Padding";
@@ -615,7 +615,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil() ) {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( privateKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
+        if ( privateKey == null ) throw newPKeyError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, ENCRYPT_MODE, privateKey);
     }
 
@@ -625,7 +625,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil())  {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( privateKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
+        if ( privateKey == null ) throw newPKeyError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, DECRYPT_MODE, privateKey);
     }
 
@@ -635,7 +635,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil())  {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( publicKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
+        if ( publicKey == null ) throw newPKeyError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, ENCRYPT_MODE, publicKey);
     }
 
@@ -645,7 +645,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil() ) {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( publicKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
+        if ( publicKey == null ) throw newPKeyError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, DECRYPT_MODE, publicKey);
     }
 
