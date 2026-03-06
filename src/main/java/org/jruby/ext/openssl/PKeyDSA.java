@@ -440,8 +440,8 @@ public class PKeyDSA extends PKey {
     public IRubyObject syssign(IRubyObject data) {
         final Ruby runtime = getRuntime();
 
-        DSAPrivateKey privateKey;
-        if ((privateKey = this.privateKey) == null) {
+        DSAPrivateKey privateKey = this.privateKey;
+        if (privateKey == null) {
             throw newDSAError(runtime, "Private DSA key needed!");
         }
 
@@ -454,13 +454,55 @@ public class PKeyDSA extends PKey {
         }
     }
 
+    // In OpenSSL, sign_raw/verify_raw are base-class PKey methods that use EVP_PKEY_sign /
+    // EVP_PKEY_verify (low-level, no-hashing operations).
+    // When the digest argument is non-nil, EVP_PKEY_CTX_set_signature_md is called, but for DSA
+    // this only affects input-length validation inside OpenSSL - does not hash the data.
+    //
+    // In JCA, "NONEwithDSA" is the direct equivalent: it accepts already-hashed bytes and signs
+    // them without any further digest step.
+    // The digest argument therefore does not influence the JCA algorithm and is intentionally unused.
+    @JRubyMethod(name = "sign_raw")
+    public IRubyObject sign_raw(ThreadContext context, IRubyObject digest, IRubyObject data) {
+        DSAPrivateKey privateKey = this.privateKey;
+        if (privateKey == null) {
+            throw newDSAError(context.runtime, "Private DSA key needed!");
+        }
+        try {
+            ByteList sign = sign("NONEwithDSA", privateKey, data.convertToString().getByteList());
+            return RubyString.newString(context.runtime, sign);
+        }
+        catch (GeneralSecurityException ex) {
+            throw newDSAError(context.runtime, ex.getMessage());
+        }
+    }
+
+    @JRubyMethod(name = "verify_raw")
+    public IRubyObject verify_raw(IRubyObject digest, IRubyObject sign, IRubyObject data) {
+        final Ruby runtime = getRuntime();
+        ByteList sigBytes = convertToString(runtime, sign, "OpenSSL::PKey::PKeyError", "invalid signature").getByteList();
+        ByteList dataBytes = convertToString(runtime, data, "OpenSSL::PKey::PKeyError", "invalid data").getByteList();
+        try {
+            return runtime.newBoolean(verify("NONEwithDSA", getPublicKey(), dataBytes, sigBytes));
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw newPKeyError(runtime, e.getMessage());
+        }
+        catch (SignatureException e) {
+            throw newPKeyError(runtime, "invalid signature");
+        }
+        catch (InvalidKeyException e) {
+            throw newPKeyError(runtime, "invalid key");
+        }
+    }
+
     @JRubyMethod // ossl_dsa_verify
     public IRubyObject sysverify(IRubyObject data, IRubyObject sign) {
         final Ruby runtime = getRuntime();
         ByteList sigBytes = convertToString(runtime, sign, "OpenSSL::PKey::DSAError", "invalid signature").getByteList();
         ByteList dataBytes = convertToString(runtime, data, "OpenSSL::PKey::DSAError", "invalid data").getByteList();
         try {
-            return runtime.newBoolean( verify("NONEwithDSA", getPublicKey(), dataBytes, sigBytes) );
+            return runtime.newBoolean(verify("NONEwithDSA", getPublicKey(), dataBytes, sigBytes));
         }
         catch (NoSuchAlgorithmException e) {
             throw newDSAError(runtime, e.getMessage());
