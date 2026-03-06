@@ -109,6 +109,11 @@ class TestX509Request < TestCase
     assert_equal 1, req.version
   end
 
+  def test_dup; setup!
+    req = issue_csr(0, @dn, @rsa1024, OpenSSL::Digest.new('SHA256'))
+    assert_equal req.to_der, req.dup.to_der
+  end
+
   # from GH-150
   def test_to_der_new_from_der; require 'base64'
     # Build the CSR
