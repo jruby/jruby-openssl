@@ -288,8 +288,7 @@ public abstract class PKey extends RubyObject {
         final Ruby runtime = getRuntime();
         ByteList sigBytes = convertToString(runtime, sign, "OpenSSL::PKey::PKeyError", "invalid signature").getByteList();
         ByteList dataBytes = convertToString(runtime, data, "OpenSSL::PKey::PKeyError", "invalid data").getByteList();
-        String digAlg = (digest instanceof Digest) ? ((Digest) digest).getShortAlgorithm() : digest.asJavaString();
-        final String algorithm = digAlg + "WITH" + getAlgorithm();
+        final String algorithm = getDigestAlgName(digest) + "WITH" + getAlgorithm();
         try {
             return runtime.newBoolean( verify(algorithm, getPublicKey(), dataBytes, sigBytes) );
         }
@@ -302,6 +301,12 @@ public abstract class PKey extends RubyObject {
         catch (InvalidKeyException e) {
             throw newPKeyError(runtime, "invalid key");
         }
+    }
+
+    static String getDigestAlgName(IRubyObject digest) {
+        if (digest.isNil()) return "SHA256";
+        if (digest instanceof Digest) return ((Digest) digest).getShortAlgorithm();
+        return digest.asJavaString();
     }
 
     static RubyString convertToString(final Ruby runtime, final IRubyObject str, final String errorType, final CharSequence errorMsg) {
