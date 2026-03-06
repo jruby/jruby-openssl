@@ -49,6 +49,7 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.DERBitString;
+import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.pkcs.CertificationRequestInfo;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
@@ -119,10 +120,15 @@ public class PKCS10Request {
         if ( signedRequest == null ) return;
 
         CertificationRequest req = signedRequest.toASN1Structure();
-        CertificationRequestInfo reqInfo = new CertificationRequestInfo(subject, publicKeyInfo, req.getCertificationRequestInfo().getAttributes());
+        CertificationRequestInfo reqInfo = new CertificationRequestInfo(subject, publicKeyInfo, toAttributesSet());
         ASN1Sequence seq = (ASN1Sequence) req.toASN1Primitive();
         req = new CertificationRequest(reqInfo, (AlgorithmIdentifier) seq.getObjectAt(1), (DERBitString) seq.getObjectAt(2));
         signedRequest = new PKCS10CertificationRequest(req); // valid = true;
+    }
+
+    private ASN1Set toAttributesSet() {
+        if ( attributes == null || attributes.isEmpty() ) return null;
+        return new DERSet( attributes.toArray(new Attribute[ attributes.size() ]) );
     }
 
     // sign
@@ -279,12 +285,12 @@ public class PKCS10Request {
     }
 
     public Attribute[] getAttributes() {
-        return signedRequest != null ? signedRequest.getAttributes() :
-                    attributes.toArray(new Attribute[ attributes.size() ]);
+        return attributes.toArray(new Attribute[ attributes.size() ]);
     }
 
     public void setAttributes(final List<Attribute> attrs) {
         this.attributes = attrs;
+        resetSignedRequest();
     }
 
     private void setAttributes(final ASN1Set attrs) {
@@ -297,6 +303,7 @@ public class PKCS10Request {
 
     public void addAttribute(final Attribute attribute) {
         this.attributes.add( attribute );
+        resetSignedRequest();
     }
 
     public BigInteger getVersion() {

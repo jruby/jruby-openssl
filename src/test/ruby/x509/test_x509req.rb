@@ -109,6 +109,51 @@ class TestX509Request < TestCase
     assert_equal 1, req.version
   end
 
+  def create_ext_req(exts)
+    ef = OpenSSL::X509::ExtensionFactory.new
+    exts = exts.collect { |e| ef.create_extension(*e) }
+    OpenSSL::ASN1::Set([OpenSSL::ASN1::Sequence(exts)])
+  end
+
+  def get_ext_req(ext_req_value)
+    set = OpenSSL::ASN1.decode(ext_req_value)
+    seq = set.value[0]
+    seq.value.collect { |asn1ext| OpenSSL::X509::Extension.new(asn1ext).to_a }
+  end
+
+  def test_attr; setup!
+    exts = [
+      ['keyUsage', 'Digital Signature, Key Encipherment', true],
+      ['subjectAltName', 'email:gotoyuzo@ruby-lang.org', false],
+    ]
+    attrval = create_ext_req(exts)
+    attrs = [
+      OpenSSL::X509::Attribute.new('extReq', attrval),
+      OpenSSL::X509::Attribute.new('msExtReq', attrval),
+    ]
+
+    req0 = issue_csr(0, @dn, @rsa1024, OpenSSL::Digest.new('SHA256'))
+    attrs.each { |attr| req0.add_attribute(attr) }
+    req1 = issue_csr(0, @dn, @rsa1024, OpenSSL::Digest.new('SHA256'))
+    req1.attributes = attrs
+    assert_equal req0.to_der, req1.to_der
+
+    attrs = req0.attributes
+    assert_equal 2, attrs.size
+    assert_equal 'extReq', attrs[0].oid
+    assert_equal 'msExtReq', attrs[1].oid
+    assert_equal exts, get_ext_req(attrs[0].value)
+    assert_equal exts, get_ext_req(attrs[1].value)
+
+    req = OpenSSL::X509::Request.new(req0.to_der)
+    attrs = req.attributes
+    assert_equal 2, attrs.size
+    assert_equal 'extReq', attrs[0].oid
+    assert_equal 'msExtReq', attrs[1].oid
+    assert_equal exts, get_ext_req(attrs[0].value)
+    assert_equal exts, get_ext_req(attrs[1].value)
+  end
+
   def test_dup; setup!
     req = issue_csr(0, @dn, @rsa1024, OpenSSL::Digest.new('SHA256'))
     assert_equal req.to_der, req.dup.to_der
