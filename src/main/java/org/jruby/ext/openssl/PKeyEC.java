@@ -527,6 +527,48 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    // sign_raw(digest, data) -- signs pre-hashed (raw) bytes with the EC private key.
+    // Produces a DER-encoded ASN.1 SEQUENCE [r, s], identical to dsa_sign_asn1.
+    // The digest argument is accepted for API parity with RSA/DSA sign_raw but is unused;
+    // ECDSASigner operates directly on the supplied bytes without additional hashing.
+    @JRubyMethod(name = "sign_raw")
+    public IRubyObject sign_raw(final ThreadContext context, final IRubyObject digest, final IRubyObject data) {
+        return dsa_sign_asn1(context, data);
+    }
+
+    // verify_raw(digest, signature, data) -- verifies a DER-encoded ECDSA signature over raw bytes.
+    // Returns true/false; returns false (rather than raising) for a malformed or invalid signature.
+    // Argument order matches PKey#verify_raw convention: (digest, signature, data), unlike
+    // dsa_verify_asn1 which takes (data, signature).
+    @JRubyMethod(name = "verify_raw")
+    public IRubyObject verify_raw(final ThreadContext context, final IRubyObject digest,
+                                  final IRubyObject sign, final IRubyObject data) {
+        final Ruby runtime = context.runtime;
+        try {
+            final ECNamedCurveParameterSpec params = getParameterSpec();
+
+            final ECDSASigner signer = new ECDSASigner();
+            signer.init(false, new ECPublicKeyParameters(
+                    EC5Util.convertPoint(publicKey.getParams(), publicKey.getW()),
+                    new ECDomainParameters(params.getCurve(), params.getG(), params.getN(), params.getH())
+            ));
+
+            ASN1Primitive vec = new ASN1InputStream(sign.convertToString().getBytes()).readObject();
+            if (!(vec instanceof ASN1Sequence)) return runtime.getFalse();
+
+            ASN1Sequence seq = (ASN1Sequence) vec;
+            ASN1Integer r = ASN1Integer.getInstance(seq.getObjectAt(0));
+            ASN1Integer s = ASN1Integer.getInstance(seq.getObjectAt(1));
+
+            boolean verified = signer.verifySignature(data.convertToString().getBytes(), r.getPositiveValue(), s.getPositiveValue());
+            return runtime.newBoolean(verified);
+        }
+        catch (IOException | IllegalArgumentException | IllegalStateException ex) {
+            debugStackTrace(runtime, ex);
+            return runtime.getFalse();
+        }
+    }
+
     @JRubyMethod(name = "dh_compute_key")
     public IRubyObject dh_compute_key(final ThreadContext context, final IRubyObject point) {
         try {
