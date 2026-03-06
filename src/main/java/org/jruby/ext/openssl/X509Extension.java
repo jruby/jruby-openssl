@@ -797,6 +797,16 @@ public class X509Extension extends RubyObject {
     }
 
     @JRubyMethod
+    public RubyString value_der(final ThreadContext context) {
+        try {
+            return StringHelper.newString(context.runtime, getRealValueEncoded());
+        }
+        catch (IOException e) {
+            throw newExtensionError(context.runtime, e);
+        }
+    }
+
+    @JRubyMethod
     public RubyString to_der() {
         try {
             return StringHelper.newString(getRuntime(), toDER());

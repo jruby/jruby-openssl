@@ -107,6 +107,16 @@ class TestX509Extension < TestCase
     assert_equal 'foo', value[1].value
   end
 
+  def test_value_der
+    value = OpenSSL::ASN1::Sequence([OpenSSL::ASN1::Boolean(true)])
+    ext = OpenSSL::X509::Extension.new('basicConstraints', value)
+
+    assert_equal value.to_der, ext.value_der
+    decoded = OpenSSL::ASN1.decode(ext.value_der)
+    assert_equal OpenSSL::ASN1::Sequence, decoded.class
+    assert_equal true, decoded.value.first.value
+  end
+
   def test_to_der_is_the_same_for_non_critical
     ext1 = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
     ext2 = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo', false)
