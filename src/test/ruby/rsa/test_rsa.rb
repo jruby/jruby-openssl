@@ -437,7 +437,7 @@ OlWNYDkPiZioeFkA3/fTMvG4moB2Pp9Q4GU5fJ6k43Ccu1up8dX/LumZb4ecg5/x
     cipher = OpenSSL::Cipher.new("aes-128-cbc")
     exported = rsa1024.to_pem(cipher, "abcdef\0\1")
     assert_same_rsa rsa1024, OpenSSL::PKey::RSA.new(exported, "abcdef\0\1")
-    assert_raise(OpenSSL::PKey::RSAError) {
+    assert_raise(OpenSSL::PKey::PKeyError) {
       OpenSSL::PKey::RSA.new(exported, "abcdef")
     }
   end

@@ -78,7 +78,7 @@ class TestPKey < TestCase
     begin
       ret = OpenSSL::PKey::RSA.new('not a PEM file')
       fail "expected OpenSSL::PKey::RSA.new to raise (got: #{ret.inspect})"
-    rescue OpenSSL::PKey::RSAError
+    rescue OpenSSL::PKey::PKeyError
       assert true
     end
   end
