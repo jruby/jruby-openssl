@@ -303,6 +303,19 @@ public class X509Cert extends RubyObject {
         }
     }
 
+    @JRubyMethod
+    public IRubyObject tbs_bytes() {
+        if ( cert == null ) {
+            throw newCertificateError(getRuntime(), "no certificate");
+        }
+        try {
+            return StringHelper.newString(getRuntime(), cert.getTBSCertificate());
+        }
+        catch (CertificateEncodingException ex) {
+            throw newCertificateError(getRuntime(), ex);
+        }
+    }
+
     @JRubyMethod(name = {"to_pem", "to_s"})
     public IRubyObject to_pem() {
         final StringWriter str = new StringWriter();
