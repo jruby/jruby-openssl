@@ -40,6 +40,7 @@ import java.security.PublicKey;
 import java.security.PrivateKey;
 
 import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.Attribute;
@@ -151,13 +152,31 @@ public class X509Request extends RubyObject {
     @Override
     @JRubyMethod(visibility = Visibility.PRIVATE)
     public IRubyObject initialize_copy(IRubyObject obj) {
-        final Ruby runtime = getRuntime();
-        warn(runtime.getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::X509::Request#initialize_copy");
-
         if ( this == obj ) return this;
 
         checkFrozen();
-        // subject = public_key = null;
+
+        final X509Request that = (X509Request) obj;
+        final ThreadContext context = getRuntime().getCurrentContext();
+
+        this.subject = that.subject == null ? null : newName(context, getX500Name(that.subject));
+        this.public_key = that.public_key == null ? null : (PKey) that.public_key.dup();
+        this.version = that.version;
+
+        this.attributes.clear();
+        for ( X509Attribute attribute : that.attributes ) {
+            this.attributes.add( (X509Attribute) attribute.dup() );
+        }
+
+        final PKCS10Request request = that.request;
+        if ( request != null ) {
+            final ASN1Sequence requestSequence = request.toASN1Structure();
+            this.request = requestSequence.size() == 0 ? null : new PKCS10Request(requestSequence);
+        }
+        else {
+            this.request = null;
+        }
+
         return this;
     }
 
