@@ -119,14 +119,28 @@ public class PKey {
                         exp1.getValue(), exp2.getValue(), crtCoef.getValue());
                 break;
             case DSA:
-                seq = (ASN1Sequence) keyInfo.parsePrivateKey();
-                ASN1Integer p = (ASN1Integer) seq.getObjectAt(1);
-                ASN1Integer q = (ASN1Integer) seq.getObjectAt(2);
-                ASN1Integer g = (ASN1Integer) seq.getObjectAt(3);
-                ASN1Integer y = (ASN1Integer) seq.getObjectAt(4);
-                ASN1Integer x = (ASN1Integer) seq.getObjectAt(5);
-                privSpec = new DSAPrivateKeySpec(x.getValue(), p.getValue(), q.getValue(), g.getValue());
-                pubSpec = new DSAPublicKeySpec(y.getValue(), p.getValue(), q.getValue(), g.getValue());
+                final ASN1Encodable parsedDSAKey = keyInfo.parsePrivateKey();
+                if (parsedDSAKey instanceof ASN1Integer) {
+                    // PKCS#8 format: private key is just x (INTEGER), params in AlgorithmIdentifier
+                    final BigInteger xVal = ((ASN1Integer) parsedDSAKey).getValue();
+                    final DSAParameter dsaParam = DSAParameter.getInstance(keyInfo.getPrivateKeyAlgorithm().getParameters());
+                    final BigInteger pVal = dsaParam.getP();
+                    final BigInteger qVal = dsaParam.getQ();
+                    final BigInteger gVal = dsaParam.getG();
+                    final BigInteger yVal = gVal.modPow(xVal, pVal);
+                    privSpec = new DSAPrivateKeySpec(xVal, pVal, qVal, gVal);
+                    pubSpec = new DSAPublicKeySpec(yVal, pVal, qVal, gVal);
+                } else {
+                    // Traditional "DSA PRIVATE KEY" format: SEQUENCE { version, p, q, g, y, x }
+                    seq = (ASN1Sequence) parsedDSAKey;
+                    ASN1Integer p = (ASN1Integer) seq.getObjectAt(1);
+                    ASN1Integer q = (ASN1Integer) seq.getObjectAt(2);
+                    ASN1Integer g = (ASN1Integer) seq.getObjectAt(3);
+                    ASN1Integer y = (ASN1Integer) seq.getObjectAt(4);
+                    ASN1Integer x = (ASN1Integer) seq.getObjectAt(5);
+                    privSpec = new DSAPrivateKeySpec(x.getValue(), p.getValue(), q.getValue(), g.getValue());
+                    pubSpec = new DSAPublicKeySpec(y.getValue(), p.getValue(), q.getValue(), g.getValue());
+                }
                 break;
             case EC:
                 return readECPrivateKey(SecurityHelper.getKeyFactory("EC"), keyInfo);
@@ -142,9 +156,8 @@ public class PKey {
         // Try PEM first
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(input))) {
             Object pemObject = new PEMParser(in).readObject();
-            if (pemObject != null) {
-                SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
-                return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            if (pemObject instanceof SubjectPublicKeyInfo) {
+                return new JcaPEMKeyConverter().getPublicKey((SubjectPublicKeyInfo) pemObject);
             }
         }
         // Fall back to DER-encoded SubjectPublicKeyInfo
@@ -335,7 +348,8 @@ public class PKey {
         return new DERSequence(vec);
     }
 
-    public static byte[] toDerDSAKey(DSAPublicKey pubKey, DSAPrivateKey privKey) throws IOException {
+    public static byte[] toDerDSAKey(DSAPublicKey pubKey, DSAPrivateKey privKey)
+        throws IOException, IllegalArgumentException {
         if ( pubKey != null && privKey == null ) {
             return toDerDSAPublicKey(pubKey);
         }

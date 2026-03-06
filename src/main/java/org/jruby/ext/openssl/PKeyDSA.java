@@ -302,6 +302,9 @@ public class PKeyDSA extends PKey {
 
     @JRubyMethod(name = "public_to_der")
     public RubyString public_to_der(ThreadContext context) {
+        if (publicKey == null) {
+            throw newPKeyError(context.runtime, "incompletely initialized DSA key");
+        }
         final byte[] bytes;
         try {
             bytes = toDerDSAPublicKey(publicKey);
@@ -324,6 +327,9 @@ public class PKeyDSA extends PKey {
         }
         catch (NoClassDefFoundError e) {
             throw newDSAError(getRuntime(), bcExceptionMessage(e));
+        }
+        catch (IllegalArgumentException e) {
+            throw newPKeyError(getRuntime(), e.getMessage());
         }
         catch (IOException e) {
             throw newDSAError(getRuntime(), e.getMessage(), e);
