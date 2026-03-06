@@ -191,6 +191,10 @@ final class Utils {
         return ret;
     }
 
+    static String extractStringOpt(ThreadContext context, IRubyObject opts, String key) {
+        return extractStringOpt(context, opts, key, false);
+    }
+
     static String extractStringOpt(ThreadContext context, IRubyObject opts,
                                    String key, boolean tryStringKey) {
         if (!(opts instanceof RubyHash)) return null;

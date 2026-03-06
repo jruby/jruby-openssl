@@ -137,6 +137,46 @@ class TestRSA < TestCase
     # }
   end
 
+  def test_sign_verify
+    rsa = Fixtures.pkey("rsa2048")
+    data = "Sign me!"
+    signature = rsa.sign("SHA256", data)
+    assert_equal true, rsa.verify("SHA256", signature, data)
+
+    signature0 = (<<~'end;').unpack1("m")
+      ooy49i8aeFtkDYUU0RPDsEugGiNw4lZxpbQPnIwtdftEkka945IqKZ/MY3YSw7wKsvBZeaTy8GqL
+      lSWLThsRFDV+UUS9zUBbQ9ygNIT8OjdV+tNL63ZpKGprczSnw4F05MQIpajNRud/8jiI9rf+Wysi
+      WwXecjMl2FlXlLJHY4PFQZU5TiametB4VCQRMcjLo1uf26u/yRpiGaYyqn5vxs0SqNtUDM1UL6x4
+      NHCAdqLjuFRQPjYp1vGLD3eSl4061pS8x1NVap3YGbYfGUyzZO4VfwFwf1jPdhp/OX/uZw4dGB2H
+      gSK+q1JiDFwEE6yym5tdKovL1g1NhFYHF6gkZg==
+    end;
+    assert_equal true, rsa.verify("SHA256", signature0, data)
+    signature1 = signature0.succ
+    assert_equal false, rsa.verify("SHA256", signature1, data)
+  end
+
+  def test_sign_verify_options
+    key = Fixtures.pkey("rsa2048")
+    data = "Sign me!"
+    pssopts = {
+      "rsa_padding_mode" => "pss",
+      "rsa_pss_saltlen" => 20,
+      "rsa_mgf1_md" => "SHA256"
+    }
+    sig_pss = key.sign("SHA256", data, pssopts)
+    assert_equal 256, sig_pss.bytesize
+    assert_equal true, key.verify("SHA256", sig_pss, data, pssopts)
+    assert_equal true, key.verify_pss("SHA256", sig_pss, data,
+                                      salt_length: 20, mgf1_hash: "SHA256")
+    # Defaults to PKCS #1 v1.5 padding => verification failure
+    assert_equal false, key.verify("SHA256", sig_pss, data)
+
+    # option type check
+    assert_raise_with_message(TypeError, /expected Hash/) {
+      key.sign("SHA256", data, ["x"])
+    }
+  end
+
   def test_sign_verify_raw_legacy
     key = Fixtures.pkey("rsa-1.pem")
     bits = key.n.num_bits
@@ -194,6 +234,58 @@ class TestRSA < TestCase
     assert_equal true, key.verify_raw("SHA256", sig_pss, hash, pssopts)
     # PSS signature must not verify as PKCS#1 v1.5
     assert_equal false, key.verify_raw("SHA256", sig_pss, hash)
+  end
+
+  # def test_verify_empty_rsa
+  #   rsa = OpenSSL::PKey::RSA.new
+  #   assert_raise(OpenSSL::PKey::PKeyError, "[Bug #12783]") {
+  #     rsa.verify("SHA1", "a", "b")
+  #   }
+  # end unless openssl?(3, 0, 0) # Empty RSA is not possible with OpenSSL >= 3.0
+
+  def test_sign_verify_pss
+    key = Fixtures.pkey("rsa2048")
+    data = "Sign me!"
+    invalid_data = "Sign me?"
+
+    signature = key.sign_pss("SHA256", data, salt_length: 20, mgf1_hash: "SHA256")
+    assert_equal 256, signature.bytesize
+    assert_equal true,
+                 key.verify_pss("SHA256", signature, data, salt_length: 20, mgf1_hash: "SHA256")
+    assert_equal true,
+                 key.verify_pss("SHA256", signature, data, salt_length: :auto, mgf1_hash: "SHA256")
+    assert_equal false,
+                 key.verify_pss("SHA256", signature, invalid_data, salt_length: 20, mgf1_hash: "SHA256")
+
+    signature = key.sign_pss("SHA256", data, salt_length: :digest, mgf1_hash: "SHA256")
+    assert_equal true,
+                 key.verify_pss("SHA256", signature, data, salt_length: 32, mgf1_hash: "SHA256")
+    assert_equal true,
+                 key.verify_pss("SHA256", signature, data, salt_length: :auto, mgf1_hash: "SHA256")
+    assert_equal false,
+                 key.verify_pss("SHA256", signature, data, salt_length: 20, mgf1_hash: "SHA256")
+
+    # The sign_pss with `salt_length: :max` raises the "invalid salt length"
+    # error in FIPS. We need to skip the tests in FIPS.
+    # According to FIPS 186-5 section 5.4, the salt length shall be between zero
+    # and the output block length of the digest function (inclusive).
+    #
+    # FIPS 186-5 section 5.4 PKCS #1
+    # https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf
+    unless OpenSSL.fips_mode
+      signature = key.sign_pss("SHA256", data, salt_length: :max, mgf1_hash: "SHA256")
+      # Should verify on the following salt_length (sLen).
+      # sLen <= emLen (octat) - 2 - hLen (octet) = 2048 / 8 - 2 - 256 / 8 = 222
+      # https://datatracker.ietf.org/doc/html/rfc8017#section-9.1.1
+      assert_equal true,
+                   key.verify_pss("SHA256", signature, data, salt_length: 222, mgf1_hash: "SHA256")
+      assert_equal true,
+                   key.verify_pss("SHA256", signature, data, salt_length: :auto, mgf1_hash: "SHA256")
+    end
+
+    assert_raise(OpenSSL::PKey::PKeyError) {
+      key.sign_pss("SHA256", data, salt_length: 223, mgf1_hash: "SHA256")
+    }
   end
 
   def test_rsa_param_accessors
