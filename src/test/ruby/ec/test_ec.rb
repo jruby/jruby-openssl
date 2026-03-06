@@ -573,6 +573,35 @@ class TestEC < TestCase
     assert_sign_verify_false_or_error { key.verify_raw(nil, malformed_sig, data1) }
   end
 
+  def test_ECPrivateKey_encrypted
+    p256 = Fixtures.pkey("p256")
+    # key = abcdef (hardcoded encrypted PEM from MRI test suite)
+    pem = <<~EOF
+    -----BEGIN EC PRIVATE KEY-----
+    Proc-Type: 4,ENCRYPTED
+    DEK-Info: AES-128-CBC,85743EB6FAC9EA76BF99D9328AFD1A66
+
+    nhsP1NHxb53aeZdzUe9umKKyr+OIwQq67eP0ONM6E1vFTIcjkDcFLR6PhPFufF4m
+    y7E2HF+9uT1KPQhlE+D63i1m1Mvez6PWfNM34iOQp2vEhaoHHKlR3c43lLyzaZDI
+    0/dGSU5SzFG+iT9iFXCwCvv+bxyegkBOyALFje1NAsM=
+    -----END EC PRIVATE KEY-----
+    EOF
+    key = OpenSSL::PKey::EC.new(pem, "abcdef")
+    assert_same_ec p256, key
+    key = OpenSSL::PKey::EC.new(pem) { "abcdef" }
+    assert_same_ec p256, key
+
+    # Round-trip: to_pem with encryption and read back
+    cipher = OpenSSL::Cipher.new("aes-128-cbc")
+    exported = p256.to_pem(cipher, "abcdef\0\1")
+    assert_same_ec p256, OpenSSL::PKey::EC.new(exported, "abcdef\0\1")
+    # MRI raises OpenSSL::PKey::PKeyError;
+    # TODO JRuby raises more specific ECError
+    assert_raise(OpenSSL::PKey::ECError) {
+      OpenSSL::PKey::EC.new(exported, "abcdef")
+    }
+  end
+
   def test_new_from_der
     priv_key_hex = '05768F097A19FFE5022D4A862CDBAE22019695D1C2F88FD41607417AD45E2F55'
     pub_key_hex = '04B827833DC1BC38CE0BBE36E0357B1D08AB0BFA05DBD211F0FC677FF9913FAF0EB3A3CC562EEAE8D841B112DBFDAD494E10CFBD4964DC2D175D06F17ACC5771CF'

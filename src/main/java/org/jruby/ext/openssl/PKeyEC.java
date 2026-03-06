@@ -840,16 +840,23 @@ public final class PKeyEC extends PKey {
             if ( args.length > 1 ) passwd = password(context, args[1], null);
         }
 
-        if (privateKey == null) {
-            return public_to_pem(context);
-        }
+        if (privateKey == null) return public_to_pem(context);
 
         try {
             final StringWriter writer = new StringWriter();
-            PEMInputOutput.writeECPrivateKey(writer, (ECPrivateKey) privateKey, spec, passwd);
+            // Include curve OID and public-key point so the PEM can be decoded
+            // stand-alone (SEC1 optional fields parameters[0] and publicKey[1]).
+            final ASN1ObjectIdentifier curveOID = getCurveOID(getCurveName()).orElse(null);
+            byte[] pubKeyBytes = null;
+            if (publicKey != null) {
+                pubKeyBytes = EC5Util.convertPoint(
+                        publicKey.getParams(), publicKey.getW()).getEncoded(false);
+            }
+            PEMInputOutput.writeECPrivateKey(writer, (ECPrivateKey) privateKey,
+                    curveOID, pubKeyBytes, spec, passwd);
             return RubyString.newString(context.runtime, writer.getBuffer());
         } catch (IOException ex) {
-            throw newECError(context.runtime, ex.getMessage());
+            throw newECError(context.runtime, ex.getMessage(), ex);
         }
     }
 
@@ -860,7 +867,7 @@ public final class PKeyEC extends PKey {
             PEMInputOutput.writeECPublicKey(writer, publicKey);
             return RubyString.newString(context.runtime, writer.getBuffer());
         } catch (IOException ex) {
-            throw newECError(context.runtime, ex.getMessage());
+            throw newECError(context.runtime, ex.getMessage(), ex);
         }
     }
 

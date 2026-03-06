@@ -93,6 +93,7 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERUTF8String;
+import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -1089,11 +1090,32 @@ public class PEMInputOutput {
     }
 
     public static void writeECPrivateKey(Writer _out, ECPrivateKey obj, CipherSpec cipher, char[] passwd) throws IOException {
+        writeECPrivateKey(_out, obj, null, null, cipher, passwd);
+    }
+
+    /**
+     * Writes an EC private key in SEC1 / "EC PRIVATE KEY" PEM format.
+     * When {@code curveOID} and {@code pubKeyBytes} are provided they are
+     * embedded as the optional {@code parameters[0]} and {@code publicKey[1]}
+     * fields so that the PEM can be decoded stand-alone (without external
+     * knowledge of the curve).
+     */
+    public static void writeECPrivateKey(Writer _out, ECPrivateKey obj,
+            ASN1ObjectIdentifier curveOID, byte[] pubKeyBytes,
+            CipherSpec cipher, char[] passwd) throws IOException {
         assert (obj != null);
         final String PEM_STRING_EC = "EC PRIVATE KEY";
         BufferedWriter out = makeBuffered(_out);
         final int bitLength = obj.getParams().getOrder().bitLength();
-        org.bouncycastle.asn1.sec.ECPrivateKey keyStruct = new org.bouncycastle.asn1.sec.ECPrivateKey(bitLength, obj.getS());
+        final org.bouncycastle.asn1.sec.ECPrivateKey keyStruct;
+        if (curveOID != null && pubKeyBytes != null) {
+            keyStruct = new org.bouncycastle.asn1.sec.ECPrivateKey(
+                    bitLength, obj.getS(),
+                    new DERBitString(pubKeyBytes),
+                    curveOID);
+        } else {
+            keyStruct = new org.bouncycastle.asn1.sec.ECPrivateKey(bitLength, obj.getS());
+        }
         if (cipher != null && passwd != null) {
             writePemEncrypted(out, PEM_STRING_EC, keyStruct.getEncoded(), cipher, passwd);
         } else {
