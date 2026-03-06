@@ -299,13 +299,17 @@ public class PKey {
             if (algId == null) { // mockPrivateKeyInfo
                 algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, key.getParameters());
             }
-            final SubjectPublicKeyInfo pubInfo = new SubjectPublicKeyInfo(algId, key.getPublicKey().getBytes());
             final PrivateKeyInfo privInfo = new PrivateKeyInfo(algId, key);
-
             ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(new PKCS8EncodedKeySpec(privInfo.getEncoded()));
             if (algId.getParameters() instanceof ASN1ObjectIdentifier) {
                 privateKey = ECPrivateKeyWithName.wrap(privateKey, (ASN1ObjectIdentifier) algId.getParameters());
             }
+
+            // The publicKey field in ECPrivateKey DER is optional (RFC 5915).
+            // Keys written by older JRuby-OpenSSL may omit it; handle gracefully.
+            final org.bouncycastle.asn1.ASN1BitString pubKeyBits = key.getPublicKey();
+            if (pubKeyBits == null) return new KeyPair(null, privateKey);
+            final SubjectPublicKeyInfo pubInfo = new SubjectPublicKeyInfo(algId, pubKeyBits.getBytes());
             return new KeyPair(keyFactory.generatePublic(new X509EncodedKeySpec(pubInfo.getEncoded())), privateKey);
         }
         catch (ClassCastException ex) {
