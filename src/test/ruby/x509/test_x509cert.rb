@@ -324,6 +324,66 @@ EOF
     assert cert.to_text.index('Signature Algorithm: sha256WithRSAEncryption')
   end
 
+  def test_to_text_issue_322_sigstore_certificate
+    # https://github.com/jruby/jruby-openssl/issues/322
+    cert = OpenSSL::X509::Certificate.new <<-EOF
+-----BEGIN CERTIFICATE-----
+MIIIMDCCB7agAwIBAgIUaUHXj0S4ZNEEjDxaXlzPw/VYQQ4wCgYIKoZIzj0EAwMw
+NzEVMBMGA1UEChMMc2lnc3RvcmUuZGV2MR4wHAYDVQQDExVzaWdzdG9yZS1pbnRl
+cm1lZGlhdGUwHhcNMjMwOTI3MTYwNDQwWhcNMjMwOTI3MTYxNDQwWjAAMFkwEwYH
+KoZIzj0CAQYIKoZIzj0DAQcDQgAEad0Uh6twE3x8YAbfBme0T/G0V2xxIl0rw/uY
+8GfamPrQk3AzW9b/TwQMtipyTY2GAPDC7SVbZTxGBd6BtTWUmqOCBtUwggbRMA4G
+A1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAzAdBgNVHQ4EFgQUOizU
+dUPvmWDSB8LtOjpjyLNKgM0wHwYDVR0jBBgwFoAU39Ppz1YkEZb5qNjpKFWixi4Y
+ZD8wgaUGA1UdEQEB/wSBmjCBl4aBlGh0dHBzOi8vZ2l0aHViLmNvbS9zaWdzdG9y
+ZS1jb25mb3JtYW5jZS9leHRyZW1lbHktZGFuZ2Vyb3VzLXB1YmxpYy1vaWRjLWJl
+YWNvbi8uZ2l0aHViL3dvcmtmbG93cy9leHRyZW1lbHktZGFuZ2Vyb3VzLW9pZGMt
+YmVhY29uLnltbEByZWZzL2hlYWRzL21haW4wOQYKKwYBBAGDvzABAQQraHR0cHM6
+Ly90b2tlbi5hY3Rpb25zLmdpdGh1YnVzZXJjb250ZW50LmNvbTAfBgorBgEEAYO/
+MAECBBF3b3JrZmxvd19kaXNwYXRjaDA2BgorBgEEAYO/MAEDBChmZTdhZGU5MWY0
+YzRkNDZjZTc5ODg2ZmE4MGRmODAwNmEzZmFlOWUyMC0GCisGAQQBg78wAQQEH0V4
+dHJlbWVseSBkYW5nZXJvdXMgT0lEQyBiZWFjb24wSQYKKwYBBAGDvzABBQQ7c2ln
+c3RvcmUtY29uZm9ybWFuY2UvZXh0cmVtZWx5LWRhbmdlcm91cy1wdWJsaWMtb2lk
+Yy1iZWFjb24wHQYKKwYBBAGDvzABBgQPcmVmcy9oZWFkcy9tYWluMDsGCisGAQQB
+g78wAQgELQwraHR0cHM6Ly90b2tlbi5hY3Rpb25zLmdpdGh1YnVzZXJjb250ZW50
+LmNvbTCBpgYKKwYBBAGDvzABCQSBlwyBlGh0dHBzOi8vZ2l0aHViLmNvbS9zaWdz
+dG9yZS1jb25mb3JtYW5jZS9leHRyZW1lbHktZGFuZ2Vyb3VzLXB1YmxpYy1vaWRj
+LWJlYWNvbi8uZ2l0aHViL3dvcmtmbG93cy9leHRyZW1lbHktZGFuZ2Vyb3VzLW9p
+ZGMtYmVhY29uLnltbEByZWZzL2hlYWRzL21haW4wOAYKKwYBBAGDvzABCgQqDChm
+ZTdhZGU5MWY0YzRkNDZjZTc5ODg2ZmE4MGRmODAwNmEzZmFlOWUyMB0GCisGAQQB
+g78wAQsEDwwNZ2l0aHViLWhvc3RlZDBeBgorBgEEAYO/MAEMBFAMTmh0dHBzOi8v
+Z2l0aHViLmNvbS9zaWdzdG9yZS1jb25mb3JtYW5jZS9leHRyZW1lbHktZGFuZ2Vy
+b3VzLXB1YmxpYy1vaWRjLWJlYWNvbjA4BgorBgEEAYO/MAENBCoMKGZlN2FkZTkx
+ZjRjNGQ0NmNlNzk4ODZmYTgwZGY4MDA2YTNmYWU5ZTIwHwYKKwYBBAGDvzABDgQR
+DA9yZWZzL2hlYWRzL21haW4wGQYKKwYBBAGDvzABDwQLDAk2MzI1OTY4OTcwNwYK
+KwYBBAGDvzABEAQpDCdodHRwczovL2dpdGh1Yi5jb20vc2lnc3RvcmUtY29uZm9y
+bWFuY2UwGQYKKwYBBAGDvzABEQQLDAkxMzE4MDQ1NjMwgaYGCisGAQQBg78wARIE
+gZcMgZRodHRwczovL2dpdGh1Yi5jb20vc2lnc3RvcmUtY29uZm9ybWFuY2UvZXh0
+cmVtZWx5LWRhbmdlcm91cy1wdWJsaWMtb2lkYy1iZWFjb24vLmdpdGh1Yi93b3Jr
+Zmxvd3MvZXh0cmVtZWx5LWRhbmdlcm91cy1vaWRjLWJlYWNvbi55bWxAcmVmcy9o
+ZWFkcy9tYWluMDgGCisGAQQBg78wARMEKgwoZmU3YWRlOTFmNGM0ZDQ2Y2U3OTg4
+NmZhODBkZjgwMDZhM2ZhZTllMjAhBgorBgEEAYO/MAEUBBMMEXdvcmtmbG93X2Rp
+c3BhdGNoMIGBBgorBgEEAYO/MAEVBHMMcWh0dHBzOi8vZ2l0aHViLmNvbS9zaWdz
+dG9yZS1jb25mb3JtYW5jZS9leHRyZW1lbHktZGFuZ2Vyb3VzLXB1YmxpYy1vaWRj
+LWJlYWNvbi9hY3Rpb25zL3J1bnMvNjMyODQ5OTI2My9hdHRlbXB0cy8xMBYGCisG
+AQQBg78wARYECAwGcHVibGljMIGJBgorBgEEAdZ5AgQCBHsEeQB3AHUA3T0wasbH
+ETJjGR4cmWc3AqJKXrjePK3/h4pygC8p7o4AAAGK12KksgAABAMARjBEAiB/73GK
+v9a3CdW4uBkWhNw1W0YCeLuBLRi/Pv6yrASVpwIgOrK8L2ubaLnXSWAiK76oDmmJ
+1MaHKGanSuh13pxW4fgwCgYIKoZIzj0EAwMDaAAwZQIwaG18DfwChTX9hPA/WADa
+i9Wh9i3hESo5Nixoff/71AtMwETfBDu2MVN3lqo8o73NAjEAxed8hLxiJdxmZ3ZA
+XPOarzmFTZLPC794+i15i7RqInsZ49FtUVLjHuvccINZL63Y
+-----END CERTIFICATE-----
+EOF
+
+    assert_equal 2, cert.version
+    assert cert.extensions.any? { |ext| ext.oid == '1.3.6.1.4.1.57264.1.13' }
+
+    text = cert.to_text
+    assert text.index('X509v3 Subject Alternative Name: critical')
+    assert text.index('1.3.6.1.4.1.57264.1.13:')
+    assert text.index('CT Precertificate SCTs:')
+  end
+
   def test_to_text_read_back
     crt = File.expand_path('ca.crt', File.dirname(__FILE__))
     cert = OpenSSL::X509::Certificate.new File.read(crt)
@@ -424,6 +484,39 @@ EOF
     # MRI allows (invalid) serial == 0 :
     assert res.is_a?(OpenSSL::X509::Certificate)
     assert_equal 0, res.serial
+  end
+
+  def test_tbs_precert_bytes
+    ca = OpenSSL::X509::Name.parse('/DC=org/DC=ruby-lang/CN=CA')
+    cert = issue_cert(ca, OpenSSL::PKey::RSA.new(TEST_KEY_RSA1024), 1, [], nil, nil)
+    seq = OpenSSL::ASN1.decode(cert.tbs_bytes)
+
+    assert_equal 7, seq.value.size
+  end
+
+  def test_eq
+    now = Time.now
+    ca = OpenSSL::X509::Name.parse('/DC=org/DC=ruby-lang/CN=CA')
+    ee = OpenSSL::X509::Name.parse('/DC=org/DC=example/CN=ServerCert')
+    ca_key = OpenSSL::PKey::RSA.new(TEST_KEY_RSA1024)
+    ee_key = OpenSSL::PKey::RSA.new(TEST_KEY_RSA1024)
+
+    cacert = issue_cert(ca, ca_key, 1, [], nil, nil,
+                        not_before: now, not_after: now + 3600)
+    cert1 = issue_cert(ee, ee_key, 2, [], cacert, ca_key,
+                       not_before: now, not_after: now + 3600)
+    cert2 = issue_cert(ee, ee_key, 2, [], cacert, ca_key,
+                       not_before: now, not_after: now + 3600)
+    cert3 = issue_cert(ee, ee_key, 3, [], cacert, ca_key,
+                       not_before: now, not_after: now + 3600)
+    cert4 = issue_cert(ee, ee_key, 2, [], cacert, ca_key,
+                       digest: 'sha512', not_before: now, not_after: now + 3600)
+
+    assert_equal false, cert1 == 12345
+    assert_equal true, cert1 == cert2
+    assert_equal false, cert1 == cert3
+    assert_equal false, cert1 == cert4
+    assert_equal false, cert3 == cert4
   end
 
   def test_cert_loading_regression

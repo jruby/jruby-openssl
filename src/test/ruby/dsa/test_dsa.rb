@@ -8,7 +8,21 @@ class TestDSA < TestCase
   end
 
   def test_private
+    # Traditional "DSA PRIVATE KEY" (OpenSSL legacy format)
     key = Fixtures.pkey("dsa1024")
+    assert_equal true, key.private?
+    key2 = OpenSSL::PKey::DSA.new(key.to_der)
+    assert_equal true, key2.private?
+    key3 = key.public_key
+    assert_equal false, key3.private?
+    key4 = OpenSSL::PKey::DSA.new(key3.to_der)
+    assert_equal false, key4.private?
+  end
+
+  def test_private_pkcs8
+    # PKCS#8 "PRIVATE KEY" format: private key is bare INTEGER (x),
+    # params (p, q, g) come from AlgorithmIdentifier; y must be derived.
+    key = Fixtures.pkey("dsa2048")
     assert_equal true, key.private?
     key2 = OpenSSL::PKey::DSA.new(key.to_der)
     assert_equal true, key2.private?
@@ -22,6 +36,12 @@ class TestDSA < TestCase
     key = OpenSSL::PKey::DSA.new(2048)
     pem  = key.public_key.to_pem
     OpenSSL::PKey::DSA.new pem
+  end
+
+  def test_new_empty
+    key = OpenSSL::PKey::DSA.new
+    assert_nil(key.p)
+    assert_raise(OpenSSL::PKey::PKeyError) { key.to_der }
   end
 
   def test_dup
@@ -96,6 +116,28 @@ class TestDSA < TestCase
     sig = dsa.syssign(digest)
     #puts sig.inspect if $VERBOSE
     assert dsa.sysverify(digest, sig).eql?(true)
+  end
+
+  def test_sign_verify_raw
+    key = Fixtures.pkey("dsa2048")
+    data = 'Sign me!'
+    digest = OpenSSL::Digest.digest('SHA1', data)
+
+    invalid_sig = key.sign_raw(nil, digest.succ)
+
+    # Sign by #syssign
+    sig = key.syssign(digest)
+    assert_equal true, key.sysverify(digest, sig)
+    assert_equal false, key.sysverify(digest, invalid_sig)
+    assert_equal true, key.verify_raw(nil, sig, digest)
+    assert_equal false, key.verify_raw(nil, invalid_sig, digest)
+
+    # Sign by #sign_raw
+    sig = key.sign_raw(nil, digest)
+    assert_equal true, key.sysverify(digest, sig)
+    assert_equal false, key.sysverify(digest, invalid_sig)
+    assert_equal true, key.verify_raw(nil, sig, digest)
+    assert_equal false, key.verify_raw(nil, invalid_sig, digest)
   end
 
   def test_DSAPrivateKey

@@ -527,6 +527,48 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    // sign_raw(digest, data) -- signs pre-hashed (raw) bytes with the EC private key.
+    // Produces a DER-encoded ASN.1 SEQUENCE [r, s], identical to dsa_sign_asn1.
+    // The digest argument is accepted for API parity with RSA/DSA sign_raw but is unused;
+    // ECDSASigner operates directly on the supplied bytes without additional hashing.
+    @JRubyMethod(name = "sign_raw")
+    public IRubyObject sign_raw(final ThreadContext context, final IRubyObject digest, final IRubyObject data) {
+        return dsa_sign_asn1(context, data);
+    }
+
+    // verify_raw(digest, signature, data) -- verifies a DER-encoded ECDSA signature over raw bytes.
+    // Returns true/false; returns false (rather than raising) for a malformed or invalid signature.
+    // Argument order matches PKey#verify_raw convention: (digest, signature, data), unlike
+    // dsa_verify_asn1 which takes (data, signature).
+    @JRubyMethod(name = "verify_raw")
+    public IRubyObject verify_raw(final ThreadContext context, final IRubyObject digest,
+                                  final IRubyObject sign, final IRubyObject data) {
+        final Ruby runtime = context.runtime;
+        try {
+            final ECNamedCurveParameterSpec params = getParameterSpec();
+
+            final ECDSASigner signer = new ECDSASigner();
+            signer.init(false, new ECPublicKeyParameters(
+                    EC5Util.convertPoint(publicKey.getParams(), publicKey.getW()),
+                    new ECDomainParameters(params.getCurve(), params.getG(), params.getN(), params.getH())
+            ));
+
+            ASN1Primitive vec = new ASN1InputStream(sign.convertToString().getBytes()).readObject();
+            if (!(vec instanceof ASN1Sequence)) return runtime.getFalse();
+
+            ASN1Sequence seq = (ASN1Sequence) vec;
+            ASN1Integer r = ASN1Integer.getInstance(seq.getObjectAt(0));
+            ASN1Integer s = ASN1Integer.getInstance(seq.getObjectAt(1));
+
+            boolean verified = signer.verifySignature(data.convertToString().getBytes(), r.getPositiveValue(), s.getPositiveValue());
+            return runtime.newBoolean(verified);
+        }
+        catch (IOException | IllegalArgumentException | IllegalStateException ex) {
+            debugStackTrace(runtime, ex);
+            return runtime.getFalse();
+        }
+    }
+
     @JRubyMethod(name = "dh_compute_key")
     public IRubyObject dh_compute_key(final ThreadContext context, final IRubyObject point) {
         try {
@@ -555,6 +597,20 @@ public final class PKeyEC extends PKey {
         }
     }
 
+    // derive(peer_key) -- computes the ECDH shared secret with a peer EC public key.
+    // Equivalent to dh_compute_key(peer_key.public_key).
+    @JRubyMethod(name = "derive")
+    public IRubyObject derive(final ThreadContext context, final IRubyObject peer) {
+        if (!(peer instanceof PKeyEC)) {
+            throw context.runtime.newTypeError(peer, _EC(context.runtime));
+        }
+        final IRubyObject peerPublicKey = ((PKeyEC) peer).public_key(context);
+        if (peerPublicKey.isNil()) {
+            throw newECError(context.runtime, "no public key");
+        }
+        return dh_compute_key(context, peerPublicKey);
+    }
+
     @JRubyMethod
     public IRubyObject oid() {
         return getRuntime().newString("id-ecPublicKey");
@@ -575,8 +631,8 @@ public final class PKeyEC extends PKey {
         Group group = this.group;
         if (group != null) return group;
 
-        if (publicKey == null && publicKey == null) {
-            return context.nil; // PKey::EC.new
+        if (getCurveName() == null) {
+            return context.nil; // PKey::EC.new with no args / no curve configured
         }
         group = getGroup(false);
         return group == null ? context.nil : group;
@@ -784,16 +840,23 @@ public final class PKeyEC extends PKey {
             if ( args.length > 1 ) passwd = password(context, args[1], null);
         }
 
-        if (privateKey == null) {
-            return public_to_pem(context);
-        }
+        if (privateKey == null) return public_to_pem(context);
 
         try {
             final StringWriter writer = new StringWriter();
-            PEMInputOutput.writeECPrivateKey(writer, (ECPrivateKey) privateKey, spec, passwd);
+            // Include curve OID and public-key point so the PEM can be decoded
+            // stand-alone (SEC1 optional fields parameters[0] and publicKey[1]).
+            final ASN1ObjectIdentifier curveOID = getCurveOID(getCurveName()).orElse(null);
+            byte[] pubKeyBytes = null;
+            if (publicKey != null) {
+                pubKeyBytes = EC5Util.convertPoint(
+                        publicKey.getParams(), publicKey.getW()).getEncoded(false);
+            }
+            PEMInputOutput.writeECPrivateKey(writer, (ECPrivateKey) privateKey,
+                    curveOID, pubKeyBytes, spec, passwd);
             return RubyString.newString(context.runtime, writer.getBuffer());
         } catch (IOException ex) {
-            throw newECError(context.runtime, ex.getMessage());
+            throw newECError(context.runtime, ex.getMessage(), ex);
         }
     }
 
@@ -804,7 +867,7 @@ public final class PKeyEC extends PKey {
             PEMInputOutput.writeECPublicKey(writer, publicKey);
             return RubyString.newString(context.runtime, writer.getBuffer());
         } catch (IOException ex) {
-            throw newECError(context.runtime, ex.getMessage());
+            throw newECError(context.runtime, ex.getMessage(), ex);
         }
     }
 
@@ -860,6 +923,8 @@ public final class PKeyEC extends PKey {
 
         private PointConversion conversionForm = PointConversion.UNCOMPRESSED;
 
+        private int asn1Flag = 1; // OPENSSL_EC_NAMED_CURVE
+
         private String curveName;
         private RubyString impl_curve_name;
 
@@ -881,11 +946,55 @@ public final class PKeyEC extends PKey {
                 IRubyObject arg = args[0];
 
                 if ( arg instanceof Group ) {
-                    this.curveName = ((Group) arg).curveName;
+                    final Group src = (Group) arg;
+                    this.curveName = src.curveName;
+                    this.impl_curve_name = src.impl_curve_name;
+                    this.paramSpec = src.paramSpec;
+                    this.asn1Flag = src.asn1Flag;
+                    this.conversionForm = src.conversionForm;
                     return this;
                 }
 
-                this.impl_curve_name = arg.convertToString();
+                final RubyString strArg = arg.convertToString();
+                final byte[] bytes = strArg.getBytes();
+                // Detect DER input: OID tag (0x06) for named curve, SEQUENCE tag (0x30) for explicit params
+                if (bytes.length > 0 && (bytes[0] == 0x06 || bytes[0] == 0x30)) {
+                    try {
+                        final ASN1Primitive primitive = ASN1Primitive.fromByteArray(bytes);
+                        if (primitive instanceof ASN1ObjectIdentifier) {
+                            // Named curve: DER-encoded OID  ->  look up curve name
+                            setCurveName(runtime, PKeyEC.getCurveName((ASN1ObjectIdentifier) primitive));
+                            this.asn1Flag = 1; // NAMED_CURVE
+                            return this;
+                        } else if (primitive instanceof ASN1Sequence) {
+                            // Explicit parameters: X9.62 ECParameters SEQUENCE
+                            final X9ECParameters ecParams = X9ECParameters.getInstance(primitive);
+                            final EllipticCurve curve = EC5Util.convertCurve(ecParams.getCurve(), ecParams.getSeed());
+                            this.paramSpec = new ECParameterSpec(curve,
+                                    EC5Util.convertPoint(ecParams.getG()),
+                                    ecParams.getN(), ecParams.getH().intValue());
+                            this.asn1Flag = 0; // explicit
+                            return this;
+                        }
+                    } catch (IOException e) {
+                        // fall through to treat as curve name string
+                    }
+                }
+
+                this.impl_curve_name = strArg;
+            }
+            return this;
+        }
+
+        @JRubyMethod(name = "initialize_copy", visibility = Visibility.PRIVATE)
+        public IRubyObject initialize_copy(final IRubyObject original) {
+            if (original instanceof Group) {
+                final Group src = (Group) original;
+                this.curveName = src.curveName;
+                this.impl_curve_name = src.impl_curve_name;
+                this.paramSpec = src.paramSpec;
+                this.asn1Flag = src.asn1Flag;
+                this.conversionForm = src.conversionForm;
             }
             return this;
         }
@@ -981,6 +1090,48 @@ public final class PKeyEC extends PKey {
             }
             catch (IOException ex) {
                 throw newECError(context.runtime, ex.getMessage());
+            }
+        }
+
+        @JRubyMethod(name = "asn1_flag")
+        public IRubyObject asn1_flag(final ThreadContext context) {
+            return context.runtime.newFixnum(asn1Flag);
+        }
+
+        @JRubyMethod(name = "asn1_flag=")
+        public IRubyObject set_asn1_flag(final ThreadContext context, final IRubyObject flag_v) {
+            this.asn1Flag = (int) RubyFixnum.num2long(flag_v);
+            return flag_v;
+        }
+
+        /**
+         * Serializes the group as DER. For named curves (NAMED_CURVE flag set) this is the
+         * DER encoding of the curve OID. For explicit parameters it is the DER encoding of
+         * the X9.62 ECParameters SEQUENCE – matching OpenSSL's i2d_ECPKParameters().
+         */
+        @JRubyMethod(name = "to_der")
+        public RubyString to_der(final ThreadContext context) {
+            final Ruby runtime = context.runtime;
+            try {
+                final byte[] encoded;
+                if ((asn1Flag & 1) != 0) { // NAMED_CURVE: encode as DER OID
+                    final ASN1ObjectIdentifier oid = getCurveOID(getCurveName())
+                            .orElseThrow(() -> newError(runtime, "invalid curve name: " + getCurveName()));
+                    encoded = oid.getEncoded(ASN1Encoding.DER);
+                } else { // explicit parameters: encode as X9.62 ECParameters SEQUENCE
+                    final ECParameterSpec ps = getParamSpec();
+                    final ECCurve bcCurve = EC5Util.convertCurve(ps.getCurve());
+                    final X9ECParameters ecParameters = new X9ECParameters(
+                            bcCurve,
+                            new X9ECPoint(EC5Util.convertPoint(bcCurve, ps.getGenerator()), false),
+                            ps.getOrder(),
+                            BigInteger.valueOf(ps.getCofactor()),
+                            ps.getCurve().getSeed());
+                    encoded = ecParameters.getEncoded(ASN1Encoding.DER);
+                }
+                return StringHelper.newString(runtime, encoded);
+            } catch (IOException e) {
+                throw newError(runtime, e.getMessage());
             }
         }
 

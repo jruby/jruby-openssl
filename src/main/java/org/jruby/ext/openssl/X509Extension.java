@@ -574,7 +574,17 @@ public class X509Extension extends RubyObject {
 
     private RubyString rawValueAsString(final ThreadContext context) throws IOException {
         final Ruby runtime = context.runtime;
-        final IRubyObject value = getValue(runtime); // e.g. [ ASN1::UTF8String, ... ]
+        final IRubyObject value;
+        try {
+            value = getValue(runtime); // e.g. [ ASN1::UTF8String, ... ]
+        }
+        catch (IOException|IllegalArgumentException e) {
+            // a generic extension may be syntactically valid DER but still fail when we try
+            // to map its payload into ASN.1 object model (e.g. because of unsupported nested tags).
+            // MRI/OpenSSL still renders the raw extension bytes in to_text instead of raising.
+            debugStackTrace(runtime, "X509Extension.rawValueAsString", e);
+            return StringHelper.newString(runtime, getRealValueEncoded());
+        }
         if ( value instanceof RubyArray ) {
             final RubyArray arr = (RubyArray) value;
             final ByteList strVal = new ByteList(64);
@@ -794,6 +804,16 @@ public class X509Extension extends RubyObject {
     public IRubyObject set_critical(final ThreadContext context, IRubyObject arg) {
         setRealCritical(arg.isTrue());
         return arg;
+    }
+
+    @JRubyMethod
+    public RubyString value_der(final ThreadContext context) {
+        try {
+            return StringHelper.newString(context.runtime, getRealValueEncoded());
+        }
+        catch (IOException e) {
+            throw newExtensionError(context.runtime, e);
+        }
     }
 
     @JRubyMethod

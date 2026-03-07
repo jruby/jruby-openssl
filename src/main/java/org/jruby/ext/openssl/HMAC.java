@@ -55,10 +55,9 @@ public class HMAC extends RubyObject {
         HMAC.defineAnnotatedMethods(HMAC.class);
     }
 
-    private static Mac getMacInstance(final String algorithmName) throws NoSuchAlgorithmException {
-        // final String algorithmSuffix = algorithmName.replaceAll("-", "");
+    static Mac getMacInstance(final String algorithmName) throws NoSuchAlgorithmException {
         final StringBuilder algName = new StringBuilder(5 + algorithmName.length());
-        algName.append("HMAC"); // .append(algorithmSuffix);
+        algName.append("HMAC");
         for ( int i = 0; i < algorithmName.length(); i++ ) {
             char c = algorithmName.charAt(i);
             if ( c != '-' ) algName.append(c);
@@ -199,7 +198,7 @@ public class HMAC extends RubyObject {
         return mac.doFinal();
     }
 
-    private static String getDigestAlgorithmName(final IRubyObject digest) {
+    static String getDigestAlgorithmName(final IRubyObject digest) {
         if ( digest instanceof Digest ) {
             return ((Digest) digest).getShortAlgorithm();
         }

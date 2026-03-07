@@ -39,7 +39,6 @@ import org.jruby.internal.runtime.methods.UndefinedMethod;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.util.TypeConverter;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -190,6 +189,32 @@ final class Utils {
         });
 
         return ret;
+    }
+
+    static String extractStringOpt(ThreadContext context, IRubyObject opts, String key) {
+        return extractStringOpt(context, opts, key, false);
+    }
+
+    static String extractStringOpt(ThreadContext context, IRubyObject opts,
+                                   String key, boolean tryStringKey) {
+        if (!(opts instanceof RubyHash)) return null;
+        RubyHash hash = (RubyHash) opts;
+        // OpenSSL option hashes may use string or symbol keys — try both.
+        IRubyObject val = hash.fastARef(context.runtime.newSymbol(key));
+        if (val == null && tryStringKey) val = hash.fastARef(context.runtime.newString(key));
+        if (val == null || val.isNil()) return null;
+        return val.convertToString().asJavaString();
+    }
+
+    static int extractIntOpt(ThreadContext context, IRubyObject opts,
+                             String key, int defaultVal, boolean tryStringKey) {
+        if (!(opts instanceof RubyHash)) return defaultVal;
+        RubyHash hash = (RubyHash) opts;
+        // OpenSSL option hashes may use string or symbol keys — try both.
+        IRubyObject val = hash.fastARef(context.runtime.newSymbol(key));
+        if (val == null && tryStringKey) val = hash.fastARef(context.runtime.newString(key));
+        if (val == null || val.isNil()) return defaultVal;
+        return RubyNumeric.fix2int(val);
     }
 
     static ByteBuffer ensureCapacity(final ByteBuffer buffer, final int size) {

@@ -321,6 +321,9 @@ class TestASN1 < TestCase
     assert_equal "2.16.840.1.101.3.4.2.1", obj.oid
     assert_equal "SHA256", obj.sn
     assert_equal "sha256", obj.ln
+    scts = OpenSSL::ASN1::ObjectId.new("1.3.6.1.4.1.11129.2.4.2")
+    assert_equal "ct_precert_scts", scts.sn
+    assert_equal "CT Precertificate SCTs", scts.ln
     # TODO: Import Issue
     # Fails with: <OpenSSL::ASN1::ASN1Error> expected but was <RuntimeError(<(TypeError) string  not an OID>)
     #assert_raise(OpenSSL::ASN1::ASN1Error) {
@@ -620,61 +623,46 @@ class TestASN1 < TestCase
     encode_test B(%w{ 80 01 01 }), int
     int2 = OpenSSL::ASN1::Integer.new(1, 1, :IMPLICIT, :APPLICATION)
     encode_test B(%w{ 41 01 01 }), int2
-    #decoded = OpenSSL::ASN1.decode(int2.to_der)
-    # <:APPLICATION> expected but was <:UNIVERSAL>
-    #assert_equal :APPLICATION, decoded.tag_class
-    # <1> expected but was <2>
-    #assert_equal 1, decoded.tag
-    # <"\x01"> expected but was <#<OpenSSL::BN 1>>
-    #assert_equal B(%w{ 01 }), decoded.value
+    decoded = OpenSSL::ASN1.decode(int2.to_der)
+    assert_equal :APPLICATION, decoded.tag_class
+    assert_equal 1, decoded.tag
+    assert_equal B(%w{ 01 }), decoded.value
 
-    # Special behavior: Encoding universal types with non-default 'tag'
-    # attribute and nil tagging method.
-    #int3 = OpenSSL::ASN1::Integer.new(1, 1)
-    # <"\x01\x01\x01"> expected but was <"\x02\x01\x01">
-    #encode_test B(%w{ 01 01 01 }), int3
+    # Special behavior: Encoding universal types with non-default 'tag' attribute and nil tagging method.
+    int3 = OpenSSL::ASN1::Integer.new(1, 1)
+    encode_test B(%w{ 01 01 01 }), int3
   end
 
   def test_cons_explicit_tagging
-    #content = [ OpenSSL::ASN1::PrintableString.new('abc') ]
-    #seq = OpenSSL::ASN1::Sequence.new(content, 2, :EXPLICIT)
-    # TODO: Import Issue
-    # RuntimeError: No message available
-    #encode_test B(%w{ A2 07 30 05 13 03 61 62 63 }), seq
-    #seq2 = OpenSSL::ASN1::Sequence.new(content, 3, :EXPLICIT, :APPLICATION)
-    # RuntimeError: No message available
-    #encode_test B(%w{ 63 07 30 05 13 03 61 62 63 }), seq2
+    content = [ OpenSSL::ASN1::PrintableString.new('abc') ]
+    seq = OpenSSL::ASN1::Sequence.new(content, 2, :EXPLICIT)
+    encode_test B(%w{ A2 07 30 05 13 03 61 62 63 }), seq
+    seq2 = OpenSSL::ASN1::Sequence.new(content, 3, :EXPLICIT, :APPLICATION)
+    encode_test B(%w{ 63 07 30 05 13 03 61 62 63 }), seq2
 
-    #content3 = [ OpenSSL::ASN1::PrintableString.new('abc'),
-    #             OpenSSL::ASN1::EndOfContent.new() ]
-    #seq3 = OpenSSL::ASN1::Sequence.new(content3, 2, :EXPLICIT)
-    #seq3.indefinite_length = true
-    # RuntimeError: No message available
-    #encode_test B(%w{ A2 80 30 80 13 03 61 62 63 00 00 00 00 }), seq3
+    content3 = [ OpenSSL::ASN1::PrintableString.new('abc'),
+                 OpenSSL::ASN1::EndOfContent.new() ]
+    seq3 = OpenSSL::ASN1::Sequence.new(content3, 2, :EXPLICIT)
+    seq3.indefinite_length = true
+    encode_test B(%w{ A2 80 30 80 13 03 61 62 63 00 00 00 00 }), seq3
   end
 
   def test_cons_implicit_tagging
-    #content = [ OpenSSL::ASN1::Null.new(nil) ]
-    #seq = OpenSSL::ASN1::Sequence.new(content, 1, :IMPLICIT)
-    # TODO: Import Issue
-    # <"\xA1\x02\x05\x00"> expected but was <"0\x02\x05\x00">
-    #encode_test B(%w{ A1 02 05 00 }), seq
-    #seq2 = OpenSSL::ASN1::Sequence.new(content, 1, :IMPLICIT, :APPLICATION)
-    # <"a\x02\x05\x00"> expected but was <"0\x02\x05\x00">
-    #encode_test B(%w{ 61 02 05 00 }), seq2
+    content = [ OpenSSL::ASN1::Null.new(nil) ]
+    seq = OpenSSL::ASN1::Sequence.new(content, 1, :IMPLICIT)
+    encode_test B(%w{ A1 02 05 00 }), seq
+    seq2 = OpenSSL::ASN1::Sequence.new(content, 1, :IMPLICIT, :APPLICATION)
+    encode_test B(%w{ 61 02 05 00 }), seq2
 
-    #content3 = [ OpenSSL::ASN1::Null.new(nil),
-    #             OpenSSL::ASN1::EndOfContent.new() ]
-    #seq3 = OpenSSL::ASN1::Sequence.new(content3, 1, :IMPLICIT)
-    #seq3.indefinite_length = true
-    # <"\xA1\x80\x05\x00\x00\x00"> expected but was <"0\x80\x05\x00\x00\x00">
-    #encode_test B(%w{ A1 80 05 00 00 00 }), seq3
+    content3 = [ OpenSSL::ASN1::Null.new(nil),
+                 OpenSSL::ASN1::EndOfContent.new() ]
+    seq3 = OpenSSL::ASN1::Sequence.new(content3, 1, :IMPLICIT)
+    seq3.indefinite_length = true
+    encode_test B(%w{ A1 80 05 00 00 00 }), seq3
 
-    # Special behavior: Encoding universal types with non-default 'tag'
-    # attribute and nil tagging method.
-    #seq4 = OpenSSL::ASN1::Sequence.new([], 1)
-    # <"!\x00"> expected but was <"0\x00">
-    #encode_test B(%w{ 21 00 }), seq4
+    # Special behavior: Encoding universal types with non-default 'tag' attribute and nil tagging method.
+    seq4 = OpenSSL::ASN1::Sequence.new([], 1)
+    encode_test B(%w{ 21 00 }), seq4
   end
 
   def test_octet_string_constructed_tagging

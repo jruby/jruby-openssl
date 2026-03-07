@@ -45,6 +45,7 @@ import java.security.cert.X509Certificate;
 import java.security.interfaces.DSAPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -301,6 +302,49 @@ public class X509Cert extends RubyObject {
         catch (CertificateEncodingException ex) {
             throw newCertificateError(getRuntime(), ex);
         }
+    }
+
+    @JRubyMethod
+    public IRubyObject tbs_bytes() {
+        if ( cert == null ) {
+            throw newCertificateError(getRuntime(), "no certificate");
+        }
+        try {
+            return StringHelper.newString(getRuntime(), cert.getTBSCertificate());
+        }
+        catch (CertificateEncodingException ex) {
+            throw newCertificateError(getRuntime(), ex);
+        }
+    }
+
+    @Override
+    @JRubyMethod(name = "==")
+    public IRubyObject op_equal(ThreadContext context, IRubyObject obj) {
+        return equalImpl(context.runtime, obj);
+    }
+
+    private IRubyObject equalImpl(final Ruby runtime, IRubyObject obj) {
+        if ( this == obj ) return runtime.getTrue();
+        if ( obj instanceof X509Cert ) {
+            final X509Certificate cert = this.cert;
+            final X509Certificate otherCert = ((X509Cert) obj).cert;
+            if ( cert == null || otherCert == null ) return runtime.getFalse();
+
+            final boolean equal;
+            try {
+                equal = Arrays.equals(cert.getEncoded(), otherCert.getEncoded());
+            }
+            catch (CertificateEncodingException e) {
+                throw newCertificateError(runtime, e);
+            }
+            return runtime.newBoolean(equal);
+        }
+        return runtime.getFalse();
+    }
+
+    @Override
+    public IRubyObject eql_p(IRubyObject obj) {
+        return equalImpl(getRuntime(), obj);
     }
 
     @JRubyMethod(name = {"to_pem", "to_s"})

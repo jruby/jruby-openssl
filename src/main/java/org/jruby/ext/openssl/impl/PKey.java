@@ -119,14 +119,28 @@ public class PKey {
                         exp1.getValue(), exp2.getValue(), crtCoef.getValue());
                 break;
             case DSA:
-                seq = (ASN1Sequence) keyInfo.parsePrivateKey();
-                ASN1Integer p = (ASN1Integer) seq.getObjectAt(1);
-                ASN1Integer q = (ASN1Integer) seq.getObjectAt(2);
-                ASN1Integer g = (ASN1Integer) seq.getObjectAt(3);
-                ASN1Integer y = (ASN1Integer) seq.getObjectAt(4);
-                ASN1Integer x = (ASN1Integer) seq.getObjectAt(5);
-                privSpec = new DSAPrivateKeySpec(x.getValue(), p.getValue(), q.getValue(), g.getValue());
-                pubSpec = new DSAPublicKeySpec(y.getValue(), p.getValue(), q.getValue(), g.getValue());
+                final ASN1Encodable parsedDSAKey = keyInfo.parsePrivateKey();
+                if (parsedDSAKey instanceof ASN1Integer) {
+                    // PKCS#8 format: private key is just x (INTEGER), params in AlgorithmIdentifier
+                    final BigInteger xVal = ((ASN1Integer) parsedDSAKey).getValue();
+                    final DSAParameter dsaParam = DSAParameter.getInstance(keyInfo.getPrivateKeyAlgorithm().getParameters());
+                    final BigInteger pVal = dsaParam.getP();
+                    final BigInteger qVal = dsaParam.getQ();
+                    final BigInteger gVal = dsaParam.getG();
+                    final BigInteger yVal = gVal.modPow(xVal, pVal);
+                    privSpec = new DSAPrivateKeySpec(xVal, pVal, qVal, gVal);
+                    pubSpec = new DSAPublicKeySpec(yVal, pVal, qVal, gVal);
+                } else {
+                    // Traditional "DSA PRIVATE KEY" format: SEQUENCE { version, p, q, g, y, x }
+                    seq = (ASN1Sequence) parsedDSAKey;
+                    ASN1Integer p = (ASN1Integer) seq.getObjectAt(1);
+                    ASN1Integer q = (ASN1Integer) seq.getObjectAt(2);
+                    ASN1Integer g = (ASN1Integer) seq.getObjectAt(3);
+                    ASN1Integer y = (ASN1Integer) seq.getObjectAt(4);
+                    ASN1Integer x = (ASN1Integer) seq.getObjectAt(5);
+                    privSpec = new DSAPrivateKeySpec(x.getValue(), p.getValue(), q.getValue(), g.getValue());
+                    pubSpec = new DSAPublicKeySpec(y.getValue(), p.getValue(), q.getValue(), g.getValue());
+                }
                 break;
             case EC:
                 return readECPrivateKey(SecurityHelper.getKeyFactory("EC"), keyInfo);
@@ -139,11 +153,23 @@ public class PKey {
 
     // d2i_PUBKEY_bio
     public static PublicKey readPublicKey(final byte[] input) throws IOException {
+        // Try PEM first
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(input))) {
             Object pemObject = new PEMParser(in).readObject();
-            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(pemObject);
-            return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            if (pemObject instanceof SubjectPublicKeyInfo) {
+                return new JcaPEMKeyConverter().getPublicKey((SubjectPublicKeyInfo) pemObject);
+            }
         }
+        // Fall back to DER-encoded SubjectPublicKeyInfo
+        try {
+            SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(ASN1Primitive.fromByteArray(input));
+            if (publicKeyInfo != null) {
+                return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
+            }
+        } catch (Exception e) {
+            throw new IOException("Could not parse public key: " + e.getMessage(), e);
+        }
+        return null;
     }
 
     // d2i_RSAPrivateKey_bio
@@ -273,13 +299,17 @@ public class PKey {
             if (algId == null) { // mockPrivateKeyInfo
                 algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, key.getParameters());
             }
-            final SubjectPublicKeyInfo pubInfo = new SubjectPublicKeyInfo(algId, key.getPublicKey().getBytes());
             final PrivateKeyInfo privInfo = new PrivateKeyInfo(algId, key);
-
             ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(new PKCS8EncodedKeySpec(privInfo.getEncoded()));
             if (algId.getParameters() instanceof ASN1ObjectIdentifier) {
                 privateKey = ECPrivateKeyWithName.wrap(privateKey, (ASN1ObjectIdentifier) algId.getParameters());
             }
+
+            // The publicKey field in ECPrivateKey DER is optional (RFC 5915).
+            // Keys written by older JRuby-OpenSSL may omit it; handle gracefully.
+            final org.bouncycastle.asn1.ASN1BitString pubKeyBits = key.getPublicKey();
+            if (pubKeyBits == null) return new KeyPair(null, privateKey);
+            final SubjectPublicKeyInfo pubInfo = new SubjectPublicKeyInfo(algId, pubKeyBits.getBytes());
             return new KeyPair(keyFactory.generatePublic(new X509EncodedKeySpec(pubInfo.getEncoded())), privateKey);
         }
         catch (ClassCastException ex) {
@@ -322,7 +352,8 @@ public class PKey {
         return new DERSequence(vec);
     }
 
-    public static byte[] toDerDSAKey(DSAPublicKey pubKey, DSAPrivateKey privKey) throws IOException {
+    public static byte[] toDerDSAKey(DSAPublicKey pubKey, DSAPrivateKey privKey)
+        throws IOException, IllegalArgumentException {
         if ( pubKey != null && privKey == null ) {
             return toDerDSAPublicKey(pubKey);
         }
