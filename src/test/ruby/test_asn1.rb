@@ -321,6 +321,9 @@ class TestASN1 < TestCase
     assert_equal "2.16.840.1.101.3.4.2.1", obj.oid
     assert_equal "SHA256", obj.sn
     assert_equal "sha256", obj.ln
+    scts = OpenSSL::ASN1::ObjectId.new("1.3.6.1.4.1.11129.2.4.2")
+    assert_equal "ct_precert_scts", scts.sn
+    assert_equal "CT Precertificate SCTs", scts.ln
     # TODO: Import Issue
     # Fails with: <OpenSSL::ASN1::ASN1Error> expected but was <RuntimeError(<(TypeError) string  not an OID>)
     #assert_raise(OpenSSL::ASN1::ASN1Error) {

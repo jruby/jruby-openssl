@@ -421,7 +421,8 @@ public class ASN1 {
     }
 
     static Integer oid2nid(final Ruby runtime, final ASN1ObjectIdentifier oid) {
-        return oidToNid(runtime).get(oid);
+        final Integer nid = oidToNid(runtime).get(oid);
+        return nid == null ? ASN1Registry.oid2nid(oid) : nid;
     }
 
     static String o2a(final Ruby runtime, final ASN1ObjectIdentifier oid) {
@@ -429,35 +430,23 @@ public class ASN1 {
     }
 
     static String o2a(final Ruby runtime, final ASN1ObjectIdentifier oid, final boolean silent) {
-        Integer nid = oidToNid(runtime).get(oid);
-        if ( nid != null ) {
-            final String name = nid2ln(runtime, nid, false);
-            return name == null ? nid2sn(runtime, nid, false) : name;
-        }
-        nid = ASN1Registry.oid2nid(oid);
+        final Integer nid = oid2nid(runtime, oid);
         if ( nid == null ) {
             if ( silent ) return null;
             throw new NullPointerException("nid not found for oid = '" + oid + "' (" + runtime + ")");
         }
-        final String name = nid2ln(runtime, nid, false);
-        if ( name != null ) return name;
-        return nid2sn(runtime, nid, true);
+        final String name = nid2ln(runtime, nid);
+        return name == null ? nid2sn(runtime, nid) : name;
     }
 
     static String oid2name(final Ruby runtime, final ASN1ObjectIdentifier oid, final boolean silent) {
-        Integer nid = oidToNid(runtime).get(oid);
-        if ( nid != null ) {
-            final String name = nid2sn(runtime, nid, false);
-            return name == null ? nid2ln(runtime, nid, false) : name;
-        }
-        nid = ASN1Registry.oid2nid(oid);
+        final Integer nid = oid2nid(runtime, oid);
         if ( nid == null ) {
             if ( silent ) return null;
             throw new NullPointerException("nid not found for oid = '" + oid + "' (" + runtime + ")");
         }
         final String name = nid2sn(runtime, nid, false);
-        if ( name != null ) return name;
-        return nid2ln(runtime, nid, true);
+        return name == null ? nid2ln(runtime, nid) : name;
         /*
         if ( nid == null ) nid = ASN1Registry.oid2nid(oid);
         if ( nid == null ) {
