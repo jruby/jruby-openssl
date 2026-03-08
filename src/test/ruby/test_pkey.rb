@@ -97,6 +97,34 @@ class TestPKey < TestCase
     assert_equal nil, dh.q
   end
 
+  def test_compare?
+    key1 = Fixtures.pkey("rsa-1.pem")
+    key2 = Fixtures.pkey("rsa-1.pem")
+    key3 = Fixtures.pkey("rsa-2.pem")
+    key4 = Fixtures.pkey("p256")
+
+    assert_equal(true, key1.compare?(key2))
+    assert_equal(true, key1.public_key.compare?(key2))
+    assert_equal(true, key2.compare?(key1))
+    assert_equal(true, key2.public_key.compare?(key1))
+
+    assert_equal(false, key1.compare?(key3))
+
+    assert_raise(TypeError) do
+      key1.compare?(key4)
+    end
+  end
+
+  def test_compare_with_certificate_public_key
+    fixtures = File.dirname(__FILE__)
+    cert = OpenSSL::X509::Certificate.new(File.read(File.join(fixtures, 'pkey-cert.pem')))
+    matching_key = OpenSSL::PKey.read(File.read(File.join(fixtures, 'pkey-pkcs8.pem')))
+    other_key    = Fixtures.pkey("rsa-1.pem")
+
+    assert_equal true,  matching_key.compare?(cert.public_key)
+    assert_equal false, other_key.compare?(cert.public_key)
+  end
+
   def test_to_java
     pkey = OpenSSL::PKey.read(KEY)
     assert_kind_of java.security.PublicKey, pkey.to_java
