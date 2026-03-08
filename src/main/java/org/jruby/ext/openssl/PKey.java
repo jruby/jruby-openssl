@@ -303,6 +303,25 @@ public abstract class PKey extends RubyObject {
         }
     }
 
+    // Used primarily to check if an OpenSSL::X509::Certificate#public_key compares to its private key.
+    @JRubyMethod(name = "compare?")
+    public IRubyObject compare_p(ThreadContext context, IRubyObject arg) {
+        final Ruby runtime = context.runtime;
+        if (!(arg instanceof PKey)) {
+            throw runtime.newTypeError("OpenSSL::PKey::PKey expected but got " + arg.getMetaClass().getRealClass().getName());
+        }
+        final PKey other = (PKey) arg;
+        if (!getKeyType().equals(other.getKeyType())) {
+            throw runtime.newTypeError("Cannot compare different key types");
+        }
+        final PublicKey myPub = getPublicKey();
+        final PublicKey otherPub = other.getPublicKey();
+        if (myPub == null || otherPub == null) {
+            return runtime.getFalse();
+        }
+        return runtime.newBoolean(java.util.Arrays.equals(myPub.getEncoded(), otherPub.getEncoded()));
+    }
+
     static String getDigestAlgName(IRubyObject digest) {
         if (digest.isNil()) return "SHA256";
         if (digest instanceof Digest) return ((Digest) digest).getShortAlgorithm();
