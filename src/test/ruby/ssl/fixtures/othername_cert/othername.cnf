@@ -1,0 +1,15 @@
+[ req ]
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+prompt             = no
+
+[ req_distinguished_name ]
+CN = TestOtherName
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+otherName.1 = 1.3.6.1.4.1.311.20.2.3;UTF8:example-other-name@localdomain
+DNS.2 = localhost.localdomain
+IP.3 = 127.0.0.1
