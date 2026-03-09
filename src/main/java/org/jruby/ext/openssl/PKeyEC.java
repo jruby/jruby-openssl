@@ -556,7 +556,7 @@ public final class PKeyEC extends PKey {
     }
 
     @JRubyMethod
-    public IRubyObject oid() {
+    public RubyString oid() {
         return getRuntime().newString("id-ecPublicKey");
     }
 

@@ -86,6 +86,15 @@ public class PKeyDH extends PKey {
         DH.defineAnnotatedMethods(PKeyDH.class);
     }
 
+    public PKeyDH(Ruby runtime, RubyString str) {
+        super(runtime, _DH(runtime));
+        this.initialize(runtime.getCurrentContext(), new IRubyObject[] { str });
+    }
+
+    static RubyClass _DH(final Ruby runtime) {
+        return _PKey(runtime).getClass("DH");
+    }
+
     public static RaiseException newDHError(Ruby runtime, String message) {
         return Utils.newError(runtime, _PKey(runtime).getClass("DHError"), message);
     }
@@ -430,6 +439,12 @@ public class PKeyDH extends PKey {
     public synchronized IRubyObject set_priv_key(IRubyObject arg) {
         this.dh_x = BN.asBigInteger(arg);
         return arg;
+    }
+
+    @Override
+    @JRubyMethod
+    public RubyString oid() {
+        return getRuntime().newString("DH");
     }
 
     @JRubyMethod
