@@ -144,24 +144,26 @@ public class PKeyDSA extends PKey {
     public String getAlgorithm() { return "DSA"; }
 
     @JRubyMethod(name = "generate", meta = true)
-    public static IRubyObject generate(IRubyObject self, IRubyObject arg) {
-        final Ruby runtime = self.getRuntime();
+    public static IRubyObject generate(ThreadContext context, IRubyObject self, IRubyObject arg) {
         final int keySize = RubyNumeric.fix2int(arg);
-        return dsaGenerate(runtime, new PKeyDSA(runtime, (RubyClass) self), keySize);
+        return dsaGenerate(context.runtime, new PKeyDSA(context.runtime, (RubyClass) self), keySize);
+    }
+
+    static PKeyDSA generateImpl(final Ruby runtime, PKeyDSA dsa, int keySize) throws NoSuchAlgorithmException {
+        KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("DSA");
+        gen.initialize(keySize, getSecureRandom(runtime));
+        KeyPair pair = gen.generateKeyPair();
+        dsa.privateKey = (DSAPrivateKey) pair.getPrivate();
+        dsa.publicKey = (DSAPublicKey) pair.getPublic();
+        return dsa;
     }
 
     /*
      * c: dsa_generate
      */
-    private static PKeyDSA dsaGenerate(final Ruby runtime,
-        PKeyDSA dsa, int keySize) throws RaiseException {
+    private static PKeyDSA dsaGenerate(final Ruby runtime, PKeyDSA dsa, int keySize) throws RaiseException {
         try {
-            KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("DSA");
-            gen.initialize(keySize, getSecureRandom(runtime));
-            KeyPair pair = gen.generateKeyPair();
-            dsa.privateKey = (DSAPrivateKey) pair.getPrivate();
-            dsa.publicKey = (DSAPublicKey) pair.getPublic();
-            return dsa;
+            return generateImpl(runtime, dsa, keySize);
         }
         catch (NoSuchAlgorithmException e) {
             throw newDSAError(runtime, e.getMessage());
@@ -303,7 +305,7 @@ public class PKeyDSA extends PKey {
     @JRubyMethod(name = "public_to_der")
     public RubyString public_to_der(ThreadContext context) {
         if (publicKey == null) {
-            throw newPKeyError(context.runtime, "incompletely initialized DSA key");
+            throw newDSAError(context.runtime, "incompletely initialized DSA key");
         }
         final byte[] bytes;
         try {
@@ -329,7 +331,7 @@ public class PKeyDSA extends PKey {
             throw newDSAError(getRuntime(), bcExceptionMessage(e));
         }
         catch (IllegalArgumentException e) {
-            throw newPKeyError(getRuntime(), e.getMessage());
+            throw newDSAError(getRuntime(), e.getMessage());
         }
         catch (IOException e) {
             throw newDSAError(getRuntime(), e.getMessage(), e);
@@ -486,13 +488,13 @@ public class PKeyDSA extends PKey {
             return runtime.newBoolean(verify("NONEwithDSA", getPublicKey(), dataBytes, sigBytes));
         }
         catch (NoSuchAlgorithmException e) {
-            throw newPKeyError(runtime, e.getMessage());
+            throw newDSAError(runtime, e.getMessage());
         }
         catch (SignatureException e) {
-            throw newPKeyError(runtime, "invalid signature");
+            throw newDSAError(runtime, "invalid signature");
         }
         catch (InvalidKeyException e) {
-            throw newPKeyError(runtime, "invalid key");
+            throw newDSAError(runtime, "invalid key");
         }
     }
 

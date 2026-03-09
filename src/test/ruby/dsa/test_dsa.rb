@@ -41,7 +41,7 @@ class TestDSA < TestCase
   def test_new_empty
     key = OpenSSL::PKey::DSA.new
     assert_nil(key.p)
-    assert_raise(OpenSSL::PKey::PKeyError) { key.to_der }
+    assert_pkey_error { key.to_der }
   end
 
   def test_dup

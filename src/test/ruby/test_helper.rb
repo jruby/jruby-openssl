@@ -69,6 +69,10 @@ class TestCase
 
   alias assert_raise assert_raises unless method_defined?(:assert_raise)
 
+  def assert_pkey_error(&block)
+    assert_raise_kind_of(OpenSSL::PKey::PKeyError, &block)
+  end
+
   unless method_defined?(:skip)
     if method_defined?(:omit)
       alias skip omit
