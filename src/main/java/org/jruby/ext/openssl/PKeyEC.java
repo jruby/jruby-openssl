@@ -440,7 +440,7 @@ public final class PKeyEC extends PKey {
             this.privateKey = pair.getPrivate();
         }
         catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException ex) {
-            throw PKey.newPKeyError(context.runtime, ex.getMessage());
+            throw newECError(context.runtime, ex.getMessage());
         }
         catch (GeneralSecurityException ex) {
             throw (RaiseException) newECError(context.runtime, ex.toString()).initCause(ex);
@@ -745,7 +745,7 @@ public final class PKeyEC extends PKey {
             return public_to_der(runtime);
         }
         if (privateKey == null) {
-            throw PKey.newPKeyError(runtime, "can't export - no public key set");
+            throw newECError(runtime, "can't export - no public key set");
         }
 
         try {

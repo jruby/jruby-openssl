@@ -220,32 +220,33 @@ public class PKeyRSA extends PKey {
         return rsaGenerate(runtime, new PKeyRSA(runtime, (RubyClass) self), keySize, exp);
     }
 
+    static PKeyRSA generateImpl(final Ruby runtime, PKeyRSA rsa, int keySize, BigInteger exp)
+        throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
+        KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("RSA");
+        if ( "IBMJCEFIPS".equals( gen.getProvider().getName() ) ) {
+            gen.initialize(keySize); // IBMJCEFIPS does not support parameters
+        } else {
+            gen.initialize(new RSAKeyGenParameterSpec(keySize, exp), getSecureRandom(runtime));
+        }
+        KeyPair pair = gen.generateKeyPair();
+        rsa.privateKey = (RSAPrivateCrtKey) pair.getPrivate();
+        rsa.publicKey = (RSAPublicKey) pair.getPublic();
+        return rsa;
+    }
+
     /*
      * c: rsa_generate
      */
-    private static PKeyRSA rsaGenerate(final Ruby runtime,
-        PKeyRSA rsa, int keySize, BigInteger exp) throws RaiseException {
+    static PKeyRSA rsaGenerate(final Ruby runtime, PKeyRSA rsa, int keySize, BigInteger exp) throws RaiseException {
         try {
-            KeyPairGenerator gen = SecurityHelper.getKeyPairGenerator("RSA");
-            if ( "IBMJCEFIPS".equals( gen.getProvider().getName() ) ) {
-                gen.initialize(keySize); // IBMJCEFIPS does not support parameters
-            } else {
-                gen.initialize(new RSAKeyGenParameterSpec(keySize, exp), getSecureRandom(runtime));
-            }
-            KeyPair pair = gen.generateKeyPair();
-            rsa.privateKey = (RSAPrivateCrtKey) pair.getPrivate();
-            rsa.publicKey = (RSAPublicKey) pair.getPublic();
+            return generateImpl(runtime, rsa, keySize, exp);
         }
-        catch (NoSuchAlgorithmException e) {
-            throw newRSAError(runtime, e.getMessage());
-        }
-        catch (InvalidAlgorithmParameterException e) {
+        catch (NoSuchAlgorithmException|InvalidAlgorithmParameterException e) {
             throw newRSAError(runtime, e.getMessage());
         }
         catch (RuntimeException e) {
-            throw newRSAError(rsa.getRuntime(), e);
+            throw newRSAError(runtime, e);
         }
-        return rsa;
     }
 
     @JRubyMethod(rest = true, visibility = Visibility.PRIVATE)
@@ -336,7 +337,7 @@ public class PKeyRSA extends PKey {
         if ( key == null ) key = tryPKCS8EncodedKey(runtime, rsaFactory, str.getBytes());
         if ( key == null ) key = tryX509EncodedKey(runtime, rsaFactory, str.getBytes());
 
-        if ( key == null ) throw newPKeyError(runtime, "Neither PUB key nor PRIV key:");
+        if ( key == null ) throw newRSAError(runtime, "Neither PUB key nor PRIV key:");
 
         if ( key instanceof KeyPair ) {
             PublicKey publicKey = ((KeyPair) key).getPublic();
@@ -615,7 +616,7 @@ public class PKeyRSA extends PKey {
 
     private String getPadding(final int padding) {
         if ( padding < 1 || padding > 4 ) {
-            throw newPKeyError(getRuntime(), "");
+            throw newRSAError(getRuntime(), "");
         }
         // BC accepts "/NONE/*" but SunJCE doesn't. use "/ECB/*"
         String p = "/ECB/PKCS1Padding";
@@ -635,7 +636,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil() ) {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( privateKey == null ) throw newPKeyError(context.runtime, "incomplete RSA");
+        if ( privateKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, ENCRYPT_MODE, privateKey);
     }
 
@@ -645,7 +646,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil())  {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( privateKey == null ) throw newPKeyError(context.runtime, "incomplete RSA");
+        if ( privateKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, DECRYPT_MODE, privateKey);
     }
 
@@ -655,7 +656,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil())  {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( publicKey == null ) throw newPKeyError(context.runtime, "incomplete RSA");
+        if ( publicKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, ENCRYPT_MODE, publicKey);
     }
 
@@ -665,7 +666,7 @@ public class PKeyRSA extends PKey {
         if ( Arity.checkArgumentCount(context.runtime, args, 1, 2) == 2 && ! args[1].isNil() ) {
             padding = RubyNumeric.fix2int(args[1]);
         }
-        if ( publicKey == null ) throw newPKeyError(context.runtime, "incomplete RSA");
+        if ( publicKey == null ) throw newRSAError(context.runtime, "incomplete RSA");
         return doCipherRSA(context.runtime, args[0], padding, DECRYPT_MODE, publicKey);
     }
 
@@ -699,7 +700,7 @@ public class PKeyRSA extends PKey {
     @JRubyMethod(name = "sign_raw", required = 2, optional = 1)
     public IRubyObject sign_raw(ThreadContext context, IRubyObject[] args) {
         final Ruby runtime = context.runtime;
-        if (privateKey == null) throw newPKeyError(runtime, "Private RSA key needed!");
+        if (privateKey == null) throw newRSAError(runtime, "Private RSA key needed!");
 
         final String digestAlg = getDigestAlgName(args[0]);
         final byte[] hashBytes = args[1].convertToString().getBytes();
@@ -715,7 +716,7 @@ public class PKeyRSA extends PKey {
                 try {
                     return StringHelper.newString(runtime, signWithPSS(hashBytes, digestAlg, mgf1Alg, saltLen));
                 } catch (IllegalArgumentException | CryptoException e) {
-                    throw (RaiseException) newPKeyError(runtime, e.getMessage()).initCause(e);
+                    throw (RaiseException) newRSAError(runtime, e.getMessage()).initCause(e);
                 }
             }
         }
@@ -726,13 +727,13 @@ public class PKeyRSA extends PKey {
             ByteList signed = sign("NONEwithRSA", privateKey, new ByteList(digestInfoBytes, false));
             return RubyString.newString(runtime, signed);
         } catch (IOException e) {
-            throw newPKeyError(runtime, "failed to encode DigestInfo: " + e.getMessage());
+            throw newRSAError(runtime, "failed to encode DigestInfo: " + e.getMessage());
         } catch (NoSuchAlgorithmException e) {
-            throw newPKeyError(runtime, "unsupported algorithm: NONEwithRSA");
+            throw newRSAError(runtime, "unsupported algorithm: NONEwithRSA");
         } catch (InvalidKeyException e) {
-            throw newPKeyError(runtime, "invalid key");
+            throw newRSAError(runtime, "invalid key");
         } catch (SignatureException e) {
-            throw newPKeyError(runtime, e.getMessage());
+            throw newRSAError(runtime, e.getMessage());
         }
     }
 
@@ -765,11 +766,11 @@ public class PKeyRSA extends PKey {
                     new ByteList(sigBytes, false));
             return runtime.newBoolean(ok);
         } catch (IOException e) {
-            throw newPKeyError(runtime, "failed to encode DigestInfo: " + e.getMessage());
+            throw newRSAError(runtime, "failed to encode DigestInfo: " + e.getMessage());
         } catch (NoSuchAlgorithmException e) {
-            throw newPKeyError(runtime, "unsupported algorithm: NONEwithRSA");
+            throw newRSAError(runtime, "unsupported algorithm: NONEwithRSA");
         } catch (InvalidKeyException e) {
-            throw newPKeyError(runtime, "invalid key");
+            throw newRSAError(runtime, "invalid key");
         } catch (SignatureException e) {
             return runtime.getFalse();
         }
@@ -819,7 +820,7 @@ public class PKeyRSA extends PKey {
             if (!(opts instanceof RubyHash)) throw runtime.newTypeError("expected Hash");
             String paddingMode = Utils.extractStringOpt(context, opts, "rsa_padding_mode", true);
             if ("pss".equalsIgnoreCase(paddingMode)) {
-                if (privateKey == null) throw newPKeyError(runtime, "Private RSA key needed!");
+                if (privateKey == null) throw newRSAError(runtime, "Private RSA key needed!");
                 final String digestAlg = getDigestAlgName(digest);
                 int saltLen = Utils.extractIntOpt(context, opts, "rsa_pss_saltlen", -1, true);
                 String mgf1Alg = Utils.extractStringOpt(context, opts, "rsa_mgf1_md", true);
@@ -830,7 +831,7 @@ public class PKeyRSA extends PKey {
                 try {
                     signedData = signDataWithPSS(runtime, data.convertToString(), digestAlg, mgf1Alg, saltLen);
                 } catch (IllegalArgumentException | DataLengthException | CryptoException e) {
-                    throw (RaiseException) newPKeyError(runtime, e.getMessage()).initCause(e);
+                    throw (RaiseException) newRSAError(runtime, e.getMessage()).initCause(e);
                 }
                 return StringHelper.newString(runtime, signedData);
             }
@@ -843,7 +844,7 @@ public class PKeyRSA extends PKey {
     @JRubyMethod(name = "sign_pss", required = 2, optional = 1)
     public IRubyObject sign_pss(ThreadContext context, IRubyObject[] args) {
         final Ruby runtime = context.runtime;
-        if (privateKey == null) throw newPKeyError(runtime, "Private RSA key needed!");
+        if (privateKey == null) throw newRSAError(runtime, "Private RSA key needed!");
         final String digestAlg = getDigestAlgName(args[0]);
         final IRubyObject opts  = args.length > 2 ? args[2] : context.nil;
         final int maxSalt = maxPSSSaltLength(digestAlg, privateKey.getModulus().bitLength());
@@ -869,7 +870,7 @@ public class PKeyRSA extends PKey {
         try {
             signedData = signDataWithPSS(runtime, args[1].convertToString(), digestAlg, mgf1Alg, saltLen);
         } catch (IllegalArgumentException | DataLengthException | CryptoException e) {
-            throw (RaiseException) newPKeyError(runtime, e.getMessage()).initCause(e);
+            throw (RaiseException) newRSAError(runtime, e.getMessage()).initCause(e);
         }
         return StringHelper.newString(runtime, signedData);
     }

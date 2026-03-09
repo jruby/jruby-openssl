@@ -14,8 +14,8 @@ class TestRSA < TestCase
     rsa = Fixtures.pkey("rsa-1.pem")
     key.set_key(rsa.n, rsa.e, nil)
     key.set_factors(rsa.p, rsa.q)
-    assert_raise(OpenSSL::PKey::PKeyError){ key.private_encrypt("foo") }
-    assert_raise(OpenSSL::PKey::PKeyError){ key.private_decrypt("foo") }
+    assert_pkey_error { key.private_encrypt("foo") }
+    assert_pkey_error { key.private_decrypt("foo") }
   end
 
   def test_private
@@ -201,7 +201,7 @@ class TestRSA < TestCase
     # Failure cases
     assert_raise(ArgumentError){ key.private_encrypt() }
     assert_raise(ArgumentError){ key.private_encrypt("hi", 1, nil) }
-    assert_raise(OpenSSL::PKey::PKeyError){ key.private_encrypt(plain0, 666) }
+    assert_pkey_error { key.private_encrypt(plain0, 666) }
   end
 
   def test_sign_verify_raw
@@ -219,7 +219,7 @@ class TestRSA < TestCase
     assert_equal false, key.verify_raw("SHA256", signature, wrong_hash)
 
     # Data exceeding the key modulus must raise PKeyError
-    assert_raise(OpenSSL::PKey::PKeyError) {
+    assert_pkey_error {
       key.sign_raw("SHA1", "x" * (key.n.num_bytes + 1))
     }
 
@@ -283,7 +283,7 @@ class TestRSA < TestCase
                    key.verify_pss("SHA256", signature, data, salt_length: :auto, mgf1_hash: "SHA256")
     end
 
-    assert_raise(OpenSSL::PKey::PKeyError) {
+    assert_pkey_error {
       key.sign_pss("SHA256", data, salt_length: 223, mgf1_hash: "SHA256")
     }
   end
@@ -437,7 +437,7 @@ OlWNYDkPiZioeFkA3/fTMvG4moB2Pp9Q4GU5fJ6k43Ccu1up8dX/LumZb4ecg5/x
     cipher = OpenSSL::Cipher.new("aes-128-cbc")
     exported = rsa1024.to_pem(cipher, "abcdef\0\1")
     assert_same_rsa rsa1024, OpenSSL::PKey::RSA.new(exported, "abcdef\0\1")
-    assert_raise(OpenSSL::PKey::PKeyError) {
+    assert_pkey_error {
       OpenSSL::PKey::RSA.new(exported, "abcdef")
     }
   end
