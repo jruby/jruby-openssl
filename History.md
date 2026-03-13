@@ -1,3 +1,35 @@
+## 0.15.6
+
+Upgrading Bouncy Castle to version 1.83
+Extensive PKey compatibility improvements (EC, RSA, DSA)
+X.509 certificate handling and ASN.1 tagged improvements.
+
+* [fix] parse certificate crlDistributionPoints (#205)
+* [fix] `OpenSSL::Cipher#iv_len` for ECB (#169)
+* [compat] implement `OpenSSL::PKey#compare?`
+* [fix] fallback to raw bytes on unknown tag
+* [compat] implement `OpenSSL::KDF.hkdf` (#321)
+* [fix] `OpenSSL::X509::Request#dup` behavior
+* [compat] implement `X509::Certificate#==`
+* [compat] add `OpenSSL::X509::Certificate#tbs_bytes`
+* [compat] implement X.509 extension value_der
+* [fix] handle `PKey::EC.new` with encrypted PEM (#328)
+* [compat] add `PKey::EC#derive` and fix nil group (#257, #326)
+* [compat] support `PKey::EC#sign_raw` and verify_raw
+* [compat] implement `EC::Group#to_der` + related bits
+* [compat] support `PKey::RSA#sign_pss` and `verify_pss` (#288)
+* [compat] support `PKey::RSA#sign_raw` and `verify_raw` (#332)
+* [compat] support `PKey::DSA#sign_raw` and `verify_raw`
+* [compat] improve DSA key parsing and errors
+* [fix] `PKey.read` to parse subject PKI
+* [compat] implement `RSA#private_to_der`/`private_to_pem`
+* [compat] improve ASN.1 tagging behavior
+* [compat] improve `PKey::EC` (raise) behavior
+* [fix] do setup on frozen ssl context (#340)
+* [compat] sync up ssl.rb with upstream
+* [fix] compat with JRuby 10 `initialize_copy` changes
+* [deps] upgrade BC to version 1.83
+
 ## 0.15.5
 
 * [deps] upgrade BC to version 1.81
