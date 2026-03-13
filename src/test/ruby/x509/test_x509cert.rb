@@ -664,4 +664,93 @@ EOF
     assert_match(/^\s+Full Name:\s*$/, lines[crl_idx + 1])
     assert_match(/^\s+URI:http:\/\/example\.com/, lines[crl_idx + 2])
   end
+
+  def test_crl_distribution_points_with_config
+    key = OpenSSL::PKey::RSA.new(2048)
+    subject = "/C=FR/ST=IDF/L=PARIS/O=Company/CN=myhost.example"
+
+    cert = OpenSSL::X509::Certificate.new
+    cert.subject = cert.issuer = OpenSSL::X509::Name.parse(subject)
+    cert.not_before = Time.now
+    cert.not_after = Time.now + 365*24*60*60
+    cert.public_key = key.public_key
+    cert.serial = 0x1
+    cert.version = 2
+
+    # Create a config with CRL distribution points section
+    config = OpenSSL::Config.new
+    config['crl_section'] = {
+      'URI.1' => 'http://crl.example.com/ca.crl',
+      'URI.2' => 'http://crl2.example.com/ca.crl'
+    }
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = ef.issuer_certificate = cert
+    ef.config = config
+
+    cert.add_extension ef.create_extension('basicConstraints', 'CA:FALSE', true)
+    cert.add_extension ef.create_extension('subjectKeyIdentifier', 'hash')
+
+    # Use @ syntax to reference config section
+    cert.add_extension ef.create_extension('crlDistributionPoints', '@crl_section')
+
+    cert.sign key, OpenSSL::Digest::SHA256.new
+
+    # Test that the extension value contains both URIs
+    crl_ext = cert.extensions.find { |e| e.oid == 'crlDistributionPoints' }
+    assert_not_nil crl_ext, "crlDistributionPoints extension not found"
+
+    value = crl_ext.value
+    assert value.include?('Full Name:'), "Missing 'Full Name:' in extension value"
+    assert value.include?('URI:http://crl.example.com/ca.crl'), "Missing first URI in extension value"
+    assert value.include?('URI:http://crl2.example.com/ca.crl'), "Missing second URI in extension value"
+
+    # Test that to_text output is properly formatted
+    text = cert.to_text
+    assert text.include?('X509v3 CRL Distribution Points:'), "Missing 'X509v3 CRL Distribution Points:' in to_text output"
+    assert text.include?('URI:http://crl.example.com/ca.crl'), "Missing first URI in to_text output"
+    assert text.include?('URI:http://crl2.example.com/ca.crl'), "Missing second URI in to_text output"
+  end
+
+  def test_crl_distribution_points_with_dirname
+    key = OpenSSL::PKey::RSA.new(2048)
+    subject = "/C=FR/ST=IDF/L=PARIS/O=Company/CN=myhost.example"
+
+    cert = OpenSSL::X509::Certificate.new
+    cert.subject = cert.issuer = OpenSSL::X509::Name.parse(subject)
+    cert.not_before = Time.now
+    cert.not_after = Time.now + 365*24*60*60
+    cert.public_key = key.public_key
+    cert.serial = 0x2
+    cert.version = 2
+
+    # Create a config with directory name section
+    config = OpenSSL::Config.new
+    config['issuer_sect'] = {
+      'C' => 'US',
+      'O' => 'Example Inc',
+      'CN' => 'Example CA'
+    }
+    config['crl_section'] = {
+      'fullname' => 'dirName:issuer_sect'
+    }
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = ef.issuer_certificate = cert
+    ef.config = config
+
+    cert.add_extension ef.create_extension('basicConstraints', 'CA:FALSE', true)
+    cert.add_extension ef.create_extension('subjectKeyIdentifier', 'hash')
+    cert.add_extension ef.create_extension('crlDistributionPoints', 'crl_section')
+
+    cert.sign key, OpenSSL::Digest::SHA256.new
+
+    # Test that the extension value contains the directory name
+    crl_ext = cert.extensions.find { |e| e.oid == 'crlDistributionPoints' }
+    assert_not_nil crl_ext, "crlDistributionPoints extension not found"
+
+    value = crl_ext.value
+    assert value.include?('Full Name:'), "Missing 'Full Name:' in extension value"
+    assert value.include?('DirName:'), "Missing 'DirName:' in extension value"
+  end
 end
