@@ -53,6 +53,9 @@ import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.CRLDistPoint;
+import org.bouncycastle.asn1.x509.DistributionPoint;
+import org.bouncycastle.asn1.x509.DistributionPointName;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
@@ -562,6 +565,52 @@ public class X509Extension extends RubyObject {
                     }
                 }
                 return runtime.newString( val );
+            }
+
+            if ( oid.equals("2.5.29.31") ) { // crlDistributionPoints
+                try {
+                    ASN1Encodable value = getRealValue();
+                    final ByteList val = new ByteList(64);
+
+                    if ( value instanceof ASN1OctetString ) {
+                        value = ASN1.readObject( ((ASN1OctetString) value).getOctets() );
+                    }
+
+                    final CRLDistPoint distPoint = CRLDistPoint.getInstance(value);
+                    final DistributionPoint[] points = distPoint.getDistributionPoints();
+
+                    for ( int i = 0; i < points.length; i++ ) {
+                        if ( i > 0 ) val.append('\n').append('\n');
+
+                        final DistributionPoint point = points[i];
+                        final DistributionPointName dpName = point.getDistributionPoint();
+
+                        if ( dpName != null && dpName.getType() == DistributionPointName.FULL_NAME ) {
+                            val.append(ByteList.plain("Full Name:"));
+                            val.append('\n');
+
+                            final GeneralNames generalNames = GeneralNames.getInstance(dpName.getName());
+                            final GeneralName[] names = generalNames.getNames();
+                            for ( int j = 0; j < names.length; j++ ) {
+                                val.append(ByteList.plain("  "));
+                                formatGeneralName(names[j], val, false);
+                                if ( j < names.length - 1 ) val.append('\n');
+                            }
+                        }
+                        else if ( dpName != null && dpName.getType() == DistributionPointName.NAME_RELATIVE_TO_CRL_ISSUER ) {
+                            val.append(ByteList.plain("Relative Name:"));
+                            val.append('\n');
+                            val.append(ByteList.plain("  "));
+                            val.append(ByteList.plain(dpName.getName().toString()));
+                        }
+                    }
+
+                    return runtime.newString( val );
+                }
+                catch (IllegalArgumentException e) {
+                    debugStackTrace(runtime, e);
+                    return rawValueAsString(context);
+                }
             }
 
             return rawValueAsString(context);

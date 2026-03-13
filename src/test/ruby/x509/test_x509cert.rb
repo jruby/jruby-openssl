@@ -618,4 +618,50 @@ EOF
     cert = OpenSSL::X509::Certificate.new(cert_string)
     assert_same OpenSSL::PKey::DSA, cert.public_key.class
   end
+
+  def test_crl_distribution_points_to_text
+    key = OpenSSL::PKey::RSA.new(2048)
+    subject = "/C=FR/ST=IDF/L=PARIS/O=Company/CN=myhost.example"
+
+    cert = OpenSSL::X509::Certificate.new
+    cert.subject = cert.issuer = OpenSSL::X509::Name.parse(subject)
+    cert.not_before = Time.now
+    cert.not_after = Time.now + 365*24*60*60
+    cert.public_key = key.public_key
+    cert.serial = 0x0
+    cert.version = 2
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = ef.issuer_certificate = cert
+
+    cert.add_extension ef.create_extension('basicConstraints', 'CA:FALSE', true)
+    cert.add_extension ef.create_extension('keyUsage', 'keyEncipherment,dataEncipherment,digitalSignature')
+    cert.add_extension ef.create_extension('subjectKeyIdentifier', 'hash')
+    cert.add_extension ef.create_extension('authorityKeyIdentifier', 'keyid:always,issuer:always')
+    cert.add_extension ef.create_extension('crlDistributionPoints', "URI:http://example.com")
+
+    cert.sign key, OpenSSL::Digest::SHA256.new
+
+    # Test that the extension value is properly formatted
+    crl_ext = cert.extensions.find { |e| e.oid == 'crlDistributionPoints' }
+    assert_not_nil crl_ext, "crlDistributionPoints extension not found"
+    assert_equal "Full Name:\n  URI:http://example.com", crl_ext.value
+
+    # Test that to_text output matches C-Ruby format
+    text = cert.to_text
+    assert text.include?('X509v3 CRL Distribution Points:'), "Missing 'X509v3 CRL Distribution Points:' in to_text output"
+
+    # Extract the CRL Distribution Points section
+    lines = text.split("\n")
+    crl_idx = lines.index { |l| l.include?("X509v3 CRL Distribution Points") }
+    assert_not_nil crl_idx, "Could not find CRL Distribution Points line"
+
+    # Check the formatting matches C-Ruby:
+    # Line 0: "            X509v3 CRL Distribution Points: "
+    # Line 1: "                Full Name:"
+    # Line 2: "                  URI:http://example.com"
+    assert_match(/X509v3 CRL Distribution Points:\s*$/, lines[crl_idx])
+    assert_match(/^\s+Full Name:\s*$/, lines[crl_idx + 1])
+    assert_match(/^\s+URI:http:\/\/example\.com/, lines[crl_idx + 2])
+  end
 end
