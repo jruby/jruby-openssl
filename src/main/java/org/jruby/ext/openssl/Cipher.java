@@ -614,7 +614,11 @@ public class Cipher extends RubyObject {
             getKeyLength();
 
             if ( ivLength == -1 ) {
-                if ( "AES".equals(base) ) {
+                // ECB mode does not use an IV, so check this first
+                if ( "ECB".equals(mode) ) {
+                    ivLength = 0;
+                }
+                else if ( "AES".equals(base) ) {
                     ivLength = 16; // OpenSSL defaults to 12
                     // NOTE: we can NOT handle 12 for non GCM mode
                     if ( "GCM".equals(mode) || "CCM".equals(mode) ) ivLength = 12;
@@ -625,9 +629,6 @@ public class Cipher extends RubyObject {
                 //else if ( "RC4".equals(base) ) {
                 //    ivLength = 8;
                 //}
-                else if ( "ECB".equals(mode) ) {
-                    ivLength = 0;
-                }
                 else {
                     ivLength = 8;
                 }
