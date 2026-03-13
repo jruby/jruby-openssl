@@ -126,6 +126,17 @@ class TestCipher < TestCase
     assert_equal 8, cipher.iv_len
   end
 
+  def test_aes_ecb_iv_len
+    # ECB mode does not use an IV, so iv_len should be 0
+    cipher = OpenSSL::Cipher.new 'AES-128-ECB'
+    assert_equal 0, cipher.iv_len
+    cipher = OpenSSL::Cipher.new 'AES-192-ECB'
+    assert_equal 0, cipher.iv_len
+    cipher = OpenSSL::Cipher.new 'AES-256-ECB'
+    assert_equal 0, cipher.iv_len
+  end
+
+
   @@test_encrypt_decrypt_des_variations = nil
 
   def test_encrypt_decrypt_des_variations
