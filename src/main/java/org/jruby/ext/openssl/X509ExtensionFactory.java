@@ -35,6 +35,11 @@ import java.security.MessageDigest;
 
 import org.bouncycastle.asn1.*;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.X500NameBuilder;
+import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.AccessDescription;
+import org.bouncycastle.asn1.x509.DistributionPoint;
+import org.bouncycastle.asn1.x509.DistributionPointName;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 
@@ -50,6 +55,7 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
+import org.jruby.runtime.Helpers;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -198,6 +204,12 @@ public class X509ExtensionFactory extends RubyObject {
             }
             else if (id.equals("2.5.29.37")) { // extendedKeyUsage
                 value = parseExtendedKeyUsage(valuex);
+            }
+            else if (id.equals("2.5.29.31")) { // crlDistributionPoints
+                value = parseCRLDistributionPoints(context, valuex);
+            }
+            else if (id.equals("1.3.6.1.5.5.7.1.1")) { // authorityInfoAccess
+                value = parseAuthorityInfoAccess(valuex);
             }
             else {
                 value = new DEROctetString(new DEROctetString(ByteList.plain(valuex)).getEncoded(ASN1Encoding.DER));
@@ -610,4 +622,154 @@ public class X509ExtensionFactory extends RubyObject {
         return new DLSequence(vector);
     }
 
+    private ASN1Sequence parseCRLDistributionPoints(final ThreadContext context, final String valuex)
+        throws IOException {
+        final ASN1EncodableVector points = new ASN1EncodableVector();
+
+        final String trimmed = valuex.trim();
+        if ( trimmed.startsWith("@") ) {
+            addDistributionPointsFromConfigSection(context, trimmed.substring(1).trim(), true, points);
+        }
+        else if ( trimmed.indexOf(':') == -1 ) {
+            final RubyHash section = getConfigSection(context, trimmed);
+            if ( section != null ) {
+                addDistributionPointsFromConfigSection(context, trimmed, false, points);
+            }
+            else {
+                points.add(new DistributionPoint(new DistributionPointName(parseGeneralNames(context, trimmed)), null, null));
+            }
+        }
+        else {
+            points.add(new DistributionPoint(new DistributionPointName(parseGeneralNames(context, trimmed)), null, null));
+        }
+
+        return new DERSequence(points);
+    }
+
+    private void addDistributionPointsFromConfigSection(final ThreadContext context,
+        final String sectionName, final boolean oneNamePerEntry, final ASN1EncodableVector points) throws IOException {
+        final RubyHash section = getConfigSection(context, sectionName);
+        if ( section == null ) throw new IOException("Malformed CRLDistributionPoints section: " + sectionName + " in @config");
+
+        if ( ! oneNamePerEntry ) {
+            final IRubyObject fullName = section.fastARef(StringHelper.newString(context.runtime, "fullname"));
+            if ( fullName != null && !fullName.isNil() ) {
+                addDistributionPointToVector(context, points, fullName.toString());
+                return;
+            }
+        }
+
+        section.visitAll(new RubyHash.Visitor() {
+            public void visit(final IRubyObject key, final IRubyObject value) {
+                final String keyName = stripNumericSuffix(key.toString());
+                try {
+                    addDistributionPointToVector(context, points, keyName + ':' + value);
+                } catch (IOException e) {
+                    Helpers.throwException(e);
+                }
+            }
+        });
+    }
+
+    private void addDistributionPointToVector(final ThreadContext context, ASN1EncodableVector points, final String part)
+        throws IOException {
+        final GeneralNames partNames = new GeneralNames(parseGeneralName(context, part));
+        points.add(new DistributionPoint(new DistributionPointName(partNames), null, null));
+    }
+
+    private ASN1Sequence parseAuthorityInfoAccess(final String valuex) throws IOException {
+        final ASN1EncodableVector vector = new ASN1EncodableVector();
+        final String[] values = splitGeneralNameParts(valuex);
+        for ( int i = 0; i < values.length; i++ ) {
+            final String value = values[i];
+            final int index = value.indexOf(';');
+            if ( index <= 0 || index >= value.length() - 1 ) {
+                throw new IOException("Malformed AuthorityInfoAccess: " + valuex);
+            }
+
+            final String accessMethod = value.substring(0, index).trim();
+            final ASN1ObjectIdentifier method = ASN1Registry.sym2oid(accessMethod);
+            if ( method == null ) throw new IOException("Unknown AuthorityInfoAccess method: " + accessMethod);
+
+            final String accessLocation = value.substring(index + 1).trim();
+            vector.add(new AccessDescription(method, parseGeneralName(accessLocation)));
+        }
+        return new DERSequence(vector);
+    }
+
+    private GeneralNames parseGeneralNames(final ThreadContext context, final String valuex) throws IOException {
+        final String[] vals = splitGeneralNameParts(valuex);
+        final GeneralName[] names = new GeneralName[vals.length];
+        for ( int i = 0; i < vals.length; i++ ) {
+            names[i] = parseGeneralName(context, vals[i]);
+        }
+        return new GeneralNames(names);
+    }
+
+    private GeneralName parseGeneralName(final ThreadContext context, final String valuex) throws IOException {
+        if ( valuex.startsWith("dir") ) {
+            final String dir = valuex.substring(dirName_.length()).trim();
+            final RubyHash section = getConfigSection(context, dir);
+            if ( section != null ) {
+                return new GeneralName(GeneralName.directoryName, buildX500NameFromConfigSection(context, section));
+            }
+        }
+        return parseGeneralName(valuex);
+    }
+
+    private X500Name buildX500NameFromConfigSection(final ThreadContext context, final RubyHash section) {
+        final X500NameBuilder builder = new X500NameBuilder(BCStyle.INSTANCE);
+        section.visitAll(new RubyHash.Visitor() {
+            public void visit(final IRubyObject key, final IRubyObject value) {
+                final String keyName = stripNumericSuffix(key.toString());
+                try {
+                    builder.addRDN(ASN1.getObjectID(context.runtime, keyName), value.toString());
+                }
+                catch (IllegalArgumentException e) {
+                    throw newExtensionError(context.runtime, "invalid X509 name field: " + keyName);
+                }
+            }
+        });
+        return builder.build();
+    }
+
+    private IRubyObject getConfigValue(final ThreadContext context, final String key) {
+        final IRubyObject config = config();
+        if (config == null || config.isNil()) { // TODO: support fallback to DEFAULT_CONFIG
+            return null;
+        }
+        return config.callMethod(context, "[]", StringHelper.newString(context.runtime, key));
+    }
+
+    private RubyHash getConfigSection(final ThreadContext context, final String sectionName) {
+        final IRubyObject section = getConfigValue(context, sectionName);
+        if (section instanceof RubyHash) {
+            final RubyHash hash = (RubyHash) section;
+            return hash.isEmpty() ? null : hash;
+        }
+        return null;
+    }
+
+    private static String[] splitGeneralNameParts(final String valuex) {
+        // allow up to three levels of escaping of ','
+        final String[] vals = valuex.split("(?<!(^|[^\\\\])((\\\\\\\\)?\\\\\\\\)?\\\\),");
+        for ( int i = 0; i < vals.length; i++ ) {
+            vals[i] = vals[i].replaceAll("\\\\([,\\\\])", "$1").trim();
+        }
+        return vals;
+    }
+
+    private static String stripNumericSuffix(final String key) {
+        final int index = key.lastIndexOf('.');
+        if ( index > 0 ) {
+            boolean numeric = true;
+            for ( int i = index + 1; i < key.length(); i++ ) {
+                if ( ! Character.isDigit(key.charAt(i)) ) {
+                    numeric = false; break;
+                }
+            }
+            if ( numeric ) return key.substring(0, index);
+        }
+        return key;
+    }
 }
