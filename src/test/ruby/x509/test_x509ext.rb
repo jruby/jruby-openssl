@@ -298,9 +298,42 @@ class TestX509Extension < TestCase
     # cert.sign(key, OpenSSL::Digest::SHA1.new)
   end
 
+  def test_subject_alt_name_sign_to_pem_through_cert
+    domain_list = 'test.example.com,test2.example.com,example.com,www.example.com'
+    rsa_key = OpenSSL::PKey::RSA.new(2048)
+    crt = OpenSSL::X509::Certificate.new
+    crt.subject = OpenSSL::X509::Name.new [ ["C", 'AU'], ["ST", "NSW"], ["O", 'org'], ["CN", 'www.example.com'] ]
+    crt.issuer = crt.subject
+    crt.not_before = Time.now
+    crt.not_after = Time.now + 1 * 24 * 60 * 60
+    crt.serial = 0
+    crt.version = 2
+
+    crt.public_key = rsa_key.public_key
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = crt
+    ef.issuer_certificate = crt
+    crt.add_extension ef.create_extension("subjectAltName", domain_list.split(',').map { |d| "DNS:#{d}" }.join(', '))
+
+    crt.sign rsa_key, OpenSSL::Digest::SHA256.new
+
+    #puts crt.to_text if $VERBOSE
+    #puts crt.to_pem if $VERBOSE
+
+    assert_equal 1, crt.extensions.select{ |e| e.oid == 'subjectAltName' }.count
+
+    crt = OpenSSL::X509::Certificate.new(crt.to_pem)
+    assert_equal 1, crt.extensions.select{ |e| e.oid == 'subjectAltName' }.count
+
+    ext = crt.extensions.find { |e| e.oid == 'subjectAltName' }
+    #assert ext.value =~ /test.example.com.*?test2.example.com.*?example.com.*?www.example.com/
+    assert_equal "DNS:test.example.com, DNS:test2.example.com, DNS:example.com, DNS:www.example.com", ext.value
+  end
+
   def subject_alt_name(domains)
     ef = OpenSSL::X509::ExtensionFactory.new
-    ef.create_extension("subjectAltName", domains.split(',').map { |d| "DNS: #{d}" }.join(','))
+    ef.create_extension("subjectAltName", domains.split(',').map { |d| "DNS: #{d}" }.join(', '))
   end
   private :subject_alt_name
 
