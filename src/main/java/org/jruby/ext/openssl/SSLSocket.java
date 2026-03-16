@@ -689,7 +689,9 @@ public class SSLSocket extends RubyObject {
             if ( netWriteData.hasRemaining() ) {
                 flushData(blocking);
             }
-            netWriteData.clear();
+            // compact() to preserve encrypted bytes flushData could not send (non-blocking partial write)
+            // clear() would discard them, corrupting the TLS record stream:
+            netWriteData.compact();
             final SSLEngineResult result = engine.wrap(src, netWriteData);
             if ( result.getStatus() == SSLEngineResult.Status.CLOSED ) {
                 throw getRuntime().newIOError("closed SSL engine");
@@ -727,9 +729,8 @@ public class SSLSocket extends RubyObject {
                 closeInbound();
                 return -1;
             }
-            // inbound channel has been already closed but closeInbound() must
-            // be defered till the last engine.unwrap() call.
-            // peerNetData could not be empty.
+            // inbound channel has been already closed but closeInbound() must be defered till
+            // the last engine.unwrap() call; peerNetData could not be empty
         }
         appReadData.clear();
         netReadData.flip();
@@ -831,6 +832,13 @@ public class SSLSocket extends RubyObject {
         }
 
         try {
+            // flush any pending encrypted write data before reading; after write_nonblock,
+            // encrypted bytes may remain in the buffer that haven't been sent, if we read wout flushing,
+            // server may not have received the complete request (e.g. net/http POST body) and will not respond
+            if ( engine != null && netWriteData.hasRemaining() ) {
+                flushData(blocking);
+            }
+
             // So we need to make sure to only block when there is no data left to process
             if ( engine == null || ! ( appReadData.hasRemaining() || netReadData.position() > 0 ) ) {
                 final Object ex = waitSelect(SelectionKey.OP_READ, blocking, exception);
