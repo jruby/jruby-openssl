@@ -211,6 +211,9 @@ public class X509ExtensionFactory extends RubyObject {
             else if (id.equals("1.3.6.1.5.5.7.1.1")) { // authorityInfoAccess
                 value = parseAuthorityInfoAccess(valuex);
             }
+            else if (isNetscapeIA5StringExtension(id)) {
+                value = new DEROctetString(new DERIA5String(valuex).getEncoded(ASN1Encoding.DER));
+            }
             else {
                 value = new DEROctetString(new DEROctetString(ByteList.plain(valuex)).getEncoded(ASN1Encoding.DER));
             }
@@ -383,6 +386,25 @@ public class X509ExtensionFactory extends RubyObject {
             unused += x;
         }
         return new DERBitString(new byte[]{v}, unused);
+    }
+
+    /**
+     * Returns true for Netscape extensions whose value is an IA5String.
+     * nsCertType (2.16.840.1.113730.1.1) is a BIT STRING handled separately.
+     */
+    private static boolean isNetscapeIA5StringExtension(final String oid) {
+        switch (oid) {
+            case "2.16.840.1.113730.1.2":  // nsBaseUrl
+            case "2.16.840.1.113730.1.3":  // nsRevocationUrl
+            case "2.16.840.1.113730.1.4":  // nsCaRevocationUrl
+            case "2.16.840.1.113730.1.7":  // nsRenewalUrl
+            case "2.16.840.1.113730.1.8":  // nsCaPolicyUrl
+            case "2.16.840.1.113730.1.12": // nsSslServerName
+            case "2.16.840.1.113730.1.13": // nsComment
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static DLSequence parseBasicConstrains(final String valuex) {

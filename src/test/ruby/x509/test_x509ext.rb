@@ -331,6 +331,30 @@ class TestX509Extension < TestCase
     assert_equal "DNS:test.example.com, DNS:test2.example.com, DNS:example.com, DNS:www.example.com", ext.value
   end
 
+  def test_ns_comment_der_encoding
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ext = ef.create_extension("nsComment", "my test comment")
+
+    # Value round-trips correctly
+    assert_equal "my test comment", ext.value
+
+    # Inner encoding must be IA5String (tag 0x16), not OCTET STRING (tag 0x04)
+    seq = OpenSSL::ASN1.decode(ext.to_der)
+    inner = OpenSSL::ASN1.decode(seq.value[-1].value)
+    assert_instance_of OpenSSL::ASN1::IA5String, inner
+    assert_equal "my test comment", inner.value
+  end
+
+  def test_ns_base_url_der_encoding
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ext = ef.create_extension("nsBaseUrl", "https://example.com/")
+
+    seq = OpenSSL::ASN1.decode(ext.to_der)
+    inner = OpenSSL::ASN1.decode(seq.value[-1].value)
+    assert_instance_of OpenSSL::ASN1::IA5String, inner
+    assert_equal "https://example.com/", inner.value
+  end
+
   def subject_alt_name(domains)
     ef = OpenSSL::X509::ExtensionFactory.new
     ef.create_extension("subjectAltName", domains.split(',').map { |d| "DNS: #{d}" }.join(', '))
