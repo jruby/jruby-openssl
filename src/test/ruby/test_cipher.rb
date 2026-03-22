@@ -137,6 +137,27 @@ class TestCipher < TestCase
   end
 
 
+  # jruby/jruby#5776: reset without key should not raise
+  def test_reset_without_key
+    c = OpenSSL::Cipher.new("AES-128-CBC")
+    c.reset # should not raise
+  end
+
+  def test_reset_produces_same_ciphertext
+    key = "0123456789abcdef"
+    iv = "fedcba9876543210"
+    data = "hello world!!!!!"
+
+    c = OpenSSL::Cipher.new("AES-128-CBC")
+    c.encrypt; c.key = key; c.iv = iv
+    ct1 = c.update(data) + c.final
+
+    c.reset; c.iv = iv
+    ct2 = c.update(data) + c.final
+
+    assert_equal ct1, ct2
+  end
+
   @@test_encrypt_decrypt_des_variations = nil
 
   def test_encrypt_decrypt_des_variations

@@ -942,7 +942,9 @@ public class Cipher extends RubyObject {
         checkCipherNotNull(runtime);
         if ( ! isStreamCipher() ) {
             this.realIV = orgIV;
-            doInitCipher(runtime);
+            // CRuby's reset calls EVP_CipherInit_ex with NULL key/IV which
+            // is a no-op if key hasn't been set yet. Match that behavior.
+            if ( key != null ) doInitCipher(runtime);
         }
         return this;
     }
