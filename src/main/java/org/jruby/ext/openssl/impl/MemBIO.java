@@ -37,7 +37,7 @@ public class MemBIO extends BIO {
     // Some VMs reserve header words in arrays; this is the largest safe allocation.
     private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
-    private byte[] buffer = new byte[1024];
+    byte[] buffer = new byte[1024];
     private int wpointer = 0;
     private int rpointer = 0;
     private int slen = 0;
@@ -72,9 +72,8 @@ public class MemBIO extends BIO {
 
     @Override
     public int read(byte[] in, int index, int len) throws IOException {
-        if(rpointer == slen) {
-            return 0;
-        }
+        if (rpointer == slen) return 0;
+
         int toRead = Math.min(len, slen-rpointer);
         System.arraycopy(buffer, rpointer, in, index, toRead);
         rpointer+=toRead;
