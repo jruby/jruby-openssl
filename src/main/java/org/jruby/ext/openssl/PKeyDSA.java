@@ -681,8 +681,6 @@ public class PKeyDSA extends PKey {
                 this.privateKey = (DSAPrivateKey) SecurityHelper.getKeyFactory("DSA").generatePrivate(spec);
             }
             catch (InvalidKeySpecException e) {
-                e.printStackTrace();
-
                 throw newDSAError(getRuntime(), "invalid keyspec", e);
             }
             catch (NoSuchAlgorithmException e) {
