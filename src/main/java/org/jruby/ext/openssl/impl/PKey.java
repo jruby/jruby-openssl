@@ -105,6 +105,9 @@ public class PKey {
         switch (type) {
             case RSA:
                 seq = (ASN1Sequence) keyInfo.parsePrivateKey();
+                if (seq.size() < 9) {
+                    throw new IOException("malformed RSA private key (expected 9 elements, got " + seq.size() + ")");
+                }
                 ASN1Integer mod = (ASN1Integer) seq.getObjectAt(1);
                 ASN1Integer pubExp = (ASN1Integer) seq.getObjectAt(2);
                 ASN1Integer privExp = (ASN1Integer) seq.getObjectAt(3);
@@ -134,6 +137,9 @@ public class PKey {
                 } else {
                     // Traditional "DSA PRIVATE KEY" format: SEQUENCE { version, p, q, g, y, x }
                     seq = (ASN1Sequence) parsedDSAKey;
+                    if (seq.size() < 6) {
+                        throw new IOException("malformed DSA private key (expected 6 elements, got " + seq.size() + ")");
+                    }
                     ASN1Integer p = (ASN1Integer) seq.getObjectAt(1);
                     ASN1Integer q = (ASN1Integer) seq.getObjectAt(2);
                     ASN1Integer g = (ASN1Integer) seq.getObjectAt(3);
@@ -278,7 +284,11 @@ public class PKey {
     // d2i_DHparams_bio
     public static DHParameterSpec readDHParameter(final byte[] input) throws IOException {
         ASN1InputStream aIn = new ASN1InputStream(input);
-        ASN1Sequence seq = (ASN1Sequence) aIn.readObject();
+        ASN1Primitive obj = aIn.readObject();
+        if (!(obj instanceof ASN1Sequence) || ((ASN1Sequence) obj).size() < 2) {
+            throw new IOException("malformed DH parameters (expected sequence with at least 2 elements)");
+        }
+        ASN1Sequence seq = (ASN1Sequence) obj;
         BigInteger p = ((ASN1Integer) seq.getObjectAt(0)).getValue();
         BigInteger g = ((ASN1Integer) seq.getObjectAt(1)).getValue();
         return new DHParameterSpec(p, g);
