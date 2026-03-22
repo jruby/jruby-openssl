@@ -288,6 +288,29 @@ class TestRSA < TestCase
     }
   end
 
+  # Regression test: verify_pss with salt_length: :auto must handle RSA raw
+  # output shorter than emLen (leading zero bytes stripped by BigInteger).
+  # The hardcoded signature below was produced by sign_pss with the rsa2048
+  # fixture key and salt_length: :digest; its RSA public-key recovery yields
+  # an encoded message (EM) with a leading 0x00 byte (255 bytes instead of
+  # the expected emLen=256), which triggers the leading-zero edge case.
+  def test_sign_verify_pss_auto_salt_leading_zero
+    key = Fixtures.pkey("rsa2048")
+    data = "test-data-6"
+    signature = Base64.decode64(
+      "X0U4VKxjVFN6sXKJaZdpGKOwSPo9L1VNbKyTqJ5P7nNDOz8flimVFJwe6H969zYM" \
+      "xdbP2hLVLHtgzLeQd6N85DiYLDqObUIAhm94kMhGNh2bc3mutYTU96huKbL8YfhG/" \
+      "+1SxAJUaMBQqRQ7UIaPJHuShD5rQ9SHRRASNbWpzRGtMzRgMorykF2+nAnMlbQxxNW" \
+      "s7Ia1rsR9OGUS/Q9rQqUuB5i9IR513Xf/O39AxgiaoEehdYAdmbh1W/hQqGGnb8Xt" \
+      "fTdQlsbiyuMvTnbNqIlwVNh4FU2AZr9u4DHd3zQt6csYI2UPcE00vv3e0RWY4C4EA" \
+      "TGVk92gZ59VEVeJEQ=="
+    )
+    assert_equal true,
+                 key.verify_pss("SHA256", signature, data, salt_length: 32, mgf1_hash: "SHA256")
+    assert_equal true,
+                 key.verify_pss("SHA256", signature, data, salt_length: :auto, mgf1_hash: "SHA256")
+  end
+
   def test_rsa_param_accessors
     key_file = File.join(File.dirname(__FILE__), 'private_key.pem')
     key = OpenSSL::PKey::RSA.new(File.read(key_file))

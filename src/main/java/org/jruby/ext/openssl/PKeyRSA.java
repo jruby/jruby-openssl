@@ -1095,10 +1095,22 @@ public class PKeyRSA extends PKey {
         RSAKeyParameters bcPubKey = new RSAKeyParameters(false, pubKey.getModulus(), pubKey.getPublicExponent());
         RSABlindedEngine rsa = new RSABlindedEngine();
         rsa.init(false, bcPubKey);
-        byte[] em = rsa.processBlock(sigBytes, 0, sigBytes.length);
+        byte[] raw = rsa.processBlock(sigBytes, 0, sigBytes.length);
+
+        // emLen = ceil((modBits - 1) / 8) per RFC 8017 §9.1.1
+        int emLen = (pubKey.getModulus().bitLength() - 1 + 7) / 8;
+
+        // RSA raw output may be shorter than emLen if leading bytes are zero;
+        // left-pad with zeros to the expected length.
+        byte[] em;
+        if (raw.length < emLen) {
+            em = new byte[emLen];
+            System.arraycopy(raw, 0, em, emLen - raw.length, raw.length);
+        } else {
+            em = raw;
+        }
 
         int hLen  = getDigestLength(digestAlg);
-        int emLen = em.length;
         if (emLen < hLen + 2 || em[emLen - 1] != (byte) 0xBC) return -1;
 
         int dbLen = emLen - hLen - 1;
