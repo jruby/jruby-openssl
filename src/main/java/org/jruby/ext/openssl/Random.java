@@ -289,7 +289,8 @@ public class Random {
     @JRubyMethod(meta = true)
     public static RubyString pseudo_bytes(final ThreadContext context,
         final IRubyObject self, final IRubyObject len) {
-        return generate(context, self, toInt(context.runtime, len), false); // plain-random
+        // NOTE: CRuby's pseudo_bytes is an alias for random_bytes (both use RAND_bytes)
+        return generate(context, self, toInt(context.runtime, len), true); // secure-random
     }
 
     private static int toInt(final Ruby runtime, final IRubyObject arg) {
