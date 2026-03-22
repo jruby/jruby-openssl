@@ -293,7 +293,7 @@ public class PKCS7 {
                 if(message_digest == null) {
                     throw new PKCS7Exception(F_PKCS7_SIGNATUREVERIFY, R_UNABLE_TO_FIND_MESSAGE_DIGEST);
                 }
-                if(!Arrays.equals(md_dat, message_digest.getOctets())) {
+                if(!MessageDigest.isEqual(md_dat, message_digest.getOctets())) {
                     throw new NotVerifiedPKCS7Exception();
                 }
 
