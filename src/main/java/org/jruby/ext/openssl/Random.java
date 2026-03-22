@@ -160,7 +160,7 @@ public class Random {
             }
             // setting it to "" (empty) or "default" should just use new SecureRandom() :
             if (prng.isEmpty() || prng.equalsIgnoreCase("default")) {
-                prng = null; tryPreferredPRNG = false; trySHA1PRNG = false;
+                prng = null; tryPreferredPRNG = false;
             }
 
             PREFERRED_PRNG = prng;
@@ -177,7 +177,6 @@ public class Random {
         }
 
         private static boolean tryPreferredPRNG = true;
-        private static boolean trySHA1PRNG = true;
         private static boolean tryStrongPRNG = false; // NOT-YET-IMPLEMENTED
 
         // copied from JRuby (not available in all 1.7.x) :
@@ -191,17 +190,6 @@ public class Random {
                 catch (Exception e) {
                     tryPreferredPRNG = false;
                     OpenSSL.debug("SecureRandom '"+ PREFERRED_PRNG +"' failed:", e);
-                }
-            }
-
-            // Try SHA1PRNG
-            if (secureRandom == null && trySHA1PRNG) {
-                try {
-                    secureRandom = java.security.SecureRandom.getInstance("SHA1PRNG");
-                }
-                catch (Exception e) {
-                    trySHA1PRNG = false;
-                    OpenSSL.debug("SecureRandom SHA1PRNG failed:", e);
                 }
             }
 

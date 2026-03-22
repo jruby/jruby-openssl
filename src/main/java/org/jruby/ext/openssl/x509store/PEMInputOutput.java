@@ -1213,12 +1213,7 @@ public class PEMInputOutput {
 
     private static SecureRandom secureRandom() {
         if ( random == null ) {
-            try {
-                random = SecureRandom.getInstance("SHA1PRNG");
-            }
-            catch (NoSuchAlgorithmException e) {
-                random = new SecureRandom();
-            }
+            random = new SecureRandom();
         }
         return random;
     }
