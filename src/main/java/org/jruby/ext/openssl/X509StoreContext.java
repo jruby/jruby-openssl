@@ -67,6 +67,7 @@ public class X509StoreContext extends RubyObject {
                 (r, klass) -> new X509StoreContext(r, klass));
         StoreContext.defineAnnotatedMethods(X509StoreContext.class);
         StoreContext.undefineMethod("dup");
+        StoreContext.undefineMethod("clone");
     }
 
     private static RubyClass _StoreContext(final Ruby runtime) {

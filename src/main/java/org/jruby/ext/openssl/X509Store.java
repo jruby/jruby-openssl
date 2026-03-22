@@ -69,6 +69,7 @@ public class X509Store extends RubyObject {
         Store.addReadWriteAttribute(context, "chain");
         Store.defineAnnotatedMethods(X509Store.class);
         Store.undefineMethod("dup");
+        Store.undefineMethod("clone");
 
         X509StoreContext.createX509StoreContext(runtime, X509);
     }

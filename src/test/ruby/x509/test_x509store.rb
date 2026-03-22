@@ -101,6 +101,13 @@ class TestX509Store < TestCase
     assert_raise(OpenSSL::X509::StoreError) { store.add_file(invalid) }
   end
 
+  # CRuby undefs initialize_copy, blocking both dup and clone
+  def test_store_dup_clone_not_allowed
+    store = OpenSSL::X509::Store.new
+    assert_raise(NoMethodError) { store.dup }
+    assert_raise(NoMethodError) { store.clone }
+  end
+
   def test_use_non_existing_cert_file
     ENV['SSL_CERT_FILE'] = 'non-existing-file.crt'
     store = OpenSSL::X509::Store.new
