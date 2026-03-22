@@ -34,13 +34,21 @@ import java.io.IOException;
  * @author <a href="mailto:ola.bini@gmail.com">Ola Bini</a>
  */
 public class MemBIO extends BIO {
+    // Some VMs reserve header words in arrays; this is the largest safe allocation.
+    private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
+
     private byte[] buffer = new byte[1024];
     private int wpointer = 0;
     private int rpointer = 0;
     private int slen = 0;
-    
-    private void realloc() {
-        byte[] newBuffer = new byte[buffer.length*2];
+
+    private void growTo(int minCapacity) {
+        int newLen = buffer.length;
+        while (newLen < minCapacity) {
+            // Use long arithmetic to avoid overflow when doubling
+            newLen = (int) Math.min((long) newLen * 2, MAX_BUFFER_SIZE);
+        }
+        byte[] newBuffer = new byte[newLen];
         System.arraycopy(buffer, 0, newBuffer, 0, wpointer);
         buffer = newBuffer;
     }
@@ -75,8 +83,14 @@ public class MemBIO extends BIO {
 
     @Override
     public int write(byte[] out, int offset, int len) throws IOException {
-        while(wpointer + len > buffer.length) {
-            realloc();
+        if (len <= 0) return 0; // matches C OpenSSL mem_write behavior
+        // Use long to detect int overflow in the addition
+        long required = (long) wpointer + len;
+        if (required > MAX_BUFFER_SIZE) {
+            throw new IOException("MemBIO buffer size limit exceeded");
+        }
+        if (required > buffer.length) {
+            growTo((int) required);
         }
 
         System.arraycopy(out, offset, buffer, wpointer, len);
