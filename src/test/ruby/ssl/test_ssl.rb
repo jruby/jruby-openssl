@@ -532,4 +532,46 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
     end
   end
 
+  # GH-181: extra_chain_cert must include the leaf cert when sent over the wire
+  def test_extra_chain_cert_sends_leaf
+    # Create CA -> Intermediate -> Leaf
+    now = Time.now
+    int_key = OpenSSL::PKey::RSA.new(2048)
+    int_cert = issue_cert(
+      OpenSSL::X509::Name.parse("/CN=Intermediate"), int_key, 10,
+      [["basicConstraints","CA:TRUE",true],["keyUsage","cRLSign,keyCertSign",true]],
+      @ca_cert, @ca_key, not_before: now, not_after: now + 3600)
+    leaf_key = OpenSSL::PKey::RSA.new(2048)
+    leaf_cert = issue_cert(
+      OpenSSL::X509::Name.parse("/CN=Leaf"), leaf_key, 11,
+      [["keyUsage","keyEncipherment,digitalSignature",true]],
+      int_cert, int_key, not_before: now, not_after: now + 1800)
+
+    # Server trusts CA and verifies client certs
+    ctx_proc = Proc.new do |ctx|
+      ctx.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      ctx.cert_store = OpenSSL::X509::Store.new
+      ctx.cert_store.add_cert(@ca_cert)
+    end
+
+    server_proc = Proc.new do |sctx, ssl|
+      # Server should see the leaf as peer_cert
+      assert_equal "/CN=Leaf", ssl.peer_cert.subject.to_s
+      readwrite_loop(sctx, ssl)
+    end
+
+    start_server(OpenSSL::SSL::VERIFY_NONE, true,
+                 ctx_proc: ctx_proc, server_proc: server_proc) do |server, port|
+      cctx = OpenSSL::SSL::SSLContext.new
+      cctx.cert = leaf_cert
+      cctx.key = leaf_key
+      cctx.extra_chain_cert = [int_cert]
+      cctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      server_connect(port, cctx) do |ssl|
+        ssl.puts "hello"
+        assert_equal "hello\n", ssl.gets
+      end
+    end
+  end
+
 end

@@ -1137,7 +1137,11 @@ public class SSLContext extends RubyObject {
             final List<java.security.cert.X509Certificate> chain;
 
             if ( internalContext.extraChainCert != null ) {
-                chain = (List) internalContext.extraChainCert;
+                // OpenSSL (ssl_add_cert_chain) sends the leaf cert first, then iterates extra_certs
+                // getCertificateChain must return the full chain starting with the leaf
+                chain = new ArrayList<>(internalContext.extraChainCert.size() + 1);
+                if ( internalContext.cert != null ) chain.add(internalContext.cert);
+                chain.addAll(internalContext.extraChainCert);
             }
             else if ( internalContext.cert != null ) {
                 chain = new ArrayList<>(8);
