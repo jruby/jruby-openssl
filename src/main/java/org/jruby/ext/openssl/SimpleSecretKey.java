@@ -27,6 +27,7 @@
  ***** END LICENSE BLOCK *****/
 package org.jruby.ext.openssl;
 
+import java.security.MessageDigest;
 import javax.crypto.SecretKey;
 
 /**
@@ -68,12 +69,8 @@ public class SimpleSecretKey implements SecretKey {
 
     public boolean equals(Object o) {
         if ( o instanceof SimpleSecretKey ) {
-            byte[] ovalue = ((SimpleSecretKey) o).value;
-            if ( value.length != ovalue.length ) return false;
-            for ( int i = 0; i < value.length; i++ ) {
-                if ( value[i] != ovalue[i] ) return false;
-            }
-            return algorithm.equals( ((SimpleSecretKey) o).algorithm );
+            SimpleSecretKey other = (SimpleSecretKey) o;
+            return algorithm.equals(other.algorithm) && MessageDigest.isEqual(value, other.value);
         }
         return false;
     }
