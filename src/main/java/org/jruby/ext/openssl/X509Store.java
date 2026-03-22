@@ -164,7 +164,12 @@ public class X509Store extends RubyObject {
         String file = arg.toString();
         final Ruby runtime = getRuntime();
         try {
-            store.loadLocations(runtime, file, null);
+            if (store.loadLocations(runtime, file, null) != 1) {
+                throw newStoreError(runtime, "X509_LOOKUP_load_file: no certificate or crl found");
+            }
+        }
+        catch (RaiseException e) {
+            throw e;
         }
         catch (Exception e) {
             debugStackTrace(runtime, e);

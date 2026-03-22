@@ -95,6 +95,12 @@ class TestX509Store < TestCase
     assert !verified, "verification passed for (expired) cert: #{cert.inspect}"
   end
 
+  def test_add_file_raises_with_invalid_pem # GH-285
+    store = OpenSSL::X509::Store.new
+    invalid = File.expand_path('../gibberish.pem', __FILE__)
+    assert_raise(OpenSSL::X509::StoreError) { store.add_file(invalid) }
+  end
+
   def test_use_non_existing_cert_file
     ENV['SSL_CERT_FILE'] = 'non-existing-file.crt'
     store = OpenSSL::X509::Store.new
