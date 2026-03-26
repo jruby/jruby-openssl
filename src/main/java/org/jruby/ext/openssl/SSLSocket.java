@@ -883,11 +883,14 @@ public class SSLSocket extends RubyObject {
                         return runtime.newSymbol("wait_writable");
                 }
 
-                if ( read == 0 && status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) {
-                    // If we didn't get any data back because we only read in a partial TLS record,
-                    // instead of spinning until the rest comes in, call waitSelect to either block
-                    // until the rest is available, or throw a "read would block" error if we are in
-                    // non-blocking mode.
+                if ( read == 0 && netReadData.position() == 0 ) {
+                    // If we didn't get any data back and there is no buffered network data left to process,
+                    // wait for more data from the network instead of spinning until it arrives.
+                    // In blocking mode this blocks; in non-blocking mode it raises/returns "read would block".
+                    //
+                    // We check netReadData.position() rather than status == BUFFER_UNDERFLOW because readAndUnwrap
+                    // may have successfully consumed a non-application record (e.g. a TLS 1.3 NewSessionTicket)
+                    // leaving status == OK with zero app bytes produced and nothing left in the network buffer.
                     final Object ex = waitSelect(SelectionKey.OP_READ, blocking, exception);
                     if ( ex instanceof IRubyObject ) return (IRubyObject) ex; // :wait_readable
                 }

@@ -1,19 +1,5 @@
 # frozen_string_literal: false
-# Regression tests for:
-#   https://github.com/jruby/jruby-openssl/issues/271
-#   https://github.com/jruby/jruby-openssl/issues/305
-#   https://github.com/jruby/jruby-openssl/issues/317
-#
-# Root cause: readAndUnwrap() in SSLSocket.java called doHandshake(blocking)
-# (the 1-arg overload that hardcodes exception=true) when processing TLS 1.3
-# post-handshake records (NewSessionTicket).  When selectNow()==0 inside that
-# doHandshake, it threw SSLErrorWaitReadable even when the caller passed
-# exception:false, violating the non-blocking contract.
-#
-# Fix: readAndUnwrap now accepts and forwards the exception flag to
-# doHandshake(blocking, exception), and returns a WOULD_BLOCK sentinel
-# that propagates back through read() and sysreadImpl() as :wait_readable.
-#
+
 require File.expand_path('test_helper', File.dirname(__FILE__))
 
 class TestReadNonblockTLS13 < TestCase
@@ -26,8 +12,7 @@ class TestReadNonblockTLS13 < TestCase
   # client's send buffer saturates. Yields |ssl, port| to the block.
   # This forces selectNow()==0 inside doHandshake when processing
   # TLS 1.3 post-handshake records.
-  def with_saturated_tls13_client
-    require 'socket'
+  def with_saturated_tls13_client; require 'socket'
 
     tcp_server = TCPServer.new("127.0.0.1", 0)
     port = tcp_server.local_address.ip_port
@@ -88,8 +73,7 @@ class TestReadNonblockTLS13 < TestCase
   end
 
   # Same as above but for TLS 1.2 (control)
-  def with_saturated_tls12_client
-    require 'socket'
+  def with_saturated_tls12_client; require 'socket'
 
     tcp_server = TCPServer.new("127.0.0.1", 0)
     port = tcp_server.local_address.ip_port
@@ -392,8 +376,7 @@ class TestReadNonblockTLS13 < TestCase
   end
 
   # connect_nonblock + saturated buffer + read_nonblock
-  def test_read_nonblock_connect_nonblock_saturated_tls13
-    require 'socket'
+  def test_read_nonblock_connect_nonblock_saturated_tls13; require 'socket'
 
     tcp_server = TCPServer.new("127.0.0.1", 0)
     port = tcp_server.local_address.ip_port
@@ -502,4 +485,70 @@ class TestReadNonblockTLS13 < TestCase
     assert collected.empty?, "Got #{collected.size} exception leaks:\n#{collected.first(5).join("\n")}"
   end
 
+  # ── Wasted iteration detection ─────────────────────────────────────
+  #
+  # TLS 1.3 post-handshake record (NewSessionTicket) that produces 0 app bytes, status is OK
+  #
+  # We detect this by inspecting the internal `status` field after read_nonblock returns :wait_readable.
+  # If status is BUFFER_UNDERFLOW, the extra iteration occurred.  If status is OK, sysreadImpl handled
+  # the read==0/status==OK case directly.
+  def test_internal_no_wasted_readAndUnwrap_iteration_tls13; require 'socket'
+
+    tcp_server = TCPServer.new("127.0.0.1", 0)
+    port = tcp_server.local_address.ip_port
+
+    server_ctx = OpenSSL::SSL::SSLContext.new
+    server_ctx.cert = @svr_cert
+    server_ctx.key = @svr_key
+    server_ctx.ssl_version = "TLSv1_3"
+
+    ssl_server = OpenSSL::SSL::SSLServer.new(tcp_server, server_ctx)
+    ssl_server.start_immediately = true
+
+    server_thread = Thread.new do
+      Thread.current.report_on_exception = false
+      begin
+        conn = ssl_server.accept
+        sleep 5
+        conn.close rescue nil
+      rescue
+      end
+    end
+
+    begin
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+      ssl.sync_close = true
+      ssl.connect
+      assert_equal "TLSv1.3", ssl.ssl_version
+
+      # Wait for the server's NewSessionTicket to arrive on the wire
+      # after the blocking connect has finished.
+      sleep 0.1
+
+      # Access the private `status` field via Java reflection
+      java_cls = Java::OrgJrubyExtOpenssl::SSLSocket.java_class
+      status_field = java_cls.declared_field("status")
+      status_field.accessible = true
+      java_ssl = ssl.to_java(Java::OrgJrubyExtOpenssl::SSLSocket)
+
+      result = ssl.read_nonblock(1024, exception: false)
+      assert_equal :wait_readable, result
+
+      status_after = status_field.value(java_ssl).to_s
+      # If sysreadImpl properly handles read==0 with any status (not just BUFFER_UNDERFLOW),
+      # only one readAndUnwrap call is made and status stays OK.
+      assert_equal "OK", status_after,
+        "Expected status OK (single readAndUnwrap call) but got #{status_after} " \
+        "(extra wasted iteration through readAndUnwrap occurred)"
+
+      ssl.close
+    ensure
+      ssl.close rescue nil
+      sock.close rescue nil
+      tcp_server.close rescue nil
+      server_thread.kill rescue nil
+      server_thread.join(2) rescue nil
+    end
+  end if defined?(JRUBY_VERSION)
 end
