@@ -1,0 +1,205 @@
+package org.jruby.ext.openssl;
+
+import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+
+import org.jruby.Ruby;
+import org.jruby.RubyArray;
+import org.jruby.RubyFixnum;
+import org.jruby.RubyInteger;
+import org.jruby.RubyString;
+import org.jruby.exceptions.RaiseException;
+import org.jruby.runtime.ThreadContext;
+import org.jruby.runtime.builtin.IRubyObject;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class SSLSocketTest {
+
+    private Ruby runtime;
+
+    /** Loads the ssl_pair.rb script that creates a connected SSL socket pair. */
+    private String start_ssl_server_rb() { return readResource("/start_ssl_server.rb"); }
+
+    @Before
+    public void setUp() {
+        runtime = Ruby.newInstance();
+        // prepend lib/ so openssl.rb + jopenssl/ are loaded instead of the ones bundled in jruby-stdlib
+        String libDir = new java.io.File("lib").getAbsolutePath();
+        runtime.evalScriptlet("$LOAD_PATH.unshift '" + libDir + "'");
+        runtime.evalScriptlet("require 'openssl'");
+    }
+
+    @After
+    public void tearDown() {
+        if (runtime != null) {
+            runtime.tearDown(false);
+            runtime = null;
+        }
+    }
+
+    /**
+     * Real-world scenario: {@code gem push} sends a large POST body via {@code syswrite_nonblock},
+     * then reads the HTTP response via {@code sysread}.
+     *
+     * Approximates the {@code gem push} scenario:
+     * <ol>
+     *   <li>Write 256KB via {@code syswrite_nonblock} in a loop (the net/http POST pattern)</li>
+     *   <li>Server reads via {@code sysread} and counts bytes</li>
+     *   <li>Assert: server received exactly what client sent</li>
+     * </ol>
+     *
+     * With the old {@code clear()} bug, encrypted bytes were silently
+     * discarded during partial non-blocking writes, so the server would
+     * receive fewer bytes than sent.
+     */
+    @Test
+    public void syswriteNonblockDataIntegrity() throws Exception {
+        final RubyArray pair = (RubyArray) runtime.evalScriptlet(start_ssl_server_rb());
+        SSLSocket client = (SSLSocket) pair.entry(0).toJava(SSLSocket.class);
+        SSLSocket server = (SSLSocket) pair.entry(1).toJava(SSLSocket.class);
+
+        try {
+            // Server: read all data in a background thread, counting bytes
+            final long[] serverReceived = { 0 };
+            Thread serverReader = startServerReader(server, serverReceived);
+
+            // Client: write 256KB in 4KB chunks via syswrite_nonblock
+            byte[] chunk = new byte[4096];
+            java.util.Arrays.fill(chunk, (byte) 'P'); // P for POST body
+            RubyString payload = RubyString.newString(runtime, chunk);
+
+            long totalSent = 0;
+            for (int i = 0; i < 64; i++) { // 64 * 4KB = 256KB
+                try {
+                    IRubyObject written = client.syswrite_nonblock(currentContext(), payload);
+                    totalSent += ((RubyInteger) written).getLongValue();
+                } catch (RaiseException e) {
+                    String rubyClass = e.getException().getMetaClass().getName();
+                    if (rubyClass.contains("WaitWritable")) {
+                        // Expected: non-blocking write would block — retry as blocking
+                        IRubyObject written = client.syswrite(currentContext(), payload);
+                        totalSent += ((RubyInteger) written).getLongValue();
+                    } else {
+                        System.err.println("syswrite_nonblock unexpected: " + rubyClass + ": " + e.getMessage());
+                        throw e;
+                    }
+                }
+            }
+            assertTrue("should have sent data", totalSent > 0);
+
+            // Close client to signal EOF, let server finish reading
+            client.callMethod(currentContext(), "close");
+            serverReader.join(10_000);
+
+            assertEquals(
+                "server must receive exactly what client sent — mismatch means encrypted bytes were lost!",
+                totalSent, serverReceived[0]
+            );
+        } finally {
+            closeQuietly(pair);
+        }
+    }
+
+    private Thread startServerReader(final SSLSocket server, final long[] serverReceived) {
+        Thread serverReader = new Thread(() -> {
+            try {
+                RubyFixnum len = RubyFixnum.newFixnum(runtime, 8192);
+                while (true) {
+                    IRubyObject data = server.sysread(currentContext(), len);
+                    serverReceived[0] += ((RubyString) data).getByteList().getRealSize();
+                }
+            } catch (RaiseException e) {
+                String rubyClass = e.getException().getMetaClass().getName();
+                // EOFError or IOError expected when client closes the connection
+                if (!rubyClass.equals("EOFError") && !rubyClass.equals("IOError")) {
+                    System.err.println("server reader unexpected: " + rubyClass + ": " + e.getMessage());
+                    e.printStackTrace(System.err);
+                }
+            }
+        });
+        serverReader.start();
+        return serverReader;
+    }
+
+    /**
+     * After saturating the TCP send buffer with {@code syswrite_nonblock},
+     * inspect {@code netWriteData} to verify the buffer is consistent.
+     */
+    @Test
+    public void syswriteNonblockNetWriteDataConsistency() {
+        final RubyArray pair = (RubyArray) runtime.evalScriptlet(start_ssl_server_rb());
+        SSLSocket client = (SSLSocket) pair.entry(0).toJava(SSLSocket.class);
+
+        try {
+            assertNotNull("netWriteData initialized after handshake", client.netWriteData);
+
+            // Saturate: server is not reading yet, so backpressure builds
+            byte[] chunk = new byte[16384];
+            java.util.Arrays.fill(chunk, (byte) 'S');
+            RubyString payload = RubyString.newString(runtime, chunk);
+
+            int successfulWrites = 0;
+            for (int i = 0; i < 200; i++) {
+                try {
+                    client.syswrite_nonblock(currentContext(), payload);
+                    successfulWrites++;
+                } catch (RaiseException e) {
+                    String rubyClass = e.getException().getMetaClass().getName();
+                    if (rubyClass.contains("WaitWritable") || rubyClass.equals("IOError")) {
+                        break; // buffer saturated — expected
+                    }
+                    System.err.println("saturate loop unexpected: " + rubyClass + ": " + e.getMessage());
+                    throw e;
+                }
+            }
+            assertTrue("at least one write should succeed", successfulWrites > 0);
+
+            // Inspect netWriteData directly
+            ByteBuffer netWriteData = client.netWriteData;
+            assertTrue("position <= limit", netWriteData.position() <= netWriteData.limit());
+            assertTrue("limit <= capacity", netWriteData.limit() <= netWriteData.capacity());
+
+            // If there are unflushed bytes, compact() preserved them
+            if (netWriteData.remaining() > 0) {
+                // The bytes should be valid TLS record data, not zeroed memory
+                byte b = netWriteData.get(netWriteData.position());
+                assertNotEquals("preserved bytes should be TLS data, not zeroed", 0, b);
+            }
+
+        } finally {
+            closeQuietly(pair);
+        }
+    }
+
+    private ThreadContext currentContext() {
+        return runtime.getCurrentContext();
+    }
+
+    private void closeQuietly(final RubyArray sslPair) {
+        for (int i = 0; i < sslPair.getLength(); i++) {
+            try { sslPair.entry(i).callMethod(currentContext(), "close"); }
+            catch (RaiseException e) { /* already closed */ }
+        }
+    }
+
+    static String readResource(final String resource) {
+        int n;
+        try (InputStream in = SSLSocketTest.class.getResourceAsStream(resource)) {
+            if (in == null) throw new IllegalArgumentException(resource + " not found on classpath");
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("failed to load" + resource, e);
+        }
+    }
+}
