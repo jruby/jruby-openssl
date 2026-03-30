@@ -145,9 +145,9 @@ public class SSLSocket extends RubyObject {
     private SSLEngine engine;
     private RubyIO io;
 
-    private ByteBuffer appReadData;
-    private ByteBuffer netReadData;
-    private ByteBuffer netWriteData;
+    ByteBuffer appReadData;
+    ByteBuffer netReadData;
+    ByteBuffer netWriteData;
     private final ByteBuffer dummy = ByteBuffer.allocate(0); // could be static
 
     private boolean initialHandshake = false;

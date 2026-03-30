@@ -108,6 +108,12 @@ DO NOT MODIFY - GENERATED CODE
       <scope>compile</scope>
     </dependency>
     <dependency>
+      <groupId>org.jruby</groupId>
+      <artifactId>jruby-stdlib</artifactId>
+      <version>9.2.0.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>[4.13.1,)</version>

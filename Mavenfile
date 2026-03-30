@@ -82,9 +82,12 @@ plugin :clean do
                  'failOnError' =>  'false' )
 end
 
-jar 'org.jruby:jruby-core', '9.2.0.0', :scope => :provided
+jruby_compile_compat = '9.2.0.0'
+jar 'org.jruby:jruby-core', jruby_compile_compat, :scope => :provided
 # for invoker generated classes we need to add javax.annotation when on Java > 8
 jar 'javax.annotation:javax.annotation-api', '1.3.1', :scope => :compile
+# a test dependency to provide digest and other stdlib bits, needed when loading OpenSSL in Java unit tests
+jar 'org.jruby:jruby-stdlib', jruby_compile_compat, :scope => :test
 jar 'junit:junit', '[4.13.1,)', :scope => :test
 
 # NOTE: to build on Java 11 - installing gems fails (due old jossl) with:
