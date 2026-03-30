@@ -218,7 +218,10 @@ public class X509CRL extends RubyObject {
         }
 
         set_last_update( context, RubyTime.newTime(runtime, crl.getThisUpdate().getTime()) );
-        set_next_update( context, RubyTime.newTime(runtime, crl.getNextUpdate().getTime()) );
+        final java.util.Date nextUpdate = crl.getNextUpdate();
+        if ( nextUpdate != null ) {
+            set_next_update( context, RubyTime.newTime(runtime, nextUpdate.getTime()) );
+        }
         set_issuer( X509Name.newName(runtime, crl.getIssuerX500Principal()) );
 
         final int version = crl.getVersion();
@@ -544,8 +547,8 @@ public class X509CRL extends RubyObject {
         final X500Name issuerName = ((X509Name) issuer).getX500Name();
         final java.util.Date thisUpdate = getLastUpdate().toDate();
         final X509v2CRLBuilder generator = new X509v2CRLBuilder(issuerName, thisUpdate);
-        final java.util.Date nextUpdate = getNextUpdate().toDate();
-        generator.setNextUpdate(nextUpdate);
+        final DateTime nextUpdate = getNextUpdate();
+        if ( nextUpdate != null ) generator.setNextUpdate(nextUpdate.toDate());
 
         //signature_algorithm = RubyString.newString(runtime, digAlg);
         //generator.setSignatureAlgorithm( signatureAlgorithm );

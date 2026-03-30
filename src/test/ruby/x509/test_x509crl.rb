@@ -164,6 +164,41 @@ EOF
     assert_equal(false, exts[2].critical?)
   end
 
+  def test_crl_without_next_update
+    # RFC 5280 allows omitting nextUpdate from CRLs
+    _rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    _ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    now = Time.now
+    cert_exts = [
+      ["basicConstraints", "CA:TRUE", true],
+      ["subjectKeyIdentifier", "hash", false],
+      ["keyUsage", "cRLSign, keyCertSign", true],
+    ]
+    ca_cert = issue_cert(_ca, _rsa2048, 1, cert_exts, nil, nil, not_before: now, not_after: now + 3600)
+
+    # create and sign CRL without setting next_update
+    crl = OpenSSL::X509::CRL.new
+    crl.issuer = ca_cert.subject
+    crl.version = 1
+    crl.last_update = now
+    # deliberately NOT setting next_update
+    crl.sign(_rsa2048, OpenSSL::Digest::SHA256.new)
+
+    assert_nil crl.next_update
+    assert_equal 1, crl.version
+
+    # round-trip through DER
+    crl2 = OpenSSL::X509::CRL.new(crl.to_der)
+    assert_nil crl2.next_update
+    assert_equal crl.last_update.to_i, crl2.last_update.to_i
+    assert_equal crl.issuer.to_s, crl2.issuer.to_s
+    assert crl2.verify(_rsa2048)
+
+    # to_text should show NONE for next_update
+    assert_match(/Next Update: NONE/, crl2.to_text)
+  end
+
   def test_to_java
     crl = OpenSSL::X509::CRL.new File.read(File.expand_path('../revoked.crl', __FILE__))
     assert_kind_of java.security.cert.X509CRL, crl.to_java
