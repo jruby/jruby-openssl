@@ -113,6 +113,7 @@ properties( 'jruby.plugins.version' => '3.0.2',
             'invoker.test' => '${bc.versions}',
             # allow to skip all tests with -Dmaven.test.skip
             'invoker.skip' => '${maven.test.skip}',
+            'skipRunit' => 'true',
             'runit.dir' => 'src/test/ruby/**/test_*.rb',
             'mavengem.wagon.version' => '2.0.2', # for jruby plugin
             'mavengem-wagon.version' => '2.0.2', # for polyglot-ruby

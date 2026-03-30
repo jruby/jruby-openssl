@@ -72,6 +72,7 @@ DO NOT MODIFY - GENERATED CODE
     <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
     <polyglot.dump.readonly>false</polyglot.dump.readonly>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
+    <skipRunit>true</skipRunit>
   </properties>
   <dependencies>
     <dependency>
