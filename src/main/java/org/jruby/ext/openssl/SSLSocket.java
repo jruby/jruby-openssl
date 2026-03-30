@@ -244,6 +244,7 @@ public class SSLSocket extends RubyObject {
 
     @JRubyMethod(name = "alpn_protocol")
     public IRubyObject alpn_protocol(final ThreadContext context) {
+        if ( engine == null ) return context.nil;
         final String protocol = engine.getApplicationProtocol();
         // null if it has not yet been determined if alpn might be used for this connection,
         // an empty String if application protocols values will not be used,
