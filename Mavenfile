@@ -82,7 +82,7 @@ plugin :clean do
                  'failOnError' =>  'false' )
 end
 
-jruby_compile_compat = '9.2.0.0'
+jruby_compile_compat = '9.2.1.0' # due load_ext can use 9.2.0.0
 jar 'org.jruby:jruby-core', jruby_compile_compat, :scope => :provided
 # for invoker generated classes we need to add javax.annotation when on Java > 8
 jar 'javax.annotation:javax.annotation-api', '1.3.1', :scope => :compile
