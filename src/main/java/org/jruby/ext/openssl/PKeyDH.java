@@ -347,8 +347,8 @@ public class PKeyDH extends PKey {
 
         params.put(runtime.newString("p"), BN.newBN(runtime, p));
         params.put(runtime.newString("g"), BN.newBN(runtime, g));
-        params.put(runtime.newString("pub_key"), BN.newBN(runtime, x));
-        params.put(runtime.newString("priv_key"), BN.newBN(runtime, y));
+        params.put(runtime.newString("pub_key"), BN.newBN(runtime, y));
+        params.put(runtime.newString("priv_key"), BN.newBN(runtime, x));
 
         return RubyHash.newHash(runtime, params, runtime.getNil());
     }
