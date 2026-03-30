@@ -141,6 +141,8 @@ public class SSLSocket extends RubyObject {
         return sites[ index.ordinal() ];
     }
 
+    private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0).asReadOnlyBuffer();
+
     SSLContext sslContext;
     private SSLEngine engine;
     private RubyIO io;
@@ -148,7 +150,6 @@ public class SSLSocket extends RubyObject {
     ByteBuffer appReadData;
     ByteBuffer netReadData;
     ByteBuffer netWriteData;
-    private final ByteBuffer dummy = ByteBuffer.allocate(0); // could be static
 
     private boolean initialHandshake = false;
     private transient long initializeTime;
@@ -610,7 +611,7 @@ public class SSLSocket extends RubyObject {
 
     private void doWrap(final boolean blocking) throws IOException {
         netWriteData.clear();
-        SSLEngineResult result = engine.wrap(dummy, netWriteData);
+        SSLEngineResult result = engine.wrap(EMPTY_DATA.duplicate(), netWriteData);
         netWriteData.flip();
         handshakeStatus = result.getHandshakeStatus();
         status = result.getStatus();
@@ -794,7 +795,7 @@ public class SSLSocket extends RubyObject {
         }
         netWriteData.clear();
         try {
-            engine.wrap(dummy, netWriteData); // send close (after sslEngine.closeOutbound)
+            engine.wrap(EMPTY_DATA.duplicate(), netWriteData); // send close (after sslEngine.closeOutbound)
         }
         catch (SSLException e) {
             debug(getRuntime(), "SSLSocket.doShutdown", e);
