@@ -333,7 +333,7 @@ public class Random {
         if ( l >= 4 ) {
             s = (seed[0] << 24) | (seed[1] << 16) | (seed[2] << 8) | seed[3];
             if ( l >= 8 ) {
-                s = s ^ (seed[l-4] << 24) | (seed[l-3] << 16) | (seed[l-2] << 8) | seed[l-1];
+                s = s ^ ((seed[l-4] << 24) | (seed[l-3] << 16) | (seed[l-2] << 8) | seed[l-1]);
             }
             holder.seedPlainRandom(s);
         }
