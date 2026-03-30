@@ -1,18 +1,12 @@
 package org.jruby.ext.openssl;
 
-import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
-import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyInteger;
 import org.jruby.RubyString;
 import org.jruby.exceptions.RaiseException;
-import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
 import org.junit.After;
@@ -20,28 +14,19 @@ import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-public class SSLSocketTest {
-
-    private Ruby runtime;
+public class SSLSocketTest extends OpenSSLHelper {
 
     /** Loads the ssl_pair.rb script that creates a connected SSL socket pair. */
     private String start_ssl_server_rb() { return readResource("/start_ssl_server.rb"); }
 
     @Before
-    public void setUp() {
-        runtime = Ruby.newInstance();
-        // prepend lib/ so openssl.rb + jopenssl/ are loaded instead of the ones bundled in jruby-stdlib
-        String libDir = new java.io.File("lib").getAbsolutePath();
-        runtime.evalScriptlet("$LOAD_PATH.unshift '" + libDir + "'");
-        runtime.evalScriptlet("require 'openssl'");
+    public void setUp() throws Exception {
+        setUpRuntime();
     }
 
     @After
     public void tearDown() {
-        if (runtime != null) {
-            runtime.tearDown(false);
-            runtime = null;
-        }
+        tearDownRuntime();
     }
 
     /**
@@ -178,28 +163,10 @@ public class SSLSocketTest {
         }
     }
 
-    private ThreadContext currentContext() {
-        return runtime.getCurrentContext();
-    }
-
     private void closeQuietly(final RubyArray sslPair) {
         for (int i = 0; i < sslPair.getLength(); i++) {
             try { sslPair.entry(i).callMethod(currentContext(), "close"); }
             catch (RaiseException e) { /* already closed */ }
-        }
-    }
-
-    static String readResource(final String resource) {
-        int n;
-        try (InputStream in = SSLSocketTest.class.getResourceAsStream(resource)) {
-            if (in == null) throw new IllegalArgumentException(resource + " not found on classpath");
-
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
-            return new String(out.toByteArray(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new IllegalStateException("failed to load" + resource, e);
         }
     }
 }
