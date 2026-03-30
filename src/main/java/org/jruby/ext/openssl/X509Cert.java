@@ -47,6 +47,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -673,7 +674,8 @@ public class X509Cert extends RubyObject {
         return new X509v3CertificateBuilder(
                 issuer == null ? null : ((X509Name) issuer).getX500Name(),
                 serial.abs(),
-                not_before.getJavaDate(), not_after.getJavaDate(),
+                not_before != null ? not_before.getJavaDate() : new Date(0),
+                not_after != null ? not_after.getJavaDate() : new Date(0),
                 subject == null ? null : ((X509Name) subject).getX500Name(),
                 publicKeyInfo
         );
