@@ -1380,7 +1380,7 @@ public final class PKeyEC extends PKey {
 
             pointResult = pointSelf.add(pointOther);
             if (pointResult == null) {
-                newECError(runtime, "EC_POINT_add");
+                throw newECError(runtime, "EC_POINT_add");
             }
 
             result = new Point(runtime, EC5Util.convertPoint(pointResult), group);
