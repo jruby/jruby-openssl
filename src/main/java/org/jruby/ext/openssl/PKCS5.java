@@ -137,9 +137,9 @@ public class PKCS5 {
         //
         // dklen is expressed in bytes. (16 for a 128-bit key)
 
-        int hLen = prf.getMacLength();   // 20 for SHA1
-        int l = Math.max( dkLen, hLen); //  1 for 128bit (16-byte) keys
-        int r = dkLen - (l-1)*hLen;      // 16 for 128bit (16-byte) keys
+        int hLen = prf.getMacLength();            // 20 for SHA1
+        int l = (dkLen + hLen - 1) / hLen;       //  1 for 128bit (16-byte) keys
+        int r = dkLen - (l - 1) * hLen;           // 16 for 128bit (16-byte) keys
         byte T[] = new byte[l * hLen];
         int ti_offset = 0;
         for (int i = 1; i <= l; i++) {
