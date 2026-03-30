@@ -124,7 +124,9 @@ public class X509Name extends RubyObject {
 
         final ThreadContext context = runtime.getCurrentContext();
         final RubyHash hash = RubyHash.newHash(runtime);
-        hash.default_value_set(context, UTF8_STRING);
+        // NOTE: using dynamic dispatch for compat with JRuby < 9.2.10
+        // (default_value_set(ThreadContext, IRubyObject) was added in 9.2.10.0)
+        hash.callMethod(context, "default=", UTF8_STRING);
         hash.op_aset(context, newString(runtime, new byte[] { 'C' }), PRINTABLE_STRING);
         final byte[] countryName = { 'c','o','u','n','t','r','y','N','a','m','e' };
         hash.op_aset(context, newString(runtime, countryName), PRINTABLE_STRING);
