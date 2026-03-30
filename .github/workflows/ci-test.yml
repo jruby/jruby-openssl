@@ -76,5 +76,8 @@ jobs:
       - name: rake test_prepare
         run: jruby -rbundler/setup -S rake test_prepare
 
+      - name: mvn test
+        run: ./mvnw test
+
       - name: rake test
         run: jruby -rbundler/setup -S rake test
