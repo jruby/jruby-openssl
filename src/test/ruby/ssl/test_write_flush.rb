@@ -138,11 +138,6 @@ class TestSSLWriteFlush < TestCase
             # we've received a plausible amount we can stop.
             break if response.include?("OK:")  && response.bytesize >= 67
           end
-        rescue IO::WaitReadable
-          # Can occur despite exception: false and IO.select — TLS protocol
-          # data (e.g. post-handshake messages) made the socket look readable
-          # but no application data is available yet.
-          next
         rescue EOFError
           break
         end
