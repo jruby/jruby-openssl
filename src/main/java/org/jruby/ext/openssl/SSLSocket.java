@@ -141,7 +141,7 @@ public class SSLSocket extends RubyObject {
         return sites[ index.ordinal() ];
     }
 
-    private SSLContext sslContext;
+    SSLContext sslContext;
     private SSLEngine engine;
     private RubyIO io;
 
@@ -209,7 +209,7 @@ public class SSLSocket extends RubyObject {
 
     private static final String SESSION_SOCKET_ID = "socket_id";
 
-    private SSLEngine ossl_ssl_setup(final ThreadContext context, final boolean server) {
+    SSLEngine ossl_ssl_setup(final ThreadContext context, final boolean server) {
         SSLEngine engine = this.engine;
         if ( engine != null ) return engine;
 
@@ -574,7 +574,7 @@ public class SSLSocket extends RubyObject {
                 doTasks();
                 break;
             case NEED_UNWRAP:
-                if (readAndUnwrap(blocking) == -1 && handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED) {
+                if (readAndUnwrap(blocking, exception) == -1 && handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED) {
                     throw new SSLHandshakeException("Socket closed");
                 }
                 // during initialHandshake, calling readAndUnwrap that results UNDERFLOW does not mean writable.
@@ -721,10 +721,6 @@ public class SSLSocket extends RubyObject {
         return limit;
     }
 
-    private int readAndUnwrap(final boolean blocking) throws IOException {
-        return readAndUnwrap(blocking, true);
-    }
-
     private int readAndUnwrap(final boolean blocking, final boolean exception) throws IOException {
         final int bytesRead = socketChannelImpl().read(netReadData);
         if ( bytesRead == -1 ) {
@@ -813,10 +809,10 @@ public class SSLSocket extends RubyObject {
     }
 
     /**
-     * @return the (@link RubyString} buffer or :wait_readable / :wait_writeable {@link RubySymbol}
+     * @return the {@link RubyString} buffer or :wait_readable / :wait_writeable {@link RubySymbol}
      */
-    private IRubyObject sysreadImpl(final ThreadContext context, final IRubyObject len, final IRubyObject buff,
-                                    final boolean blocking, final boolean exception) {
+    private IRubyObject sysreadImpl(final ThreadContext context,
+        final IRubyObject len, final IRubyObject buff, final boolean blocking, final boolean exception) {
         final Ruby runtime = context.runtime;
 
         final int length = RubyNumeric.fix2int(len);
@@ -836,11 +832,12 @@ public class SSLSocket extends RubyObject {
         }
 
         try {
-            // flush any pending encrypted write data before reading; after write_nonblock,
-            // encrypted bytes may remain in the buffer that haven't been sent, if we read wout flushing,
-            // server may not have received the complete request (e.g. net/http POST body) and will not respond
+            // Flush pending write data before reading (after write_nonblock encrypted bytes may still be buffered)
             if ( engine != null && netWriteData.hasRemaining() ) {
-                flushData(blocking);
+                if ( flushData(blocking) && ! blocking ) {
+                    if ( exception ) throw newSSLErrorWaitWritable(runtime, "write would block");
+                    return runtime.newSymbol("wait_writable");
+                }
             }
 
             // So we need to make sure to only block when there is no data left to process
@@ -851,7 +848,7 @@ public class SSLSocket extends RubyObject {
 
             final ByteBuffer dst = ByteBuffer.allocate(length);
             int read = -1;
-            // ensure >0 bytes read; sysread is blocking read.
+            // ensure > 0 bytes read; sysread is blocking read
             while ( read <= 0 ) {
                 if ( engine == null ) {
                     read = socketChannelImpl().read(dst);
@@ -1238,7 +1235,7 @@ public class SSLSocket extends RubyObject {
         return context.runtime.newString( engine.getSession().getProtocol() );
     }
 
-    private transient SocketChannelImpl socketChannel;
+    transient SocketChannelImpl socketChannel;
 
     private SocketChannelImpl socketChannelImpl() {
         if ( socketChannel != null ) return socketChannel;
@@ -1253,7 +1250,7 @@ public class SSLSocket extends RubyObject {
         throw new IllegalStateException("unknow channel impl: " + channel + " of type " + channel.getClass().getName());
     }
 
-    private interface SocketChannelImpl {
+    interface SocketChannelImpl {
 
         boolean isOpen() ;
 
