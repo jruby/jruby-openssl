@@ -553,10 +553,6 @@ public class SSLSocket extends RubyObject {
         result[0] = WRITE_WOULD_BLOCK_RESULT;
     }
 
-    private void doHandshake(final boolean blocking) throws IOException {
-        doHandshake(blocking, true);
-    }
-
     // might return :wait_readable | :wait_writable in case (true, false)
     private IRubyObject doHandshake(final boolean blocking, final boolean exception) throws IOException {
         while (true) {
@@ -706,11 +702,15 @@ public class SSLSocket extends RubyObject {
     }
 
     public int read(final ByteBuffer dst, final boolean blocking) throws IOException {
+        return read(dst, blocking, true);
+    }
+
+    private int read(final ByteBuffer dst, final boolean blocking, final boolean exception) throws IOException {
         if ( initialHandshake ) return 0;
         if ( engine.isInboundDone() ) return -1;
 
         if ( ! appReadData.hasRemaining() ) {
-            int appBytesProduced = readAndUnwrap(blocking);
+            int appBytesProduced = readAndUnwrap(blocking, exception);
             if (appBytesProduced == -1 || appBytesProduced == 0) {
                 return appBytesProduced;
             }
@@ -722,6 +722,10 @@ public class SSLSocket extends RubyObject {
     }
 
     private int readAndUnwrap(final boolean blocking) throws IOException {
+        return readAndUnwrap(blocking, true);
+    }
+
+    private int readAndUnwrap(final boolean blocking, final boolean exception) throws IOException {
         final int bytesRead = socketChannelImpl().read(netReadData);
         if ( bytesRead == -1 ) {
             if ( ! netReadData.hasRemaining() ||
@@ -769,7 +773,7 @@ public class SSLSocket extends RubyObject {
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
                 handshakeStatus == SSLEngineResult.HandshakeStatus.FINISHED ) ) {
-            doHandshake(blocking);
+            doHandshake(blocking, exception);
         }
         return appReadData.remaining();
     }
@@ -852,7 +856,7 @@ public class SSLSocket extends RubyObject {
                 if ( engine == null ) {
                     read = socketChannelImpl().read(dst);
                 } else {
-                    read = read(dst, blocking);
+                    read = read(dst, blocking, exception);
                 }
 
                 if ( read == -1 ) {
