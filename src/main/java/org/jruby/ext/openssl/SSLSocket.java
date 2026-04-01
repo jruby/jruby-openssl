@@ -689,7 +689,7 @@ public class SSLSocket extends RubyObject {
             if ( netWriteData.hasRemaining() ) {
                 flushData(blocking);
             }
-            netWriteData.clear();
+            netWriteData.compact();
             final SSLEngineResult result = engine.wrap(src, netWriteData);
             if ( result.getStatus() == SSLEngineResult.Status.CLOSED ) {
                 throw getRuntime().newIOError("closed SSL engine");
@@ -831,6 +831,12 @@ public class SSLSocket extends RubyObject {
         }
 
         try {
+            // Flush any pending encrypted write data before reading, so the
+            // remote side receives the complete request before we wait for a response.
+            if ( engine != null && netWriteData.hasRemaining() ) {
+                flushData(true);
+            }
+
             // So we need to make sure to only block when there is no data left to process
             if ( engine == null || ! ( appReadData.hasRemaining() || netReadData.position() > 0 ) ) {
                 final Object ex = waitSelect(SelectionKey.OP_READ, blocking, exception);
