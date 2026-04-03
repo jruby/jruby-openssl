@@ -1,3 +1,17 @@
+## 0.15.7
+
+* [fix] handle CRL with optional nextUpdate absent
+* [compat] handle nil dates in `Certificate#sign`
+* [fix] null guard for public key in `PKey#toJava`
+* [fix] missing null guard in `SSLSocket#alpn_protocol`
+* [fix] missing throw in `PKey::EC::Point#add`
+* [fix] `DH#params` returned pub_key and priv_key swapped
+* [fix] compat with JRuby < 9.2.10 after API change (#348)
+* [fix] `Cipher#reset` when key not set (jruby/jruby#5776)
+* [fix] encode Netscape IA5String extensions correctly (#349)
+* [fix] `Store#add_file` raises when no certificate or CRL (#285)
+* [fix] PSS auto salt-length verify failed due leading zeros
+
 ## 0.15.6
 
 Upgrading Bouncy Castle to version 1.83
