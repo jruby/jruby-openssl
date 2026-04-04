@@ -1,11 +1,11 @@
 
 package org.jruby.ext.openssl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -15,9 +15,9 @@ import java.security.Signature;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author kares
@@ -31,12 +31,12 @@ public class SecurityHelperTest {
 
     private Provider savedProvider;
 
-    @Before
+    @BeforeEach
     public void saveSecurityProvider() {
         savedProvider = SecurityHelper.getSecurityProvider();
     }
 
-    @After
+    @AfterEach
     public void restoreSecurityProvider() {
         SecurityHelper.securityProvider = savedProvider;
     }

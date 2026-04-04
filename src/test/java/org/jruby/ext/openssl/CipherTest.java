@@ -1,7 +1,7 @@
 package org.jruby.ext.openssl;
 
-import org.junit.*;
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author kares
