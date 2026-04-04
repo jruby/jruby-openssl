@@ -10,7 +10,7 @@ end
 java_target = '1.8'
 gen_sources = '${basedir}/target/generated-sources' # hard-coded in AnnotationBinder
 
-plugin( 'org.codehaus.mojo:exec-maven-plugin', '1.3.2' ) do
+plugin( 'org.codehaus.mojo:exec-maven-plugin', '3.5.0' ) do
 
 =begin
   invoker_main  = '-Djruby.bytecode.version=${compiler.target}'
@@ -41,7 +41,7 @@ plugin( 'org.codehaus.mojo:exec-maven-plugin', '1.3.2' ) do
                       '${project.build.outputDirectory}' ]
 end
 
-plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '1.9' ) do
+plugin( 'org.codehaus.mojo:build-helper-maven-plugin', '3.6.1' ) do
   execute_goal 'add-source', :phase => 'process-classes', :sources => [ gen_sources ]
 end
 
@@ -56,7 +56,7 @@ compiler_configuration = {
 }
 compiler_configuration.delete(:release) if ENV_JAVA['java.specification.version'] == '1.8'
 
-plugin( :compiler, '3.9.0', compiler_configuration) do
+plugin( :compiler, '3.15.0', compiler_configuration) do
 
   #execute_goal :compile, :id => 'annotation-binder', :phase => 'compile',
   #    :generatedSourcesDirectory => gen_sources, #:outputDirectory => gen_sources,
@@ -87,7 +87,7 @@ jar 'org.jruby:jruby-core', '9.2.0.0', :scope => :provided
 jar 'javax.annotation:javax.annotation-api', '1.3.1', :scope => :compile
 jar 'org.junit.jupiter:junit-jupiter', '5.11.4', :scope => :test
 
-plugin :surefire, '3.5.2'
+plugin :surefire, '3.5.5'
 
 # NOTE: to build on Java 11 - installing gems fails (due old jossl) with:
 #  load error: jopenssl/load -- java.lang.StringIndexOutOfBoundsException
@@ -100,7 +100,7 @@ jruby_plugin! :gem do
 end
 
 # we want to have the snapshots on oss.sonatype.org and the released gems on maven central
-plugin :deploy, '2.8.1' do
+plugin :deploy, '3.1.4' do
   execute_goals( :deploy, :skip => false )
 end
 
@@ -157,7 +157,7 @@ jruby_versions += %w{ 10.0.2.0 }
 
 jruby_versions.each do |version|
   profile :id => "test-#{version}" do
-    plugin :invoker, '1.8' do
+    plugin :invoker, '3.8.1' do
       execute_goals( :install, :run, invoker_run_options )
     end
     properties 'jruby.version' => version,
@@ -167,7 +167,7 @@ jruby_versions.each do |version|
 end
 
 profile :id => 'release' do
-  plugin :gpg, '1.6' do
+  plugin :gpg, '3.1.0' do
     execute_goal :sign, :phase => :verify
   end
 end
