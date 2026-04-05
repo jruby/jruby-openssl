@@ -783,4 +783,17 @@ EOF
     assert text.include?('OCSP - URI:http://ocsp.example.com'), 'Missing OCSP URI in to_text output'
     assert text.include?('CA Issuers - URI:http://ca.example.com/ca.crt'), 'Missing CA Issuers URI in to_text output'
   end
+
+  def test_authority_info_access_ocsp_uris # GH-210
+    cert = OpenSSL::X509::Certificate.new(Fixtures.read_file('x509', 'login_live_com_aia.pem'))
+
+    aia_ext = cert.extensions.find { |e| e.oid == 'authorityInfoAccess' }
+    assert_not_nil aia_ext, 'authorityInfoAccess extension not found'
+
+    expected = "OCSP - URI:http://ocsp.digicert.com\nCA Issuers - URI:http://cacerts.digicert.com/DigiCertSHA2SecureServerCA.crt"
+    assert_equal expected, aia_ext.value
+    assert_equal ['http://ocsp.digicert.com'], cert.ocsp_uris
+    assert_equal ['http://cacerts.digicert.com/DigiCertSHA2SecureServerCA.crt'], cert.ca_issuer_uris
+    assert_not_match(/#<OpenSSL::ASN1::/, aia_ext.value)
+  end
 end
