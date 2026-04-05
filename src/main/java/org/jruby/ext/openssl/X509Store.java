@@ -203,19 +203,25 @@ public class X509Store extends RubyObject {
     }
 
     @JRubyMethod
-    public X509Store add_cert(final IRubyObject cert) {
-        X509AuxCertificate auxCert = cert instanceof X509Cert ? ((X509Cert) cert).getAuxCert() : null;
+    public X509Store add_cert(final ThreadContext context, final IRubyObject cert) {
+        if (!(cert instanceof X509Cert)) {
+            throw context.runtime.newTypeError(cert, _X509(context.runtime).getClass("Certificate"));
+        }
+        X509AuxCertificate auxCert = ((X509Cert) cert).getAuxCert();
         if ( store.addCertificate(auxCert) != 1 ) {
-            throw newStoreError(getRuntime(), X509Error.getLastErrorMessage());
+            throw newStoreError(context.runtime, X509Error.getLastErrorMessage());
         }
         return this;
     }
 
     @JRubyMethod
-    public X509Store add_crl(final IRubyObject crl) {
-        java.security.cert.X509CRL jCRL = (crl instanceof X509CRL) ? ((X509CRL) crl).getCRL() : null;
+    public X509Store add_crl(final ThreadContext context, final IRubyObject crl) {
+        if (!(crl instanceof X509CRL)) {
+            throw context.runtime.newTypeError(crl, _X509(context.runtime).getClass("CRL"));
+        }
+        java.security.cert.X509CRL jCRL = ((X509CRL) crl).getCRL();
         if ( store.addCRL(jCRL) != 1 ) {
-            throw newStoreError(getRuntime(), X509Error.getLastErrorMessage());
+            throw newStoreError(context.runtime, X509Error.getLastErrorMessage());
         }
         return this;
     }

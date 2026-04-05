@@ -149,6 +149,19 @@ class TestX509Store < TestCase
     assert store.verify(@cert)
   end
 
+  # CRuby raises TypeError (not StoreError) for wrong argument types
+  def test_add_cert_type_check
+    store = OpenSSL::X509::Store.new
+    assert_raise(TypeError) { store.add_cert("not a cert") }
+    assert_raise(TypeError) { store.add_cert(nil) }
+  end
+
+  def test_add_crl_type_check
+    store = OpenSSL::X509::Store.new
+    assert_raise(TypeError) { store.add_crl("not a crl") }
+    assert_raise(TypeError) { store.add_crl(nil) }
+  end
+
   # CRuby undefs initialize_copy, blocking both dup and clone
   def test_store_dup_clone_not_allowed
     store = OpenSSL::X509::Store.new
