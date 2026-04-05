@@ -37,6 +37,7 @@ import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
+import org.jruby.RubyTime;
 import org.jruby.RubyObject;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
@@ -149,9 +150,18 @@ public class X509Store extends RubyObject {
     }
 
     @JRubyMethod(name = "time=")
-    public IRubyObject set_time(final IRubyObject arg) {
-        setInstanceVariable("@time", arg);
+    public IRubyObject set_time(final ThreadContext context, final IRubyObject arg) {
+        // match CRuby: NUM2LONG(rb_Integer(time)) — accepts Time, Integer, or
+        // anything convertible via #to_int, and stores epoch seconds internally
+        setInstanceVariable("@time", toTime(context, arg));
         return arg;
+    }
+
+    static RubyTime toTime(final ThreadContext context, final IRubyObject arg) {
+        if (arg instanceof RubyTime) return (RubyTime) arg;
+        // numeric (epoch seconds) — convert via Time.at
+        long epoch = RubyNumeric.num2long(arg.callMethod(context, "to_int"));
+        return RubyTime.newTime(context.runtime, epoch * 1000);
     }
 
     @JRubyMethod

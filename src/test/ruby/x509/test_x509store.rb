@@ -139,6 +139,16 @@ class TestX509Store < TestCase
     assert_raise(OpenSSL::X509::StoreError) { store.add_file(invalid) }
   end
 
+  # CRuby's Store#time= accepts Time, Integer, and Float (epoch seconds).
+  # Ported from CRuby's test/openssl/test_x509store.rb (time-based verification).
+  def test_store_time_accepts_integer
+    store = OpenSSL::X509::Store.new
+    store.add_file @ca_cert
+    # set time as integer epoch seconds ??? must not raise
+    store.time = Time.now.to_i
+    assert store.verify(@cert)
+  end
+
   # CRuby undefs initialize_copy, blocking both dup and clone
   def test_store_dup_clone_not_allowed
     store = OpenSSL::X509::Store.new

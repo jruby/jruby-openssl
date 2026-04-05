@@ -144,7 +144,7 @@ public class X509StoreContext extends RubyObject {
         }
 
         IRubyObject time = store.getInstanceVariables().getInstanceVariable("@time");
-        if ( ! time.isNil() ) set_time(time);
+        if ( ! time.isNil() ) set_time(context, time);
         IRubyObject verify_callback = store.verify_callback_internal();
         if (verify_callback != null) this.setInstanceVariable("@verify_callback", verify_callback);
         if (cert != null) this.setInstanceVariable("@cert", cert);
@@ -269,8 +269,9 @@ public class X509StoreContext extends RubyObject {
     }
 
     @JRubyMethod(name = "time=")
-    public IRubyObject set_time(IRubyObject arg) {
-        storeContext.setTime( 0, ( (RubyTime) arg ).getJavaDate() );
+    public IRubyObject set_time(final ThreadContext context, IRubyObject arg) {
+        RubyTime time = X509Store.toTime(context, arg);
+        storeContext.setTime( 0, time.getJavaDate() );
         return arg;
     }
 
