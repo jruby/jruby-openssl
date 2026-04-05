@@ -41,4 +41,20 @@ class TestHMAC < TestCase
     assert_equal "4acb10ca3965a14a080297db0921950c", result
   end
 
+  def test_update_string_coercion
+    h1 = OpenSSL::HMAC.new("KEY", "SHA256")
+    h2 = OpenSSL::HMAC.new("KEY", "SHA256")
+
+    str_like = Object.new
+    def str_like.to_str
+      "DATA"
+    end
+
+    h1.update(str_like)
+    h2.update("DATA")
+    assert_equal h2.digest, h1.digest
+
+    assert_raise(TypeError) { h1.update(1) }
+  end
+
 end

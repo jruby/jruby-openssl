@@ -168,7 +168,7 @@ public class HMAC extends RubyObject {
 
     @JRubyMethod(name = { "update", "<<" })
     public IRubyObject update(final IRubyObject obj) {
-        data.append(obj.asString().getByteList());
+        data.append(obj.convertToString().getByteList());
         return this;
     }
 
@@ -186,10 +186,6 @@ public class HMAC extends RubyObject {
     @JRubyMethod(name = { "hexdigest", "inspect", "to_s" })
     public IRubyObject hexdigest() {
         return getRuntime().newString( toHEX(getSignatureBytes()) );
-    }
-
-    String getAlgorithm() {
-        return mac.getAlgorithm();
     }
 
     private byte[] getSignatureBytes() {
