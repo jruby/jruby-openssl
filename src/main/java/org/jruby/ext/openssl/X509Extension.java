@@ -57,6 +57,8 @@ import org.bouncycastle.asn1.x509.CRLDistPoint;
 import org.bouncycastle.asn1.x509.DistributionPoint;
 import org.bouncycastle.asn1.x509.DistributionPointName;
 import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.AccessDescription;
+import org.bouncycastle.asn1.x509.AuthorityInformationAccess;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.util.encoders.Hex;
@@ -599,10 +601,38 @@ public class X509Extension extends RubyObject {
                         }
                         else if ( dpName != null && dpName.getType() == DistributionPointName.NAME_RELATIVE_TO_CRL_ISSUER ) {
                             val.append(ByteList.plain("Relative Name:"));
-                            val.append('\n');
-                            val.append(ByteList.plain("  "));
+                            val.append('\n').append(' ').append(' ');
                             val.append(ByteList.plain(dpName.getName().toString()));
                         }
+                    }
+
+                    return runtime.newString( val );
+                }
+                catch (IllegalArgumentException e) {
+                    debugStackTrace(runtime, e);
+                    return rawValueAsString(context);
+                }
+            }
+
+            if ( oid.equals("1.3.6.1.5.5.7.1.1") ) { // authorityInfoAccess
+                try {
+                    ASN1Encodable value = getRealValue();
+                    final ByteList val = new ByteList(64);
+
+                    if ( value instanceof ASN1OctetString ) {
+                        value = ASN1.readObject( ((ASN1OctetString) value).getOctets() );
+                    }
+
+                    final AuthorityInformationAccess infoAccess = AuthorityInformationAccess.getInstance(value);
+                    final AccessDescription[] descriptions = infoAccess.getAccessDescriptions();
+
+                    for ( int i = 0; i < descriptions.length; i++ ) {
+                        if ( i > 0 ) val.append('\n');
+
+                        final AccessDescription description = descriptions[i];
+                        val.append( ByteList.plain( accessDescriptionMethodName(runtime, description) ) );
+                        val.append(' ').append('-').append(' ');
+                        formatGeneralName(description.getAccessLocation(), val, false);
                     }
 
                     return runtime.newString( val );
@@ -659,6 +689,19 @@ public class X509Extension extends RubyObject {
             return ((ASN1OctetString) keyid).getOctets();
         }
         return keyid.getEncoded(ASN1Encoding.DER);
+    }
+
+    private static String accessDescriptionMethodName(final Ruby runtime, final AccessDescription description) {
+        final ASN1ObjectIdentifier method = description.getAccessMethod();
+        if ( AccessDescription.id_ad_ocsp.equals(method) ) return "OCSP";
+        if ( AccessDescription.id_ad_caIssuers.equals(method) ) return "CA Issuers";
+
+        final Integer nid = ASN1.oid2nid(runtime, method);
+        if ( nid != null ) {
+            final String name = ASN1.nid2ln(runtime, nid);
+            if ( name != null ) return name;
+        }
+        return method.getId();
     }
 
     @SuppressWarnings("unchecked")

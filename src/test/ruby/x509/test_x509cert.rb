@@ -753,4 +753,34 @@ EOF
     assert value.include?('Full Name:'), "Missing 'Full Name:' in extension value"
     assert value.include?('DirName:'), "Missing 'DirName:' in extension value"
   end
+
+  def test_authority_info_access_to_text
+    key = OpenSSL::PKey::RSA.new(2048)
+    subject = "/C=FR/ST=IDF/L=PARIS/O=Company/CN=myhost.example"
+
+    cert = OpenSSL::X509::Certificate.new
+    cert.subject = cert.issuer = OpenSSL::X509::Name.parse(subject)
+    cert.not_before = Time.now
+    cert.not_after = Time.now + 365*24*60*60
+    cert.public_key = key.public_key
+    cert.serial = 0x3
+    cert.version = 2
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = ef.issuer_certificate = cert
+
+    cert.add_extension ef.create_extension('authorityInfoAccess',
+      'OCSP;URI:http://ocsp.example.com,caIssuers;URI:http://ca.example.com/ca.crt')
+
+    cert.sign key, OpenSSL::Digest::SHA256.new
+
+    aia_ext = cert.extensions.find { |e| e.oid == 'authorityInfoAccess' }
+    assert_not_nil aia_ext, 'authorityInfoAccess extension not found'
+    assert_equal "OCSP - URI:http://ocsp.example.com\nCA Issuers - URI:http://ca.example.com/ca.crt", aia_ext.value
+
+    text = cert.to_text
+    assert text.include?('Authority Information Access:'), "Missing 'Authority Information Access:' in to_text output"
+    assert text.include?('OCSP - URI:http://ocsp.example.com'), 'Missing OCSP URI in to_text output'
+    assert text.include?('CA Issuers - URI:http://ca.example.com/ca.crt'), 'Missing CA Issuers URI in to_text output'
+  end
 end
