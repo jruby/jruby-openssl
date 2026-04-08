@@ -63,7 +63,7 @@ abstract class StringHelper {
     }
 
     static RubyString newString(final Ruby runtime, final CharSequence chars) {
-        return new RubyString(runtime, runtime.getString(), chars, ASCIIEncoding.INSTANCE);
+        return RubyString.newString(runtime, chars, ASCIIEncoding.INSTANCE);
     }
 
     static ByteList setByteListShared(final RubyString str) {
@@ -73,12 +73,12 @@ abstract class StringHelper {
 
     static RubyString newUTF8String(final Ruby runtime, final ByteList bytes) {
         ByteList byteList = new ByteList(RubyEncoding.encodeUTF8(bytes), UTF8Encoding.INSTANCE, false);
-        return new RubyString(runtime, runtime.getString(), byteList);
+        return RubyString.newString(runtime, byteList);
     }
 
     static RubyString newUTF8String(final Ruby runtime, final CharSequence chars) {
         ByteList byteList = new ByteList(RubyEncoding.encodeUTF8(chars), UTF8Encoding.INSTANCE, false);
-        return new RubyString(runtime, runtime.getString(), byteList);
+        return RubyString.newString(runtime, byteList);
     }
 
     static RubyString newStringFrozen(final Ruby runtime, final ByteList bytes) {
