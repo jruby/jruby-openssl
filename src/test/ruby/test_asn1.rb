@@ -759,30 +759,26 @@ class TestASN1 < TestCase
   end
 
   def test_decode_constructed_overread
-    #test = %w{ 31 06 31 02 30 02 05 00 }
-    ##                          ^ <- invalid
-    #raw = [test.join].pack("H*")
-    #ret = []
-    # <OpenSSL::ASN1::ASN1Error> exception was expected but none was thrown.
-    #assert_raise(OpenSSL::ASN1::ASN1Error) {
-    #  OpenSSL::ASN1.traverse(raw) { |x| ret << x }
-    #}
-    # <2> expected but was <0>
-    #assert_equal 2, ret.size
-    # NoMethodError: undefined method `[]' for nil:NilClass
-    #assert_equal 17, ret[0][6]
-    #assert_equal 17, ret[1][6]
+    test = %w[31 06 31 02 30 02 05 00]
+    #                          ^ <- invalid
+    raw = [test.join].pack('H*')
+    ret = []
+    assert_raise(OpenSSL::ASN1::ASN1Error) do
+      OpenSSL::ASN1.traverse(raw) { |x| ret << x }
+    end
+    assert_equal 2, ret.size
+    assert_equal 17, ret[0][6]
+    assert_equal 17, ret[1][6]
 
-    #test = %w{ 31 80 30 03 00 00 }
-    ##                    ^ <- invalid
-    #raw = [test.join].pack("H*")
-    #ret = []
-    # <OpenSSL::ASN1::ASN1Error> exception was expected but none was thrown.
-    #assert_raise(OpenSSL::ASN1::ASN1Error) {
-    #  OpenSSL::ASN1.traverse(raw) { |x| ret << x }
-    #}
-    #assert_equal 1, ret.size
-    #assert_equal 17, ret[0][6]
+    test = %w[31 80 30 03 00 00]
+    #                    ^ <- invalid
+    raw = [test.join].pack('H*')
+    ret = []
+    assert_raise(OpenSSL::ASN1::ASN1Error) do
+      OpenSSL::ASN1.traverse(raw) { |x| ret << x }
+    end
+    assert_equal 1, ret.size
+    assert_equal 17, ret[0][6]
   end
 
   def test_constructive_nesting
@@ -1228,14 +1224,13 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
   def test_decode_application_specific
     raw = "0\x18\x02\x01\x01`\x13\x02\x01\x03\x04\to=Telstra\x80\x03ess"
     asn1 = OpenSSL::ASN1.decode(raw)
-    pp asn1 if false
 
     assert_equal OpenSSL::ASN1::Sequence, asn1.class
     assert_equal 2, asn1.value.size
     assert_equal OpenSSL::ASN1::Integer, asn1.value[0].class
-    assert_equal 1,  asn1.value[0].value
+    assert_equal 1, asn1.value[0].value
     assert_equal OpenSSL::ASN1::ASN1Data, asn1.value[1].class
-    assert_equal :APPLICATION,  asn1.value[1].tag_class
+    assert_equal :APPLICATION, asn1.value[1].tag_class
 
     asn1_data = asn1.value[1]
     assert_equal 3, asn1_data.value.size
@@ -1245,10 +1240,10 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal OpenSSL::ASN1::OctetString, asn1_data.value[1].class
     assert_equal 'o=Telstra', asn1_data.value[1].value
     assert_equal OpenSSL::ASN1::ASN1Data, asn1_data.value[2].class
-    assert_equal :CONTEXT_SPECIFIC,  asn1_data.value[2].tag_class
+    assert_equal :CONTEXT_SPECIFIC, asn1_data.value[2].tag_class
     assert_equal 'ess', asn1_data.value[2].value
 
-#    assert_equal raw, asn1.to_der
+    #    assert_equal raw, asn1.to_der
   end
 
 
@@ -1312,7 +1307,7 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     decode_test(der, obj)
   end
 
-  def assert_universal(tag, asn1, inf_len=false)
+  def assert_universal(tag, asn1, inf_len = false)
     assert_equal(tag, asn1.tag)
     assert_equal(:UNIVERSAL, asn1.tag_class)
     assert_equal(inf_len, asn1.infinite_length)

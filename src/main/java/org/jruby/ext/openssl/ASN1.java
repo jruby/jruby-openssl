@@ -1216,8 +1216,8 @@ public class ASN1 {
     }
 
     @JRubyMethod(meta = true, required = 1)
-    public static IRubyObject decode_all(final ThreadContext context,
-        final IRubyObject self, IRubyObject obj) {
+    public static IRubyObject decode_all(final ThreadContext context, final IRubyObject self,
+                                         IRubyObject obj) {
         obj = to_der_if_possible(context, obj);
 
         BytesInputStream in = new BytesInputStream( obj.asString().getByteList() );
@@ -1239,10 +1239,170 @@ public class ASN1 {
         return arr;
     }
 
-    @JRubyMethod(meta = true, required = 1)
-    public static IRubyObject traverse(final ThreadContext context, final IRubyObject self, IRubyObject arg) {
-        warn(context, "WARNING: unimplemented method called: OpenSSL::ASN1#traverse");
-        return context.runtime.getNil();
+    @JRubyMethod(meta = true)
+    public static IRubyObject traverse(final ThreadContext context, final IRubyObject self,
+                                       IRubyObject arg, Block block) {
+        arg = to_der_if_possible(context, arg);
+
+        final ByteList byteList = arg.asString().getByteList();
+        final byte[] bytes = byteList.unsafeBytes();
+        final int begin = byteList.getBegin();
+        final int length = byteList.getRealSize();
+
+        final TraverseResult result = traverse(context, bytes, begin, begin + length, begin, 0, block);
+        if (length != 0 && result.read != length) {
+            throw newASN1Error(context.runtime,
+                "Type mismatch. Total bytes read: " + result.read +
+                " Bytes available: " + length + " Offset: " + result.offset);
+        }
+        return context.nil;
+    }
+
+    private static TraverseResult traverse(final ThreadContext context,
+                                           final byte[] bytes, final int begin, final int end,
+                                           final int base, final int depth,
+                                           final Block block) {
+
+        final Ruby runtime = context.runtime;
+
+        if (begin >= end) throw newASN1Error(runtime, "header too short");
+
+        int cursor = begin;
+        final int start = begin;
+        final int identifier = bytes[cursor++] & 0xFF;
+        final int tagClass = identifier & 0xC0;
+        final boolean constructed = (identifier & BERTags.CONSTRUCTED) != 0;
+
+        int tag = identifier & 0x1F;
+        if (tag == 0x1F) {
+            tag = 0;
+            if (cursor >= end) throw newASN1Error(runtime, "EOF found inside tag value");
+
+            int b = bytes[cursor++] & 0xFF;
+            if ((b & 0x7F) == 0) {
+                throw newASN1Error(runtime, "corrupted stream - invalid high tag number found");
+            }
+
+            while ((b & 0x80) != 0) {
+                tag |= (b & 0x7F);
+                tag <<= 7;
+                if (cursor >= end) throw newASN1Error(runtime, "EOF found inside tag value.");
+                b = bytes[cursor++] & 0xFF;
+            }
+            tag |= (b & 0x7F);
+        }
+
+        if (cursor >= end) throw newASN1Error(runtime, "header too short");
+
+        final int lengthByte = bytes[cursor++] & 0xFF;
+        final boolean indefinite = lengthByte == 0x80;
+        long contentLength = 0;
+        if (!indefinite) {
+            if ((lengthByte & 0x80) == 0) {
+                contentLength = lengthByte;
+            }
+            else {
+                final int lengthBytes = lengthByte & 0x7F;
+                if (lengthBytes == 0 || lengthBytes > 8) {
+                    throw newASN1Error(runtime, "invalid length encoding");
+                }
+                if (cursor + lengthBytes > end) throw newASN1Error(runtime, "header too short");
+                for (int i = 0; i < lengthBytes; i++) {
+                    contentLength = (contentLength << 8) | (bytes[cursor++] & 0xFFL);
+                }
+            }
+            if (contentLength > (long) end - cursor) {
+                throw newASN1Error(runtime, "value is too short");
+            }
+        }
+
+        final int headerLength = cursor - start;
+        if (block.isGiven()) {
+            block.yield(context,
+                    runtime.newArray(
+                            RubyBignum.bignorm(runtime, BigInteger.valueOf(depth)),
+                            RubyBignum.bignorm(runtime, BigInteger.valueOf(start - base)),
+                            RubyBignum.bignorm(runtime, BigInteger.valueOf(headerLength)),
+                            RubyBignum.bignorm(runtime, BigInteger.valueOf(contentLength)),
+                            runtime.newBoolean(constructed),
+                            tagClassSymbol(runtime, tagClass),
+                            RubyBignum.bignorm(runtime, BigInteger.valueOf(tag))
+                    )
+            );
+        }
+
+        int read = headerLength;
+        int offset = (start - base) + headerLength;
+
+        if (constructed) {
+            if (indefinite) {
+                int available = end - cursor;
+                while (available > 0) {
+                    final TraverseResult inner = traverse(context, bytes, cursor, end, base, depth + 1, block);
+                    read += inner.read;
+                    cursor += inner.read;
+                    available -= inner.read;
+                    offset = inner.offset;
+
+                    if (inner.isEoc() && inner.tagClass == BERTags.UNIVERSAL) break;
+                    if (available == 0) {
+                        throw newASN1Error(context.runtime, "EOC missing in indefinite length encoding");
+                    }
+                }
+            }
+            else {
+                final int contentEnd = cursor + (int) contentLength;
+                while (cursor < contentEnd) {
+                    final TraverseResult inner = traverse(context, bytes, cursor, contentEnd, base, depth + 1, block);
+                    read += inner.read;
+                    cursor += inner.read;
+                    offset = inner.offset;
+                }
+            }
+        }
+        else {
+            if (indefinite) throw newASN1Error(context.runtime, "indefinite length for primitive value");
+            read += contentLength;
+            offset += (int) contentLength;
+        }
+
+        if (!indefinite && read != headerLength + contentLength) {
+            throw newASN1Error(context.runtime,
+                "Type mismatch. Bytes read: " + read + " Bytes available: " + (headerLength + contentLength));
+        }
+
+        return new TraverseResult(read, offset, tag, tagClass);
+    }
+
+    private static IRubyObject tagClassSymbol(final Ruby runtime, final int tagClass) {
+        switch (tagClass) {
+            case BERTags.PRIVATE:
+                return runtime.newSymbol("PRIVATE");
+            case BERTags.APPLICATION:
+                return runtime.newSymbol("APPLICATION");
+            case BERTags.CONTEXT_SPECIFIC:
+                return runtime.newSymbol("CONTEXT_SPECIFIC");
+            default:
+                return runtime.newSymbol("UNIVERSAL");
+        }
+    }
+
+    private static final class TraverseResult {
+        private final int read;
+        private final int offset;
+        private final int tag;
+        private final int tagClass;
+
+        private TraverseResult(final int read, final int offset, final int tag, final int tagClass) {
+            this.read = read;
+            this.offset = offset;
+            this.tag = tag;
+            this.tagClass = tagClass;
+        }
+
+        boolean isEoc() {
+            return tag == 0;
+        }
     }
 
     public static RaiseException newASN1Error(Ruby runtime, String message) {
