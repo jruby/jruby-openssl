@@ -796,4 +796,152 @@ EOF
     assert_equal ['http://cacerts.digicert.com/DigiCertSHA2SecureServerCA.crt'], cert.ca_issuer_uris
     assert_not_match(/#<OpenSSL::ASN1::/, aia_ext.value)
   end
+
+  def test_dup_preserves_extensions
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    ca_exts = [
+      [ "basicConstraints", "CA:TRUE", true ],
+      [ "keyUsage", "keyCertSign, cRLSign", true ],
+      [ "subjectKeyIdentifier", "hash", false ],
+    ]
+
+    now = Time.now
+    cert = issue_cert(ca, rsa2048, 1, ca_exts, nil, nil,
+                      not_before: now, not_after: now + 3600)
+
+    duped = cert.dup
+
+    assert_equal cert.extensions.size, duped.extensions.size,
+      "dup should preserve extensions"
+    assert_equal cert.extensions.map(&:oid).sort, duped.extensions.map(&:oid).sort
+  end
+
+  def test_dup_preserves_subject_and_issuer
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    now = Time.now
+    cert = issue_cert(ca, rsa2048, 42, [], nil, nil,
+                      not_before: now, not_after: now + 3600)
+
+    duped = cert.dup
+
+    assert_equal cert.subject.to_s, duped.subject.to_s
+    assert_equal cert.issuer.to_s, duped.issuer.to_s
+    assert_equal cert.serial, duped.serial
+    assert_equal cert.version, duped.version
+    assert_equal cert.not_before.to_i, duped.not_before.to_i
+    assert_equal cert.not_after.to_i, duped.not_after.to_i
+  end
+
+  def test_dup_produces_independent_copy
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    ca_exts = [
+      [ "basicConstraints", "CA:TRUE", true ],
+      [ "subjectKeyIdentifier", "hash", false ],
+    ]
+
+    now = Time.now
+    cert = issue_cert(ca, rsa2048, 1, ca_exts, nil, nil,
+                      not_before: now, not_after: now + 3600)
+
+    duped = cert.dup
+
+    # Modifying the dup's extensions should not affect the original
+    duped.extensions = []
+    assert_equal 2, cert.extensions.size,
+      "modifying duped cert's extensions should not affect original"
+  end
+
+  def test_dup_to_der_matches_original
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    ca_exts = [
+      [ "basicConstraints", "CA:TRUE", true ],
+      [ "keyUsage", "keyCertSign, cRLSign", true ],
+      [ "subjectKeyIdentifier", "hash", false ],
+    ]
+
+    now = Time.now
+    cert = issue_cert(ca, rsa2048, 1, ca_exts, nil, nil,
+                      not_before: now, not_after: now + 3600)
+
+    duped = cert.dup
+
+    assert_equal cert.to_der, duped.to_der
+  end
+
+  def test_dup_preserves_live_subject_after_signed_cert_name_is_mutated
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    now = Time.now
+    cert = issue_cert(ca, rsa2048, 1, [], nil, nil,
+                      not_before: now, not_after: now + 3600)
+
+    cert.subject.add_entry("O", "mutated")
+    duped = cert.dup
+
+    assert_equal cert.subject.to_a, duped.subject.to_a
+  end
+
+  def test_dup_preserves_live_extensions_after_signed_cert_is_modified
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    ca = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+
+    ca_exts = [
+      [ "basicConstraints", "CA:TRUE", true ],
+      [ "subjectKeyIdentifier", "hash", false ],
+    ]
+
+    now = Time.now
+    cert = issue_cert(ca, rsa2048, 1, ca_exts, nil, nil,
+                      not_before: now, not_after: now + 3600)
+
+    cert.extensions = []
+    duped = cert.dup
+
+    assert_equal [], duped.extensions.map(&:oid)
+  end
+
+  def test_dup_unsigned_cert_preserves_fields
+    rsa2048 = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+
+    cert = OpenSSL::X509::Certificate.new
+    cert.version = 2
+    cert.serial = 99
+    cert.subject = OpenSSL::X509::Name.parse("/CN=unsigned")
+    cert.issuer = OpenSSL::X509::Name.parse("/CN=issuer")
+    cert.not_before = Time.now
+    cert.not_after = Time.now + 3600
+    cert.public_key = rsa2048.public_key
+
+    duped = cert.dup
+
+    assert_equal cert.subject.to_s, duped.subject.to_s
+    assert_equal cert.issuer.to_s, duped.issuer.to_s
+    assert_equal cert.serial, duped.serial
+    assert_equal cert.version, duped.version
+    assert_equal cert.public_key.to_der, duped.public_key.to_der
+  end
+
+  def test_dup_unsigned_cert_deep_copies_names
+    cert = OpenSSL::X509::Certificate.new
+    cert.subject = OpenSSL::X509::Name.parse("/CN=unsigned")
+    cert.issuer = OpenSSL::X509::Name.parse("/CN=issuer")
+
+    duped = cert.dup
+    duped.subject.add_entry("O", "mutated")
+    duped.issuer.add_entry("O", "mutated")
+
+    assert_equal "/CN=unsigned", cert.subject.to_s
+    assert_equal "/CN=issuer", cert.issuer.to_s
+    assert_equal "/CN=unsigned/O=mutated", duped.subject.to_s
+    assert_equal "/CN=issuer/O=mutated", duped.issuer.to_s
+  end
 end
