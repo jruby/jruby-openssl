@@ -292,7 +292,49 @@ public class X509Cert extends RubyObject {
         if ( this == obj ) return this;
 
         checkFrozen();
+        super.initialize_copy(obj);
+
+        final Ruby runtime = getRuntime();
+        final X509Cert other = (X509Cert) obj;
+
+        this.subject = copyName(runtime, other.subject);
+        this.issuer = copyName(runtime, other.issuer);
+        this.serial = other.serial;
+        this.not_before = copyTime(runtime, other.not_before);
+        this.not_after = copyTime(runtime, other.not_after);
+        this.sig_alg = other.sig_alg == null ? null : other.sig_alg.dup();
+        this.version = other.version;
+        this.cert = copyCertificate(runtime, other.cert);
+        this.public_key = other.public_key == null ? null : (PKey) other.public_key.dup();
+
+        this.extensions.clear();
+        for ( X509Extension ext : other.extensions ) {
+            this.extensions.add( (X509Extension) ext.dup() );
+        }
+
+        this.changed = other.changed;
+
         return this;
+    }
+
+    private static IRubyObject copyName(final Ruby runtime, final IRubyObject name) {
+        if ( name == null || name.isNil() ) return name;
+        return X509Name.newName(runtime, ((X509Name) name).getX500Name());
+    }
+
+    private static RubyTime copyTime(final Ruby runtime, final RubyTime time) {
+        return time == null ? null : RubyTime.newTime(runtime, time.getJavaDate().getTime());
+    }
+
+    private static X509Certificate copyCertificate(final Ruby runtime, final X509Certificate cert) {
+        if ( cert == null ) return null;
+        try {
+            final ByteArrayInputStream bis = new ByteArrayInputStream(cert.getEncoded());
+            return (X509Certificate) SecurityHelper.getCertificateFactory("X.509").generateCertificate(bis);
+        }
+        catch (CertificateException e) {
+            throw newCertificateError(runtime, e);
+        }
     }
 
     @JRubyMethod
@@ -724,6 +766,7 @@ public class X509Cert extends RubyObject {
     @SuppressWarnings("unchecked")
     @JRubyMethod(name = "extensions=")
     public IRubyObject set_extensions(final IRubyObject array) {
+        changed = true;
         extensions.clear(); // RubyArray is a List :
         extensions.addAll( (List<X509Extension>) array );
         return array;
