@@ -294,48 +294,46 @@ public class X509Cert extends RubyObject {
         checkFrozen();
         super.initialize_copy(obj);
 
-        copyState(getRuntime().getCurrentContext(), (X509Cert) obj);
-        return this;
-    }
+        final Ruby runtime = getRuntime();
+        final X509Cert other = (X509Cert) obj;
 
-    private void copyState(final ThreadContext context, final X509Cert that) {
-        final Ruby runtime = context.runtime;
-
-        this.subject = copyName(context, that.subject);
-        this.issuer = copyName(context, that.issuer);
-        this.serial = that.serial;
-        this.not_before = copyTime(runtime, that.not_before);
-        this.not_after = copyTime(runtime, that.not_after);
-        this.sig_alg = that.sig_alg == null ? null : that.sig_alg.dup();
-        this.version = that.version;
-        this.cert = copyCertificate(context, that.cert);
-        this.public_key = that.public_key == null ? null : (PKey) that.public_key.dup();
+        this.subject = copyName(runtime, other.subject);
+        this.issuer = copyName(runtime, other.issuer);
+        this.serial = other.serial;
+        this.not_before = copyTime(runtime, other.not_before);
+        this.not_after = copyTime(runtime, other.not_after);
+        this.sig_alg = other.sig_alg == null ? null : other.sig_alg.dup();
+        this.version = other.version;
+        this.cert = copyCertificate(runtime, other.cert);
+        this.public_key = other.public_key == null ? null : (PKey) other.public_key.dup();
 
         this.extensions.clear();
-        for ( X509Extension ext : that.extensions ) {
+        for ( X509Extension ext : other.extensions ) {
             this.extensions.add( (X509Extension) ext.dup() );
         }
 
-        this.changed = that.changed;
+        this.changed = other.changed;
+
+        return this;
     }
 
-    private static IRubyObject copyName(final ThreadContext context, final IRubyObject name) {
+    private static IRubyObject copyName(final Ruby runtime, final IRubyObject name) {
         if ( name == null || name.isNil() ) return name;
-        return X509Name.newName(context.runtime, ((X509Name) name).getX500Name());
+        return X509Name.newName(runtime, ((X509Name) name).getX500Name());
     }
 
     private static RubyTime copyTime(final Ruby runtime, final RubyTime time) {
         return time == null ? null : RubyTime.newTime(runtime, time.getJavaDate().getTime());
     }
 
-    private static X509Certificate copyCertificate(final ThreadContext context, final X509Certificate cert) {
+    private static X509Certificate copyCertificate(final Ruby runtime, final X509Certificate cert) {
         if ( cert == null ) return null;
         try {
             final ByteArrayInputStream bis = new ByteArrayInputStream(cert.getEncoded());
             return (X509Certificate) SecurityHelper.getCertificateFactory("X.509").generateCertificate(bis);
         }
         catch (CertificateException e) {
-            throw newCertificateError(context.runtime, e);
+            throw newCertificateError(runtime, e);
         }
     }
 
