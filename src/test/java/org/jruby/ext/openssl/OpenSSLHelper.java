@@ -9,8 +9,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 abstract class OpenSSLHelper {
 
@@ -37,15 +37,15 @@ abstract class OpenSSLHelper {
                 "File.read('" + versionFile + "').match( /.*\\sVERSION\\s*=\\s*['\"](.*)['\"]/ )[1]")
                 .toString();
         final String loadedVersion = runtime.evalScriptlet("JOpenSSL::VERSION").toString();
-        assertEquals("OpenSSL must be loaded from project (got version " + loadedVersion +
-                "), not from jruby-stdlib", expectedVersion, loadedVersion);
+        assertEquals(expectedVersion, loadedVersion, "OpenSSL must be loaded from project " +
+                "(got version " + loadedVersion + "), not from jruby-stdlib");
 
         // Also check the Java extension classes were resolved from the project, not jruby-stdlib :
         final String classOrigin = runtime.getJRubyClassLoader()
                 .loadClass("org.jruby.ext.openssl.OpenSSL")
                 .getProtectionDomain().getCodeSource().getLocation().toString();
-        assertTrue("OpenSSL.class (via JRuby classloader) come from project, got: " + classOrigin,
-                classOrigin.endsWith("/pkg/classes/"));
+        assertTrue(classOrigin.endsWith("/pkg/classes/"), "OpenSSL.class (via JRuby classloader) " +
+                "come from project, got: " + classOrigin);
     }
 
     // HELPERS

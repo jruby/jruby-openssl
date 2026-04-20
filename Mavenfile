@@ -82,10 +82,13 @@ plugin :clean do
                  'failOnError' =>  'false' )
 end
 
-jar 'org.jruby:jruby-core', '9.2.1.0', :scope => :provided
+jruby_compile_compat = '9.2.1.0'
+jar 'org.jruby:jruby-core', jruby_compile_compat, :scope => :provided
 # for invoker generated classes we need to add javax.annotation when on Java > 8
 jar 'javax.annotation:javax.annotation-api', '1.3.1', :scope => :compile
 jar 'org.junit.jupiter:junit-jupiter', '5.11.4', :scope => :test
+# a test dependency to provide digest and other stdlib bits, needed when loading OpenSSL in Java unit tests
+jar 'org.jruby:jruby-stdlib', jruby_compile_compat, :scope => :test
 
 plugin :surefire, '3.5.5'
 
