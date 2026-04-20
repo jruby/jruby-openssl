@@ -1,9 +1,15 @@
 package org.jruby.ext.openssl;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import javax.net.ssl.SSLEngine;
 
+import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyFixnum;
+import org.jruby.RubyHash;
 import org.jruby.RubyInteger;
 import org.jruby.RubyString;
 import org.jruby.exceptions.RaiseException;
@@ -45,7 +51,7 @@ public class SSLSocketTest extends OpenSSLHelper {
      * discarded during partial non-blocking writes, so the server would
      * receive fewer bytes than sent.
      */
-    @org.junit.jupiter.api.Test
+    @Test
     public void syswriteNonblockDataIntegrity() throws Exception {
         final RubyArray pair = (RubyArray) runtime.evalScriptlet(start_ssl_server_rb());
         SSLSocket client = (SSLSocket) pair.entry(0).toJava(SSLSocket.class);
@@ -172,5 +178,73 @@ public class SSLSocketTest extends OpenSSLHelper {
                 System.err.println("close raised (" + elem.inspect() + ") : " + e.getMessage());
             }
         }
+    }
+
+    // ----------
+
+    /**
+     * MRI's ossl_ssl_read_internal returns :wait_writable (or raises SSLErrorWaitWritable / "write would block")
+     * when SSL_read hits SSL_ERROR_WANT_WRITE. Pending netWriteData is JRuby's equivalent state.
+     */
+    @Test
+    public void sysreadNonblockReturnsWaitWritableWhenPendingEncryptedBytesRemain() {
+        final SSLSocket socket = newSSLSocket(runtime, partialWriteChannel(1));
+        final SSLEngine engine = socket.ossl_ssl_setup(currentContext(), false);
+        engine.setUseClientMode(true);
+
+        socket.netWriteData = ByteBuffer.wrap(new byte[] { 1, 2 });
+
+        final RubyHash opts = RubyHash.newKwargs(runtime, "exception", runtime.getFalse()); // exception: false
+        final IRubyObject result = socket.sysread_nonblock(currentContext(), runtime.newFixnum(1), opts);
+
+        assertEquals("wait_writable", result.asJavaString());
+        assertEquals(1, socket.netWriteData.remaining());
+    }
+
+    @Test
+    public void sysreadNonblockRaisesWaitWritableWhenPendingEncryptedBytesRemain() {
+        final SSLSocket socket = newSSLSocket(runtime, partialWriteChannel(1));
+        final SSLEngine engine = socket.ossl_ssl_setup(currentContext(), false);
+        engine.setUseClientMode(true);
+
+        socket.netWriteData = ByteBuffer.wrap(new byte[] { 1, 2 });
+
+        try {
+            socket.sysread_nonblock(currentContext(), runtime.newFixnum(1));
+            fail("expected SSLErrorWaitWritable");
+        }
+        catch (RaiseException ex) {
+            assertEquals("OpenSSL::SSL::SSLErrorWaitWritable", ex.getException().getMetaClass().getName());
+            assertTrue(ex.getMessage().contains("write would block"));
+            assertEquals(1, socket.netWriteData.remaining());
+        }
+    }
+
+    private static SSLSocket newSSLSocket(final Ruby runtime, final SSLSocket.SocketChannelImpl socketChannel) {
+        final SSLContext sslContext = new SSLContext(runtime);
+        sslContext.doSetup(runtime.getCurrentContext());
+        final SSLSocket sslSocket = new SSLSocket(runtime, runtime.getObject());
+        sslSocket.sslContext = sslContext;
+        sslSocket.socketChannel = socketChannel;
+        return sslSocket;
+    }
+
+    private static SSLSocket.SocketChannelImpl partialWriteChannel(final int bytesPerWrite) {
+        return new SSLSocket.SocketChannelImpl() {
+            public boolean isOpen() { return true; }
+            public int read(final ByteBuffer dst) { return 0; }
+            public int write(final ByteBuffer src) {
+                final int written = Math.min(bytesPerWrite, src.remaining());
+                src.position(src.position() + written);
+                return written;
+            }
+            public int getRemotePort() { return 443; }
+            public boolean isSelectable() { return false; }
+            public boolean isBlocking() { return false; }
+            public void configureBlocking(final boolean block) { }
+            public SelectionKey register(final Selector selector, final int ops) throws IOException {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 }
