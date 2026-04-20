@@ -141,14 +141,15 @@ public class SSLSocket extends RubyObject {
         return sites[ index.ordinal() ];
     }
 
-    private SSLContext sslContext;
+    private static final ByteBuffer EMPTY_DATA = ByteBuffer.allocate(0).asReadOnlyBuffer();
+
+    SSLContext sslContext;
     private SSLEngine engine;
     private RubyIO io;
 
-    private ByteBuffer appReadData;
-    private ByteBuffer netReadData;
-    private ByteBuffer netWriteData;
-    private final ByteBuffer dummy = ByteBuffer.allocate(0); // could be static
+    ByteBuffer appReadData;
+    ByteBuffer netReadData;
+    ByteBuffer netWriteData;
 
     private boolean initialHandshake = false;
     private transient long initializeTime;
@@ -209,7 +210,7 @@ public class SSLSocket extends RubyObject {
 
     private static final String SESSION_SOCKET_ID = "socket_id";
 
-    private SSLEngine ossl_ssl_setup(final ThreadContext context, final boolean server) {
+    SSLEngine ossl_ssl_setup(final ThreadContext context, final boolean server) {
         SSLEngine engine = this.engine;
         if ( engine != null ) return engine;
 
@@ -553,10 +554,6 @@ public class SSLSocket extends RubyObject {
         result[0] = WRITE_WOULD_BLOCK_RESULT;
     }
 
-    private void doHandshake(final boolean blocking) throws IOException {
-        doHandshake(blocking, true);
-    }
-
     // might return :wait_readable | :wait_writable in case (true, false)
     private IRubyObject doHandshake(final boolean blocking, final boolean exception) throws IOException {
         while (true) {
@@ -578,7 +575,7 @@ public class SSLSocket extends RubyObject {
                 doTasks();
                 break;
             case NEED_UNWRAP:
-                if (readAndUnwrap(blocking) == -1 && handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED) {
+                if (readAndUnwrap(blocking, exception) == -1 && handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED) {
                     throw new SSLHandshakeException("Socket closed");
                 }
                 // during initialHandshake, calling readAndUnwrap that results UNDERFLOW does not mean writable.
@@ -614,7 +611,7 @@ public class SSLSocket extends RubyObject {
 
     private void doWrap(final boolean blocking) throws IOException {
         netWriteData.clear();
-        SSLEngineResult result = engine.wrap(dummy, netWriteData);
+        SSLEngineResult result = engine.wrap(EMPTY_DATA.duplicate(), netWriteData);
         netWriteData.flip();
         handshakeStatus = result.getHandshakeStatus();
         status = result.getStatus();
@@ -689,7 +686,9 @@ public class SSLSocket extends RubyObject {
             if ( netWriteData.hasRemaining() ) {
                 flushData(blocking);
             }
-            netWriteData.clear();
+            // compact() to preserve encrypted bytes flushData could not send (non-blocking partial write)
+            // clear() would discard them, corrupting the TLS record stream:
+            netWriteData.compact();
             final SSLEngineResult result = engine.wrap(src, netWriteData);
             if ( result.getStatus() == SSLEngineResult.Status.CLOSED ) {
                 throw getRuntime().newIOError("closed SSL engine");
@@ -704,11 +703,15 @@ public class SSLSocket extends RubyObject {
     }
 
     public int read(final ByteBuffer dst, final boolean blocking) throws IOException {
+        return read(dst, blocking, true);
+    }
+
+    private int read(final ByteBuffer dst, final boolean blocking, final boolean exception) throws IOException {
         if ( initialHandshake ) return 0;
         if ( engine.isInboundDone() ) return -1;
 
         if ( ! appReadData.hasRemaining() ) {
-            int appBytesProduced = readAndUnwrap(blocking);
+            int appBytesProduced = readAndUnwrap(blocking, exception);
             if (appBytesProduced == -1 || appBytesProduced == 0) {
                 return appBytesProduced;
             }
@@ -719,7 +722,7 @@ public class SSLSocket extends RubyObject {
         return limit;
     }
 
-    private int readAndUnwrap(final boolean blocking) throws IOException {
+    private int readAndUnwrap(final boolean blocking, final boolean exception) throws IOException {
         final int bytesRead = socketChannelImpl().read(netReadData);
         if ( bytesRead == -1 ) {
             if ( ! netReadData.hasRemaining() ||
@@ -727,9 +730,8 @@ public class SSLSocket extends RubyObject {
                 closeInbound();
                 return -1;
             }
-            // inbound channel has been already closed but closeInbound() must
-            // be defered till the last engine.unwrap() call.
-            // peerNetData could not be empty.
+            // inbound channel has been already closed but closeInbound() must be defered till
+            // the last engine.unwrap() call; peerNetData could not be empty
         }
         appReadData.clear();
         netReadData.flip();
@@ -768,7 +770,7 @@ public class SSLSocket extends RubyObject {
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
                 handshakeStatus == SSLEngineResult.HandshakeStatus.FINISHED ) ) {
-            doHandshake(blocking);
+            doHandshake(blocking, exception);
         }
         return appReadData.remaining();
     }
@@ -793,7 +795,7 @@ public class SSLSocket extends RubyObject {
         }
         netWriteData.clear();
         try {
-            engine.wrap(dummy, netWriteData); // send close (after sslEngine.closeOutbound)
+            engine.wrap(EMPTY_DATA.duplicate(), netWriteData); // send close (after sslEngine.closeOutbound)
         }
         catch (SSLException e) {
             debug(getRuntime(), "SSLSocket.doShutdown", e);
@@ -808,10 +810,10 @@ public class SSLSocket extends RubyObject {
     }
 
     /**
-     * @return the (@link RubyString} buffer or :wait_readable / :wait_writeable {@link RubySymbol}
+     * @return the {@link RubyString} buffer or :wait_readable / :wait_writeable {@link RubySymbol}
      */
-    private IRubyObject sysreadImpl(final ThreadContext context, final IRubyObject len, final IRubyObject buff,
-                                    final boolean blocking, final boolean exception) {
+    private IRubyObject sysreadImpl(final ThreadContext context,
+        final IRubyObject len, final IRubyObject buff, final boolean blocking, final boolean exception) {
         final Ruby runtime = context.runtime;
 
         final int length = RubyNumeric.fix2int(len);
@@ -831,6 +833,14 @@ public class SSLSocket extends RubyObject {
         }
 
         try {
+            // Flush pending write data before reading (after write_nonblock encrypted bytes may still be buffered)
+            if ( engine != null && netWriteData.hasRemaining() ) {
+                if ( flushData(blocking) && ! blocking ) {
+                    if ( exception ) throw newSSLErrorWaitWritable(runtime, "write would block");
+                    return runtime.newSymbol("wait_writable");
+                }
+            }
+
             // So we need to make sure to only block when there is no data left to process
             if ( engine == null || ! ( appReadData.hasRemaining() || netReadData.position() > 0 ) ) {
                 final Object ex = waitSelect(SelectionKey.OP_READ, blocking, exception);
@@ -839,12 +849,12 @@ public class SSLSocket extends RubyObject {
 
             final ByteBuffer dst = ByteBuffer.allocate(length);
             int read = -1;
-            // ensure >0 bytes read; sysread is blocking read.
+            // ensure > 0 bytes read; sysread is blocking read
             while ( read <= 0 ) {
                 if ( engine == null ) {
                     read = socketChannelImpl().read(dst);
                 } else {
-                    read = read(dst, blocking);
+                    read = read(dst, blocking, exception);
                 }
 
                 if ( read == -1 ) {
@@ -1226,7 +1236,7 @@ public class SSLSocket extends RubyObject {
         return context.runtime.newString( engine.getSession().getProtocol() );
     }
 
-    private transient SocketChannelImpl socketChannel;
+    transient SocketChannelImpl socketChannel;
 
     private SocketChannelImpl socketChannelImpl() {
         if ( socketChannel != null ) return socketChannel;
@@ -1241,7 +1251,7 @@ public class SSLSocket extends RubyObject {
         throw new IllegalStateException("unknow channel impl: " + channel + " of type " + channel.getClass().getName());
     }
 
-    private interface SocketChannelImpl {
+    interface SocketChannelImpl {
 
         boolean isOpen() ;
 
