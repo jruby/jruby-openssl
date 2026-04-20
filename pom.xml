@@ -11,7 +11,7 @@ DO NOT MODIFY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.16.0.dev-SNAPSHOT</version>
+  <version>0.16.0</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -281,7 +281,6 @@ DO NOT MODIFY - GENERATED CODE
         <configuration>
           <source>1.8</source>
           <target>1.8</target>
-          <release>8</release>
           <encoding>UTF-8</encoding>
           <debug>true</debug>
           <showWarnings>true</showWarnings>

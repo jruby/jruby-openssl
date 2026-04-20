@@ -1,3 +1,20 @@
+## 0.16.0
+
+Upgrading Bouncy Castle to version 1.84.
+SSL non-blocking I/O improvements.
+
+- [feat] implement `OpenSSL::ASN1.traverse` helper
+- [feat] remove SHA1PRNG fallback: use default `SecureRandom`
+- [fix] SSL write loss on non-blocking partial flush (#242)
+- [fix] `read_nonblock(exception: false)` raising `SSLErrorWaitReadable`
+- [fix] `X509::Certificate#dup` dropping all extensions (#356)
+- [fix] format `authorityInfoAccess` extension values (#210)
+- [fix] coerce `HMAC#update` input as `String`
+- [compat] undefine `clone` on `Store` and `StoreContext`
+- [refactor] use constant-time comparison in PKCS7 and SimpleSecretKey
+- [refactor] overflow protection in `MemBIO` buffer reallocation
+- [deps] upgrade BC to version 1.84
+
 ## 0.15.7
 
 * [fix] handle CRL with optional nextUpdate absent
