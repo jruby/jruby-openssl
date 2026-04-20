@@ -11,7 +11,7 @@ DO NOT MODIFY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>rubygems</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.15.8.dev-SNAPSHOT</version>
+  <version>0.16.0.dev-SNAPSHOT</version>
   <packaging>gem</packaging>
   <name>JRuby OpenSSL</name>
   <description>JRuby-OpenSSL is an add-on gem for JRuby that emulates the Ruby OpenSSL native library.</description>
@@ -67,8 +67,8 @@ DO NOT MODIFY - GENERATED CODE
     <jruby.switches>-W0</jruby.switches>
     <jruby.version>9.2.19.0</jruby.version>
     <jruby.versions>9.2.19.0</jruby.versions>
-    <mavengem.wagon.version>2.0.2</mavengem.wagon.version> <!-- for jruby plugin -->
-    <mavengem-wagon.version>3.0.0</mavengem-wagon.version> <!-- for polyglot-ruby -->
+    <mavengem-wagon.version>3.0.0</mavengem-wagon.version>
+    <mavengem.wagon.version>2.0.2</mavengem.wagon.version>
     <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
     <polyglot.dump.readonly>false</polyglot.dump.readonly>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>
@@ -98,7 +98,7 @@ DO NOT MODIFY - GENERATED CODE
     <dependency>
       <groupId>org.jruby</groupId>
       <artifactId>jruby-core</artifactId>
-      <version>9.2.0.0</version>
+      <version>9.2.1.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
