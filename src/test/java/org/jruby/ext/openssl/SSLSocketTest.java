@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
@@ -67,28 +68,12 @@ public class SSLSocketTest extends OpenSSLHelper {
             final ServerReadResult serverResult = new ServerReadResult();
             Thread serverReader = startServerReader(server, expectedBytes, serverResult);
 
-            // Client: write 256KB in 4KB chunks via syswrite_nonblock
-            byte[] chunk = new byte[4096];
-            java.util.Arrays.fill(chunk, (byte) 'P'); // P for POST body
-            RubyString payload = RubyString.newString(runtime, chunk);
+            // Client: write a large POST body in one request; net/http ultimately
+            // retries write_nonblock internally until the full body is flushed
+            byte[] payload = new byte[expectedBytes];
+            java.util.Arrays.fill(payload, (byte) 'P'); // P for POST body
 
-            long totalSent = 0;
-            for (int i = 0; i < 64; i++) { // 64 * 4KB = 256KB
-                try {
-                    IRubyObject written = client.syswrite_nonblock(currentContext(), payload);
-                    totalSent += ((RubyInteger) written).getLongValue();
-                } catch (RaiseException e) {
-                    if ("OpenSSL::SSL::SSLErrorWaitWritable".equals(e.getException().getMetaClass().getName())) {
-                        System.out.println("syswrite_nonblock expected: " + e.getMessage());
-                        // Expected: non-blocking write would block — retry as blocking
-                        IRubyObject written = client.syswrite(currentContext(), payload);
-                        totalSent += ((RubyInteger) written).getLongValue();
-                    } else {
-                        System.err.println("syswrite_nonblock unexpected: " + e.getMessage());
-                        throw e;
-                    }
-                }
-            }
+            long totalSent = writeNonblockWithRetry(client, payload);
             assertTrue(totalSent > 0, "should have sent data");
             assertEquals(expectedBytes, totalSent, "test must send the full payload");
 
@@ -143,6 +128,46 @@ public class SSLSocketTest extends OpenSSLHelper {
 
         private void finish() {
             done.countDown();
+        }
+    }
+
+    private int writeNonblockWithRetry(final SSLSocket socket, final byte[] data) throws Exception {
+        int offset = 0;
+        while (offset < data.length) {
+            final RubyString payload = RubyString.newString(runtime, data, offset, data.length - offset);
+            try {
+                IRubyObject written = socket.syswrite_nonblock(currentContext(), payload);
+                final int len = ((RubyInteger) written).getIntValue();
+                offset += len;
+            } catch (RaiseException e) {
+                final String errorName = e.getException().getMetaClass().getName();
+                if ("OpenSSL::SSL::SSLErrorWaitWritable".equals(errorName)) {
+                    System.out.println("syswrite_nonblock expected: " + e.getMessage());
+                    waitUntilReady(socket, SelectionKey.OP_WRITE, 5_000);
+                } else if ("OpenSSL::SSL::SSLErrorWaitReadable".equals(errorName)) {
+                    System.out.println("syswrite_nonblock expected: " + e.getMessage());
+                    waitUntilReady(socket, SelectionKey.OP_READ, 5_000);
+                } else {
+                    System.err.println("syswrite_nonblock unexpected: " + e.getMessage());
+                    throw e;
+                }
+            }
+        }
+        return offset;
+    }
+
+    private void waitUntilReady(final SSLSocket socket, final int operation, final long timeoutMillis)
+            throws Exception {
+        final SocketChannel channel = (SocketChannel) socket.io().getChannel();
+        final boolean blocking = channel.isBlocking();
+
+        try (Selector selector = Selector.open()) {
+            if (blocking) channel.configureBlocking(false);
+            channel.register(selector, operation);
+            final int ready = selector.select(timeoutMillis);
+            assertTrue(ready > 0, "socket did not become ready in time");
+        } finally {
+            if (blocking) channel.configureBlocking(true);
         }
     }
 
