@@ -63,12 +63,12 @@ DO NOT MODIFY - GENERATED CODE
     <bc.versions>1.84</bc.versions>
     <invoker.skip>${maven.test.skip}</invoker.skip>
     <invoker.test>${bc.versions}</invoker.test>
-    <jruby.plugins.version>3.0.2</jruby.plugins.version>
+    <jruby.plugins.version>3.0.6</jruby.plugins.version>
     <jruby.switches>-W0</jruby.switches>
     <jruby.version>9.2.19.0</jruby.version>
     <jruby.versions>9.2.19.0</jruby.versions>
-    <mavengem-wagon.version>2.0.2</mavengem-wagon.version>
-    <mavengem.wagon.version>2.0.2</mavengem.wagon.version>
+    <mavengem.wagon.version>2.0.2</mavengem.wagon.version> <!-- for jruby plugin -->
+    <mavengem-wagon.version>3.0.0</mavengem-wagon.version> <!-- for polyglot-ruby -->
     <polyglot.dump.pom>pom.xml</polyglot.dump.pom>
     <polyglot.dump.readonly>false</polyglot.dump.readonly>
     <runit.dir>src/test/ruby/**/test_*.rb</runit.dir>

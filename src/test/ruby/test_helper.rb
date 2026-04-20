@@ -52,7 +52,7 @@ begin
 rescue LoadError => e
   warn "gem 'minitest' failed to load: #{e.inspect}"
 end unless (Test::Unit::AutoRunner.respond_to?(:setup_option)) rescue true # runit rules
-# @see https://github.com/torquebox/jruby-maven-plugins/blob/master/runit-maven-plugin/src/main/java/de/saumya/mojo/runit/RunitMavenTestScriptFactory.java
+# @see https://github.com/jruby/jruby-maven-plugins/blob/master/runit-maven-plugin/src/main/java/de/saumya/mojo/runit/RunitMavenTestScriptFactory.java
 
 if defined? Minitest::Test
   TestCase = Minitest::Test
