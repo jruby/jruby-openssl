@@ -33,9 +33,9 @@ Rake::TestTask.new do |task|
   task.libs << File.expand_path('src/test/ruby', File.dirname(__FILE__))
   test_files = FileList['src/test/ruby/**/test*.rb'].to_a
   task.test_files = test_files.map { |path| path.sub('src/test/ruby/', '') }
-  task.verbose = true
+  task.verbose = false # using -v directly instead due issues with rake
   task.loader = :direct
-  task.ruby_opts = [ '-C', 'src/test/ruby', '-rbundler/setup' ]
+  task.ruby_opts = [ '-v', '-C', 'src/test/ruby', '-rbundler/setup' ]
 end
 task :test => 'lib/jopenssl.jar'
 
