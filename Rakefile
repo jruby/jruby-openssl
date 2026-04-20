@@ -34,7 +34,7 @@ Rake::TestTask.new do |task|
   test_files = FileList['src/test/ruby/**/test*.rb'].to_a
   task.test_files = test_files.map { |path| path.sub('src/test/ruby/', '') }
   task.verbose = true
-  task.loader = :direct
+  task.loader = "ARGV.each { |f| require f unless f.start_with?('-') }"
   task.ruby_opts = [ '-C', 'src/test/ruby', '-rbundler/setup' ]
 end
 task :test => 'lib/jopenssl.jar'
@@ -49,7 +49,7 @@ namespace :integration do
     unless File.exist?(File.join(it_path, 'Gemfile.lock'))
       raise "bundle not installed, run `rake integration:install'"
     end
-    loader = "ARGV.each { |f| require f }"
+    loader = "ARGV.each { |f| require f unless f.start_with?('-') }"
     lib = [ File.expand_path('../lib', __FILE__), it_path ]
     test_files = FileList['src/test/integration/*_test.rb'].map { |path| path.sub('src/test/integration/', '') }
     ruby "-I#{lib.join(':')} -C src/test/integration -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
