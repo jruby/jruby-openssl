@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
 
 import org.jruby.Ruby;
@@ -58,9 +60,12 @@ public class SSLSocketTest extends OpenSSLHelper {
         SSLSocket server = (SSLSocket) pair.entry(1).toJava(SSLSocket.class);
 
         try {
-            // Server: read all data in a background thread, counting bytes
-            final long[] serverReceived = { 0 };
-            Thread serverReader = startServerReader(server, serverReceived);
+            final int expectedBytes = 64 * 4096;
+
+            // Server: read an exact payload size in the background so the assertion
+            // does not depend on EOF timing or close-path behavior
+            final ServerReadResult serverResult = new ServerReadResult();
+            Thread serverReader = startServerReader(server, expectedBytes, serverResult);
 
             // Client: write 256KB in 4KB chunks via syswrite_nonblock
             byte[] chunk = new byte[4096];
@@ -85,12 +90,18 @@ public class SSLSocketTest extends OpenSSLHelper {
                 }
             }
             assertTrue(totalSent > 0, "should have sent data");
+            assertEquals(expectedBytes, totalSent, "test must send the full payload");
 
-            // Close client to signal EOF, let server finish reading
-            client.callMethod(currentContext(), "close");
-            serverReader.join(10_000);
+            assertTrue(serverResult.await(10, TimeUnit.SECONDS),
+                    "server must finish reading the expected payload"
+            );
+            serverReader.join(1_000);
+            assertFalse(serverReader.isAlive(), "server reader must exit after reading expected bytes");
+            if (serverResult.failure != null) {
+                throw new AssertionError("server reader failed unexpectedly", serverResult.failure);
+            }
 
-            assertEquals(totalSent, serverReceived[0],
+            assertEquals(totalSent, serverResult.bytesRead,
                     "server must receive exactly what client sent — mismatch means encrypted bytes were lost!"
             );
         } finally {
@@ -98,27 +109,41 @@ public class SSLSocketTest extends OpenSSLHelper {
         }
     }
 
-    private Thread startServerReader(final SSLSocket server, final long[] serverReceived) {
+    private Thread startServerReader(final SSLSocket server, final long expectedBytes,
+                                     final ServerReadResult serverResult) {
         Thread serverReader = new Thread(() -> {
             try {
                 RubyFixnum len = RubyFixnum.newFixnum(runtime, 8192);
-                while (true) {
+                while (serverResult.bytesRead < expectedBytes) {
                     IRubyObject data = server.sysread(currentContext(), len);
-                    serverReceived[0] += ((RubyString) data).getByteList().getRealSize();
+                    serverResult.bytesRead += ((RubyString) data).getByteList().getRealSize();
                 }
-            } catch (RaiseException e) {
-                String errorName = e.getException().getMetaClass().getName();
-                if ("EOFError".equals(errorName) || "IOError".equals(errorName)) { // client closes connection
-                    System.out.println("server-reader expected: " + e.getMessage());
-                } else {
-                    System.err.println("server-reader unexpected: " + e.getMessage());
-                    e.printStackTrace(System.err);
-                    throw e;
+                if (serverResult.bytesRead != expectedBytes) {
+                    throw new AssertionError("server read " + serverResult.bytesRead +
+                            " bytes, expected " + expectedBytes);
                 }
+            } catch (Throwable t) {
+                serverResult.failure = t;
+            } finally {
+                serverResult.finish();
             }
-        });
+        }, "ssl-server-reader");
         serverReader.start();
         return serverReader;
+    }
+
+    private static final class ServerReadResult {
+        private final CountDownLatch done = new CountDownLatch(1);
+        private volatile long bytesRead;
+        private volatile Throwable failure;
+
+        private boolean await(final long timeout, final TimeUnit unit) throws InterruptedException {
+            return done.await(timeout, unit);
+        }
+
+        private void finish() {
+            done.countDown();
+        }
     }
 
     /**
