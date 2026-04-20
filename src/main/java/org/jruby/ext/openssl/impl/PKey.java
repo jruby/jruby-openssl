@@ -297,7 +297,7 @@ public class PKey {
             org.bouncycastle.asn1.sec.ECPrivateKey key = org.bouncycastle.asn1.sec.ECPrivateKey.getInstance(seq);
             AlgorithmIdentifier algId = keyInfo.getPrivateKeyAlgorithm();
             if (algId == null) { // mockPrivateKeyInfo
-                algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, key.getParameters());
+                algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, key.getParametersObject().toASN1Primitive());
             }
             final PrivateKeyInfo privInfo = new PrivateKeyInfo(algId, key);
             ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(new PKCS8EncodedKeySpec(privInfo.getEncoded()));

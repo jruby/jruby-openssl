@@ -104,7 +104,7 @@ plugin :deploy, '3.1.4' do
   execute_goals( :deploy, :skip => false )
 end
 
-supported_bc_versions = %w{ 1.78 1.79 1.80 1.81 1.82 1.83 }
+supported_bc_versions = %w{ 1.78 1.79 1.80 1.81 1.82 1.83 1.84 }
 
 default_bc_version = File.read File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
 default_bc_version = default_bc_version[/BOUNCY_CASTLE_VERSION\s?=\s?'(.*?)'/, 1]
