@@ -944,4 +944,72 @@ EOF
     assert_equal "/CN=unsigned/O=mutated", duped.subject.to_s
     assert_equal "/CN=issuer/O=mutated", duped.issuer.to_s
   end
+
+  # OpenSSL::X509::Certificate#tbs_bytes returns the DER of the TBSCertificate,
+  # re-encoded from the certificate's *current* state (mirrors MRI's
+  # ossl_x509_get_tbs_bytes / i2d_re_X509_tbs). It must reflect prior in-place
+  # mutation such as extensions= -- this is what Certificate Transparency / SCT
+  # verification relies on when reconstructing a precertificate TBS.
+
+  def test_tbs_bytes_equals_to_der_tbs_slice
+    cert = OpenSSL::X509::Certificate.new(read_x509_pem('digicert.pem'))
+    # the TBSCertificate is the first element of the Certificate SEQUENCE
+    expected = OpenSSL::ASN1.decode(cert.to_der).value[0].to_der
+    assert_equal expected, cert.tbs_bytes
+  end
+
+  def test_tbs_bytes_preserves_der_extension_order
+    cert = OpenSSL::X509::Certificate.new(read_x509_pem('digicert.pem'))
+    # extensions must be reported in the certificate's DER order (matches MRI)
+    assert_equal tbs_extension_oids(cert.tbs_bytes), extension_oids(cert)
+  end
+
+  def test_tbs_bytes_reflects_extensions_removal
+    cert = OpenSSL::X509::Certificate.new(read_x509_pem('digicert.pem'))
+    assert cert.extensions.size > 1
+    original = cert.tbs_bytes
+
+    dup = cert.dup
+    removed = cert.extensions.first.oid
+    dup.extensions = dup.extensions.reject { |e| e.oid == removed }
+
+    mutated = dup.tbs_bytes
+    refute_equal original, mutated, 'tbs_bytes must reflect extensions= mutation'
+    assert mutated.bytesize < original.bytesize, 'removing an extension must shrink tbs_bytes'
+
+    # valid DER of a TBSCertificate (a SEQUENCE) whose extension set drops the
+    # removed OID while keeping the rest in their original DER order
+    assert_equal OpenSSL::ASN1::Sequence, OpenSSL::ASN1.decode(mutated).class
+    expected = extension_oids(cert).reject { |o| o == OpenSSL::ASN1::ObjectId.new(removed).oid }
+    assert_equal expected, tbs_extension_oids(mutated)
+  end
+
+  def test_tbs_bytes_unchanged_after_no_op_extensions_assignment
+    cert = OpenSSL::X509::Certificate.new(read_x509_pem('digicert.pem'))
+    dup = cert.dup
+    dup.extensions = dup.extensions # reassign the same set
+    assert_equal cert.tbs_bytes, dup.tbs_bytes
+  end
+
+  private
+
+  def read_x509_pem(name)
+    File.read(File.expand_path(name, File.dirname(__FILE__)))
+  end
+
+  # Certificate extension OIDs in dotted form (so they compare equal regardless
+  # of whether #oid yields a short name or a numeric OID).
+  def extension_oids(cert)
+    cert.extensions.map { |e| OpenSSL::ASN1::ObjectId.new(e.oid).oid }
+  end
+
+  # Extract the extension OIDs (in order) from a DER-encoded TBSCertificate.
+  def tbs_extension_oids(tbs_der)
+    tbs = OpenSSL::ASN1.decode(tbs_der)
+    holder = tbs.value.find do |e|
+      e.respond_to?(:tag) && e.tag == 3 && e.tag_class == :CONTEXT_SPECIFIC
+    end
+    return [] unless holder
+    holder.value[0].value.map { |ext| ext.value[0].oid }
+  end
 end

@@ -53,15 +53,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.bouncycastle.asn1.ASN1BitString;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
+import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x509.Extensions;
+import org.bouncycastle.asn1.x509.ExtensionsGenerator;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.asn1.x509.TBSCertificate;
+import org.bouncycastle.asn1.x509.V3TBSCertificateGenerator;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.operator.ContentSigner;
@@ -239,20 +246,50 @@ public class X509Cert extends RubyObject {
         } // "hot" path e.g. sha256WithRSAEncryption
         this.sig_alg = RubyString.newString(runtime, sigAlgorithm);
 
-        final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
-        if ( criticalExtOIDs != null ) {
-            for ( final String extOID : criticalExtOIDs ) {
-                addExtension(context, extOID, true);
+        if ( ! addExtensionsInDERorder(context, cert) ) {
+            // could not determine the DER order - fall back to the (unordered)
+            // critical / non-critical extension OID sets
+            final Set<String> criticalExtOIDs = cert.getCriticalExtensionOIDs();
+            if ( criticalExtOIDs != null ) {
+                for ( final String extOID : criticalExtOIDs ) {
+                    addExtension(context, extOID, true);
+                }
             }
-        }
 
-        final Set<String> nonCriticalExtOIDs = cert.getNonCriticalExtensionOIDs();
-        if ( nonCriticalExtOIDs != null ) {
-            for ( final String extOID : nonCriticalExtOIDs ) {
-                addExtension(context, extOID, false);
+            final Set<String> nonCriticalExtOIDs = cert.getNonCriticalExtensionOIDs();
+            if ( nonCriticalExtOIDs != null ) {
+                for ( final String extOID : nonCriticalExtOIDs ) {
+                    addExtension(context, extOID, false);
+                }
             }
         }
         changed = false;
+    }
+
+    // Loads the certificate's extensions preserving their DER (on-the-wire) order.
+    // This matches MRI/OpenSSL (whose X509#extensions follows the encoded order) and
+    // is required to faithfully re-encode the TBSCertificate from the current set
+    // (see #tbs_bytes / CT precertificate reconstruction). Returns false if the order
+    // cannot be determined so the caller can fall back to the critical/non-critical sets.
+    private boolean addExtensionsInDERorder(final ThreadContext context, final X509Certificate cert) {
+        final Extensions exts;
+        try {
+            // getEncoded() round-trips a freshly parsed cert, so neither call fails in
+            // practice; the catch is needed because getEncoded() declares the checked
+            // CertificateEncodingException, plus defensive handling of a malformed
+            // structure (IllegalArgumentException) for unusual certs passed via wrap().
+            exts = org.bouncycastle.asn1.x509.Certificate.getInstance(cert.getEncoded())
+                       .getTBSCertificate().getExtensions();
+        }
+        catch (CertificateEncodingException|IllegalArgumentException e) {
+            debugStackTrace(context.runtime, e);
+            return false;
+        }
+        if ( exts == null ) return true; // no extensions present
+        for ( final ASN1ObjectIdentifier oid : exts.getExtensionOIDs() ) {
+            addExtension(context, oid.getId(), exts.getExtension(oid).isCritical());
+        }
+        return true;
     }
 
     private void addExtension(final ThreadContext context,
@@ -353,11 +390,62 @@ public class X509Cert extends RubyObject {
             throw newCertificateError(getRuntime(), "no certificate");
         }
         try {
-            return StringHelper.newString(getRuntime(), cert.getTBSCertificate());
+            // When nothing has been mutated since the certificate was parsed or
+            // signed, the cached certificate's TBS is exactly the TBSCertificate
+            // slice of #to_der; otherwise re-encode from the current state.
+            final byte[] tbs = changed ? rebuildTBSCertificate() : cert.getTBSCertificate();
+            return StringHelper.newString(getRuntime(), tbs);
         }
         catch (CertificateEncodingException ex) {
             throw newCertificateError(getRuntime(), ex);
         }
+        catch (IOException ex) {
+            throw newCertificateError(getRuntime(), ex);
+        }
+    }
+
+    // Re-encodes the TBSCertificate from the certificate's current state, mirroring
+    // MRI's i2d_re_X509_tbs which always reflects the live cert -- notably after
+    // extensions= (relied on by Certificate Transparency precertificate
+    // reconstruction, which clones the leaf, drops the ct_precert_scts extension and
+    // signs/verifies over the resulting TBS). The extension set is taken from the
+    // mutable list the setters modify, in its current order; the remaining fields are
+    // preserved verbatim from the parsed certificate (consistent with #to_der, which
+    // likewise only reflects the field setters after a subsequent #sign).
+    private byte[] rebuildTBSCertificate() throws CertificateEncodingException, IOException {
+        final org.bouncycastle.asn1.x509.Certificate bcCert =
+            org.bouncycastle.asn1.x509.Certificate.getInstance(cert.getEncoded());
+        final TBSCertificate origTBS = bcCert.getTBSCertificate();
+
+        final V3TBSCertificateGenerator gen = new V3TBSCertificateGenerator();
+        gen.setSerialNumber(origTBS.getSerialNumber());
+        gen.setSignature(origTBS.getSignature());
+        gen.setIssuer(origTBS.getIssuer());
+        gen.setStartDate(origTBS.getStartDate());
+        gen.setEndDate(origTBS.getEndDate());
+        gen.setSubject(origTBS.getSubject());
+        gen.setSubjectPublicKeyInfo(origTBS.getSubjectPublicKeyInfo());
+        final ASN1BitString issuerUID = origTBS.getIssuerUniqueId();
+        if ( issuerUID != null ) {
+            gen.setIssuerUniqueID(new DERBitString(issuerUID.getBytes(), issuerUID.getPadBits()));
+        }
+        final ASN1BitString subjectUID = origTBS.getSubjectUniqueId();
+        if ( subjectUID != null ) {
+            gen.setSubjectUniqueID(new DERBitString(subjectUID.getBytes(), subjectUID.getPadBits()));
+        }
+
+        final ExtensionsGenerator extGen = new ExtensionsGenerator();
+        for ( final X509Extension ext : uniqueExtensions() ) {
+            extGen.addExtension(ext.getRealObjectID(), ext.isRealCritical(), ext.getRealValueEncoded());
+        }
+        // When the current set is empty the extensions field is omitted (RFC 5280
+        // forbids an empty extensions SEQUENCE); MRI instead emits an empty field, so
+        // re-encoding a cert with *all* extensions removed differs by those few bytes.
+        if ( ! extGen.isEmpty() ) {
+            gen.setExtensions(extGen.generate());
+        }
+
+        return gen.generateTBSCertificate().getEncoded(ASN1Encoding.DER);
     }
 
     @Override
