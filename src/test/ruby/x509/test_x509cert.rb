@@ -494,6 +494,20 @@ EOF
     assert_equal 7, seq.value.size
   end
 
+  def test_tbs_bytes_reflects_current_extensions
+    ca = OpenSSL::X509::Name.parse('/DC=org/DC=ruby-lang/CN=CA')
+    cert = issue_cert(ca, OpenSSL::PKey::RSA.new(TEST_KEY_RSA1024), 1,
+                      [['basicConstraints', 'CA:TRUE', true]], nil, nil)
+
+    assert_equal 8, OpenSSL::ASN1.decode(cert.tbs_bytes).value.size
+
+    cert.extensions = []
+    seq = OpenSSL::ASN1.decode(cert.tbs_bytes)
+
+    assert_equal 7, seq.value.size
+    assert_equal false, seq.value.any? { |val| val.tag_class == :CONTEXT_SPECIFIC && val.tag == 3 }
+  end
+
   def test_eq
     now = Time.now
     ca = OpenSSL::X509::Name.parse('/DC=org/DC=ruby-lang/CN=CA')

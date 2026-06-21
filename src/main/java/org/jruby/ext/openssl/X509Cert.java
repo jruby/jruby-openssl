@@ -55,13 +55,20 @@ import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
+import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.asn1.x509.TBSCertificate;
+import org.bouncycastle.asn1.x509.Time;
+import org.bouncycastle.asn1.x509.Validity;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.operator.ContentSigner;
@@ -352,12 +359,55 @@ public class X509Cert extends RubyObject {
         if ( cert == null ) {
             throw newCertificateError(getRuntime(), "no certificate");
         }
+
+        final SubjectPublicKeyInfo publicKeyInfo;
         try {
-            return StringHelper.newString(getRuntime(), cert.getTBSCertificate());
+            publicKeyInfo = SubjectPublicKeyInfo.getInstance(ASN1Primitive.fromByteArray(getPublicKey().getEncoded()));
         }
-        catch (CertificateEncodingException ex) {
+        catch (Exception e) {
+            throw newCertificateError(getRuntime(), "invalid public key data", e);
+        }
+
+        try {
+            return StringHelper.newString(getRuntime(), buildTBSCertificate(publicKeyInfo));
+        }
+        catch (IOException|CertificateEncodingException ex) {
             throw newCertificateError(getRuntime(), ex);
         }
+    }
+
+    private byte[] buildTBSCertificate(final SubjectPublicKeyInfo publicKeyInfo)
+        throws IOException, CertificateEncodingException {
+
+        final TBSCertificate certTBS =
+            new X509CertificateHolder(cert.getEncoded()).toASN1Structure().getTBSCertificate();
+
+        final int version = this.version == null ? 0 : RubyNumeric.fix2int(this.version);
+        final ASN1EncodableVector vec = new ASN1EncodableVector(10);
+        if ( version != 0 ) vec.add(new DERTaggedObject(true, 0, new ASN1Integer(version)));
+        vec.add(new ASN1Integer(serial));
+        vec.add(certTBS.getSignature());
+        vec.add(issuer == null ? certTBS.getIssuer() : ((X509Name) issuer).getX500Name());
+        vec.add(new Validity(
+            new Time(not_before != null ? not_before.getJavaDate() : new Date(0)),
+            new Time(not_after != null ? not_after.getJavaDate() : new Date(0)))
+        );
+        vec.add(subject == null ? certTBS.getSubject() : ((X509Name) subject).getX500Name());
+        vec.add(publicKeyInfo);
+
+        if ( certTBS.getIssuerUniqueId() != null ) {
+            vec.add(new DERTaggedObject(false, 1, certTBS.getIssuerUniqueId()));
+        }
+        if ( certTBS.getSubjectUniqueId() != null ) {
+            vec.add(new DERTaggedObject(false, 2, certTBS.getSubjectUniqueId()));
+        }
+        if ( extensions.size() > 0 ) {
+            final ASN1EncodableVector extVec = new ASN1EncodableVector(extensions.size());
+            for ( X509Extension ext : extensions ) extVec.add(ext.toASN1Sequence());
+            vec.add(new DERTaggedObject(true, 3, new DLSequence(extVec)));
+        }
+
+        return new DLSequence(vec).getEncoded(ASN1Encoding.DER);
     }
 
     @Override
@@ -613,7 +663,9 @@ public class X509Cert extends RubyObject {
     }
 
     private PublicKey getPublicKey() {
-        if ( public_key == null ) initializePublicKey();
+        if (public_key == null) {
+            return cert.getPublicKey();
+        }
         return public_key.getPublicKey();
     }
 
