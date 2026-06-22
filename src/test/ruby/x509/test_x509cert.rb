@@ -494,6 +494,61 @@ EOF
     assert_equal 7, seq.value.size
   end
 
+  def test_tbs_bytes_reflects_current_extensions
+    ca = OpenSSL::X509::Name.parse('/DC=org/DC=ruby-lang/CN=CA')
+    cert = issue_cert(ca, OpenSSL::PKey::RSA.new(TEST_KEY_RSA1024), 1,
+                      [['basicConstraints', 'CA:TRUE', true]], nil, nil)
+
+    assert_equal 8, OpenSSL::ASN1.decode(cert.tbs_bytes).value.size
+
+    cert.extensions = []
+    seq = OpenSSL::ASN1.decode(cert.tbs_bytes)
+
+    assert_equal 7, seq.value.size
+    assert_equal false, seq.value.any? { |val| val.tag_class == :CONTEXT_SPECIFIC && val.tag == 3 }
+  end
+
+  def test_tbs_bytes_reflects_extensions_removal
+    cert = File.expand_path('digicert.pem', File.dirname(__FILE__))
+    cert = OpenSSL::X509::Certificate.new(File.read(cert))
+
+    assert cert.extensions.size > 1
+    original = cert.tbs_bytes
+
+    dup = cert.dup
+    removed_oid = cert.extensions.first.oid
+    dup.extensions = dup.extensions.reject { |ext| ext.oid == removed_oid }
+
+    mutated = dup.tbs_bytes
+    refute_equal original, mutated, 'tbs_bytes must reflect extensions= mutation'
+    assert mutated.bytesize < original.bytesize, 'removing an extension must shrink tbs_bytes'
+
+    expected = cert.extensions.map(&:oid).reject { |oid| oid == removed_oid }
+                   .map { |oid| OpenSSL::ASN1::ObjectId.new(oid).oid } # OID name -> identifier
+    assert_equal expected, tbs_extension_oids(mutated)
+  end
+
+  # Extract the extension OIDs (in order) from a DER-encoded TBSCertificate
+  def tbs_extension_oids(tbs_der)
+    tbs = OpenSSL::ASN1.decode(tbs_der)
+    assert_equal OpenSSL::ASN1::Sequence, tbs.class
+
+    holder = tbs.value.find do |e|
+      e.respond_to?(:tag) && e.tag == 3 && e.tag_class == :CONTEXT_SPECIFIC
+    end
+
+    holder ? holder.value[0].value.map { |ext| ext.value[0].oid } : []
+  end
+
+  def test_tbs_bytes_unchanged_after_assigning_same_extensions
+    cert = File.expand_path('digicert.pem', File.dirname(__FILE__))
+    cert = OpenSSL::X509::Certificate.new(File.read(cert))
+
+    dup = cert.dup
+    dup.extensions = dup.extensions # reassign the same set
+    assert_equal cert.tbs_bytes, dup.tbs_bytes
+  end
+
   def test_eq
     now = Time.now
     ca = OpenSSL::X509::Name.parse('/DC=org/DC=ruby-lang/CN=CA')
