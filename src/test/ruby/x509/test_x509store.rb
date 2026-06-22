@@ -57,15 +57,53 @@ class TestX509Store < TestCase
     assert ! store.verify(@cert)
   end
 
-  def test_use_default_cert_file_as_custom_file
+  def test_use_default_pem_cert_file_as_custom_file
+    certs = default_cert_file_pem_certs
+    skip 'DEFAULT_CERT_FILE is not a PEM bundle' if certs.empty?
+
     ENV['SSL_CERT_FILE'] = OpenSSL::X509::DEFAULT_CERT_FILE
     store = OpenSSL::X509::Store.new
     store.set_default_paths
-    cert = OpenSSL::X509::Certificate.new(File.read(File.expand_path('../digicert.pem', __FILE__)))
 
-    verified = store.verify(cert)
-    assert verified, "digicert.pem verification failed: #{store.inspect}"
+    cert = certs.find { |candidate| store.verify(candidate) }
+    assert cert, "no certificate from DEFAULT_CERT_FILE verified against the default PEM store: #{store.inspect}"
   end
+
+  def test_use_default_java_cacerts_file_as_custom_file
+    skip 'DEFAULT_CERT_FILE is a PEM bundle' unless default_cert_file_pem_certs.empty?
+
+    ENV['SSL_CERT_FILE'] = OpenSSL::X509::DEFAULT_CERT_FILE
+    store = OpenSSL::X509::Store.new
+    store.set_default_paths
+
+    cert = default_cert_file_java_certs.find { |candidate| store.verify(candidate) }
+    assert cert, "no certificate from DEFAULT_CERT_FILE verified against the default Java ca-certs store: #{store.inspect}"
+  end if defined?(JRUBY_VERSION)
+
+  def default_cert_file_pem_certs
+    File.binread(OpenSSL::X509::DEFAULT_CERT_FILE).
+      scan(/-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----/m).
+      map { |cert_pem| OpenSSL::X509::Certificate.new(cert_pem) }
+  end
+  private :default_cert_file_pem_certs
+
+  def default_cert_file_java_certs
+    keystore = java.security.KeyStore.getInstance('JKS')
+    input = java.io.FileInputStream.new(OpenSSL::X509::DEFAULT_CERT_FILE)
+    begin
+      keystore.load(input, nil)
+    ensure
+      input.close
+    end
+
+    certs = []
+    aliases = keystore.aliases
+    while aliases.hasMoreElements
+      certs << OpenSSL::X509::Certificate.new(keystore.getCertificate(aliases.nextElement).getEncoded)
+    end
+    certs
+  end
+  private :default_cert_file_java_certs
 
   def test_add_file_to_store_with_custom_cert_file
     ENV['SSL_CERT_FILE'] = @ca_cert
