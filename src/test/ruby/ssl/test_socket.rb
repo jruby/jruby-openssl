@@ -150,6 +150,30 @@ class TestSSLSocket < TestCase
     assert_equal true, socket.sync
   end
 
+  def test_pending
+    server_proc = proc do |_ctx, ssl|
+      ssl.write("hello")
+      ssl.read rescue nil # keep the connection open until the client is done
+    end
+
+    start_server(OpenSSL::SSL::VERIFY_NONE, true, server_proc: server_proc) do |_, port|
+      sock = TCPSocket.new("127.0.0.1", port)
+      ssl = OpenSSL::SSL::SSLSocket.new(sock)
+
+      assert_equal 0, ssl.pending # session not started yet
+
+      ssl.connect
+      assert_equal 0, ssl.pending # nothing decrypted yet
+
+      assert_equal 'h', ssl.sysread(1) # blocking read decrypts the record into the SSL buffer
+      assert_equal 4, ssl.pending # "ello" still buffered (decrypted)
+      assert_equal 'ello', ssl.sysread(4)
+      assert_equal 0, ssl.pending
+
+      ssl.close
+    end
+  end
+
   private
 
   def server(ssl_version: nil); require 'socket'

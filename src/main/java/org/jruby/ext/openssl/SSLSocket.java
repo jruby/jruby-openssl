@@ -1137,9 +1137,10 @@ public class SSLSocket extends RubyObject {
     }
 
     @JRubyMethod
-    public IRubyObject pending() {
-        warn(getRuntime().getCurrentContext(), "WARNING: unimplemented method called: OpenSSL::SSL::SSLSocket#pending");
-        return getRuntime().getNil();
+    public IRubyObject pending(ThreadContext context) {
+        // SSL_pending: number of decrypted bytes immediately available for reading
+        if ( engine == null ) return context.runtime.newFixnum(0); // session not started
+        return context.runtime.newFixnum(appReadData == null ? 0 : appReadData.remaining());
     }
 
     private boolean reusableSSLEngine() {
