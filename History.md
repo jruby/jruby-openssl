@@ -1,3 +1,22 @@
+## 0.16.1
+
+EdDSA (Ed25519/Ed448) key support.
+PKey compatibility improvements, X.509 and SSL fixes.
+
+- [fix] prepend leaf cert to `extra_chain_cert` (#181)
+- [compat] `Store#add_cert` and `add_crl` handle wrong argument
+- [compat] `Store#time=` accepts numeric epoch seconds like CRuby
+- [refactor] add ASN.1 sequence bounds checks in `PKey` parsing
+- [compat] implement `SSLSocket#pending` bytes
+- [fix] make sure `Cert#tbs_bytes` is up-to-date (#364)
+- [fix] `SPKI#sign` NPE due missing ASN1 registry fallback
+- [feat] implement `Netscape::SPKI#to_text`
+- [compat] `PKey::DH#derive` + fix `compute_key` output format
+- [compat] expose `derive`, `raw_private_key`, `raw_public_key` on `PKey`
+- [compat] make `to_text()` available for all `PKey` classes
+- [compat] expose `public_to_der`, `public_to_pem`, `private_to_der`, `private_to_pem` on `PKey`
+- [feat] implement Ed25519/Ed448 (EdDSA) key support
+
 ## 0.16.0
 
 Upgrading Bouncy Castle to version 1.84.
