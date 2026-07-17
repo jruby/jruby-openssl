@@ -1,6 +1,6 @@
 module JOpenSSL
   VERSION = '0.16.2.dev'
-  BOUNCY_CASTLE_VERSION = '1.84'
+  BOUNCY_CASTLE_VERSION = '1.85'
 end
 
 Object.class_eval do
