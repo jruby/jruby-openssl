@@ -67,6 +67,16 @@ class TestPKey < TestCase
     assert_true cert.check_private_key(pkey)
   end
 
+  # #to_der writes PKCS#1 (RSA, DSA) or SEC1 (EC), PKey.read only handled PKCS#8
+  def test_pkey_read_der_round_trip
+    %w[rsa2048 dsa2048 p256].each do |name|
+      key = Fixtures.pkey(name)
+      read = OpenSSL::PKey.read(key.to_der)
+      assert_instance_of key.class, read
+      assert_equal key.to_der, read.to_der
+    end
+  end
+
   def test_pkey_pem_file_error
     begin
       ret = OpenSSL::PKey.read('not a PEM file')
