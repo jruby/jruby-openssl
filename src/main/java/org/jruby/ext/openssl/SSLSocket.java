@@ -1356,10 +1356,12 @@ public class SSLSocket extends RubyObject {
 
         if (BCSSLSupport.setBCSessionToResume(engine, setSession.sslSession())) return;
 
-        // can not support this without the (BC) SSL provider internals (e.g. on SunJSSE)
-        // but we can assume setting a session= is meant to be a *forced* session re-use:
+        // Without BC internals (e.g. on SunJSSE) we can't force session re-use.
+        // We used to call setEnableSessionCreation(false) here to signal that intent,
+        // but that backfires: if the stored session can't be resumed for any reason
+        // (including the BC classloader mismatch above), BC-JSSE throws instead of
+        // falling back to a fresh handshake. Leave session creation enabled.
         if (reusableSSLEngine()) {
-            engine.setEnableSessionCreation(false);
             final SSLSession session = getSession(context.runtime);
             if (!setSession.equals(session)) {
                 session.set_timeout(context, setSession.timeout(context));

@@ -46,8 +46,16 @@ abstract class BCSSLSupport {
 
     static boolean setBCSessionToResume(final SSLEngine engine, final SSLSession session) {
         if (engine instanceof BCSSLEngine && session instanceof BCExtendedSSLSession) {
-            ((BCSSLEngine) engine).setBCSessionToResume((BCExtendedSSLSession) session);
-            return true;
+            try {
+                ((BCSSLEngine) engine).setBCSessionToResume((BCExtendedSSLSession) session);
+                return true;
+            } catch (IllegalArgumentException e) {
+                // This can happen when a Java gem's post-install hook (e.g. fast-rsa-engine)
+                // downloads BC JARs via Maven and loads them under a new classloader. At that
+                // point there are two copies of BC in the JVM, and ProvSSLEngine rejects the
+                // stored session because it came from a different classloader context.
+                // Just fall through and let the caller do a fresh handshake.
+            }
         }
         return false;
     }
