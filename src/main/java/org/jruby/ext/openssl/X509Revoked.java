@@ -34,6 +34,13 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
 
+import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1EncodableVector;
+import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.DERSequence;
+import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x509.Time;
 import org.joda.time.DateTime;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -42,6 +49,7 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
@@ -49,6 +57,7 @@ import org.jruby.runtime.Visibility;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Extension.newExtension;
 import static org.jruby.ext.openssl.X509Extension.newExtensionError;
+import static org.jruby.ext.openssl.util.RubySupport.newError;
 
 /**
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
@@ -65,6 +74,10 @@ public class X509Revoked extends RubyObject {
 
     static RubyClass _Revoked(final Ruby runtime) {
         return _X509(runtime).getClass("Revoked");
+    }
+
+    static RaiseException newRevokedError(final Ruby runtime, final String message) {
+        return newError(runtime, _X509(runtime).getClass("RevokedError"), message);
     }
 
     static X509Revoked newInstance(final ThreadContext context, final X509CRLEntry entry) {
@@ -144,6 +157,7 @@ public class X509Revoked extends RubyObject {
 
     @JRubyMethod(name = "time=")
     public IRubyObject set_time(final IRubyObject time) {
+        if (!(time instanceof RubyTime)) throw getRuntime().newTypeError(time, "Time");
         return this.time = (RubyTime) time;
     }
 
@@ -171,6 +185,24 @@ public class X509Revoked extends RubyObject {
     @JRubyMethod
     public IRubyObject inspect() {
         return ObjectSupport.inspect(this, Collections.EMPTY_LIST);
+    }
+
+    ASN1Sequence toASN1Sequence() throws IOException {
+        final DateTime revokedTime = getTime();
+        if (revokedTime == null) throw newRevokedError(getRuntime(), "revocation time not set");
+
+        final ASN1EncodableVector vec = new ASN1EncodableVector();
+        vec.add(new ASN1Integer(getSerial().getValue()));
+        vec.add(new Time(revokedTime.toDate()));
+        if (hasExtensions()) {
+            final RubyArray extensions = this.extensions();
+            final ASN1Encodable[] entries = new ASN1Encodable[extensions.size()];
+            for (int i = 0; i < extensions.size(); i++) {
+                entries[i] = ((X509Extension) extensions.eltInternal(i)).toASN1Sequence();
+            }
+            vec.add(new DERSequence(entries));
+        }
+        return new DLSequence(vec);
     }
 
 }// X509Revoked

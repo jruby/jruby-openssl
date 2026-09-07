@@ -10,6 +10,7 @@ class TestX509Revoked < TestCase
     assert_equal 0, rev.serial
     assert_equal nil, rev.time
     assert_equal [], rev.extensions
+    assert_raises(TypeError) { rev.time = nil }
     if RUBY_VERSION >= '2.0.0' || defined? JRUBY_VERSION
       assert rev.inspect.index('#<OpenSSL::X509::Revoked:') == 0
     end

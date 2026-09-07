@@ -13,6 +13,11 @@ class TestX509CRL < TestCase
     assert_equal [], crl.revoked
     assert_equal "NULL", crl.signature_algorithm
 
+    assert_raises(TypeError) { crl.version = nil }
+    assert_raises(TypeError) { crl.issuer = nil }
+    assert_raises(TypeError) { crl.last_update = nil }
+    assert_raises(TypeError) { crl.next_update = nil }
+
     if RUBY_VERSION >= '2.0.0' || defined? JRUBY_VERSION
       assert crl.inspect.index('#<OpenSSL::X509::CRL:') == 0, crl.inspect
     end
@@ -154,6 +159,24 @@ EOF
     assert_equal("issuerAltName", exts[2].oid)
     assert_equal("email:xyzzy@ruby-lang.org", exts[2].value)
     assert_equal(false, exts[2].critical?)
+  end
+
+  def test_eq
+    now = Time.now
+    key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    issuer = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+    cert = issue_cert(issuer, key, 1, [], nil, nil)
+    crl1 = issue_crl([], 1, now, now + 3600, [], cert, key, OpenSSL::Digest::SHA256.new)
+    crl2 = OpenSSL::X509::CRL.new(crl1.to_der)
+
+    assert_equal true, crl1 == crl2
+
+    revoked = OpenSSL::X509::Revoked.new
+    revoked.serial = 1
+    revoked.time = now
+    crl2.add_revoked(revoked)
+    assert_not_equal crl1.to_der, crl2.to_der
+    assert_equal false, crl1 == crl2
   end
 
   def test_crl_without_next_update
