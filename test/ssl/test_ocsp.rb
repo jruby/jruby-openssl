@@ -213,6 +213,7 @@ class TestOCSP < TestCase
     assert_equal true, bres.verify([@ca_cert], store)
     bres.sign(@ca_cert, @ca_key, [], 0, OpenSSL::Digest::SHA256.new)
     assert_equal true, bres.verify([], store)
+    assert_equal true, bres.verify([@ca_cert], store, OpenSSL::OCSP::NOSIGS | OpenSSL::OCSP::NOVERIFY)
 
     # signed by OCSP signer
     bres = OpenSSL::OCSP::BasicResponse.new
@@ -224,6 +225,50 @@ class TestOCSP < TestCase
     # OpenSSL had a bug on this; test that our workaround works
     bres.sign(@ocsp_cert, @ocsp_key, [], 0, OpenSSL::Digest::SHA256.new)
     assert_equal true, bres.verify([@cert], store)
+  end
+
+  def test_basic_response_rejects_invalid_signature
+    store = OpenSSL::X509::Store.new.add_cert(@ca_cert)
+    bres = OpenSSL::OCSP::BasicResponse.new
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert, OpenSSL::Digest::SHA256.new)
+    bres.add_status(cid, OpenSSL::OCSP::V_CERTSTATUS_GOOD, nil, -400, -300, 500, [])
+    bres.sign(@ca_cert, @ca_key, nil, 0, OpenSSL::Digest::SHA256.new)
+    assert_equal true, bres.verify([@ca_cert], store)
+
+    der = OpenSSL::ASN1.decode(bres.to_der)
+    signature = der.value[2]
+    signature.value = signature.value.dup
+    signature.value.setbyte(0, signature.value.getbyte(0) ^ 1)
+
+    tampered = OpenSSL::OCSP::BasicResponse.new(der.to_der)
+    assert_equal false, tampered.verify([@ca_cert], store)
+  end
+
+  def test_basic_response_nochecks_requires_valid_chain
+    bres = OpenSSL::OCSP::BasicResponse.new
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert, OpenSSL::Digest::SHA256.new)
+    bres.add_status(cid, OpenSSL::OCSP::V_CERTSTATUS_GOOD, nil, -400, -300, 500, [])
+    bres.sign(@ca_cert, @ca_key, nil, 0, OpenSSL::Digest::SHA256.new)
+
+    assert_equal false, bres.verify([@ca_cert], OpenSSL::X509::Store.new, OpenSSL::OCSP::NOCHECKS)
+    assert_equal true, bres.verify([@ca_cert], OpenSSL::X509::Store.new.add_cert(@ca_cert), OpenSSL::OCSP::NOCHECKS)
+  end
+
+  def test_basic_response_noexplicit
+    store = OpenSSL::X509::Store.new.add_cert(@ca_cert)
+
+    valid = OpenSSL::OCSP::BasicResponse.new
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert, OpenSSL::Digest::SHA256.new)
+    valid.add_status(cid, OpenSSL::OCSP::V_CERTSTATUS_GOOD, nil, -400, -300, 500, [])
+    valid.sign(@ca_cert, @ca_key, nil, 0, OpenSSL::Digest::SHA256.new)
+    assert_equal true, valid.verify([@ca_cert], store, OpenSSL::OCSP::NOEXPLICIT)
+
+    mismatched = OpenSSL::OCSP::BasicResponse.new
+    cid = OpenSSL::OCSP::CertificateId.new(@cert2, @cert, OpenSSL::Digest::SHA256.new)
+    mismatched.add_status(cid, OpenSSL::OCSP::V_CERTSTATUS_GOOD, nil, -400, -300, 500, [])
+    mismatched.sign(@ca_cert, @ca_key, nil, 0, OpenSSL::Digest::SHA256.new)
+    assert_equal false, mismatched.verify([@ca_cert], store, OpenSSL::OCSP::NOEXPLICIT)
+    assert_equal false, mismatched.verify([@ca_cert], store, OpenSSL::OCSP::NOEXPLICIT | OpenSSL::OCSP::NOCHAIN)
   end
 
   def test_basic_response_dup
