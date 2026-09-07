@@ -37,4 +37,19 @@ class TestX509Revoked < TestCase
     assert_equal '4242', rev.serial.to_s
   end
 
+  def test_to_der
+    rev = OpenSSL::X509::Revoked.new
+    rev.serial = 42
+    rev.time = Time.at(1)
+
+    entries = OpenSSL::ASN1.decode(rev.to_der).value
+    assert_equal 42, entries[0].value.to_i
+    assert_equal Time.at(1).utc, entries[1].value
+
+    other = OpenSSL::X509::Revoked.new
+    other.serial = 42
+    other.time = Time.at(1)
+    assert_equal rev, other
+  end
+
 end

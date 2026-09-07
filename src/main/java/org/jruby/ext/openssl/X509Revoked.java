@@ -36,6 +36,7 @@ import java.util.Set;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
+import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERSequence;
@@ -48,6 +49,7 @@ import org.jruby.RubyClass;
 import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
+import org.jruby.RubyString;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
@@ -194,6 +196,16 @@ public class X509Revoked extends RubyObject {
     @JRubyMethod
     public IRubyObject inspect() {
         return ObjectSupport.inspect(this, Collections.EMPTY_LIST);
+    }
+
+    @JRubyMethod
+    public RubyString to_der() {
+        try {
+            return RubyString.newString(getRuntime(), toASN1Sequence().getEncoded(ASN1Encoding.DER));
+        }
+        catch (IOException e) {
+            throw newRevokedError(getRuntime(), e.getMessage());
+        }
     }
 
     ASN1Sequence toASN1Sequence() throws IOException {
