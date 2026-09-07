@@ -414,13 +414,24 @@ public class PKeyDH extends PKey {
         if ((plen = p.bitLength()) == 0 || plen > OPENSSL_DH_MAX_MODULUS_BITS) {
             throw newDHError(getRuntime(), "can't compute key");
         }
-        final byte[] secret = PKeyShim.useDHProvider() ?
-                computeKey(getRuntime(), y, x, p, this.dh_g) : computeKey(y, x, p);
+        checkPeerPublicKey(getRuntime(), y, p);
+        final byte[] secret;
+        try {
+            secret = PKeyShim.useDHProvider() ?
+                    computeKey(getRuntime(), y, x, p, this.dh_g) : computeKey(y, x, p);
+        }
+        catch (IllegalArgumentException e) {
+            throw newPKeyError(getRuntime(), e.getMessage());
+        }
         return getRuntime().newString(new ByteList(secret, false));
     }
 
-    public static byte[] computeKey(BigInteger y, BigInteger x, BigInteger p) {
-        return BN.toUnsignedBytes(y.modPow(x, p));
+    public static byte[] computeKey(BigInteger y, BigInteger x, BigInteger p) throws IllegalArgumentException {
+        final BigInteger secret = y.modPow(x, p);
+        if (secret.compareTo(BigInteger.ONE) <= 0 || secret.equals(p.subtract(BigInteger.ONE))) {
+            throw new IllegalArgumentException("invalid shared secret");
+        }
+        return BN.toUnsignedBytes(secret);
     }
 
     /**
@@ -443,9 +454,27 @@ public class PKeyDH extends PKey {
         if (peerY == null) {
             throw newPKeyError(context.runtime, "EVP_PKEY_derive_set_peer");
         }
-        final byte[] secret = PKeyShim.useDHProvider() ?
-                computeKey(context.runtime, peerY, x, p, this.dh_g) : computeKey(peerY, x, p);
+        if (peerDH.dh_p == null || peerDH.dh_g == null || this.dh_g == null
+                || !p.equals(peerDH.dh_p) || !this.dh_g.equals(peerDH.dh_g)) {
+            throw newPKeyError(context.runtime, "EVP_PKEY_derive_set_peer");
+        }
+        checkPeerPublicKey(context.runtime, peerY, p);
+        final byte[] secret;
+        try {
+            secret = PKeyShim.useDHProvider() ?
+                    computeKey(context.runtime, peerY, x, p, this.dh_g) : computeKey(peerY, x, p);
+        }
+        catch (IllegalArgumentException e) {
+            throw newPKeyError(context.runtime, e.getMessage());
+        }
         return context.runtime.newString(new ByteList(secret, false));
+    }
+
+    private static void checkPeerPublicKey(final Ruby runtime,
+                                           final BigInteger y, final BigInteger p) {
+        if (y.compareTo(TWO) < 0 || y.compareTo(p.subtract(TWO)) > 0) {
+            throw newPKeyError(runtime, "EVP_PKEY_derive_set_peer");
+        }
     }
 
     @JRubyMethod(name = "public?")

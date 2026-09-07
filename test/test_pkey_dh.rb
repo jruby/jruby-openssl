@@ -260,6 +260,25 @@ class TestPKeyDH < TestCase
     assert_equal z, shared1
   end
 
+  def test_reject_invalid_peer_public_values
+    dh = Fixtures.pkey_dh("dh2048_ffdhe2048")
+    dh.generate_key!
+    invalid_values = [0, 1, dh.p - 1, dh.p]
+
+    invalid_values.each do |value|
+      pub_key = OpenSSL::BN.new(value)
+      assert_raise(OpenSSL::PKey::PKeyError) { dh.compute_key(pub_key) }
+
+      peer = dh.dup
+      peer.pub_key = pub_key
+      assert_raise(OpenSSL::PKey::PKeyError) { dh.derive(peer) }
+    end
+
+    other_params = dh.dup
+    other_params.p = dh.p + 2
+    assert_raise(OpenSSL::PKey::PKeyError) { dh.derive(other_params) }
+  end
+
   def test_dup
     # Parameters only
     dh1 = Fixtures.pkey_dh("dh2048_ffdhe2048")
