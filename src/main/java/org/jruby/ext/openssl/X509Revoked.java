@@ -45,6 +45,7 @@ import org.joda.time.DateTime;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
+import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyTime;
@@ -137,12 +138,15 @@ public class X509Revoked extends RubyObject {
     }
 
     @JRubyMethod(name = "serial=")
-    public IRubyObject set_serial(final IRubyObject serial) {
-        if ( serial instanceof BN ) {
+    public IRubyObject set_serial(ThreadContext context, final IRubyObject serial) {
+        if (serial instanceof BN) {
             return this.serial = (BN) serial;
         }
-        BigInteger value = serial.convertToInteger("to_i").getBigIntegerValue();
-        return this.serial = BN.newInstance(getRuntime(), value);
+        if (serial instanceof RubyInteger) {
+            BigInteger value = ((RubyInteger) serial).getBigIntegerValue();
+            return this.serial = BN.newInstance(context.runtime, value);
+        }
+        throw context.runtime.newTypeError(serial, context.runtime.getInteger());
     }
 
     DateTime getTime() {
@@ -156,9 +160,8 @@ public class X509Revoked extends RubyObject {
     }
 
     @JRubyMethod(name = "time=")
-    public IRubyObject set_time(final IRubyObject time) {
-        if (!(time instanceof RubyTime)) throw getRuntime().newTypeError(time, "Time");
-        return this.time = (RubyTime) time;
+    public IRubyObject set_time(ThreadContext context, final IRubyObject time) {
+        return this.time = X509Cert.toUtcTime(context, time);
     }
 
     boolean hasExtensions() {
@@ -172,11 +175,17 @@ public class X509Revoked extends RubyObject {
 
     @JRubyMethod(name = "extensions=")
     public IRubyObject set_extensions(final IRubyObject extensions) {
+        if (!(extensions instanceof RubyArray)) {
+            throw getRuntime().newTypeError(extensions, getRuntime().getArray());
+        }
         return this.extensions = (RubyArray) extensions;
     }
 
     @JRubyMethod
     public IRubyObject add_extension(final ThreadContext context, final IRubyObject ext) {
+        if (!(ext instanceof X509Extension)) {
+            throw context.runtime.newTypeError(ext, X509Extension._Extension(context.runtime));
+        }
         return extensions().append(ext);
     }
 

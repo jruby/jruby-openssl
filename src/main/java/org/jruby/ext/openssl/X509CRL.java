@@ -88,6 +88,7 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.Variable;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
+import org.jruby.util.TypeConverter;
 
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.X509._X509;
@@ -456,9 +457,11 @@ public class X509CRL extends RubyObject {
 
     @JRubyMethod(name="version=")
     public IRubyObject set_version(IRubyObject version) {
-        if (version.isNil()) throw getRuntime().newTypeError(version, getRuntime().getInteger());
-        if ( ! version.equals(this.version) ) this.changed = true;
-        return this.version = version.convertToInteger("to_i");
+        final Ruby runtime = getRuntime();
+        final RubyInteger value = version.convertToInteger("to_int");
+        if (value.getBigIntegerValue().signum() < 0) throw newCRLError(runtime, "version must be >= 0!");
+        if ( ! value.equals(this.version) ) this.changed = true;
+        return this.version = value;
     }
 
     @JRubyMethod
@@ -518,10 +521,8 @@ public class X509CRL extends RubyObject {
 
     @JRubyMethod(name="last_update=")
     public IRubyObject set_last_update(final ThreadContext context, IRubyObject val) {
-        if (val.isNil()) throw context.runtime.newTypeError(val, "Time");
+        final RubyTime value = X509Cert.toUtcTime(context, val);
         this.changed = true;
-        final RubyTime value = (RubyTime) val.callMethod(context, "getutc");
-        value.setMicroseconds(0);
         return this.last_update = value;
     }
 
@@ -537,10 +538,8 @@ public class X509CRL extends RubyObject {
 
     @JRubyMethod(name="next_update=")
     public IRubyObject set_next_update(final ThreadContext context, IRubyObject val) {
-        if (val.isNil()) throw context.runtime.newTypeError(val, "Time");
+        final RubyTime value = X509Cert.toUtcTime(context, val);
         this.changed = true;
-        final RubyTime value = (RubyTime) val.callMethod(context, "getutc");
-        value.setMicroseconds(0);
         return this.next_update = value;
     }
 
@@ -551,6 +550,7 @@ public class X509CRL extends RubyObject {
 
     @JRubyMethod(name="revoked=")
     public IRubyObject set_revoked(final IRubyObject revoked) {
+        if (!(revoked instanceof RubyArray)) throw getRuntime().newTypeError(revoked, getRuntime().getArray());
         this.changed = true;
         return this.revoked = (RubyArray) revoked;
     }
@@ -571,12 +571,15 @@ public class X509CRL extends RubyObject {
     @SuppressWarnings("unchecked")
     @JRubyMethod(name="extensions=")
     public IRubyObject set_extensions(final IRubyObject extensions) {
+        if (!(extensions instanceof RubyArray)) throw getRuntime().newTypeError(extensions, getRuntime().getArray());
         this.changed = true;
         return this.extensions = (RubyArray) extensions;
     }
 
     @JRubyMethod
     public IRubyObject add_extension(final IRubyObject extension) {
+        if (!(extension instanceof X509Extension)) throw getRuntime().newTypeError(
+                extension, X509Extension._Extension(getRuntime()));
         this.changed = true;
         extensions().append(extension); return extension;
     }
@@ -588,7 +591,7 @@ public class X509CRL extends RubyObject {
 
         final X500Name issuerName = ((X509Name) issuer()).getX500Name();
         final DateTime lastUpdate = getLastUpdate();
-        if (lastUpdate == null) throw newCRLError(runtime, "last update not set");
+        if (lastUpdate == null) return this;
         final X509v2CRLBuilder generator = new X509v2CRLBuilder(issuerName, lastUpdate.toDate());
         final DateTime nextUpdate = getNextUpdate();
         if ( nextUpdate != null ) generator.setNextUpdate(nextUpdate.toDate());

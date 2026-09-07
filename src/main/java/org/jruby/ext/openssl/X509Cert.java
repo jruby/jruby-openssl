@@ -34,7 +34,6 @@ import java.math.BigInteger;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SignatureException;
@@ -101,6 +100,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.builtin.Variable;
 import org.jruby.runtime.component.VariableEntry;
 import org.jruby.util.ByteList;
+import org.jruby.util.TypeConverter;
 
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.X509Extension.newExtension;
@@ -622,8 +622,7 @@ public class X509Cert extends RubyObject {
     @JRubyMethod(name = "not_before=")
     public IRubyObject set_not_before(final ThreadContext context, final IRubyObject time) {
         changed = true;
-        not_before = (RubyTime) time.callMethod(context, "getutc");
-        not_before.setMicroseconds(0);
+        not_before = toUtcTime(context, time);
         return time;
     }
 
@@ -639,13 +638,23 @@ public class X509Cert extends RubyObject {
     @JRubyMethod(name = "not_after=")
     public IRubyObject set_not_after(final ThreadContext context, final IRubyObject time) {
         changed = true;
-        not_after = (RubyTime) time.callMethod(context, "getutc");
-        not_after.setMicroseconds(0);
+        not_after = toUtcTime(context, time);
         return time;
     }
 
     DateTime getNotAfter() {
         return not_after == null ? null : not_after.getDateTime();
+    }
+
+    static RubyTime toUtcTime(ThreadContext context, IRubyObject value) {
+        if (!(value instanceof RubyTime)) {
+            long micros = RubyNumeric.num2long(TypeConverter.convertToInteger(context, value, 0));
+            value = RubyTime.newTime(context.runtime, micros * 1000);
+        }
+
+        RubyTime time = (RubyTime) value.callMethod(context, "getutc");
+        time.setMicroseconds(0);
+        return time;
     }
 
     @JRubyMethod

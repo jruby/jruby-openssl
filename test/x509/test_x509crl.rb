@@ -25,6 +25,38 @@ class TestX509CRL < TestCase
     assert_raises(OpenSSL::X509::CRLError) { OpenSSL::X509::CRL.new('') }
   end
 
+  def test_field_type_validation
+    crl = OpenSSL::X509::CRL.new
+
+    crl.version = 1.5
+    assert_equal 1, crl.version
+    assert_raises(TypeError) { crl.version = '1' }
+    crl.version = 2**32
+    assert_equal 2**32, crl.version
+    assert_raises(OpenSSL::X509::CRLError) { crl.version = -1 }
+
+    crl.last_update = 1
+    assert_equal 1, crl.last_update.to_i
+    assert_raises(ArgumentError) { crl.last_update = 'x' }
+
+    crl.next_update = 2.5
+    assert_equal 2, crl.next_update.to_i
+    assert_raises(ArgumentError) { crl.next_update = 'x' }
+
+    assert_raises(TypeError) { crl.revoked = nil }
+    assert_raises(TypeError) { crl.extensions = nil }
+    assert_raises(TypeError) { crl.add_extension(nil) }
+  end
+
+  def test_sign_without_last_update_does_not_choose_current_time
+    crl = OpenSSL::X509::CRL.new
+    key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+
+    assert_same crl, crl.sign(key, OpenSSL::Digest::SHA256.new)
+    assert_nil crl.last_update
+    assert_raises(OpenSSL::X509::CRLError) { crl.to_der }
+  end
+
 REVOKED_TEXT = <<EOF
 Certificate Revocation List (CRL):
         Version 2 (0x1)
@@ -177,6 +209,72 @@ EOF
     crl2.add_revoked(revoked)
     assert_not_equal crl1.to_der, crl2.to_der
     assert_equal false, crl1 == crl2
+  end
+
+  def test_encoded_crl_tracks_changes
+    now = Time.now
+    key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    issuer = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+    cert = issue_cert(issuer, key, 1, [], nil, nil)
+    crl = OpenSSL::X509::CRL.new(issue_crl([], 1, now, now + 3600, [], cert, key, OpenSSL::Digest::SHA256.new).to_der)
+
+    revoked = OpenSSL::X509::Revoked.new
+    revoked.serial = 1
+    revoked.time = now
+    crl.add_revoked(revoked)
+
+    assert_equal 1, OpenSSL::X509::CRL.new(crl.to_der).revoked.size
+    assert_equal 1, OpenSSL::X509::CRL.new(crl.to_pem).revoked.size
+    assert_equal 1, crl.to_java.getRevokedCertificates.size
+  end
+
+  def test_revoked_requires_time
+    now = Time.now
+    key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    issuer = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+    cert = issue_cert(issuer, key, 1, [], nil, nil)
+    crl = OpenSSL::X509::CRL.new(issue_crl([], 1, now, now + 3600, [], cert, key, OpenSSL::Digest::SHA256.new).to_der)
+    revoked = OpenSSL::X509::Revoked.new
+
+    assert_raises(OpenSSL::X509::RevokedError) { crl.add_revoked(revoked) }
+  end
+
+  def test_resign_after_encoding_uses_new_signature
+    now = Time.now
+    key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    issuer = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+    cert = issue_cert(issuer, key, 1, [], nil, nil)
+    crl = OpenSSL::X509::CRL.new(issue_crl([], 1, now, now + 3600, [], cert, key, OpenSSL::Digest::SHA256.new).to_der)
+
+    revoked = OpenSSL::X509::Revoked.new
+    revoked.serial = 1
+    revoked.time = now
+    crl.add_revoked(revoked)
+    crl.to_der
+    crl.sign(key, OpenSSL::Digest::SHA512.new)
+
+    revoked = OpenSSL::X509::Revoked.new
+    revoked.serial = 2
+    revoked.time = now
+    crl.add_revoked(revoked)
+
+    assert_equal "sha512WithRSAEncryption", OpenSSL::X509::CRL.new(crl.to_der).signature_algorithm
+  end
+
+  def test_preserve_omitted_v1_version
+    now = Time.now
+    key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048
+    issuer = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA")
+    cert = issue_cert(issuer, key, 1, [], nil, nil)
+    source = issue_crl([], 1, now, now + 3600, [], cert, key, OpenSSL::Digest::SHA256.new)
+    certificate_list = OpenSSL::ASN1.decode(source.to_der)
+    tbs_cert_list = OpenSSL::ASN1::Sequence.new(certificate_list.value[0].value.drop(1))
+    der = OpenSSL::ASN1::Sequence.new([tbs_cert_list, certificate_list.value[1], certificate_list.value[2]]).to_der
+    crl = OpenSSL::X509::CRL.new(der)
+    crl.next_update = now + 7200
+
+    tbs_cert_list = OpenSSL::ASN1.decode(crl.to_der).value[0]
+    assert_kind_of OpenSSL::ASN1::Sequence, tbs_cert_list.value[0]
   end
 
   def test_crl_without_next_update
