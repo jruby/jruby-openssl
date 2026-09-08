@@ -28,7 +28,6 @@
 package org.jruby.ext.openssl;
 
 import java.net.Socket;
-import java.security.Provider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,8 +40,10 @@ import java.security.GeneralSecurityException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Collections;
 
 import javax.net.ssl.KeyManager;
@@ -52,7 +53,6 @@ import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
@@ -501,17 +501,74 @@ public class SSLContext extends RubyObject {
         }
         */
 
-        try {
-            internalContext = createInternalContext(context, cert, key, store, clientCA, extraChainCert,
-                                                    verifyMode, verifyCallback, verifyDepth, timeout, alpnProtocols, alpnSelectCb);
-        }
-        catch (GeneralSecurityException e) {
-            throw newSSLError(runtime, e);
-        }
+        internalContext = initSSLContext(context,
+                cert, key, store, clientCA, extraChainCert,
+                verifyMode, verifyCallback, verifyDepth,
+                timeout, alpnProtocols, alpnSelectCb,
+                buildCredentials(context, getInstanceVariable("@certs_and_keys"))
+        );
 
         this.freeze(context);
 
         return runtime.getTrue();
+    }
+
+    @JRubyMethod(name = "add_certificate", required = 2, optional = 1)
+    public IRubyObject add_certificate(final ThreadContext context, final IRubyObject[] args) {
+        final Ruby runtime = context.runtime;
+        checkFrozen();
+
+        if ( ! ( args[0] instanceof X509Cert ) ) {
+            throw runtime.newTypeError("OpenSSL::X509::Certificate expected but got cert = " + args[0].inspect());
+        }
+        if ( ! ( args[1] instanceof PKey ) ) {
+            throw runtime.newTypeError("OpenSSL::PKey::PKey expected but got pkey = " + args[1].inspect());
+        }
+
+        final X509Cert cert = (X509Cert) args[0];
+        final PKey key = (PKey) args[1];
+
+        // c: ossl_sslctx_add_certificate - SSL_CTX_use_certificate verifies the key matches
+        final PublicKey certPublicKey = cert.getAuxCert().getPublicKey();
+        final PublicKey keyPublicKey = key.getPublicKey();
+        if ( certPublicKey == null ) throw runtime.newArgumentError("certificate does not contain public key");
+        if ( keyPublicKey == null || ! Arrays.equals(certPublicKey.getEncoded(), keyPublicKey.getEncoded()) ) {
+            throw runtime.newArgumentError("public key mismatch");
+        }
+
+        RubyArray certsAndKeys;
+        final IRubyObject value = getInstanceVariable("@certs_and_keys");
+        if ( value instanceof RubyArray ) {
+            certsAndKeys = (RubyArray) value;
+        }
+        else {
+            certsAndKeys = runtime.newArray(4);
+            setInstanceVariable("@certs_and_keys", certsAndKeys);
+        }
+        final IRubyObject chain = args.length > 2 ? args[2] : context.nil;
+        certsAndKeys.append(runtime.newArray(cert, key, chain));
+
+        return this;
+    }
+
+    private static class Credential {
+        final String alias;
+        final X509AuxCertificate leaf;
+        final PrivateKey privateKey;
+        final String keyType;
+        final List<X509AuxCertificate> chain; // null => build from the cert store
+
+        Credential(final String alias,
+                   final X509AuxCertificate leaf,
+                   final PrivateKey privateKey,
+                   final String keyType,
+                   final List<X509AuxCertificate> chain) {
+            this.alias = alias;
+            this.leaf = leaf;
+            this.privateKey = privateKey;
+            this.keyType = keyType;
+            this.chain = chain;
+        }
     }
 
     @JRubyMethod
@@ -1008,13 +1065,52 @@ public class SSLContext extends RubyObject {
         return (RubyClass) _SSL(runtime).getConstantAt("SSLContext");
     }
 
-    private InternalContext createInternalContext(ThreadContext context,
+    /**
+     * @param context
+     * @param value @certs_and_keys
+     */
+    private List<Credential> buildCredentials(final ThreadContext context, final IRubyObject value) {
+        if (value == null || value.isNil()) return Collections.emptyList();
+        if (!(value instanceof RubyArray)) {
+            throw context.runtime.newTypeError("@certs_and_keys must be an Array, got: " + value.inspect());
+        }
+        final RubyArray certsAndKeys = (RubyArray) value;
+        final int size = certsAndKeys.size();
+        final ArrayList<Credential> credentials = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            final IRubyObject tuple = certsAndKeys.eltInternal(i);
+            if (!(tuple instanceof RubyArray)) {
+                throw context.runtime.newTypeError("certs_and_keys[" + i + "] expected an Array, got: " + tuple.inspect());
+            }
+            final RubyArray pair = (RubyArray) tuple;
+            final X509Cert cert = (X509Cert) pair.eltInternal(0);
+            final PKey key = (PKey) pair.eltInternal(1);
+            final IRubyObject chain = pair.entry(2);
+            final List<X509AuxCertificate> extraChain = chain.isNil() ? null : convertToAuxCerts(context, chain);
+            credentials.add(new Credential(Integer.toString(i), cert.getAuxCert(), key.getPrivateKey(), key.getKeyType(), extraChain));
+        }
+        return credentials;
+    }
+
+    private InternalContext initSSLContext(ThreadContext context,
         final X509Cert xCert, final PKey pKey, final Store store,
         final List<X509AuxCertificate> clientCA, final List<X509AuxCertificate> extraChainCert,
         final int verifyMode, final IRubyObject verifyCallback, final int verifyDepth, final int timeout,
-        final String[] alpnProtocols, final RubyProc alpnSelectCb) throws NoSuchAlgorithmException, KeyManagementException {
-        InternalContext internalContext = new InternalContext(xCert, pKey, store, clientCA, extraChainCert, verifyMode, verifyCallback, verifyDepth, timeout, alpnProtocols, alpnSelectCb);
-        internalContext.initSSLContext(context);
+        final String[] alpnProtocols, final RubyProc alpnSelectCb, final List<Credential> certsAndKeys) {
+
+        final InternalContext internalContext;
+        try {
+            internalContext = new InternalContext(
+                    xCert, pKey, store, clientCA, extraChainCert,
+                    verifyMode, verifyCallback, verifyDepth,
+                    timeout, alpnProtocols, alpnSelectCb,
+                    certsAndKeys
+            );
+            internalContext.initSSLContext(context);
+        }
+        catch (GeneralSecurityException e) {
+            throw newSSLError(context.runtime, e);
+        }
         return internalContext;
     }
 
@@ -1034,7 +1130,8 @@ public class SSLContext extends RubyObject {
             final int verifyDepth,
             final int timeout,
             final String[] alpnProtocols,
-            final RubyProc alpnSelectCallback) throws NoSuchAlgorithmException {
+            final RubyProc alpnSelectCallback,
+            final List<Credential> certsAndKeys) throws NoSuchAlgorithmException {
 
             if ( pKey != null && xCert != null ) {
                 this.privateKey = pKey.getPrivateKey();
@@ -1045,6 +1142,19 @@ public class SSLContext extends RubyObject {
                 this.privateKey = null;
                 this.keyType = null;
                 this.cert = null;
+            }
+
+            if ( certsAndKeys != null && ! certsAndKeys.isEmpty() ) {
+                this.credentials = certsAndKeys;
+            }
+            else if ( this.privateKey != null && this.cert != null ) {
+                // cert= / key= (+ optional extra_chain_cert) behave as a single credential
+                this.credentials = Collections.singletonList(
+                    new Credential("single", this.cert, this.privateKey, this.keyType, extraChainCert)
+                );
+            }
+            else {
+                this.credentials = Collections.emptyList();
             }
 
             this.store = store;
@@ -1096,6 +1206,9 @@ public class SSLContext extends RubyObject {
         final IRubyObject verifyCallback; // null when unset
         final int verifyDepth; // -1 when unset
 
+        // one or more server/client credentials; empty when no cert/key configured
+        final List<Credential> credentials;
+
         // @client_ca - CAs whose names go into the CertificateRequest message
         final List<X509AuxCertificate> clientCA; // assumed always != null
         final List<X509AuxCertificate> extraChainCert; // empty assumed == null
@@ -1140,78 +1253,93 @@ public class SSLContext extends RubyObject {
 
         @Override
         public String chooseEngineClientAlias(String[] keyType, java.security.Principal[] issuers, javax.net.ssl.SSLEngine engine) {
-            if (internalContext.privateKey == null) return null;
-
             for (int i = 0; i < keyType.length; i++) {
-                if (keyType[i].equalsIgnoreCase(internalContext.keyType)) {
-                    return keyType[i];
-                }
+                String alias = chooseAlias(keyType[i]);
+                if (alias != null) return alias;
             }
             return null;
         }
 
         @Override
         public String chooseEngineServerAlias(String keyType, java.security.Principal[] issuers, javax.net.ssl.SSLEngine engine) {
-            if (internalContext.privateKey == null) return null;
-
-            if (keyType.equalsIgnoreCase(internalContext.keyType)) {
-                return keyType;
-            }
-            return null;
+            return chooseAlias(keyType);
         }
 
         @Override
         public String chooseClientAlias(String[] keyType, java.security.Principal[] issuers, java.net.Socket socket) {
+            for (int i = 0; i < keyType.length; i++) {
+                String alias = chooseAlias(keyType[i]);
+                if (alias != null) return alias;
+            }
             return null;
         }
 
         @Override
         public String chooseServerAlias(String keyType, java.security.Principal[] issuers, java.net.Socket socket) {
+            return chooseAlias(keyType);
+        }
+
+        // BCJSSE asks per negotiated key type (RSA / EC / ...)
+        private String chooseAlias(final String keyType) {
+            if (keyType == null) return null;
+            for (int i = 0; i < internalContext.credentials.size(); i++) {
+                final Credential credential = internalContext.credentials.get(i);
+                if (credential.privateKey != null && keyType.equalsIgnoreCase(credential.keyType)) {
+                    return credential.alias; // pick the first credential that matches
+                }
+            }
+            return null;
+        }
+
+        private Credential credentialByAlias(String alias) {
+            if (alias == null) return null;
+            for (int i = 0; i < internalContext.credentials.size(); i++) {
+                final Credential credential = internalContext.credentials.get(i);
+                if (credential.alias.equals(alias)) return credential;
+            }
             return null;
         }
 
         @Override // c: ssl3_output_cert_chain
         public java.security.cert.X509Certificate[] getCertificateChain(String alias) {
-            final List<java.security.cert.X509Certificate> chain;
+            final Credential credential = credentialByAlias(alias);
+            if ( credential == null || credential.leaf == null ) return new java.security.cert.X509Certificate[0];
 
-            if ( internalContext.extraChainCert != null ) {
+            if ( credential.chain != null ) {
                 // OpenSSL (ssl_add_cert_chain) sends the leaf cert first, then iterates extra_certs
                 // getCertificateChain must return the full chain starting with the leaf
-                chain = new ArrayList<>(internalContext.extraChainCert.size() + 1);
-                if ( internalContext.cert != null ) chain.add(internalContext.cert);
-                chain.addAll(internalContext.extraChainCert);
+                final java.security.cert.X509Certificate[] chain;
+                chain = new java.security.cert.X509Certificate[credential.chain.size() + 1];
+                chain[0] = credential.leaf;
+                for (int i = 0; i < credential.chain.size(); i++) chain[i + 1] = credential.chain.get(i);
+                return chain;
             }
-            else if ( internalContext.cert != null ) {
-                chain = new ArrayList<>(8);
 
-                StoreContext storeCtx = internalContext.createStoreContext(null);
-                X509AuxCertificate x = internalContext.cert;
-                while (true) {
+            final ArrayList<java.security.cert.X509Certificate> chain = new ArrayList<>(8);
+            StoreContext storeCtx = internalContext.createStoreContext(null);
+            X509AuxCertificate x = credential.leaf;
+            while (true) {
 
-                    chain.add(x);
+                chain.add(x);
 
-                    if ( x.getIssuerDN().equals(x.getSubjectDN()) ) break;
+                if ( x.getIssuerDN().equals(x.getSubjectDN()) ) break;
 
-                    try {
-                        final Name name = new Name(x.getIssuerX500Principal());
-                        X509Object[] s_obj = new X509Object[1];
-                        if (storeCtx.getBySubject(X509Utils.X509_LU_X509, name, s_obj) <= 0) {
-                            break;
-                        }
-                        x = ((Certificate) s_obj[0]).cert;
-                    }
-                    catch (RuntimeException e) {
-                        LOG.debugStack(e);
+                try {
+                    final Name name = new Name(x.getIssuerX500Principal());
+                    X509Object[] s_obj = new X509Object[1];
+                    if (storeCtx.getBySubject(X509Utils.X509_LU_X509, name, s_obj) <= 0) {
                         break;
                     }
-                    catch (Exception e) {
-                        LOG.debug("KeyManagerImpl bySubject failed", e);
-                        break;
-                    }
+                    x = ((Certificate) s_obj[0]).cert;
                 }
-            }
-            else {
-                chain = Collections.EMPTY_LIST;
+                catch (RuntimeException e) {
+                    LOG.debugStack(e);
+                    break;
+                }
+                catch (Exception e) {
+                    LOG.debug("KeyManagerImpl bySubject failed", e);
+                    break;
+                }
             }
             return chain.toArray( new java.security.cert.X509Certificate[chain.size()] );
         }
@@ -1223,7 +1351,8 @@ public class SSLContext extends RubyObject {
 
         @Override
         public java.security.PrivateKey getPrivateKey(String alias) {
-            return internalContext.privateKey; // might be null
+            final Credential credential = credentialByAlias(alias);
+            return credential == null ? null : credential.privateKey;
         }
 
         @Override

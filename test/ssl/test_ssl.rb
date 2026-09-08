@@ -558,6 +558,62 @@ class TestSSL < TestCase
     end
   end
 
+  # OpenSSL::SSL::SSLContext#add_certificate registers credentials that BCJSSE selects
+  # per negotiated cipher (key type), mirroring C OpenSSL's SSL_CTX_add1_credential
+  def test_add_certificate
+    ctx_proc = -> ctx {
+      ctx.cert = ctx.key = ctx.extra_chain_cert = nil
+      ctx.add_certificate(@svr_cert, @svr_key, [@ca_cert]) # RSA
+    }
+    start_server(OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: ctx_proc) { |server, port|
+      server_connect(port) { |ssl|
+        assert_equal @svr_cert.subject.to_s, ssl.peer_cert.subject.to_s
+        assert_equal [@svr_cert.subject.to_s, @ca_cert.subject.to_s],
+          ssl.peer_cert_chain.map { |c| c.subject.to_s }
+        ssl.puts "abc"; assert_equal "abc\n", ssl.gets
+      }
+    }
+  end
+
+  def test_add_certificate_multiple_certs
+    ca2_key = OpenSSL::PKey::RSA.new(2048)
+    ca2_dn = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=CA2")
+    ca2_cert = issue_cert(ca2_dn, ca2_key, 123,
+      [["basicConstraints","CA:TRUE",true],["keyUsage","cRLSign,keyCertSign",true]], nil, nil)
+
+    ec_key = OpenSSL::PKey::EC.generate("prime256v1")
+    ec_dn = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=localhost2")
+    ec_cert = issue_cert(ec_dn, ec_key, 456,
+      [["keyUsage","digitalSignature",true]], ca2_cert, ca2_key)
+
+    ctx_proc = -> ctx {
+      ctx.cert = ctx.key = ctx.extra_chain_cert = nil
+      ctx.add_certificate(@svr_cert, @svr_key, [@ca_cert]) # RSA
+      ctx.add_certificate(ec_cert, ec_key, [ca2_cert])      # ECDSA
+    }
+    start_server(OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: ctx_proc) { |server, port|
+      # BCJSSE in approved-only mode does not offer ECDHE-ECDSA, so only assert EC
+      # credential selection where the suite is actually available
+      unless fips?
+        ec_ctx = OpenSSL::SSL::SSLContext.new
+        ec_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+        ec_ctx.ciphers = "ECDHE-ECDSA-AES128-GCM-SHA256"
+        server_connect(port, ec_ctx) { |ssl|
+          assert_equal ec_dn.to_s, ssl.peer_cert.subject.to_s
+          assert_equal [ec_dn.to_s, ca2_dn.to_s], ssl.peer_cert_chain.map { |c| c.subject.to_s }
+        }
+      end
+
+      rsa_ctx = OpenSSL::SSL::SSLContext.new
+      rsa_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+      rsa_ctx.ciphers = "ECDHE-RSA-AES128-GCM-SHA256"
+      server_connect(port, rsa_ctx) { |ssl|
+        assert_equal @svr_cert.subject.to_s, ssl.peer_cert.subject.to_s
+        assert_equal [@svr_cert.subject.to_s, @ca_cert.subject.to_s], ssl.peer_cert_chain.map { |c| c.subject.to_s }
+      }
+    }
+  end
+
   def test_post_connect_check_with_anon_ciphers
     unless OpenSSL::ExtConfig::TLS_DH_anon_WITH_AES_256_GCM_SHA384
       return skip('OpenSSL::ExtConfig::TLS_DH_anon_WITH_AES_256_GCM_SHA384 not enabled')
