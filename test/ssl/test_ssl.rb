@@ -587,9 +587,10 @@ class TestSSL < TestCase
       [["keyUsage","digitalSignature",true]], ca2_cert, ca2_key)
 
     ctx_proc = -> ctx {
-      ctx.cert = ctx.key = ctx.extra_chain_cert = nil
-      ctx.add_certificate(@svr_cert, @svr_key, [@ca_cert]) # RSA
-      ctx.add_certificate(ec_cert, ec_key, [ca2_cert])      # ECDSA
+      ctx.cert = @svr_cert
+      ctx.key = @svr_key
+      ctx.extra_chain_cert = [@ca_cert]
+      ctx.add_certificate(ec_cert, ec_key, [ca2_cert]) # ECDSA
     }
     start_server(OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: ctx_proc) { |server, port|
       # BCJSSE in approved-only mode does not offer ECDHE-ECDSA, so only assert EC
@@ -612,6 +613,18 @@ class TestSSL < TestCase
         assert_equal [@svr_cert.subject.to_s, @ca_cert.subject.to_s], ssl.peer_cert_chain.map { |c| c.subject.to_s }
       }
     }
+  end
+
+  def test_add_certificate_validates_private_key_and_chain
+    ctx = OpenSSL::SSL::SSLContext.new
+    public_key = OpenSSL::PKey.read(@svr_key.public_to_der)
+    assert_raise(ArgumentError) { ctx.add_certificate(@svr_cert, public_key) }
+    assert_raise(TypeError) { ctx.add_certificate(@svr_cert, @svr_key, Object.new) }
+
+    chain = [@ca_cert]
+    ctx.add_certificate(@svr_cert, @svr_key, chain)
+    chain << Object.new
+    assert_equal true, ctx.setup
   end
 
   def test_post_connect_check_with_anon_ciphers

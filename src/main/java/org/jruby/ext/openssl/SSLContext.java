@@ -332,6 +332,7 @@ public class SSLContext extends RubyObject {
     transient volatile int sessionCacheNum;
 
     private volatile InternalContext internalContext;
+    private final ArrayList<Credential> addedCredentials = new ArrayList<>(); // @certs_and_keys in MRI
 
     @JRubyMethod(required = 0, optional = 1, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(IRubyObject[] args) {
@@ -502,10 +503,10 @@ public class SSLContext extends RubyObject {
         */
 
         internalContext = initSSLContext(context,
-                cert, key, store, clientCA, extraChainCert,
+                store, clientCA,
                 verifyMode, verifyCallback, verifyDepth,
                 timeout, alpnProtocols, alpnSelectCb,
-                buildCredentials(context, getInstanceVariable("@certs_and_keys"))
+                buildCredentials(cert, key, extraChainCert)
         );
 
         this.freeze(context);
@@ -529,24 +530,29 @@ public class SSLContext extends RubyObject {
         final PKey key = (PKey) args[1];
 
         // c: ossl_sslctx_add_certificate - SSL_CTX_use_certificate verifies the key matches
-        final PublicKey certPublicKey = cert.getAuxCert().getPublicKey();
+        final X509AuxCertificate auxCert = cert.getAuxCert();
+        final PublicKey certPublicKey = auxCert == null ? null : auxCert.getPublicKey();
         final PublicKey keyPublicKey = key.getPublicKey();
         if ( certPublicKey == null ) throw runtime.newArgumentError("certificate does not contain public key");
+        final PrivateKey privateKey = key.getPrivateKey();
+        if ( privateKey == null ) throw runtime.newArgumentError("private key is needed");
         if ( keyPublicKey == null || ! Arrays.equals(certPublicKey.getEncoded(), keyPublicKey.getEncoded()) ) {
             throw runtime.newArgumentError("public key mismatch");
         }
 
-        RubyArray certsAndKeys;
-        final IRubyObject value = getInstanceVariable("@certs_and_keys");
-        if ( value instanceof RubyArray ) {
-            certsAndKeys = (RubyArray) value;
+        final List<X509AuxCertificate> extraChain;
+        if ( args.length == 3 && ! args[2].isNil() ) {
+            if ( ! ( args[2] instanceof RubyArray ) ) {
+                throw runtime.newTypeError("Array expected but got extra_certs = " + args[2].inspect());
+            }
+            extraChain = convertToAuxCerts(context, args[2]);
         }
         else {
-            certsAndKeys = runtime.newArray(4);
-            setInstanceVariable("@certs_and_keys", certsAndKeys);
+            extraChain = null;
         }
-        final IRubyObject chain = args.length > 2 ? args[2] : context.nil;
-        certsAndKeys.append(runtime.newArray(cert, key, chain));
+
+        final String alias = Integer.toString(addedCredentials.size());
+        addedCredentials.add(new Credential(alias, auxCert, privateKey, key.getKeyType(), extraChain));
 
         return this;
     }
@@ -1065,43 +1071,26 @@ public class SSLContext extends RubyObject {
         return (RubyClass) _SSL(runtime).getConstantAt("SSLContext");
     }
 
-    /**
-     * @param context
-     * @param value @certs_and_keys
-     */
-    private List<Credential> buildCredentials(final ThreadContext context, final IRubyObject value) {
-        if (value == null || value.isNil()) return Collections.emptyList();
-        if (!(value instanceof RubyArray)) {
-            throw context.runtime.newTypeError("@certs_and_keys must be an Array, got: " + value.inspect());
+    private List<Credential> buildCredentials(final X509Cert cert, final PKey key,
+                                              final List<X509AuxCertificate> extraChainCert) {
+        if ( cert == null || key == null || key.getPrivateKey() == null || cert.getAuxCert() == null ) {
+            return addedCredentials;
         }
-        final RubyArray certsAndKeys = (RubyArray) value;
-        final int size = certsAndKeys.size();
-        final ArrayList<Credential> credentials = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            final IRubyObject tuple = certsAndKeys.eltInternal(i);
-            if (!(tuple instanceof RubyArray)) {
-                throw context.runtime.newTypeError("certs_and_keys[" + i + "] expected an Array, got: " + tuple.inspect());
-            }
-            final RubyArray pair = (RubyArray) tuple;
-            final X509Cert cert = (X509Cert) pair.eltInternal(0);
-            final PKey key = (PKey) pair.eltInternal(1);
-            final IRubyObject chain = pair.entry(2);
-            final List<X509AuxCertificate> extraChain = chain.isNil() ? null : convertToAuxCerts(context, chain);
-            credentials.add(new Credential(Integer.toString(i), cert.getAuxCert(), key.getPrivateKey(), key.getKeyType(), extraChain));
-        }
+        final ArrayList<Credential> credentials = new ArrayList<>(addedCredentials.size() + 1);
+        credentials.add(new Credential("@cert", cert.getAuxCert(), key.getPrivateKey(), key.getKeyType(), extraChainCert));
+        credentials.addAll(addedCredentials);
         return credentials;
     }
 
     private InternalContext initSSLContext(ThreadContext context,
-        final X509Cert xCert, final PKey pKey, final Store store,
-        final List<X509AuxCertificate> clientCA, final List<X509AuxCertificate> extraChainCert,
+        final Store store, final List<X509AuxCertificate> clientCA,
         final int verifyMode, final IRubyObject verifyCallback, final int verifyDepth, final int timeout,
         final String[] alpnProtocols, final RubyProc alpnSelectCb, final List<Credential> certsAndKeys) {
 
         final InternalContext internalContext;
         try {
             internalContext = new InternalContext(
-                    xCert, pKey, store, clientCA, extraChainCert,
+                    store, clientCA,
                     verifyMode, verifyCallback, verifyDepth,
                     timeout, alpnProtocols, alpnSelectCb,
                     certsAndKeys
@@ -1120,11 +1109,8 @@ public class SSLContext extends RubyObject {
     private class InternalContext {
 
         InternalContext(
-            final X509Cert xCert,
-            final PKey pKey,
             final Store store,
             final List<X509AuxCertificate> clientCA,
-            final List<X509AuxCertificate> extraChainCert,
             final int verifyMode,
             final IRubyObject verifyCallback,
             final int verifyDepth,
@@ -1133,33 +1119,10 @@ public class SSLContext extends RubyObject {
             final RubyProc alpnSelectCallback,
             final List<Credential> certsAndKeys) throws NoSuchAlgorithmException {
 
-            if ( pKey != null && xCert != null ) {
-                this.privateKey = pKey.getPrivateKey();
-                this.keyType = pKey.getKeyType();
-                this.cert = xCert.getAuxCert();
-            }
-            else {
-                this.privateKey = null;
-                this.keyType = null;
-                this.cert = null;
-            }
-
-            if ( certsAndKeys != null && ! certsAndKeys.isEmpty() ) {
-                this.credentials = certsAndKeys;
-            }
-            else if ( this.privateKey != null && this.cert != null ) {
-                // cert= / key= (+ optional extra_chain_cert) behave as a single credential
-                this.credentials = Collections.singletonList(
-                    new Credential("single", this.cert, this.privateKey, this.keyType, extraChainCert)
-                );
-            }
-            else {
-                this.credentials = Collections.emptyList();
-            }
+            this.credentials = certsAndKeys;
 
             this.store = store;
             this.clientCA = clientCA;
-            this.extraChainCert = extraChainCert;
             this.verifyMode = verifyMode;
             this.verifyCallback = verifyCallback;
             this.verifyDepth = verifyDepth;
@@ -1198,9 +1161,6 @@ public class SSLContext extends RubyObject {
         }
 
         final Store store;
-        final X509AuxCertificate cert;
-        final String keyType;
-        final PrivateKey privateKey;
 
         final int verifyMode;
         final IRubyObject verifyCallback; // null when unset
@@ -1211,7 +1171,6 @@ public class SSLContext extends RubyObject {
 
         // @client_ca - CAs whose names go into the CertificateRequest message
         final List<X509AuxCertificate> clientCA; // assumed always != null
-        final List<X509AuxCertificate> extraChainCert; // empty assumed == null
 
         private final int timeout;
 
