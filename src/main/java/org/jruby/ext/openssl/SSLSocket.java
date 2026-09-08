@@ -773,10 +773,20 @@ public class SSLSocket extends RubyObject {
         }
     }
 
-    private int writeToChannel(ByteBuffer buffer, boolean blocking) throws IOException {
+    final int writeToChannel(ByteBuffer buffer, boolean blocking) throws IOException {
+        final SocketChannelImpl channel = socketChannelImpl();
         int totalWritten = 0;
         while ( buffer.hasRemaining() ) {
-            totalWritten += socketChannelImpl().write(buffer);
+            final int written = channel.write(buffer);
+            totalWritten += written;
+            if ( written == 0 ) {
+                if ( blocking && !channel.isBlocking() && channel.isSelectable() ) {
+                    if (waitSelect(SelectionKey.OP_WRITE, true, true) != Boolean.TRUE) break;
+                } else {
+                    break;
+                }
+            }
+
             if ( ! blocking ) break; // don't continue attempting to read
         }
         return totalWritten;

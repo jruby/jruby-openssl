@@ -288,6 +288,71 @@ class TestSSLSocket < TestCase
     end
   end
 
+
+  def test_close_does_not_busy_spin_on_nonblocking_socket; require 'socket'
+    server = TCPServer.new('127.0.0.1', 0)
+    server_ctx = OpenSSL::SSL::SSLContext.new
+    server_ctx.cert = @svr_cert
+    server_ctx.key = @svr_key
+    server_ready = Queue.new
+
+    server_thread = Thread.new do
+      raw = server.accept
+      raw.setsockopt(Socket::SOL_SOCKET, Socket::SO_RCVBUF, 4096)
+      peer = OpenSSL::SSL::SSLSocket.new(raw, server_ctx)
+      peer.accept
+      peer.close # send close_notify but keep raw socket open
+      server_ready << true
+      sleep(4.5) # do not read; keep the client's TCP send buffer full
+    rescue Exception => error
+      server_ready << error
+    ensure
+      peer.close rescue nil if peer
+      raw.close rescue nil if raw
+    end
+
+    sock = TCPSocket.new('127.0.0.1', server.addr[1])
+    sock.setsockopt(Socket::SOL_SOCKET, Socket::SO_SNDBUF, 4096)
+    ssl = OpenSSL::SSL::SSLSocket.new(sock)
+    ssl.sync_close = true
+    ssl.connect
+    ready = server_ready.pop
+    fail(ready) if ready.is_a?(Exception)
+
+    omit 'IO#nonblock= is unavailable' unless ssl.io.respond_to?(:nonblock=)
+    ssl.io.nonblock = true
+
+    filled = 0
+    loop do
+      written = ssl.io.write_nonblock('x' * 16_384)
+      filled += written if written.is_a?(Integer)
+      break if written == 0 || written == :wait_writable
+    rescue IO::WaitWritable
+      break
+    end
+
+    loop do
+      written = ssl.io.write_nonblock('x')
+      filled += written if written.is_a?(Integer)
+      break if written == 0 || written == :wait_writable
+    rescue IO::WaitWritable
+      break
+    end
+
+    assert_operator filled, :>, 0
+
+    close_thread = Thread.new { ssl.read(1) rescue nil }
+    sleep 0.5
+    assert close_thread.alive?, 'read returned before peer close was processed'
+    assert_equal 'sleep', close_thread.status, 'read path is busy-spinning during shutdown'
+  ensure
+    ssl&.io&.close rescue nil
+    sock&.close rescue nil
+    server&.close rescue nil
+    server_thread&.join(5)
+    close_thread&.join(1.5)
+  end
+
   private
 
   def server(ssl_version: nil); require 'socket'
