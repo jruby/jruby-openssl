@@ -427,6 +427,69 @@ class TestSSL < TestCase
     end
   end
 
+  def test_unexpected_eof_is_not_accepted_by_default
+    server_ctx = OpenSSL::SSL::SSLContext.new
+    server_ctx.cert = @svr_cert
+    server_ctx.key = @svr_key
+    server_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+    tcp_server = TCPServer.new("127.0.0.1", 0)
+    ssl_server = OpenSSL::SSL::SSLServer.new(tcp_server, server_ctx)
+
+    server_thread = Thread.new do
+      ssl = ssl_server.accept
+      ssl.write("payload")
+      ssl.flush
+      ssl.to_io.close
+    end
+
+    client_ctx = OpenSSL::SSL::SSLContext.new
+    client_ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    client_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+    sock = TCPSocket.new("127.0.0.1", tcp_server.addr[1])
+    ssl = OpenSSL::SSL::SSLSocket.new(sock, client_ctx)
+    ssl.connect
+
+    assert_raise(OpenSSL::SSL::SSLError) { ssl.read }
+  ensure
+    ssl&.close rescue nil
+    sock&.close rescue nil
+    server_thread&.join rescue nil
+    ssl_server&.close rescue nil
+    tcp_server&.close rescue nil
+  end
+
+  def test_unexpected_eof_can_be_ignored_with_option
+    server_ctx = OpenSSL::SSL::SSLContext.new
+    server_ctx.cert = @svr_cert
+    server_ctx.key = @svr_key
+    server_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+    tcp_server = TCPServer.new("127.0.0.1", 0)
+    ssl_server = OpenSSL::SSL::SSLServer.new(tcp_server, server_ctx)
+
+    server_thread = Thread.new do
+      ssl = ssl_server.accept
+      ssl.write("payload")
+      ssl.flush
+      ssl.to_io.close
+    end
+
+    client_ctx = OpenSSL::SSL::SSLContext.new
+    client_ctx.options |= OpenSSL::SSL::OP_IGNORE_UNEXPECTED_EOF
+    client_ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    client_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+    sock = TCPSocket.new("127.0.0.1", tcp_server.addr[1])
+    ssl = OpenSSL::SSL::SSLSocket.new(sock, client_ctx)
+    ssl.connect
+
+    assert_equal "payload", ssl.read
+  ensure
+    ssl&.close rescue nil
+    sock&.close rescue nil
+    server_thread&.join rescue nil
+    ssl_server&.close rescue nil
+    tcp_server&.close rescue nil
+  end
+
   # verify_result should report V_ERR_HOSTNAME_MISMATCH when hostname
   # verification fails during connect (matches CRuby behavior).
   def test_verify_result_hostname_mismatch

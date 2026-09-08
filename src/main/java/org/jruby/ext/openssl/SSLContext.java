@@ -1011,7 +1011,7 @@ public class SSLContext extends RubyObject {
         return null;
     }
 
-    private long getOptions() {
+    long getOptions() {
         return options;
     }
 

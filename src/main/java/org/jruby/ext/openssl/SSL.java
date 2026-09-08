@@ -57,7 +57,8 @@ public class SSL {
     public static final int VERIFY_FAIL_IF_NO_PEER_CERT =                   0x02;
     public static final int VERIFY_CLIENT_ONCE =                            0x04;
 
-    public static final long OP_ALL =                                       0x00000FFFL;
+    public static final long OP_ALL =                                       0x80000850L;
+    public static final long OP_IGNORE_UNEXPECTED_EOF =                     0x00000080L;
     public static final long OP_NO_TICKET =                                 0x00004000L;
     public static final long OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION =    0x00010000L;
     public static final long OP_NO_COMPRESSION =                            0x00020000L;
@@ -154,6 +155,7 @@ public class SSL {
         SSL.setConstant("VERIFY_CLIENT_ONCE", runtime.newFixnum(VERIFY_CLIENT_ONCE));
 
         SSL.setConstant("OP_ALL", runtime.newFixnum(OP_ALL));
+        SSL.setConstant("OP_IGNORE_UNEXPECTED_EOF", runtime.newFixnum(OP_IGNORE_UNEXPECTED_EOF));
         SSL.setConstant("OP_NO_TICKET", runtime.newFixnum(OP_NO_TICKET));
         SSL.setConstant("OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION", runtime.newFixnum(OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION));
         SSL.setConstant("OP_NO_COMPRESSION", runtime.newFixnum(OP_NO_COMPRESSION));

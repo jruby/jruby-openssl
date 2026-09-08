@@ -938,42 +938,63 @@ public class SSLSocket extends RubyObject {
         return appReadData.remaining();
     }
 
-    private void closeInbound() {
+    private void closeInbound() throws SSLException {
         try {
             engine.closeInbound();
         }
         catch (SSLException e) {
+            if (!isIgnoreUnexpectedEOF()) throw e;
             LOG.debug(getRuntime(), "closeInbound", e);
-            // ignore any error on close. possibly an error like this;
-            // Inbound closed before receiving peer's close_notify: possible truncation attack?
         }
+    }
+
+    private boolean isIgnoreUnexpectedEOF() {
+        return (sslContext.getOptions() & SSL.OP_IGNORE_UNEXPECTED_EOF) != 0;
     }
 
     /**
      * @throws IOException when data flushing fails
      */
     private void doShutdown() throws IOException {
-        if (engine.isOutboundDone()) return;
-
         synchronized (writeLock) {
             if (flushData(false)) {
-                LOG.debug(getRuntime(), "doShutdown data in the data buffer; can't send close");
+                LOG.debug(getRuntime(), "doShutdown remaining write data (can not close)");
                 return;
             }
+
             netWriteData.clear();
+            engine.closeOutbound();
             try {
-                engine.wrap(EMPTY_DATA.duplicate(), netWriteData); // send close (after sslEngine.closeOutbound)
+                SSLEngineResult result;
+                do {
+                    result = engine.wrap(EMPTY_DATA.duplicate(), netWriteData); // send close (after engine.closeOutbound)
+                    if (result.getStatus() == SSLEngineResult.Status.BUFFER_OVERFLOW) {
+                        netWriteData = ensureCapacity(netWriteData, engine.getSession().getPacketBufferSize());
+                        continue;
+                    }
+                    netWriteData.flip();
+                    try {
+                        flushData(true);
+                    }
+                    catch (IOException ex) {
+                        LOG.debug(getRuntime(), "doShutdown", ex);
+                        return;
+                    }
+                    netWriteData.clear();
+                    if (result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_TASK) {
+                        doTasks();
+                    }
+                }
+                while (!engine.isOutboundDone() &&
+                        (result.getStatus() == SSLEngineResult.Status.OK ||
+                                result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_WRAP));
             }
             catch (SSLException e) {
                 LOG.debug(getRuntime(), "doShutdown", e);
-                return;
             }
             catch (RuntimeException e) {
                 LOG.debugStack(getRuntime(), "doShutdown", e);
-                return;
             }
-            netWriteData.flip();
-            flushData(true);
         }
     }
 
@@ -1046,6 +1067,10 @@ public class SSLSocket extends RubyObject {
             final int offset = dst.position() - read;
             buffStr.setValue(new ByteList(bytesRead, offset, read, false));
             return buffStr;
+        }
+        catch (SSLException ex) {
+            LOG.debugStack(runtime, "sysreadImpl", ex);
+            throw newSSLError(runtime, ex);
         }
         catch (IOException ex) {
             LOG.debugStack(runtime, "sysreadImpl", ex);
@@ -1159,8 +1184,6 @@ public class SSLSocket extends RubyObject {
             // if ( force ) throw getRuntime().newEOFError();
             return;
         }
-
-        engine.closeOutbound();
 
         if ( ! force && netWriteData.hasRemaining() ) return;
 
