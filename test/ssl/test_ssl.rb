@@ -409,6 +409,37 @@ class TestSSL < TestCase
     end
   end
 
+  def test_server_fail_if_no_peer_cert_without_verify_peer_ignores_client_cert
+    now = Time.now
+    ee = [["keyUsage", "digitalSignature", true]]
+    rogue_key = OpenSSL::PKey::RSA.new(2048)
+    rogue_cert = issue_cert(OpenSSL::X509::Name.parse("/CN=Rogue"), rogue_key, 12, ee,
+                            nil, nil, not_before: now, not_after: now + 1800)
+
+    server_proc = proc do |_ctx, ssl|
+      assert_nil ssl.peer_cert
+      ssl.puts "ok"
+    end
+    [OpenSSL::SSL::TLS1_2_VERSION, OpenSSL::SSL::TLS1_3_VERSION].each do |version|
+      start_server(OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT, true,
+                   server_proc: server_proc,
+                   ctx_proc: proc { |c| c.min_version = c.max_version = version }) do |_server, port|
+        [false, true].each do |with_cert|
+          ctx = OpenSSL::SSL::SSLContext.new
+          ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+          ctx.min_version = ctx.max_version = version
+          if with_cert
+            ctx.cert = rogue_cert
+            ctx.key = rogue_key
+          end
+          server_connect(port, ctx) do |ssl|
+            assert_equal "ok\n", ssl.gets
+          end
+        end
+      end
+    end
+  end
+
   # VERIFY_PEER without FAIL_IF_NO_PEER_CERT: client cert is requested but optional, so a client
   # presenting none still connects (setWantClientAuth vs setNeedClientAuth).
   def test_server_verify_peer_allows_missing_client_cert

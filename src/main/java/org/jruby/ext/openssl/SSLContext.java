@@ -1333,32 +1333,32 @@ public class SSLContext extends RubyObject {
 
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            checkTrusted("ssl_client", chain);
+            verifyCertChain("ssl_client", chain);
         }
 
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            checkTrusted("ssl_server", chain);
+            verifyCertChain("ssl_server", chain);
         }
 
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket) throws CertificateException {
-            checkTrusted("ssl_client", chain);
+            verifyCertChain("ssl_client", chain);
         }
 
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket) throws CertificateException {
-            checkTrusted("ssl_server", chain);
+            verifyCertChain("ssl_server", chain);
         }
 
         @Override
         public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine) throws CertificateException {
-            checkTrusted("ssl_client", chain);
+            verifyCertChain("ssl_client", chain);
         }
 
         @Override
         public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine) throws CertificateException {
-            checkTrusted("ssl_server", chain);
+            verifyCertChain("ssl_server", chain);
         }
 
         @Override
@@ -1368,25 +1368,24 @@ public class SSLContext extends RubyObject {
         }
 
         // c: ssl_verify_cert_chain
-        // OpenSSL always runs verification to populate verify_result (accessible via SSL_get_verify_result),
-        // but only aborts the handshake when VERIFY_PEER is set;
-        // VERIFY_NONE still records the error (e.g. V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) for after connect
-        private void checkTrusted(final String purpose, final X509Certificate[] chain) throws CertificateException {
+        // OpenSSL always runs verification to populate verify_result (accessible via SSL_get_verify_result) and
+        // only aborts handshake when VERIFY_PEER is set; VERIFY_NONE still records the error (for after connect)
+        private void verifyCertChain(final String purpose, final X509Certificate[] chain) throws CertificateException {
+            final int verifyMode = internalContext.verifyMode;
+            final boolean verifyPeer = (verifyMode & SSL.VERIFY_PEER) != 0;
             if ( chain != null && chain.length > 0 ) {
                 final StoreContext storeContext = internalContext.createStoreContext(purpose);
                 if ( storeContext == null ) {
-                    if ( (internalContext.verifyMode & SSL.VERIFY_PEER) != 0 ) {
-                        throw new CertificateException("couldn't initialize store");
-                    }
+                    if ( verifyPeer ) throw new CertificateException("couldn't initialize store");
                     return;
                 }
                 storeContext.setCertificate(chain[0]);
                 storeContext.setChain(chain);
-                verifyChain(storeContext, (internalContext.verifyMode & SSL.VERIFY_PEER) != 0);
+                verifyChain(storeContext, verifyPeer);
             } else {
-                if ( (internalContext.verifyMode & SSL.VERIFY_FAIL_IF_NO_PEER_CERT) != 0 ) {
-                    // fail if no peer cert
-                    throw new CertificateException("no peer certificate");
+                if ( "ssl_client".equals(purpose) && verifyPeer
+                        && (verifyMode & SSL.VERIFY_FAIL_IF_NO_PEER_CERT) != 0 ) {
+                    throw new CertificateException("no peer certificate"); // fail if no peer cert
                 }
             }
         }

@@ -404,15 +404,13 @@ public class SSLSocket extends RubyObject {
                 final IRubyObject verify_mode = verify_mode(context);
                 if ( verify_mode != context.nil ) {
                     final int verify = RubyNumeric.fix2int(verify_mode);
-                    if ( verify == 0 ) { // VERIFY_NONE
+                    if ( (verify & SSL.VERIFY_PEER) == 0 ) { // VERIFY_NONE or flags without VERIFY_PEER
                         engine.setNeedClientAuth(false);
                         engine.setWantClientAuth(false);
-                    }
-                    if ( ( verify & 1 ) != 0 ) { // VERIFY_PEER
-                        engine.setWantClientAuth(true);
-                    }
-                    if ( ( verify & 2 ) != 0 ) { // VERIFY_FAIL_IF_NO_PEER_CERT
+                    } else if ( (verify & SSL.VERIFY_FAIL_IF_NO_PEER_CERT) != 0 ) {
                         engine.setNeedClientAuth(true);
+                    } else { // VERIFY_PEER
+                        engine.setWantClientAuth(true);
                     }
                 }
                 // BC-JSSE (unlike SunJSSE) only surfaces the client's SNI when a matcher is set
