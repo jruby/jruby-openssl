@@ -1183,3 +1183,118 @@ class TestX509Store < TestCase
   end
 
 end
+
+# GH#370: X509Store must try every CA matching the issuer DN
+# (e.g. CA rotation where old and new chains share a subject)
+class TestX509StoreMultiCASameDN < TestCase
+
+  def setup
+    @old_root_cert, @old_root_key = make_root_ca('Test-Root', serial: 1)
+    @old_inter_cert, @old_inter_key = make_intermediate_ca('Test-Intermediate', @old_root_cert, @old_root_key, serial: 100)
+    @new_root_cert, @new_root_key = make_root_ca('Test-Root', serial: 2)
+    @new_inter_cert, @new_inter_key = make_intermediate_ca('Test-Intermediate', @new_root_cert, @new_root_key, serial: 200)
+    @server_cert, @server_key = make_leaf('localhost', @new_inter_cert, @new_inter_key, serial: 1000)
+  end
+
+  private
+
+  def make_root_ca(cn, serial:)
+    key = OpenSSL::PKey::RSA.new(2048)
+    name = OpenSSL::X509::Name.new([['CN', cn], ['O', 'TestOrg'], ['C', 'US']])
+
+    cert = OpenSSL::X509::Certificate.new
+    cert.version = 2
+    cert.serial = serial
+    cert.subject = name
+    cert.issuer = name
+    cert.public_key = key.public_key
+    cert.not_before = Time.now - 3600
+    cert.not_after = Time.now + 86400 * 365
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = cert
+    ef.issuer_certificate = cert
+    cert.add_extension(ef.create_extension('basicConstraints', 'CA:TRUE', true))
+    cert.add_extension(ef.create_extension('keyUsage', 'keyCertSign,cRLSign', true))
+    cert.add_extension(ef.create_extension('subjectKeyIdentifier', 'hash'))
+    cert.add_extension(ef.create_extension('authorityKeyIdentifier', 'keyid:always'))
+
+    cert.sign(key, OpenSSL::Digest.new('SHA256'))
+    [cert, key]
+  end
+
+  def make_intermediate_ca(cn, parent_cert, parent_key, serial:)
+    key = OpenSSL::PKey::RSA.new(2048)
+    name = OpenSSL::X509::Name.new([['CN', cn], ['O', 'TestOrg'], ['C', 'US']])
+
+    cert = OpenSSL::X509::Certificate.new
+    cert.version = 2
+    cert.serial = serial
+    cert.subject = name
+    cert.issuer = parent_cert.subject
+    cert.public_key = key.public_key
+    cert.not_before = Time.now - 3600
+    cert.not_after = Time.now + 86400 * 365
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = cert
+    ef.issuer_certificate = parent_cert
+    cert.add_extension(ef.create_extension('basicConstraints', 'CA:TRUE', true))
+    cert.add_extension(ef.create_extension('keyUsage', 'keyCertSign,cRLSign', true))
+    cert.add_extension(ef.create_extension('subjectKeyIdentifier', 'hash'))
+    cert.add_extension(ef.create_extension('authorityKeyIdentifier', 'keyid:always'))
+
+    cert.sign(parent_key, OpenSSL::Digest.new('SHA256'))
+    [cert, key]
+  end
+
+  def make_leaf(cn, parent_cert, parent_key, serial:)
+    key = OpenSSL::PKey::RSA.new(2048)
+    name = OpenSSL::X509::Name.new([['CN', cn], ['O', 'TestOrg'], ['C', 'US']])
+
+    cert = OpenSSL::X509::Certificate.new
+    cert.version = 2
+    cert.serial = serial
+    cert.subject = name
+    cert.issuer = parent_cert.subject
+    cert.public_key = key.public_key
+    cert.not_before = Time.now - 3600
+    cert.not_after = Time.now + 86400 * 365
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.subject_certificate = cert
+    ef.issuer_certificate = parent_cert
+    cert.add_extension(ef.create_extension('basicConstraints', 'CA:FALSE'))
+    cert.add_extension(ef.create_extension('keyUsage', 'digitalSignature,keyEncipherment'))
+    cert.add_extension(ef.create_extension('extendedKeyUsage', 'serverAuth'))
+    cert.add_extension(ef.create_extension('subjectKeyIdentifier', 'hash'))
+    cert.add_extension(ef.create_extension('authorityKeyIdentifier', 'keyid:always'))
+    cert.add_extension(ef.create_extension('subjectAltName', "DNS:localhost,DNS:#{cn}"))
+
+    cert.sign(parent_key, OpenSSL::Digest.new('SHA256'))
+    [cert, key]
+  end
+
+  public
+
+  def test_verify_with_old_chain_first
+    store = OpenSSL::X509::Store.new
+    store.add_cert(@old_inter_cert)
+    store.add_cert(@old_root_cert)
+    store.add_cert(@new_inter_cert)
+    store.add_cert(@new_root_cert)
+
+    assert store.verify(@server_cert), "expected verify to pass, got: #{store.error_string} (error #{store.error})"
+  end
+
+  def test_verify_with_new_chain_first
+    store = OpenSSL::X509::Store.new
+    store.add_cert(@new_inter_cert)
+    store.add_cert(@new_root_cert)
+    store.add_cert(@old_inter_cert)
+    store.add_cert(@old_root_cert)
+
+    assert store.verify(@server_cert), "expected verify to pass, got: #{store.error_string} (error #{store.error})"
+  end
+
+end
