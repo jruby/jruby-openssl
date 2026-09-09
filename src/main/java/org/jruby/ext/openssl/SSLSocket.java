@@ -923,7 +923,6 @@ public class SSLSocket extends RubyObject {
             closeInbound();
         }
         if ( status == SSLEngineResult.Status.CLOSED ) {
-            doShutdown();
             return -1;
         }
 

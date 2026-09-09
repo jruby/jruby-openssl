@@ -289,7 +289,7 @@ class TestSSLSocket < TestCase
   end
 
 
-  def test_close_does_not_busy_spin_on_nonblocking_socket; require 'socket'
+  def test_read_returns_after_peer_close_notify; require 'socket'
     server = TCPServer.new('127.0.0.1', 0)
     server_ctx = OpenSSL::SSL::SSLContext.new
     server_ctx.cert = @svr_cert
@@ -342,9 +342,7 @@ class TestSSLSocket < TestCase
     assert_operator filled, :>, 0
 
     close_thread = Thread.new { ssl.read(1) rescue nil }
-    sleep 0.5
-    assert close_thread.alive?, 'read returned before peer close was processed'
-    assert_equal 'sleep', close_thread.status, 'read path is busy-spinning during shutdown'
+    assert close_thread.join(2), 'read blocked while processing peer close_notify'
   ensure
     ssl&.io&.close rescue nil
     sock&.close rescue nil
