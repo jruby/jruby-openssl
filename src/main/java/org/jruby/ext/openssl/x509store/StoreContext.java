@@ -30,7 +30,6 @@ package org.jruby.ext.openssl.x509store;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
-import java.security.cert.CertificateException;
 import java.security.cert.CRLReason;
 import java.security.cert.X509CRL;
 import java.security.cert.X509CRLEntry;
@@ -110,8 +109,6 @@ public class StoreContext {
     Store.CleanupFunction cleanup;
 
     Store.LookupCerts lookup_certs;
-
-    //private boolean isValid;
 
     private int num_untrusted; // last_untrusted (OpenSSL 1.0.2) in the chain
 
@@ -202,13 +199,13 @@ public class StoreContext {
         /* Look through all matching certificates for a suitable issuer */
         for ( int i = idx; i < objects.size(); i++ ) {
             final X509Object pobj = objects.get(i);
-            /* See if we've run past the matches */
             if (pobj.type() != X509_LU_X509) {
-                break; // return 0
+                continue;
             }
             final X509AuxCertificate x509 = ((Certificate) pobj).cert;
             if ( ! xn.equalTo( x509.getSubjectX500Principal() ) ) {
-                break; // return 0
+                // NOTE: unlike OpenSSL our store.objects aren't sorted by subject (insertion order)
+                continue; // same-DN certs may be separated by other entries - keep scanning
             }
             if ( checkIssued.call(this, x, x509) != 0 ) {
                 _issuer[0] = x509;
@@ -1556,7 +1553,7 @@ public class StoreContext {
     }
 
     /* Return 1 is a certificate is self signed */
-    private boolean cert_self_signed(X509AuxCertificate x) throws CertificateException, IOException {
+    private boolean cert_self_signed(X509AuxCertificate x) throws IOException {
         // Purpose.checkPurpose(x, -1, 0);
         if ((x.getExFlags() & EXFLAG_SI) != 0) { // TODO EXFLAG_SS
             return true;
