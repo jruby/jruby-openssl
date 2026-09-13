@@ -368,9 +368,4 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
         }
     }
 
-    static boolean equalSubjects(final X509AuxCertificate cert1, final X509AuxCertificate cert2) {
-        if ( cert1.cert == cert2.cert ) return true;
-        return cert1.getSubjectX500Principal().equals( cert2.getSubjectX500Principal() );
-    }
-
 }// X509AuxCertificate
