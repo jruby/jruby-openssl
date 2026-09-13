@@ -55,7 +55,7 @@ public class CRL extends X509Object {
     @Override
     public boolean matches(final X509Object other) {
         if (other instanceof CRL) {
-            return this.crl.getIssuerX500Principal().equals( ((CRL) other).crl.getIssuerX500Principal() );
+            return this.hashCode() == other.hashCode() && this.crl.equals(((CRL) other).crl);
         }
         return false;
     }
