@@ -100,7 +100,8 @@ def define_vendor_test_tasks(root: File.expand_path('..', __dir__),
     desc 'Install ruby-jwt gem dependencies'
     task :deps do
       # dev deps pull irb -> rdoc -> rbs (C-extension gem); specs run via `-S rspec`
-      ruby '-S gem install --no-document rspec simplecov base64 logger'
+      # pin simplecov to avoid its undeclared prism dependency on JRuby
+      ruby '-S gem install --no-document rspec simplecov:0.22.0 base64 logger'
     end
 
     task(:deps_check) { }
