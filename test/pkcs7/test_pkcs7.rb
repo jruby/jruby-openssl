@@ -1029,6 +1029,15 @@ module PKCS7Test
       assert_equal 1, p7.signers.size
     end
 
+    def test_signed_add_unsigned_signer_after_signing
+      omit_on_fips 'PKCS7.sign defaults to SHA-1'
+
+      p7 = OpenSSL::PKCS7.sign(@ee1_cert, @rsa2048, 'data', [@ca_cert], OpenSSL::PKCS7::DETACHED)
+      p7.add_signer(OpenSSL::PKCS7::SignerInfo.new(@ee1_cert, @rsa2048, 'SHA1'))
+
+      assert_equal 2, OpenSSL::PKCS7.new(p7.to_der).signers.size
+    end
+
     def test_detached_accessors
       p7 = OpenSSL::PKCS7.new
       p7.type = :signed

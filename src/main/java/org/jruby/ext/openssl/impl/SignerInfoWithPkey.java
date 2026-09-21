@@ -44,6 +44,7 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.pkcs.Attribute;
@@ -237,7 +238,7 @@ public class SignerInfoWithPkey implements ASN1Encodable {
         }
 
         v.add(digEncryptionAlgorithm);
-        v.add(encryptedDigest);
+        v.add(encryptedDigest == null ? new DEROctetString(new byte[0]) : encryptedDigest);
 
         if (unauthenticatedAttributes != null) {
             v.add(new DERTaggedObject(false, 1, unauthenticatedAttributes));
