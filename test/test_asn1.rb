@@ -281,6 +281,25 @@ class TestASN1 < TestCase
     assert_raise("no implicit conversion of Integer into String") { OpenSSL::ASN1::ASN1Data.new(1, 0, :CONTEXT_SPECIFIC).to_der }
   end
 
+  def test_encode_long_form_lengths
+    {
+      127 => B(%w{ 04 7F }),
+      128 => B(%w{ 04 81 80 }),
+      255 => B(%w{ 04 81 FF }),
+      256 => B(%w{ 04 82 01 00 }),
+      65535 => B(%w{ 04 82 FF FF }),
+      65536 => B(%w{ 04 83 01 00 00 }),
+    }.each do |length, header|
+      content = "x" * length
+      encoded = OpenSSL::ASN1::ASN1Data.new(content, 4, :UNIVERSAL).to_der
+
+      assert_equal header + content, encoded
+    end
+
+    set = OpenSSL::ASN1::Set.new([OpenSSL::ASN1::OctetString.new("x" * 128)])
+    assert_equal B(%w{ 31 81 83 04 81 80 }) + ("x" * 128), set.to_der
+  end
+
   def test_encode_nil
     #Primitives raise TypeError, Constructives NoMethodError
 

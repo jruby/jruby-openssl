@@ -1870,17 +1870,16 @@ public class ASN1 {
                 byte[] stack = new byte[5];
                 int pos = stack.length;
 
-                do
-                {
-                    stack[--pos] = (byte)length;
+                do {
+                    stack[--pos] = (byte) length;
                     length >>>= 8;
                 }
                 while (length != 0);
 
                 int count = stack.length - pos;
-                stack[--pos] = (byte)(0x80 | count);
+                stack[pos - 1] = (byte) (0x80 | count);
 
-                out.write(stack, pos, count - pos);
+                out.write(stack, pos - 1, count + 1);
             }
         }
 
