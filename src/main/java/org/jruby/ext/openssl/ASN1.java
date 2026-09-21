@@ -1703,13 +1703,8 @@ public class ASN1 {
                         if (data == null) break;
                         vec.add(data);
                     } else {
-                        final IRubyObject string = obj.checkStringType();
-                        if (string instanceof RubyString) {
-                            values.append(string.asJavaString());
-                        } else {
-                            throw context.runtime.newTypeError(
-                                    "no implicit conversion of " + obj.getMetaClass().getBaseName() + " into String");
-                        }
+                        final RubyString string = convertToString(context.runtime, obj);
+                        values.append(string.asJavaString());
                     }
                 }
 
@@ -1720,21 +1715,21 @@ public class ASN1 {
             } else if (value instanceof ASN1Data) {
                 return ASN1Shim.newDERTaggedObject(isExplicitTagging(), tagClass, tag, ((ASN1Data) value).toASN1(context));
             } else if (value instanceof RubyObject) {
-                if (isEOC(context)) {
-                    return null;
-                }
-                final IRubyObject string = value.checkStringType();
-                if (string instanceof RubyString) {
-                    return ASN1Shim.newDERTaggedObject(isExplicitTagging(), tagClass, tag,
-                            new DERGeneralString(string.asJavaString()));
-                } else {
-                    throw context.runtime.newTypeError(
-                            "no implicit conversion of " + value.getMetaClass().getBaseName() + " into String");
-                }
+                if (isEOC(context)) return null;
+                final RubyString string = convertToString(context.runtime, value);
+                return ASN1Shim.newDERTaggedObject(isExplicitTagging(), tagClass, tag, new DERGeneralString(string.asJavaString()));
             } else {
                 throw context.runtime.newTypeError(
-                        "no implicit conversion of " + value.getMetaClass().getBaseName() + " into String");
+                        "no implicit conversion of " + value.getMetaClass().getName() + " into String");
             }
+        }
+
+        private static RubyString convertToString(final Ruby runtime, final IRubyObject obj) {
+            // if (obj instanceof RubyString) return (RubyString) obj;
+            final IRubyObject string = obj.checkStringType();
+            if (string instanceof RubyString) return (RubyString) string;
+            throw runtime.newTypeError(
+                    "no implicit conversion of " + obj.getMetaClass().getName() + " into String");
         }
 
         @JRubyMethod
@@ -1749,39 +1744,38 @@ public class ASN1 {
         }
 
         byte[] toDER(final ThreadContext context) throws IOException {
-            if (
-                ("ASN1Data".equals(getClassBaseName()) && isUniversal(context))
-            ) {
-                    return toDERInternal(context, isConstructive(), isInfiniteLength(), value(context));
+            if ("ASN1Data".equals(getClassBaseName()) && isUniversal(context)) {
+                return toDERInternal(context, isConstructive(), isInfiniteLength(), value(context));
             }
 
             final ASN1Primitive prim = toASN1(context).toASN1Primitive();
 
             if (isInfiniteLength()) {
-                final java.io.ByteArrayOutputStream tagOut = new ByteArrayOutputStream();
-                final java.io.ByteArrayOutputStream contentOut = new ByteArrayOutputStream();
-                final java.io.ByteArrayOutputStream out = new ByteArrayOutputStream();
+                final ByteArrayOutputStream tagOut = new ByteArrayOutputStream();
+                final ByteArrayOutputStream contentOut = new ByteArrayOutputStream();
                 prim.encodeTo(contentOut, ASN1Encoding.DER);
                 writeDERIdentifier(getTag(context), getTagClass(context) | BERTags.CONSTRUCTED, tagOut);
 
-                byte[] tagOutArr = tagOut.toByteArray();
-                byte[] contentOutArr = contentOut.toByteArray();
+                byte[] tagBytes = tagOut.toByteArray();
+                byte[] contentBytes = contentOut.toByteArray();
 
-                out.write(tagOutArr);
+                final int contentOnlyLen = contentBytes.length - tagBytes.length - 1;
+                final ByteArrayOutputStream out = new ByteArrayOutputStream(tagBytes.length + contentOnlyLen + 3);
+                out.write(tagBytes);
                 out.write(0x80);
-                out.write(contentOutArr, tagOutArr.length + 1, contentOutArr.length - tagOutArr.length - 1);
+                out.write(contentBytes, tagBytes.length + 1, contentOnlyLen);
                 out.write(0x00);
                 out.write(0x00);
 
                 return out.toByteArray();
-             } else {
-                return prim.getEncoded(ASN1Encoding.DER);
             }
+
+            return prim.getEncoded(ASN1Encoding.DER);
         }
 
         byte[] toDERInternal(final ThreadContext context, boolean isConstructed, boolean isIndefiniteLength, final IRubyObject value) throws IOException {
             // handstitch conversion
-            final java.io.ByteArrayOutputStream out = new ByteArrayOutputStream();
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
             final byte[] valueBytes;
 
@@ -1789,15 +1783,14 @@ public class ASN1 {
                 valueBytes = new byte[] {};
             } else if (value instanceof RubyArray) {
                 final IRubyObject[] arr = ((RubyArray) value).toJavaArray();
-                final java.io.ByteArrayOutputStream valueOut = new ByteArrayOutputStream();
-
+                final ByteArrayOutputStream valueOut = new ByteArrayOutputStream();
 
                 for ( int i = 0; i < arr.length; i++ ) {
-                   final IRubyObject obj = arr[i];
+                    final IRubyObject obj = arr[i];
 
-                   if (obj instanceof EndOfContent && i != arr.length - 1) {
-                    throw newASN1Error(context.runtime, "illegal EOC octets in value");
-                   }
+                    if (obj instanceof EndOfContent && (i != (arr.length - 1))) {
+                        throw newASN1Error(context.runtime, "illegal EOC octets in value");
+                    }
 
                     final byte[] objBytes;
 
