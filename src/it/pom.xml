@@ -9,7 +9,7 @@
   <name>integration</name>
 
   <properties>
-    <bc.version>1.84</bc.version>
+    <bc.version>1.86</bc.version>
   </properties>
 
   <dependencies>

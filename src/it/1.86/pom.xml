@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>none</groupId>
+    <artifactId>base</artifactId>
+    <version>0</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+  <artifactId>bc-1-86</artifactId>
+  <version>1.86</version>
+  <properties>
+    <bc.version>${project.version}</bc.version>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <id>run-ruby-tests</id>
+            <phase>test</phase>
+            <goals><goal>exec</goal></goals>
+            <configuration>
+              <executable>jruby</executable>
+              <workingDirectory>${basedir}/../..</workingDirectory>
+              <environmentVariables>
+                <BC_VERSION>${project.version}</BC_VERSION>
+              </environmentVariables>
+              <arguments>
+                <argument>-J-Djruby.openssl.load.jars=false</argument>
+                <argument>-J-cp</argument>
+                <argument>${project.build.directory}/dependency/bcprov-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bcpkix-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bcutil-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bctls-jdk18on-${bc.version}.jar:${basedir}/../../lib/jopenssl.jar</argument>
+                <argument>-Ilib</argument>
+                <argument>-Itest</argument>
+                <argument>-e</argument>
+                <argument>Dir.glob(File.join(Dir.pwd, "test/**/test_*.rb")).sort.each { |f| require f }</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
