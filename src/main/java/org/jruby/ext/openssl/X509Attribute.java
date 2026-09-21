@@ -189,7 +189,12 @@ public class X509Attribute extends RubyObject {
             //if ( value instanceof ASN1.ASN1Data ) {
             //    return this.value = value;
             //}
-            return this.value = ASN1.decodeImpl(context, value);
+            final IRubyObject decoded = ASN1.decodeImpl(context, value);
+            final RubyClass setClass = _ASN1(context.runtime).getClass("Set");
+            if (!setClass.isInstance(decoded)) {
+                throw newAttributeError(context.runtime, "attribute value must be ASN1::Set: nested asn1 error");
+            }
+            return this.value = decoded;
         }
         catch (IOException e) {
             throw newIOError(context.runtime, e);
@@ -219,6 +224,11 @@ public class X509Attribute extends RubyObject {
     private static RaiseException newAttributeError(Ruby runtime, Exception cause) {
         RubyClass AttributeError = _X509(runtime).getClass("AttributeError");
         return RubySupport.newError(runtime, AttributeError, cause.getMessage(), cause);
+    }
+
+    private static RaiseException newAttributeError(Ruby runtime, String message) {
+        RubyClass AttributeError = _X509(runtime).getClass("AttributeError");
+        return RubySupport.newError(runtime, AttributeError, message);
     }
 
 }// X509Attribute

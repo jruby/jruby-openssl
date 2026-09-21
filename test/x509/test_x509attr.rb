@@ -32,6 +32,14 @@ class TestX509Attribute < TestCase
     assert_equal val.to_der, attr.value.to_der
   end
 
+  def test_new_with_non_set_value
+    error = assert_raise(OpenSSL::X509::AttributeError) do
+      OpenSSL::X509::Attribute.new("challengePassword", OpenSSL::ASN1::EndOfContent.new)
+    end
+
+    assert_equal "attribute value must be ASN1::Set: nested asn1 error", error.message
+  end
+
   def test_dup
     attr = OpenSSL::X509::Attribute.new(CHALLENGE_PASSWORD_DER)
     assert_equal attr.to_der, attr.dup.to_der
