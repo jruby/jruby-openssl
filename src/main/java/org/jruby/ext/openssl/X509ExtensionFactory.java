@@ -208,7 +208,7 @@ public class X509ExtensionFactory extends RubyObject {
                 value = parseNsCertType(oid, valuex);
             }
             else if (id.equals("2.5.29.37")) { // extendedKeyUsage
-                value = parseExtendedKeyUsage(valuex);
+                value = parseExtendedKeyUsage(runtime, oid, valuex, critical.isTrue());
             }
             else if (id.equals("2.5.29.31")) { // crlDistributionPoints
                 value = parseCRLDistributionPoints(context, valuex);
@@ -644,10 +644,19 @@ public class X509ExtensionFactory extends RubyObject {
         return new DEROctetString(hexBytes);
     }
 
-    private static DLSequence parseExtendedKeyUsage(final String valuex) {
+    private static DLSequence parseExtendedKeyUsage(final Ruby runtime,
+                                                    final String oid,
+                                                    final String valuex,
+                                                    final boolean critical) {
         ASN1EncodableVector vector = new ASN1EncodableVector();
-        for (String name : valuex.split(", ?")) {
-            vector.add(ASN1Registry.sym2oid(name));
+        for (String entry : valuex.split(",", -1)) {
+            final String name = entry.trim();
+            try {
+                vector.add(ASN1.getObjectID(runtime, name));
+            } catch (IllegalArgumentException e) {
+                throw newExtensionError(runtime, oid + " = " + (critical ? "critical," : "") + valuex +
+                        ": error in extension (name=" + oid + ", value=" + valuex + ")");
+            }
         }
         return new DLSequence(vector);
     }

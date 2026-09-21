@@ -413,6 +413,32 @@ class TestX509Extension < TestCase
     assert_equal "https://example.com/", inner.value
   end
 
+  def test_extended_key_usage_rejects_unknown_oid
+    ef = OpenSSL::X509::ExtensionFactory.new
+
+    error = assert_raise(OpenSSL::X509::ExtensionError) do
+      ef.create_extension('extendedKeyUsage', 'definitelyNotAnEku')
+    end
+    assert_equal 'extendedKeyUsage = definitelyNotAnEku: error in extension (name=extendedKeyUsage, value=definitelyNotAnEku)', error.message
+
+    error = assert_raise(OpenSSL::X509::ExtensionError) do
+      ef.create_extension('extendedKeyUsage', 'critical,definitelyNotAnEku')
+    end
+    assert_equal 'extendedKeyUsage = critical,definitelyNotAnEku: error in extension (name=extendedKeyUsage, value=definitelyNotAnEku)', error.message
+  end
+
+  def test_extended_key_usage_accepts_numeric_oid
+    ext = OpenSSL::X509::ExtensionFactory.new.create_extension('extendedKeyUsage', '1.2.3.4')
+
+    assert_equal "\x30\x05\x06\x03\x2a\x03\x04".b, ext.value_der
+  end
+
+  def test_extended_key_usage_trims_purpose_names
+    ext = OpenSSL::X509::ExtensionFactory.new.create_extension('extendedKeyUsage', ' serverAuth ,  timeStamping ')
+
+    assert_equal "\x30\x14\x06\x08\x2b\x06\x01\x05\x05\x07\x03\x01\x06\x08\x2b\x06\x01\x05\x05\x07\x03\x08".b, ext.value_der
+  end
+
   def subject_alt_name(domains)
     ef = OpenSSL::X509::ExtensionFactory.new
     ef.create_extension("subjectAltName", domains.split(',').map { |d| "DNS: #{d}" }.join(', '))
