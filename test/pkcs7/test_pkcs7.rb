@@ -1076,6 +1076,29 @@ module PKCS7Test
       assert_operator p7.recipients.first.enc_key.bytesize, :>, 0
     end
 
+    def test_recipient_info_rejects_non_encryption_key
+      key = OpenSSL::PKey::EC.generate('prime256v1')
+      cert = issue_cert(OpenSSL::X509::Name.new([%w[CN EC]]), key, 4, [], @ca_cert, @ca_rsa2048)
+
+      error = assert_raise(OpenSSL::PKCS7::PKCS7Error) do
+        OpenSSL::PKCS7::RecipientInfo.new(cert)
+      end
+      assert_equal 'encryption not supported for this key type', error.message
+    end
+
+    def test_enveloped_recipient_without_encrypted_key
+      p7 = OpenSSL::PKCS7.new
+      p7.type = :enveloped
+      p7.cipher = 'AES-128-CBC'
+      p7.add_recipient(OpenSSL::PKCS7::RecipientInfo.new(@ee1_cert))
+
+      error = assert_raise(OpenSSL::PKCS7::PKCS7Error) { p7.to_der }
+      assert_equal 'illegal zero content', error.message
+
+      error = assert_raise(OpenSSL::PKCS7::PKCS7Error) { p7.to_pem }
+      assert_equal 'ASN1 lib', error.message
+    end
+
     def test_data_pkcs7_api
       p7 = OpenSSL::PKCS7.new
       p7.type = :data

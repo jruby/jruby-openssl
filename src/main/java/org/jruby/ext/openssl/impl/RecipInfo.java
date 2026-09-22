@@ -33,6 +33,7 @@ import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.pkcs.IssuerAndSerialNumber;
@@ -66,7 +67,12 @@ public class RecipInfo {
         BigInteger serial = cert.getSerialNumber();
         issuerAndSerial = new IssuerAndSerialNumber(issuer, serial);
         String algo = addEncryptionIfNeeded(cert.getPublicKey().getAlgorithm());
-        keyEncAlgor = new AlgorithmIdentifier(ASN1Registry.sym2oid(algo));
+        ASN1ObjectIdentifier keyEncOid = ASN1Registry.sym2oid(algo);
+        if (keyEncOid == null) {
+            throw new PKCS7Exception(PKCS7.F_PKCS7_ADD_RECIPIENT_INFO, PKCS7.R_ERROR_ADDING_RECIPIENT,
+                "encryption not supported for this key type");
+        }
+        keyEncAlgor = new AlgorithmIdentifier(keyEncOid);
         this.cert = cert;
     }
 
@@ -229,6 +235,7 @@ public class RecipInfo {
     }
 
     public ASN1Encodable asASN1() {
+        if (encKey == null) throw new IllegalStateException("illegal zero content");
         ASN1EncodableVector vector = new ASN1EncodableVector();
         vector.add( new ASN1Integer( BigInteger.valueOf(getVersion()) ) );
         vector.add( issuerAndSerial.toASN1Primitive() );
@@ -236,4 +243,5 @@ public class RecipInfo {
         vector.add( encKey.toASN1Primitive() );
         return new DLSequence(vector);
     }
+
 }// RecipInfo

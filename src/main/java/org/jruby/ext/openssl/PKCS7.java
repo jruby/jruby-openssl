@@ -756,6 +756,9 @@ public class PKCS7 extends RubyObject {
         try {
             PEMInputOutput.writePKCS7(writer, p7.toASN1());
         }
+        catch (IllegalStateException e) {
+            throw newPKCS7Error(getRuntime(), e.getMessage());
+        }
         catch (IOException ex) {
             LOG.debugStack(getRuntime(), null, ex);
             throw getRuntime().newIOErrorFromException(ex);
@@ -768,8 +771,8 @@ public class PKCS7 extends RubyObject {
         try {
             return newString(getRuntime(), p7.toASN1());
         }
-        catch (IOException e) {
-            throw newPKCS7Error(getRuntime(), e.getMessage());
+        catch (IllegalStateException|IOException e) {
+            throw newPKCS7Error(getRuntime(), e);
         }
     }
 
@@ -904,7 +907,7 @@ public class PKCS7 extends RubyObject {
                 info.set(((X509Cert) arg).getAuxCert());
             }
             catch (PKCS7Exception e) {
-                throw newPKCS7Error(context.runtime, e);
+                throw newPKCS7Error(context.runtime, e.getErrorData());
             }
             return this;
         }
