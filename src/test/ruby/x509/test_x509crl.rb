@@ -99,7 +99,7 @@ EOF
     revoked = crl.revoked.last
     assert_equal last_serial.to_i(16).to_s, revoked.serial.to_s
 
-    assert_equal Date.new(2014, 07, 07), Date.parse(revoked.time.strftime('%Y/%m/%d'))
+    assert_equal Date.new(2014, 07, 07), Date.parse(revoked.time.utc.strftime('%Y/%m/%d'))
   end
 
   # NOTE: same as OpenSSL's test_extension but without extension order requirement ...
