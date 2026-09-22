@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         ruby-version: [ jruby-9.4.14.0, jruby-10.0.6.0 ]
-        bc-version: [ '1.80', '1.81', '1.82', '1.83', '1.84', '1.85' ]
+        bc-version: [ '1.80', '1.81', '1.82', '1.83', '1.84', '1.85', '1.86' ]
         include:
           - ruby-version: jruby-10.0.6.0
             java-version: 21

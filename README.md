@@ -13,7 +13,9 @@ the JRuby [mailing list][1] or the [bug tracker][2].
 
 ## Compatibility
 
-Check latest jruby-openssl gem spec's `jar` *requirements* for compatibility.
+Java compatibility is expected to be the same as with supported JRuby versions.
+
+Check latest jruby-openssl gem spec's `jar` *requirements* for (BC) compatibility.
 
 ```ruby
 require 'openssl'
@@ -28,7 +30,7 @@ For older versions of the gem compatibility wasn't reported:
 | ~>0.13.x      | 9.1.x-9.4.x  |  Java 8-17 |    1.68-1.69 |
 | ~>0.14.x      | 9.1.x-9.4.x  |  Java 8-21 |    1.71-1.74 |
 | ~>0.15.x      | 9.2.x-10.0.x |  Java 8-25 |    1.78-1.83 |
-| ~>0.16.x      | 9.3.x-10.0.x |  Java 8-25 |    1.83-1.85 |
+| ~>0.16.x      | 9.3.x-10.1.x |  Java 8-25 |    1.83-1.86 |
 
 ## Security
 

@@ -148,8 +148,8 @@ invoker_run_options = {
 jruby_versions = []
 jruby_versions += %w{ 9.2.19.0 9.2.20.1 }
 jruby_versions += %w{ 9.3.3.0 9.3.13.0 }
-jruby_versions += %w{ 9.4.8.0 9.4.14.0 9.4.15.0 9.4.16.0 }
-jruby_versions += %w{ 10.0.1.0 10.0.3.0 10.0.5.0 10.0.6.0 }
+jruby_versions += %w{ 9.4.8.0 9.4.14.0 9.4.16.0 }
+jruby_versions += %w{ 10.0.1.0 10.0.3.0 10.0.6.0 10.0.7.0 10.1.1.0 10.1.2.0 }
 
 jruby_versions.each do |version|
   profile id: "test-#{version}" do

@@ -25,7 +25,7 @@ jobs:
           - ruby: jruby-10.0.6.0
             java: 21
             distribution: temurin
-          - ruby: jruby-10.0.6.0
+          - ruby: jruby-10.0.7.0
             java: 25
             distribution: temurin
           - java: 21
@@ -60,7 +60,7 @@ jobs:
             ruby: jruby-10.1.0.0
           - java: 25
             distribution: temurin
-            ruby: jruby-10.1.0.0
+            ruby: jruby-10.1.2.0
           - java: 21
             distribution: corretto
             ruby: jruby-head
