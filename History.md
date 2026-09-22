@@ -1,3 +1,7 @@
+## 0.16.3
+
+- [deps] upgrade BC to version 1.86
+
 ## 0.16.2
 
 - [fix] PKey.generate_key accepts key as parameters (#366)
