@@ -1,3 +1,7 @@
+## 0.16.3
+
+- [deps] upgrade BC to version 1.86
+
 ## 0.19.1
 
 X25519/X448 key support and DH key reading, and a (final) round of provider 
