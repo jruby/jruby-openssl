@@ -12,6 +12,7 @@
   <version>1.86</version>
   <properties>
     <bc.version>${project.version}</bc.version>
+    <bctls.version>1.86.1</bctls.version>
   </properties>
   <build>
     <plugins>
@@ -33,7 +34,7 @@
               <arguments>
                 <argument>-J-Djruby.openssl.load.jars=false</argument>
                 <argument>-J-cp</argument>
-                <argument>${project.build.directory}/dependency/bcprov-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bcpkix-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bcutil-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bctls-jdk18on-${bc.version}.jar:${basedir}/../../lib/jopenssl.jar</argument>
+                <argument>${project.build.directory}/dependency/bcprov-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bcpkix-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bcutil-jdk18on-${bc.version}.jar:${project.build.directory}/dependency/bctls-jdk18on-${bctls.version}.jar:${basedir}/../../lib/jopenssl.jar</argument>
                 <argument>-Ilib</argument>
                 <argument>-Itest</argument>
                 <argument>-e</argument>

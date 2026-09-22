@@ -10,6 +10,7 @@
 
   <properties>
     <bc.version>1.84</bc.version>
+    <bctls.version>${bc.version}</bctls.version>
   </properties>
 
   <dependencies>
@@ -31,7 +32,7 @@
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bctls-jdk18on</artifactId>
-      <version>${bc.version}</version>
+      <version>${bctls.version}</version>
     </dependency>
   </dependencies>
 

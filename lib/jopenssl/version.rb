@@ -4,7 +4,9 @@ module JOpenSSL
   BOUNCY_CASTLE_VERSION = '1.86'
 
   # @private
-  BOUNCY_CASTLE_PATCH_VERSIONS = {}.freeze
+  BOUNCY_CASTLE_PATCH_VERSIONS = {
+    'bctls-jdk18on' => "#{BOUNCY_CASTLE_VERSION}.1"
+  }.freeze
   private_constant :BOUNCY_CASTLE_PATCH_VERSIONS
 
   # @private
