@@ -314,6 +314,7 @@ public class PKCS7 extends RubyObject {
             }
             return this;
         }
+
         IRubyObject arg = to_der_if_possible(context, args[0]);
         BIO input = obj2bio(context, arg);
         try {

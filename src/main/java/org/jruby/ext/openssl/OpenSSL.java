@@ -106,6 +106,7 @@ public class OpenSSL {
         PKCS5.createPKCS5(runtime, _OpenSSL);
         OCSP.createOCSP(runtime, _OpenSSL, OpenSSLError);
         KDF.createKDF(runtime, _OpenSSL, OpenSSLError);
+        Timestamp.createTimestamp(runtime, _OpenSSL, OpenSSLError);
 
         runtime.getLoadService().require("jopenssl/version");
 

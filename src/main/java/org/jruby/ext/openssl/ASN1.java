@@ -755,7 +755,7 @@ public class ASN1 {
         return new ASN1ObjectIdentifier( nameOrOid );
     }
 
-    static ASN1ObjectIdentifier toObjectID(final String oid, final boolean silent)
+    private static ASN1ObjectIdentifier toObjectID(final String oid, final boolean silent)
         throws IllegalArgumentException {
         try {
             return new ASN1ObjectIdentifier(oid);
@@ -764,6 +764,11 @@ public class ASN1 {
             if ( silent ) return null;
             throw e;
         }
+    }
+
+    static String shortName(final Ruby runtime, final ASN1ObjectIdentifier oid) {
+        final String name = oid2name(runtime, oid, true);
+        return name == null ? oid.getId() : name;
     }
 
     @JRubyMethod(name="Boolean", module=true, rest=true)
@@ -1554,7 +1559,7 @@ public class ASN1 {
     }
 
     public static RaiseException newASN1Error(Ruby runtime, String message) {
-        return newError(runtime, _ASN1(runtime).getClass("ASN1Error"), message, false);
+        return newError(runtime, _ASN1Error(runtime), message, false);
     }
 
     static RaiseException newASN1Error(Ruby runtime, Throwable ex) {
@@ -1563,6 +1568,10 @@ public class ASN1 {
 
     static RubyModule _ASN1(final Ruby runtime) {
         return (RubyModule) runtime.getModule("OpenSSL").getConstant("ASN1");
+    }
+
+    static RubyClass _ASN1Error(final Ruby runtime) {
+        return _ASN1(runtime).getClass("ASN1Error");
     }
 
     static org.bouncycastle.asn1.ASN1Primitive readObject(final byte[] bytes)
