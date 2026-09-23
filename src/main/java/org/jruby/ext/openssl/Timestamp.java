@@ -85,6 +85,7 @@ import org.jruby.RubyString;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
+import org.jruby.ext.openssl.log.Logger;
 import org.jruby.ext.openssl.util.RubySupport;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 import org.jruby.ext.openssl.x509store.Purpose;
@@ -101,6 +102,7 @@ import static org.jruby.ext.openssl.x509store.X509Utils.X509_PURPOSE_TIMESTAMP_S
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 
 public final class Timestamp {
+    private static final Logger LOG = Logger.getLogger(Timestamp.class);
 
     private Timestamp() { }
 
@@ -182,8 +184,10 @@ public final class Timestamp {
                 extensions = timeStampReq.getExtensions();
                 return this;
             } catch (IOException e) {
+                LOG.debug(context.runtime, "timestamp request decode failed", e);
                 throw newTimestampError(context.runtime, "Error when decoding the timestamp request: " + e.getMessage());
             } catch (RuntimeException e) {
+                LOG.debug(context.runtime, "timestamp request decode failed", e);
                 throw newTimestampError(context.runtime, e);
             }
         }
@@ -343,6 +347,7 @@ public final class Timestamp {
                 response = new TimeStampResponse(TimeStampResp.getInstance(ASN1Primitive.fromByteArray(input.getBytes())));
                 return this;
             } catch (Exception e) {
+                LOG.debug(context.runtime, "response decoding failed", e);
                 throw newTimestampError(context.runtime, "Error when decoding the timestamp response: " + e.getMessage());
             }
         }
@@ -509,7 +514,10 @@ public final class Timestamp {
                 return this;
             }
             catch (RaiseException e) { throw e; }
-            catch (Exception e) { throw newTimestampError(context.runtime, e); }
+            catch (Exception e) {
+                LOG.debug(context.runtime, "response verification failed", e);
+                throw newTimestampError(context.runtime, e);
+            }
         }
 
         private boolean matchesTsaName(final TimeStampToken token, final X509CertificateHolder signer) {
@@ -542,8 +550,10 @@ public final class Timestamp {
                 info = TSTInfo.getInstance(ASN1Primitive.fromByteArray(input.getBytes()));
                 if (info == null) throw new IOException("empty timestamp token info");
                 return this;
+            } catch (Exception e) {
+                LOG.debug(context.runtime, "token info decode failed", e);
+                throw newTimestampError(context.runtime, "Error when decoding the timestamp token info: " + e.getMessage());
             }
-            catch (Exception e) { throw newTimestampError(context.runtime, "Error when decoding the timestamp token info: " + e.getMessage()); }
         }
 
         @JRubyMethod
@@ -736,7 +746,8 @@ public final class Timestamp {
 
                 final TimeStampRequest timestampRequest = req.asn1RequestObject();
                 final BigInteger serial = BN.asBigInteger(serialNumber);
-                final Date time = RubySupport.timeToJavaDate(context, genTime);
+                final Date timeValue = RubySupport.timeToJavaDate(context, genTime);
+                final Date time = new Date(Math.floorDiv(timeValue.getTime(), 1000L) * 1000L);
                 final TimeStampResponseGenerator generator = new TimeStampResponseGenerator(
                         tokenGenerator,
                         acceptedAlgorithms(runtime, allowedDigests),
@@ -762,6 +773,7 @@ public final class Timestamp {
             } catch (RaiseException e) {
                 throw e;
             } catch (Exception e) {
+                LOG.debugStack(runtime, "timestamp creation failed", e);
                 throw newTimestampError(runtime, e);
             }
         }
@@ -786,6 +798,7 @@ public final class Timestamp {
             try {
                 return Purpose.checkPurpose(certificate, X509_PURPOSE_TIMESTAMP_SIGN, 0) == 1;
             } catch (CertificateException e) {
+                LOG.debug(getRuntime(), "timestamp certificate purpose check failed", e);
                 throw newTimestampError(getRuntime(), e);
             }
         }
