@@ -29,10 +29,11 @@ jobs:
         run: git submodule update --init net-imap
 
       - name: set up java ${{ matrix.java-version }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: ${{ matrix.java-version }}
           distribution: temurin
+          cache: maven
 
       - name: set up ${{ matrix.ruby-version }}
         uses: ruby/setup-ruby@v1
