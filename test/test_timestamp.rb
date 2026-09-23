@@ -22,8 +22,8 @@ class TestTimestamp < TestCase
     request = OpenSSL::Timestamp::Request.new
     assert_equal 1, request.version
     assert_equal true, request.cert_requested?
-    assert_equal false, request.algorithm
-    assert_equal false, request.message_imprint
+    assert_equal 'NULL', request.algorithm
+    assert_equal '', request.message_imprint
 
     request.algorithm = 'SHA256'
     request.message_imprint = OpenSSL::Digest.digest('SHA256', 'data')
@@ -37,7 +37,7 @@ class TestTimestamp < TestCase
     assert_equal '1.2.3.4.5', parsed.policy_id
     assert_equal 42, parsed.nonce
     assert_equal der, parsed.to_der
-    assert_match(/SHA256/, parsed.to_text)
+    assert_match(/SHA256/i, parsed.to_text)
   end
 
   def test_request_mandatory_fields
@@ -142,6 +142,7 @@ class TestTimestamp < TestCase
 
     assert_equal OpenSSL::Timestamp::Response::GRANTED, response.status
     assert_nil response.tsa_certificate
+    assert_nil response.token.certificates
     assert_raise(OpenSSL::Timestamp::TimestampError) { response.verify(request, trusted_store) }
     assert_same response, response.verify(request, trusted_store, [@tsa_cert])
   end

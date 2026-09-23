@@ -158,6 +158,10 @@ public class X509Cert extends RubyObject {
         return new X509AuxCertificate(cert);
     }
 
+    final X509Certificate getCert() {
+        return cert;
+    }
+
     public static IRubyObject wrap(Ruby runtime, Certificate cert)
         throws CertificateEncodingException {
         return wrap(runtime.getCurrentContext(), cert);

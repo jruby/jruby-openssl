@@ -51,8 +51,12 @@ import org.bouncycastle.asn1.tsp.MessageImprint;
 import org.bouncycastle.asn1.tsp.TimeStampReq;
 import org.bouncycastle.asn1.tsp.TimeStampResp;
 import org.bouncycastle.asn1.tsp.TSTInfo;
+import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaCertStore;
 import org.bouncycastle.cms.SignerInfoGenerator;
@@ -104,12 +108,10 @@ public final class Timestamp {
         final RubyModule timestamp = OpenSSL.defineModuleUnder("Timestamp");
         timestamp.defineClassUnder("TimestampError", OpenSSLError, OpenSSLError.getAllocator());
 
-        final RubyClass request = timestamp.defineClassUnder("Request", runtime.getObject(),
-                (r, klass) -> new Request(r, klass));
+        final RubyClass request = timestamp.defineClassUnder("Request", runtime.getObject(), Request::new);
         request.defineAnnotatedMethods(Request.class);
 
-        final RubyClass response = timestamp.defineClassUnder("Response", runtime.getObject(),
-                (r, klass) -> new Response(r, klass));
+        final RubyClass response = timestamp.defineClassUnder("Response", runtime.getObject(), Response::new);
         response.defineAnnotatedMethods(Response.class);
 
         response.setConstant("GRANTED", runtime.newFixnum(0));
@@ -119,12 +121,10 @@ public final class Timestamp {
         response.setConstant("REVOCATION_WARNING", runtime.newFixnum(4));
         response.setConstant("REVOCATION_NOTIFICATION", runtime.newFixnum(5));
 
-        final RubyClass tokenInfo = timestamp.defineClassUnder("TokenInfo", runtime.getObject(),
-                (r, klass) -> new TokenInfo(r, klass));
+        final RubyClass tokenInfo = timestamp.defineClassUnder("TokenInfo", runtime.getObject(), TokenInfo::new);
         tokenInfo.defineAnnotatedMethods(TokenInfo.class);
 
-        final RubyClass factory = timestamp.defineClassUnder("Factory", runtime.getObject(),
-                (r, klass) -> new Factory(r, klass));
+        final RubyClass factory = timestamp.defineClassUnder("Factory", runtime.getObject(), Factory::new);
         factory.defineAnnotatedMethods(Factory.class);
     }
 
@@ -144,13 +144,6 @@ public final class Timestamp {
         return newError(runtime, _TimestampError(runtime), message);
     }
 
-    private static Date toJavaDate(final ThreadContext context, final IRubyObject value) {
-        if (!(value instanceof RubyTime)) {
-            throw context.runtime.newTypeError(value, "Time");
-        }
-        return ((RubyTime) value).getJavaDate();
-    }
-
     static ASN1ObjectIdentifier oid(final Ruby runtime, final IRubyObject value) {
         try {
             return ASN1.getObjectID(runtime, value.convertToString().asJavaString());
@@ -160,7 +153,6 @@ public final class Timestamp {
     }
 
     public static final class Request extends RubyObject {
-        private static final long serialVersionUID = 1L;
 
         private TimeStampReq timeStampReq;
         private int version = 1;
@@ -189,8 +181,10 @@ public final class Timestamp {
                 certRequested = timeStampReq.getCertReq() != null && timeStampReq.getCertReq().isTrue();
                 extensions = timeStampReq.getExtensions();
                 return this;
-            } catch (IOException|RuntimeException e) {
+            } catch (IOException e) {
                 throw newTimestampError(context.runtime, "Error when decoding the timestamp request: " + e.getMessage());
+            } catch (RuntimeException e) {
+                throw newTimestampError(context.runtime, e);
             }
         }
 
@@ -214,7 +208,7 @@ public final class Timestamp {
             }
             else {
                 final ASN1EncodableVector values = new ASN1EncodableVector();
-                values.add(new ASN1Integer(version));
+                values.add(new ASN1Integer(BigInteger.valueOf(version)));
                 values.add(imprint);
                 if (policyId != null) values.add(policyId);
                 if (nonce != null) values.add(new ASN1Integer(nonce));
@@ -234,7 +228,7 @@ public final class Timestamp {
 
         @JRubyMethod
         public IRubyObject algorithm(ThreadContext context) {
-            if (algorithm == null) return context.fals;
+            if (algorithm == null) return context.runtime.newString("NULL");
             return context.runtime.newString(ASN1.shortName(context.runtime, algorithm));
         }
 
@@ -259,7 +253,7 @@ public final class Timestamp {
 
         @JRubyMethod
         public IRubyObject message_imprint(ThreadContext context) {
-            if (messageImprint == null) return context.fals;
+            if (messageImprint == null) return context.runtime.newString("");
             return RubyString.newString(context.runtime, messageImprint);
         }
 
@@ -336,6 +330,11 @@ public final class Timestamp {
         private TimeStampResponse response;
 
         Response(final Ruby runtime, final RubyClass type) { super(runtime, type); }
+
+        Response(final Ruby runtime, TimeStampResponse response) {
+            this(runtime, (RubyClass) _Timestamp(runtime).getConstantAt("Response"));
+            this.response = response;
+        }
 
         @JRubyMethod(name = "initialize", required = 1, visibility = Visibility.PRIVATE)
         public IRubyObject initialize(final ThreadContext context, final IRubyObject value) {
@@ -484,7 +483,7 @@ public final class Timestamp {
                 X509CertificateHolder signer = null;
                 for (int i = 0; i < chain.size(); i++) {
                     final X509Cert candidate = (X509Cert) chain.eltInternal(i);
-                    final X509CertificateHolder holder = new X509CertificateHolder(candidate.getAuxCert().getEncoded());
+                    final X509CertificateHolder holder = new X509CertificateHolder(candidate.getCert().getEncoded());
                     if (token.getSID().match(holder)) {
                         tsa = candidate;
                         signer = holder;
@@ -492,6 +491,9 @@ public final class Timestamp {
                     }
                 }
                 if (signer == null) throw newTimestampError(context.runtime, "timestamp response contains no signer certificate");
+                if (!matchesTsaName(token, signer)) {
+                    throw newTimestampError(context.runtime, "timestamp authority name does not match signer certificate");
+                }
                 final Provider provider = SecurityHelper.getSecurityProvider();
                 final JcaSimpleSignerInfoVerifierBuilder verifierBuilder = new JcaSimpleSignerInfoVerifierBuilder();
                 if (provider != null) verifierBuilder.setProvider(provider);
@@ -508,6 +510,21 @@ public final class Timestamp {
             }
             catch (RaiseException e) { throw e; }
             catch (Exception e) { throw newTimestampError(context.runtime, e); }
+        }
+
+        private boolean matchesTsaName(final TimeStampToken token, final X509CertificateHolder signer) {
+            final GeneralName tsa = token.getTimeStampInfo().toASN1Structure().getTsa();
+            if (tsa == null) return true;
+            if (tsa.getTagNo() == GeneralName.directoryName) {
+                return X500Name.getInstance(tsa.getName()).equals(signer.getSubject());
+            }
+
+            final Extension subjectAltName = signer.getExtension(Extension.subjectAlternativeName);
+            if (subjectAltName == null) return false;
+            for (GeneralName name : GeneralNames.getInstance(subjectAltName.getParsedValue()).getNames()) {
+                if (tsa.equals(name)) return true;
+            }
+            return false;
         }
 
     }
@@ -539,7 +556,7 @@ public final class Timestamp {
         public IRubyObject gen_time(ThreadContext context) {
             try {
                 final Date genTime = info.getGenTime().getDate();
-                return genTime == null ? context.nil : RubyTime.newTime(context.runtime, genTime.getTime());
+                return genTime == null ? context.nil : RubyTime.newTime(context.runtime, genTime.getTime()).gmtime();
             } catch (Exception e) { // ParseException
                 throw newTimestampError(context.runtime, e);
             }
@@ -601,13 +618,6 @@ public final class Timestamp {
     }
 
     public static final class Factory extends RubyObject {
-
-        private IRubyObject defaultPolicy;
-        private IRubyObject serialNumber;
-        private IRubyObject genTime;
-        private IRubyObject additionalCerts;
-        private IRubyObject allowedDigests;
-
         Factory(final Ruby runtime, final RubyClass type) {
             super(runtime, type);
         }
@@ -617,57 +627,62 @@ public final class Timestamp {
 
         @JRubyMethod
         public IRubyObject default_policy_id() {
-            return defaultPolicy == null ? getRuntime().getNil() : defaultPolicy;
+            return attribute("@default_policy_id");
         }
 
         @JRubyMethod(name = "default_policy_id=")
         public IRubyObject set_default_policy_id(final IRubyObject value) {
-            defaultPolicy = value;
+            setInstanceVariable("@default_policy_id", value);
             return value;
         }
 
         @JRubyMethod
         public IRubyObject serial_number() {
-            return serialNumber == null ? getRuntime().getNil() : serialNumber;
+            return attribute("@serial_number");
         }
 
         @JRubyMethod(name = "serial_number=")
         public IRubyObject set_serial_number(final IRubyObject value) {
-            serialNumber = value;
+            setInstanceVariable("@serial_number", value);
             return value;
         }
 
         @JRubyMethod
         public IRubyObject gen_time() {
-            return genTime == null ? getRuntime().getNil() : genTime;
+            return attribute("@gen_time");
         }
 
         @JRubyMethod(name = "gen_time=")
         public IRubyObject set_gen_time(final IRubyObject value) {
-            genTime = value;
+            setInstanceVariable("@gen_time", value);
             return value;
         }
 
         @JRubyMethod
         public IRubyObject additional_certs() {
-            return additionalCerts == null ? getRuntime().getNil() : additionalCerts;
+            return attribute("@additional_certs");
         }
 
         @JRubyMethod(name = "additional_certs=")
         public IRubyObject set_additional_certs(final IRubyObject value) {
-            additionalCerts = value;
+            setInstanceVariable("@additional_certs", value);
             return value;
         }
 
         @JRubyMethod
         public IRubyObject allowed_digests() {
-            return allowedDigests == null ? getRuntime().getNil() : allowedDigests;
+            return attribute("@allowed_digests");
         }
 
         @JRubyMethod(name = "allowed_digests=")
         public IRubyObject set_allowed_digests(final IRubyObject value) {
-            allowedDigests = value;
+            setInstanceVariable("@allowed_digests", value);
             return value;
+        }
+
+        private IRubyObject attribute(final String name) {
+            final IRubyObject value = getInstanceVariable(name);
+            return value == null ? getRuntime().getNil() : value;
         }
 
         @JRubyMethod
@@ -681,6 +696,11 @@ public final class Timestamp {
             final PKey pkey = (PKey) key;
             final X509Cert cert = (X509Cert) certificate;
             final Request req = (Request) request;
+            final IRubyObject serialNumber = serial_number();
+            final IRubyObject genTime = gen_time();
+            final IRubyObject defaultPolicy = default_policy_id();
+            final IRubyObject additionalCerts = additional_certs();
+            final IRubyObject allowedDigests = allowed_digests();
 
             final X509AuxCertificate auxCert = cert.getAuxCert();
             if (!isTimestampingCertificate(auxCert)) {
@@ -711,14 +731,19 @@ public final class Timestamp {
                 final TimeStampTokenGenerator tokenGenerator = new TimeStampTokenGenerator(signer, digestCalculator, policy);
                 if (req.certRequested) {
                     tokenGenerator.addCertificates(new JcaCertStore(Collections.singletonList(auxCert)));
-                    addAdditionalCertificates(runtime, tokenGenerator);
+                    addAdditionalCertificates(runtime, tokenGenerator, additionalCerts);
                 }
 
                 final TimeStampRequest timestampRequest = req.asn1RequestObject();
                 final BigInteger serial = BN.asBigInteger(serialNumber);
-                final Date time = toJavaDate(context, genTime);
+                final Date time = RubySupport.timeToJavaDate(context, genTime);
                 final TimeStampResponseGenerator generator = new TimeStampResponseGenerator(
-                        tokenGenerator, acceptedAlgorithms(runtime), null, Collections.emptySet());
+                        tokenGenerator,
+                        acceptedAlgorithms(runtime, allowedDigests),
+                        null,
+                        Collections.emptySet()
+                );
+
                 TimeStampResponse response;
                 try {
                     if (timestampRequest.getVersion() != 1) {
@@ -733,9 +758,7 @@ public final class Timestamp {
                     response = generator.generateRejectedResponse(e);
                 }
 
-                final Response result = new Response(runtime, (RubyClass) _Timestamp(runtime).getConstantAt("Response"));
-                result.response = response;
-                return result;
+                return new Response(runtime, response);
             } catch (RaiseException e) {
                 throw e;
             } catch (Exception e) {
@@ -743,8 +766,9 @@ public final class Timestamp {
             }
         }
 
-        private void addAdditionalCertificates(final Ruby runtime, final TimeStampTokenGenerator generator)
-            throws CertificateEncodingException {
+        private void addAdditionalCertificates(final Ruby runtime,
+                                               final TimeStampTokenGenerator generator,
+                                               final IRubyObject additionalCerts) throws CertificateEncodingException {
             if (!(additionalCerts instanceof RubyArray)) return;
 
             final RubyArray certs = additionalCerts.convertToArray();
@@ -766,7 +790,7 @@ public final class Timestamp {
             }
         }
 
-        private Set<ASN1ObjectIdentifier> acceptedAlgorithms(final Ruby runtime) {
+        private Set<ASN1ObjectIdentifier> acceptedAlgorithms(final Ruby runtime, final IRubyObject allowedDigests) {
             final Set<ASN1ObjectIdentifier> result = new HashSet<>();
             if (!(allowedDigests instanceof RubyArray)) return result;
             final RubyArray values = (RubyArray) allowedDigests;
