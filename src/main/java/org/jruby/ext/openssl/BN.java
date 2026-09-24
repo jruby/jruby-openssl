@@ -52,6 +52,8 @@ import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.runtime.Visibility;
 
+import static org.jruby.ext.openssl.util.RubySupport.newError;
+
 /**
  * OpenSSL::BN implementation. Wraps java.math.BigInteger, which provides
  * most functionality directly; the rest is easily derived.
@@ -91,6 +93,7 @@ public class BN extends RubyObject {
         RubyClass BN = OpenSSL.defineClassUnder("BN", runtime.getObject(), (r, klass) -> new BN(r, klass));
         BN.includeModule( runtime.getModule("Comparable") );
         BN.defineAnnotatedMethods(BN.class);
+        BN.defineConstant("CONSTTIME", runtime.newFixnum(4));
     }
 
     private volatile BigInteger value;
@@ -370,7 +373,7 @@ public class BN extends RubyObject {
         return equals(other);
     }
 
-    @JRubyMethod(name = "==")
+    @JRubyMethod(name = "==", alias = "===")
     public IRubyObject op_equal(ThreadContext context, IRubyObject other) {
         return context.runtime.newBoolean( value.equals( asBigInteger(other) ) );
     }
@@ -487,19 +490,83 @@ public class BN extends RubyObject {
     public BN mod_sqr(final ThreadContext context, IRubyObject other) {
         try {
             return newBN(context.runtime, value.modPow(TWO, asBigInteger(other)));
+        } catch (ArithmeticException e) {
+            throw newZeroDivisionError(context.runtime, e);
         }
-        catch (ArithmeticException e) {
-            throw context.runtime.newZeroDivisionError();
+    }
+
+    @JRubyMethod(name="mod_sqrt")
+    public BN mod_sqrt(final ThreadContext context, IRubyObject other) {
+        final BigInteger mod = asBigInteger(other);
+        if (mod == null) throw context.runtime.newTypeError("Cannot convert into OpenSSL::BN");
+        try {
+            return newBN(context.runtime, modularSqrt(value, mod.abs()));
+        } catch (ArithmeticException e) {
+            throw newBNError(context.runtime, e);
         }
+    }
+
+    private static BigInteger modularSqrt(BigInteger value, BigInteger p) {
+        if (p.equals(TWO)) return value.testBit(0) ? BigInteger.ONE : BigInteger.ZERO;
+        if (!p.testBit(0) || p.equals(BigInteger.ONE)) {
+            throw new ArithmeticException("p is not prime");
+        }
+
+        BigInteger a = value.mod(p);
+        if (a.signum() == 0 || a.equals(BigInteger.ONE)) return a;
+
+        BigInteger root;
+        if (p.testBit(1)) {
+            root = a.modPow(p.shiftRight(2).add(BigInteger.ONE), p);
+        }
+        else {
+            BigInteger pMinus1 = p.subtract(BigInteger.ONE);
+            BigInteger legendreExponent = pMinus1.shiftRight(1);
+            if (!a.modPow(legendreExponent, p).equals(BigInteger.ONE)) {
+                throw new ArithmeticException("not a square");
+            }
+
+            BigInteger z = TWO;
+            int attempt = 0;
+            // bound the non-residue search since callers may supply a composite modulus
+            while (!z.modPow(legendreExponent, p).equals(pMinus1)) {
+                if (++attempt == 80) throw new ArithmeticException("too many iterations");
+                z = attempt < 20 ? z.add(BigInteger.ONE) : randomIntegerInRange(p, getSecureRandom());
+            }
+
+            // use Tonelli-Shanks with p - 1 = q * 2^s and q odd
+            int s = pMinus1.getLowestSetBit();
+            BigInteger q = pMinus1.shiftRight(s);
+            BigInteger c = z.modPow(q, p);
+            BigInteger t = a.modPow(q, p);
+            root = a.modPow(q.add(BigInteger.ONE).shiftRight(1), p);
+            while (!t.equals(BigInteger.ONE)) {
+                BigInteger squared = t;
+                int i;
+                for (i = 1; i < s; i++) {
+                    squared = squared.multiply(squared).mod(p);
+                    if (squared.equals(BigInteger.ONE)) break;
+                }
+                if (i >= s) throw new ArithmeticException("not a square");
+                BigInteger b = c;
+                for (int j = 0; j < s - i - 1; j++) b = b.multiply(b).mod(p);
+                root = root.multiply(b).mod(p);
+                c = b.multiply(b).mod(p);
+                t = t.multiply(c).mod(p);
+                s = i;
+            }
+        }
+
+        if (!root.multiply(root).mod(p).equals(a)) throw new ArithmeticException("not a square");
+        return root;
     }
 
     @JRubyMethod(name="mod_inverse")
     public BN mod_inverse(final ThreadContext context, IRubyObject other) {
         try {
             return newBN(context.runtime, value.modInverse(asBigInteger(other)));
-        }
-        catch (ArithmeticException e) {
-            throw context.runtime.newZeroDivisionError();
+        } catch (ArithmeticException e) {
+            throw newZeroDivisionError(context.runtime, e);
         }
     }
 
@@ -507,9 +574,8 @@ public class BN extends RubyObject {
     public BN mod_add(final ThreadContext context, IRubyObject other, IRubyObject mod) {
         try {
             return newBN(context.runtime, value.add(asBigInteger(other)).mod(asBigInteger(mod)));
-        }
-        catch (ArithmeticException e) {
-            throw context.runtime.newZeroDivisionError();
+        } catch (ArithmeticException e) {
+            throw newZeroDivisionError(context.runtime, e);
         }
     }
 
@@ -517,9 +583,8 @@ public class BN extends RubyObject {
     public BN mod_sub(final ThreadContext context, IRubyObject other, IRubyObject mod) {
         try {
             return newBN(context.runtime, value.subtract(asBigInteger(other)).mod(asBigInteger(mod)));
-        }
-        catch (ArithmeticException e) {
-            throw context.runtime.newZeroDivisionError();
+        } catch (ArithmeticException e) {
+            throw newZeroDivisionError(context.runtime, e);
         }
     }
 
@@ -527,9 +592,8 @@ public class BN extends RubyObject {
     public BN mod_mul(final ThreadContext context, IRubyObject other, IRubyObject mod) {
         try {
             return newBN(context.runtime, value.multiply(asBigInteger(other)).mod(asBigInteger(mod)));
-        }
-        catch (ArithmeticException e) {
-            throw context.runtime.newZeroDivisionError();
+        } catch (ArithmeticException e) {
+            throw newZeroDivisionError(context.runtime, e);
         }
     }
 
@@ -537,9 +601,8 @@ public class BN extends RubyObject {
     public BN mod_exp(final ThreadContext context, IRubyObject other, IRubyObject mod) {
         try {
             return newBN(context.runtime, value.modPow(asBigInteger(other), asBigInteger(mod)));
-        }
-        catch (ArithmeticException e) {
-            throw context.runtime.newZeroDivisionError();
+        } catch (ArithmeticException e) {
+            throw newZeroDivisionError(context.runtime, e);
         }
     }
 
@@ -623,24 +686,55 @@ public class BN extends RubyObject {
         }
     }
 
-    @JRubyMethod(name="<<")
+    @JRubyMethod(name = "<<")
     public BN lshift(final ThreadContext context, IRubyObject n) {
-        int nbits = RubyNumeric.num2int(n);
-        BigInteger val = this.value;
-        if (val.signum() >= 0) {
-            return newBN(context.runtime, val.shiftLeft(nbits));
-        }
-        return newBN(context.runtime, val.abs().shiftLeft(nbits).negate());
+        return newBN(context.runtime, shift(n, true));
     }
 
-    @JRubyMethod(name=">>")
+    @JRubyMethod(name = ">>")
     public BN rshift(final ThreadContext context, IRubyObject n) {
+        return newBN(context.runtime, shift(n, false));
+    }
+
+    @JRubyMethod(name = "lshift!")
+    public synchronized BN lshift_bang(IRubyObject n) {
+        checkFrozen();
+        this.value = shift(n, true);
+        return this;
+    }
+
+    @JRubyMethod(name = "rshift!")
+    public synchronized BN rshift_bang(IRubyObject n) {
+        checkFrozen();
+        this.value = shift(n, false);
+        return this;
+    }
+
+    private BigInteger shift(IRubyObject n, boolean left) {
         int nbits = RubyNumeric.num2int(n);
+        if (nbits < 0) throw newBNError(getRuntime(), "negative shift count");
         BigInteger val = this.value;
-        if (val.signum() >= 0) {
-            return newBN(context.runtime, val.shiftRight(nbits));
+        try {
+            BigInteger result = left ? val.abs().shiftLeft(nbits) : val.abs().shiftRight(nbits);
+            return val.signum() < 0 ? result.negate() : result;
         }
-        return newBN(context.runtime, val.abs().shiftRight(nbits).negate());
+        catch (ArithmeticException e) {
+            throw newBNError(getRuntime(), e.getMessage());
+        }
+    }
+
+    @JRubyMethod(name="get_flags")
+    public RubyFixnum get_flags(final ThreadContext context, IRubyObject flags) {
+        return context.runtime.newFixnum(0);
+    }
+
+    @JRubyMethod(name="set_flags")
+    public IRubyObject set_flags(final ThreadContext context, IRubyObject flags) {
+        checkFrozen();
+        if (RubyNumeric.num2int(flags) != 0) {
+            throw context.runtime.newNotImplementedError("OpenSSL::BN flags are not supported by java.math.BigInteger");
+        }
+        return context.nil;
     }
 
     @JRubyMethod(name="num_bits")
@@ -887,8 +981,20 @@ public class BN extends RubyObject {
         return BN.secureRandom = new SecureRandom(); // use (default) even if BC provider is set
     }
 
-    public static RaiseException newBNError(Ruby runtime, String message) {
-        return new RaiseException(runtime, runtime.getModule("OpenSSL").getClass("BNError"), message, true);
+    private static RubyClass _BNError(final Ruby runtime) {
+        return runtime.getModule("OpenSSL").getClass("BNError");
+    }
+
+    static RaiseException newBNError(final Ruby runtime, final Throwable cause) {
+        return newError(runtime, _BNError(runtime), cause);
+    }
+
+    public static RaiseException newBNError(final Ruby runtime, final String message) {
+        return newError(runtime, _BNError(runtime), message);
+    }
+
+    static RaiseException newZeroDivisionError(final Ruby runtime, final ArithmeticException ex) {
+        return newError(runtime, runtime.getZeroDivisionError(), ex);
     }
 
     public static BigInteger asBigInteger(final IRubyObject arg) {
@@ -901,10 +1007,6 @@ public class BN extends RubyObject {
         if ( arg instanceof BN ) return ((BN) arg).value;
 
         throw arg.getRuntime().newTypeError("Cannot convert into OpenSSL::BN");
-    }
-
-    public static BigInteger asBigInteger(final BN arg) {
-        return arg.isNil() ? null : arg.value;
     }
 
     /**

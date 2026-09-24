@@ -80,6 +80,85 @@ class TestBN < TestCase
     #assert_equal(-2, -2.to_bn % 7)
   end
 
+  def test_mod_sqrt
+    [2, 3, 5, 7, 13, 17, 41, 97, 515761, 2**127 - 1, 2**255 - 19].each do |modulus|
+      [0, 1, 2, 4, 15, modulus - 1].each do |number|
+        square = (number * number) % modulus
+        [square, square + modulus, square - modulus].each do |value|
+          bn = value.to_bn
+          root = bn.mod_sqrt(modulus)
+          assert_kind_of(OpenSSL::BN, root)
+          assert_equal(square, (root.to_i * root.to_i) % modulus)
+          assert_operator(root.to_i, :>=, 0)
+          assert_operator(root.to_i, :<, modulus)
+          assert_equal(value, bn.to_i)
+        end
+      end
+    end
+
+    assert_equal(2, 2.to_bn.mod_sqrt(515761).mod_sqr(515761))
+    assert_equal(4, 4.to_bn.mod_sqrt(-7).mod_sqr(7))
+    assert_equal(1, (-3).to_bn.mod_sqrt(-2))
+    modulus = 17.to_bn
+    assert_equal(4, 4.to_bn.freeze.mod_sqrt(modulus).mod_sqr(modulus))
+    assert_equal(17, modulus.to_i)
+  end
+
+  def test_mod_sqrt_errors
+    [0, 1, -1, 4, -4, 9, 15].each do |modulus|
+      assert_raise(OpenSSL::BNError) { 4.to_bn.mod_sqrt(modulus) }
+    end
+    [3, -2, 8].each do |value|
+      assert_raise(OpenSSL::BNError) { value.to_bn.mod_sqrt(5) }
+    end
+    [[3, 7], [3, 17], [8, 9]].each do |value, modulus|
+      assert_raise(OpenSSL::BNError) { value.to_bn.mod_sqrt(modulus) }
+    end
+    [nil, '5', 5.0, Object.new].each do |modulus|
+      assert_raise(TypeError) { 4.to_bn.mod_sqrt(modulus) }
+    end
+  end
+
+  def test_mutating_shifts
+    [0, 9, -9, 2**107 - 1, -(2**107 - 1)].each do |value|
+      [0, 1, 2, 110].each do |bits|
+        left = value.to_bn
+        assert_same(left, left.lshift!(bits))
+        assert_equal(value * 2**bits, left.to_i)
+
+        right = value.to_bn
+        assert_same(right, right.rshift!(bits))
+        expected = value.abs >> bits
+        expected = -expected if value < 0
+        assert_equal(expected, right.to_i)
+      end
+    end
+
+    bits = Object.new
+    def bits.to_int; 2 end
+    assert_equal(36, 9.to_bn.lshift!(bits))
+    assert_equal(-2, (-9).to_bn.rshift!(bits))
+  end
+
+  def test_shift_errors
+    [:lshift!, :rshift!, :<<, :>>].each do |method|
+      bn = 9.to_bn
+      assert_raise(OpenSSL::BNError) { bn.public_send(method, -1) }
+      assert_raise(RangeError) { bn.public_send(method, 2**100) }
+      [nil, '2', Object.new].each do |bits|
+        assert_raise(TypeError) { bn.public_send(method, bits) }
+      end
+      assert_equal(9, bn.to_i)
+    end
+
+    [:lshift!, :rshift!].each do |method|
+      bn = 9.to_bn.freeze
+      [0, 2, nil].each do |bits|
+        assert_raise(FrozenError) { bn.public_send(method, bits) }
+      end
+      assert_equal(9, bn.to_i)
+    end
+  end
 
   def test_new
     bn = OpenSSL::BN.new('0') unless defined? JRUBY_VERSION
@@ -143,6 +222,10 @@ class TestBN < TestCase
     assert_equal(false, e1 == -999)
     assert_equal(true, e1 == 999)
     assert_equal(true, e1 == 999.to_bn)
+    assert_equal(true, e1 === 999)
+    assert_equal(true, e1 === 999.to_bn)
+    assert_equal(false, e1 === -999)
+    assert_equal(false, e1 === nil)
     assert_equal(false, e1.eql?(nil))
     assert_equal(false, e1.eql?(999))
     assert_equal(true, e1.eql?(999.to_bn))
