@@ -30,6 +30,7 @@ package org.jruby.ext.openssl.impl;
 import java.security.cert.X509CRL;
 import java.util.Collection;
 import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.jruby.ext.openssl.x509store.X509AuxCertificate;
 
@@ -38,6 +39,10 @@ import org.jruby.ext.openssl.x509store.X509AuxCertificate;
  */
 public abstract class PKCS7Data {
     public abstract int getType();
+
+    public ASN1ObjectIdentifier getContentType() {
+        return ASN1Registry.nid2obj(getType());
+    }
 
     public Object ctrl(int cmd, Object v, Object ignored) throws PKCS7Exception {
         switch(cmd) {
@@ -141,6 +146,12 @@ public abstract class PKCS7Data {
     }
 
     public static PKCS7Data fromASN1(final int nid, ASN1Encodable content) throws PKCS7Exception {
+        return fromASN1(ASN1Registry.nid2obj(nid), content);
+    }
+
+    public static PKCS7Data fromASN1(final ASN1ObjectIdentifier contentType, ASN1Encodable content) throws PKCS7Exception {
+        final Integer registeredNid = ASN1Registry.oid2nid(contentType);
+        final int nid = registeredNid == null ? ASN1Registry.NID_undef : registeredNid;
         switch (nid) {
         case ASN1Registry.NID_pkcs7_data:
             return PKCS7DataData.fromASN1(content);
@@ -155,7 +166,7 @@ public abstract class PKCS7Data {
         case ASN1Registry.NID_pkcs7_encrypted:
             return PKCS7DataEncrypted.fromASN1(content);
         default:
-            throw new UnsupportedOperationException("can't handle PKCS#7 with content type " + ASN1Registry.nid2ln(nid));
+            return new PKCS7DataOther(contentType, content);
         }
     }
 

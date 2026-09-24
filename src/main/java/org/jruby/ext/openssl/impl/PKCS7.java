@@ -108,8 +108,8 @@ public class PKCS7 {
         return isSigned() && getDetached() != 0;
     }
 
-    private void initiateWith(int nid, ASN1Encodable content) throws PKCS7Exception {
-        this.data = PKCS7Data.fromASN1(nid, content);
+    private void initiateWith(ASN1ObjectIdentifier contentType, ASN1Encodable content) throws PKCS7Exception {
+        this.data = PKCS7Data.fromASN1(contentType, content);
     }
 
     public static PKCS7 newEmpty() {
@@ -139,14 +139,12 @@ public class PKCS7 {
                 p7.setType(ASN1Registry.NID_undef);
             }
             else {
-                final int nid = ASN1Registry.oid2nid(contentType);
-
                 ASN1Encodable content = size == 1 ? null : ((ASN1Sequence) obj).getObjectAt(1);
 
                 if (content != null && content instanceof ASN1TaggedObject && ((ASN1TaggedObject) content).getTagNo() == 0) {
                     content = ASN1Shim.getTaggedObject((ASN1TaggedObject) content);
                 }
-                p7.initiateWith(nid, content);
+                p7.initiateWith(contentType, content);
             }
         }
         // somewhere the object does not obey to be PKCS7 object
@@ -172,11 +170,12 @@ public class PKCS7 {
             // OpenSSL behavior
             contentType = new ASN1ObjectIdentifier(EMPTY_PKCS7_OID);
         } else {
-            contentType = ASN1Registry.nid2obj(getType());
+            contentType = data.getContentType();
         }
         vector.add(contentType);
         if (data != null) {
-            vector.add(new DERTaggedObject(0, data.asASN1()));
+            ASN1Encodable content = data.asASN1();
+            if (content != null) vector.add(new DERTaggedObject(0, content));
         }
         return new DLSequence(vector);
     }

@@ -149,6 +149,7 @@ public class X509 {
         _X509.setConstant("PURPOSE_CRL_SIGN",_6);
         _X509.setConstant("PURPOSE_ANY",_7);
         _X509.setConstant("PURPOSE_OCSP_HELPER",_8);
+        _X509.setConstant("PURPOSE_TIMESTAMP_SIGN",runtime.newFixnum(X509Utils.X509_PURPOSE_TIMESTAMP_SIGN));
         _X509.setConstant("TRUST_COMPAT",_1);
         _X509.setConstant("TRUST_SSL_CLIENT",_2);
         _X509.setConstant("TRUST_SSL_SERVER",_3);
@@ -156,6 +157,7 @@ public class X509 {
         _X509.setConstant("TRUST_OBJECT_SIGN",_5);
         _X509.setConstant("TRUST_OCSP_SIGN",_6);
         _X509.setConstant("TRUST_OCSP_REQUEST",_7);
+        _X509.setConstant("TRUST_TSA",_8);
 
         // These should eventually point to correct things.
         _X509.setConstant("DEFAULT_CERT_AREA", runtime.newString(X509Utils.X509_CERT_AREA));

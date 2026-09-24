@@ -446,6 +446,27 @@ public class Purpose {
         }
     };
 
+    final static CheckPurposeFunction checkPurposeTimestampSign = new CheckPurposeFunction() {
+        public int call(Purpose purpose, X509AuxCertificate x, Integer ca) throws CertificateException {
+            if (ca != 0) return checkCA(x);
+
+            final boolean[] keyUsage = x.getKeyUsage();
+            if (keyUsage != null) {
+                if (!keyUsage[0] && !keyUsage[1]) return 0;
+                for (int i = 2; i < keyUsage.length; i++) {
+                    if (keyUsage[i]) return 0;
+                }
+            }
+
+            final List<String> extendedKeyUsage = x.getExtendedKeyUsage();
+            if (extendedKeyUsage == null || extendedKeyUsage.size() != 1 ||
+                    !extendedKeyUsage.contains("1.3.6.1.5.5.7.3.8")) return 0;
+
+            return x.getCriticalExtensionOIDs() != null &&
+                    x.getCriticalExtensionOIDs().contains("2.5.29.37") ? 1 : 0;
+        }
+    };
+
     private final static Purpose[] xstandard = new Purpose[] {
         new Purpose(X509Utils.X509_PURPOSE_SSL_CLIENT, X509Utils.X509_TRUST_SSL_CLIENT, 0, checkPurposeSSLClient, "SSL client", "sslclient", null),
         new Purpose(X509Utils.X509_PURPOSE_SSL_SERVER, X509Utils.X509_TRUST_SSL_SERVER, 0, checkPurposeSSLServer, "SSL server", "sslserver", null),
@@ -455,5 +476,6 @@ public class Purpose {
         new Purpose(X509Utils.X509_PURPOSE_CRL_SIGN, X509Utils.X509_TRUST_COMPAT, 0, checkPurposeCRLSign, "CRL signing", "crlsign", null),
         new Purpose(X509Utils.X509_PURPOSE_ANY, X509Utils.X509_TRUST_DEFAULT, 0, noCheck, "Any Purpose", "any", null),
         new Purpose(X509Utils.X509_PURPOSE_OCSP_HELPER, X509Utils.X509_TRUST_COMPAT, 0, oscpHelper, "OCSP helper", "ocsphelper", null),
+        new Purpose(X509Utils.X509_PURPOSE_TIMESTAMP_SIGN, X509Utils.X509_TRUST_TSA, 0, checkPurposeTimestampSign, "Time Stamp signing", "timestampsign", null),
     };
 }// X509_PURPOSE

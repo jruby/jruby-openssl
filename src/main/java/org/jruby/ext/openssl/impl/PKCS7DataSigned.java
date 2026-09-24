@@ -115,7 +115,7 @@ public class PKCS7DataSigned extends PKCS7Data {
 
     @Override
     public void addCertificate(X509AuxCertificate cert) {
-        this.sign.getCert().add(cert);
+        this.sign.addCert(cert);
     }
 
     @Override

@@ -545,12 +545,13 @@ public abstract class X509Utils {
     public static final int X509_PURPOSE_CRL_SIGN = 6;
     public static final int X509_PURPOSE_ANY = 7;
     public static final int X509_PURPOSE_OCSP_HELPER = 8;
+    public static final int X509_PURPOSE_TIMESTAMP_SIGN = 9;
 
     public static final int X509_PURPOSE_DYNAMIC = 0x1;
     public static final int X509_PURPOSE_DYNAMIC_NAME = 0x2;
 
     public static final int X509_PURPOSE_MIN = 1;
-    public static final int X509_PURPOSE_MAX = 8;
+    public static final int X509_PURPOSE_MAX = 9;
 
     public static final int X509_TRUST_DEFAULT = 0; /* Only valid in purpose settings */
 

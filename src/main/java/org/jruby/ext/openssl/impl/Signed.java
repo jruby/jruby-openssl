@@ -178,6 +178,11 @@ public class Signed {
         this.cert = newCert;
     }
 
+    public final void addCert(final X509AuxCertificate newCert) {
+        if (cert == null) cert = new ArrayList<X509AuxCertificate>();
+        cert.add(newCert);
+    }
+
     /**
      * Get the <code>Crl</code> value.
      *
@@ -310,9 +315,7 @@ public class Signed {
         signed.setVersion(version.getValue().intValue());
         signed.setMdAlgs(algorithmIdentifiersFromASN1Set(digestAlgos));
         signed.setContents(PKCS7.fromASN1(contentInfo));
-        if(certificates != null) {
-            signed.setCert(certificatesFromASN1Set(certificates));
-        }
+        signed.setCert(certificates == null ? null : certificatesFromASN1Set(certificates));
         if(crls != null) {
             throw new RuntimeException("TODO: implement CRL part");
         }

@@ -24,6 +24,7 @@
 package org.jruby.ext.openssl.util;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.function.Function;
 
@@ -37,6 +38,7 @@ import org.jruby.RubyHash;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyString;
 import org.jruby.RubySymbol;
+import org.jruby.RubyTime;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.util.ByteList;
 import org.jruby.runtime.Block;
@@ -79,6 +81,13 @@ public abstract class RubySupport {
         final RubyString str = RubyString.newString(runtime, chars);
         str.setFrozen(true);
         return str;
+    }
+
+    public static Date timeToJavaDate(final ThreadContext context, final IRubyObject value) {
+        if (!(value instanceof RubyTime)) {
+            throw context.runtime.newTypeError(value, "Time");
+        }
+        return ((RubyTime) value).getJavaDate();
     }
 
     // error/exception factory helpers

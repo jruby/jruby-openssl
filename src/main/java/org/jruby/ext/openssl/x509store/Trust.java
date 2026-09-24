@@ -331,6 +331,7 @@ public class Trust {
         new Trust(X509Utils.X509_TRUST_OBJECT_SIGN, 0, trust1OIDAny, "Object Signer", "1.3.6.1.5.5.7.3.3", null),
         new Trust(X509Utils.X509_TRUST_OCSP_SIGN, 0, trust1OID, "OCSP responder", "1.3.6.1.5.5.7.3.9", null),
         new Trust(X509Utils.X509_TRUST_OCSP_REQUEST, 0, trust1OID, "OCSP request", "1.3.6.1.5.5.7.48.1", null),
+        new Trust(X509Utils.X509_TRUST_TSA, 0, trust1OIDAny, "TSA server", "1.3.6.1.5.5.7.3.8", null),
     };
     
 }// X509_TRUST
