@@ -98,6 +98,50 @@ class TestSSLSession < TestCase
     end
   end
 
+  def test_session_reconnect_with_default_context
+    assert_session_reconnect
+  end
+
+  def test_session_reconnect_from_default_to_tls_context
+    assert_session_reconnect([nil, 'TLSv1_2'])
+  end
+
+  def test_session_reconnect_from_tls_to_default_context
+    assert_session_reconnect(['TLSv1_2', nil])
+  end
+
+  def assert_session_reconnect(methods = [nil, nil])
+    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |_server, port|
+      session = nil
+
+      2.times do |i|
+        method = methods[i]
+        ctx = method ? OpenSSL::SSL::SSLContext.new(method) : OpenSSL::SSL::SSLContext.new
+        ctx.min_version = ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+        ctx.session_cache_mode = OpenSSL::SSL::SSLContext::SESSION_CACHE_CLIENT |
+                                 OpenSSL::SSL::SSLContext::SESSION_CACHE_NO_INTERNAL_STORE
+        ctx.session_new_cb = proc { |_socket, value| session = value }
+
+        sock = TCPSocket.new('127.0.0.1', port)
+        ssl = OpenSSL::SSL::SSLSocket.new(sock, ctx)
+        ssl.sync_close = true
+        ssl.hostname = 'localhost'
+        ssl.session = session if i > 0
+        begin
+          assert_nothing_raised { ssl.connect }
+          ssl.puts 'ping'
+          assert_equal "ping\n", ssl.gets
+          assert_instance_of OpenSSL::SSL::Session, session
+          assert_equal ssl.session.id, session.id
+          assert_not_empty session.id
+        ensure
+          ssl.close
+        end
+      end
+    end
+  end
+  private :assert_session_reconnect
+
   def test_session_reused_before_handshake_raises
     sock = File.new(__FILE__)
     ssl = OpenSSL::SSL::SSLSocket.new(sock)
