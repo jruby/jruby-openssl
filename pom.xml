@@ -1051,6 +1051,7 @@ DO NOT MODIFY - GENERATED CODE
                         <include>org/jruby/ext/openssl/SecurityHelper.java</include>
                         <include>org/jruby/ext/openssl/SimpleSecretKey.java</include>
                         <include>org/jruby/ext/openssl/StringHelper.java</include>
+                        <include>org/jruby/ext/openssl/Timestamp.java</include>
                         <include>org/jruby/ext/openssl/X509.java</include>
                         <include>org/jruby/ext/openssl/X509Attribute.java</include>
                         <include>org/jruby/ext/openssl/X509CRL.java</include>
@@ -1094,6 +1095,7 @@ DO NOT MODIFY - GENERATED CODE
                         <include>org/jruby/ext/openssl/impl/PKCS7DataDigest.java</include>
                         <include>org/jruby/ext/openssl/impl/PKCS7DataEncrypted.java</include>
                         <include>org/jruby/ext/openssl/impl/PKCS7DataEnveloped.java</include>
+                        <include>org/jruby/ext/openssl/impl/PKCS7DataOther.java</include>
                         <include>org/jruby/ext/openssl/impl/PKCS7DataSigned.java</include>
                         <include>org/jruby/ext/openssl/impl/PKCS7DataSignedAndEnveloped.java</include>
                         <include>org/jruby/ext/openssl/impl/PKCS7Exception.java</include>
