@@ -376,8 +376,13 @@ class TestASN1 < TestCase
     assert_raise(OpenSSL::ASN1::ASN1Error) {
       OpenSSL::ASN1.decode(B(%w{ 06 01 80 }))
     }
-    assert_raise(OpenSSL::ASN1::ASN1Error) { OpenSSL::ASN1::ObjectId.new("3.0".b).to_der }
-    assert_raise(OpenSSL::ASN1::ASN1Error) { OpenSSL::ASN1::ObjectId.new("0.40".b).to_der }
+    invalid_oid = OpenSSL::ASN1::ObjectId.new("3.0".b)
+    assert_equal "3.0".b, invalid_oid.value
+    assert_raise(OpenSSL::ASN1::ASN1Error) { invalid_oid.oid }
+    assert_raise(OpenSSL::ASN1::ASN1Error) { invalid_oid.to_der }
+    invalid_oid = OpenSSL::ASN1::ObjectId.new("0.40".b)
+    assert_equal "0.40".b, invalid_oid.value
+    assert_raise(OpenSSL::ASN1::ASN1Error) { invalid_oid.to_der }
 
     oid = (0...100).to_a.join(".").b
     obj = OpenSSL::ASN1::ObjectId.new(oid)
@@ -410,6 +415,19 @@ class TestASN1 < TestCase
     oid = OpenSSL::ASN1::ObjectId.new("2.5.29.14")
     assert_equal true, oid == OpenSSL::ASN1::ObjectId.new("2.5.29.14")
     assert_equal false, oid == OpenSSL::ASN1::ObjectId.new("2.5.29.35")
+
+    oid.value = "subjectKeyIdentifier"
+    assert_equal true, oid == OpenSSL::ASN1::ObjectId.new("2.5.29.14")
+
+    nil_oid = OpenSSL::ASN1::ObjectId.new(nil)
+    assert_nil nil_oid.value
+    assert_raise(TypeError) { nil_oid.to_der }
+
+    string_value = Object.new
+    string_value.define_singleton_method(:to_str) { "1.2.3" }
+    oid = OpenSSL::ASN1::ObjectId.new(string_value)
+    assert_same string_value, oid.value
+    assert_equal "1.2.3", oid.oid
   end
 
   def test_instantiate

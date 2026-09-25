@@ -95,7 +95,6 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import static org.jruby.ext.openssl.ASN1.newASN1Error;
 import static org.jruby.ext.openssl.PKCS7._PKCS7;
 import static org.jruby.ext.openssl.X509._X509;
 import static org.jruby.ext.openssl.x509store.X509Utils.X509_PURPOSE_TIMESTAMP_SIGN;
@@ -144,14 +143,6 @@ public final class Timestamp {
 
     static RaiseException newTimestampError(final Ruby runtime, final String message) {
         return newError(runtime, _TimestampError(runtime), message);
-    }
-
-    static ASN1ObjectIdentifier oid(final Ruby runtime, final IRubyObject value) {
-        try {
-            return ASN1.getObjectID(runtime, value.convertToString().asJavaString());
-        } catch (IllegalArgumentException e) {
-            throw newASN1Error(runtime, e);
-        }
     }
 
     public static final class Request extends RubyObject {
@@ -238,7 +229,7 @@ public final class Timestamp {
 
         @JRubyMethod(name = "algorithm=")
         public IRubyObject set_algorithm(final IRubyObject value) {
-            algorithm = oid(getRuntime(), value);
+            algorithm = ASN1.oid(getRuntime(), value);
             markChanged();
             return value;
         }
@@ -291,7 +282,7 @@ public final class Timestamp {
         @JRubyMethod(name = "policy_id=")
         public IRubyObject set_policy_id(final IRubyObject value) {
             if (value.isNil()) throw getRuntime().newTypeError(value, "String");
-            policyId = oid(getRuntime(), value);
+            policyId = ASN1.oid(getRuntime(), value);
             markChanged();
             return value;
         }
@@ -737,7 +728,7 @@ public final class Timestamp {
                 if (provider != null) digestBuilder.setProvider(provider);
                 final DigestCalculatorProvider digestProvider = digestBuilder.build();
                 final DigestCalculator digestCalculator = digestProvider.get(new AlgorithmIdentifier(TSPAlgorithms.SHA256));
-                final ASN1ObjectIdentifier policy = req.policyId != null ? req.policyId : oid(runtime, defaultPolicy);
+                final ASN1ObjectIdentifier policy = req.policyId != null ? req.policyId : ASN1.oid(runtime, defaultPolicy);
                 final TimeStampTokenGenerator tokenGenerator = new TimeStampTokenGenerator(signer, digestCalculator, policy);
                 if (req.certRequested) {
                     tokenGenerator.addCertificates(new JcaCertStore(Collections.singletonList(auxCert)));
@@ -810,7 +801,7 @@ public final class Timestamp {
             for (int i = 0; i < values.size(); i++) {
                 final IRubyObject value = values.eltInternal(i);
                 final String name = value instanceof Digest ? ((Digest) value).getShortAlgorithm() : value.convertToString().asJavaString();
-                result.add(oid(runtime, runtime.newString(name)));
+                result.add(ASN1.oid(runtime, runtime.newString(name)));
             }
             return result;
         }
