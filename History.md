@@ -1,3 +1,37 @@
+## 0.19.2
+
+ASN.1 and X.509 compatibility improvements, new OpenSSL::Timestamp support & 
+upgrading Bouncy Castle to latest.
+
+- [feat] implement `OpenSSL::Timestamp` support (#372)
+- [feat] implement `SSLContext#add_certificate`
+- [compat] improve ASN.1 BER parsing, including high tags, indefinite lengths,
+  nested constructed values, malformed input, EOC, SET ordering and tagging
+- [compat] preserve X.509 RDN sets and CRL extension order
+- [compat] implement `OCSP::Request#signed?` and `X509::Revoked#to_der`
+- [compat] improve CRL and `Time` writer handling
+- [compat] align `ASN1::ObjectId` handling with MRI
+- [compat] improve extended key usage parsing
+- [compat] reject invalid DH peer values
+- [compat] add BN `mod_sqrt` and left/right shift support
+- [compat] reject incomplete PKCS7 recipients and non-SET X.509 attribute values
+- [compat] ignore `FAIL_IF_NO_PEER_CERT` without `VERIFY_PEER`
+- [compat] reject unexpected TLS EOFs unless `OP_IGNORE_UNEXPECTED_EOF` is enabled
+- [compat] align SSL `close_notify` handling with OpenSSL
+- [compat] add `SSLSocket#readbyte`
+- [compat] verify PKCS12 PBMAC1 across BC-FIPS versions
+- [fix] harden OCSP response verification
+- [fix] encode long-form ASN.1 lengths correctly
+- [fix] preserve changes made to `X509::CRL`
+- [fix] try all certificates with the issuer's subject name
+- [fix] match CRLs from the same issuer
+- [fix] encode empty PKCS7 signer signatures (#373)
+- [fix] wait for partial TLS records before unwrapping
+- [fix] interrupt blocking SSL reads when the socket is closed concurrently
+- [fix] avoid shutdown spin on non-blocking SSL writes
+- [fix] retry a full handshake when TLS session reuse fails (#369)
+- [deps] upgrade BC to version 1.86
+
 ## 0.16.3
 
 - [deps] upgrade BC to version 1.86
