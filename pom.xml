@@ -11,7 +11,7 @@ DO NOT MODIFY - GENERATED CODE
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.jruby.openssl</groupId>
   <artifactId>jruby-openssl</artifactId>
-  <version>0.19.2</version>
+  <version>0.19.3.dev-SNAPSHOT</version>
   <packaging>gem</packaging>
   <name>SSL/TLS and general-purpose cryptography for JRuby</name>
   <description>Ruby OpenSSL compatibility for JRuby, based on Java JCA/JCE and Bouncy Castle libraries (does not depend on native OpenSSL).</description>
