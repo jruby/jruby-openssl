@@ -80,7 +80,7 @@ same `require 'openssl'`. But there are limitations on the JVM (with JCE and JSS
 Bouncy Castle libraries, so some entry points are unavailable, behave differently, or are no-ops.
 
 **Engine**
-- `OpenSSL::Engine` is not implemented - there is no hardware/engine layer, `OpenSSL::Engine.*`
+- `OpenSSL::Engine` is not implemented - there is no hardware/engine layer, `OpenSSL::Engine`
   raises `NameError` (uninitialized constant)
 
 **SSL / TLS** (backed by JSSE)
@@ -105,12 +105,16 @@ Bouncy Castle libraries, so some entry points are unavailable, behave differentl
 - EdDSA (`Ed25519` / `Ed448`) rejects digest arguments
 
 **X509**
-- multi-valued RDNs (the `+` separator in a DN string) are not supported and raise `X509::NameError`.
+- multi-valued RDNs (the `+` separator in a DN string) are not supported and raise `X509::NameError`
 - few `authorityKeyIdentifier` extension configurations are unsupported
 
 **Random**
 - randomness comes from the JVM's `SecureRandom`; the EGD and seed-file APIs (`Random.egd`,
   `egd_bytes`, `load_random_file`, `write_random_file`) are no-ops
+
+**BN**
+- `BN#get_flags` always returns zero; `BN#set_flags(0)` is a no-op; the OpenSSL constant-time mode
+  (`BN::CONSTTIME`) is not supported
 
 **Other**
 - `OpenSSL.fips_mode = true` raises `NotImplementedError` unless the separate [FIPS variant](#fips)
