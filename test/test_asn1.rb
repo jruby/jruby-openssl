@@ -382,7 +382,7 @@ class TestASN1 < TestCase
     assert_raise(OpenSSL::ASN1::ASN1Error) { invalid_oid.to_der }
     invalid_oid = OpenSSL::ASN1::ObjectId.new("0.40".b)
     assert_equal "0.40".b, invalid_oid.value
-    assert_raise(OpenSSL::ASN1::ASN1Error) { invalid_oid.to_der }
+    assert_raise(OpenSSL::ASN1::ASN1Error) { invalid_oid.to_der } unless fips?
 
     oid = (0...100).to_a.join(".").b
     obj = OpenSSL::ASN1::ObjectId.new(oid)

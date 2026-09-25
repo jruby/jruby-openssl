@@ -1298,6 +1298,15 @@ public class ASN1 {
         final Header header = reader.readHeader(limit);
 
         if (!header.constructed) {
+            // NOTE: only due BC-FIPS since it accepts malformed NULL and OBJECT IDENTIFIER encodings
+            if (header.tagClass == ASN1Shim.TAG_UNIVERSAL) {
+                if (header.tag == NULL && header.contentEnd != header.contentStart) {
+                    throw new IOException("malformed NULL encoding encountered");
+                }
+                if (header.tag == OBJECT && !validObjectIDContent(reader.bytes, header.contentStart, header.contentEnd)) {
+                    throw new IOException("invalid OID contents");
+                }
+            }
             if (header.tagClass == ASN1Shim.TAG_UNIVERSAL && header.tag == EOC) {
                 if (header.indefinite || header.contentEnd != header.contentStart) {
                     throw new IOException("invalid end-of-contents marker");
@@ -1371,6 +1380,17 @@ public class ASN1 {
         }
         if (header.indefinite) ASN1Data.setInfiniteLength(context, result);
         return result;
+    }
+
+    private static boolean validObjectIDContent(final byte[] bytes, final int start, final int end) {
+        if (start == end) return false;
+
+        boolean subIdStart = true;
+        for (int i = start; i < end; i++) {
+            if (subIdStart && (bytes[i] & 0xFF) == 0x80) return false;
+            subIdStart = (bytes[i] & 0x80) == 0;
+        }
+        return subIdStart;
     }
 
     @JRubyMethod(meta = true, required = 1)
