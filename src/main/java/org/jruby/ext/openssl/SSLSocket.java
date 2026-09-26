@@ -1002,6 +1002,10 @@ public class SSLSocket extends RubyObject {
             catch (RuntimeException e) {
                 LOG.debugStack(getRuntime(), "doShutdown", e);
             }
+            finally {
+                netWriteData.clear();
+                netWriteData.limit(0);
+            }
         }
     }
 

@@ -351,6 +351,25 @@ class TestSSLSocket < TestCase
     close_thread&.join(1.5)
   end
 
+  def test_close_write_allows_reading_peer_response
+    message = "abc" * 1024
+    tls13 = proc { |ctx| ctx.min_version = ctx.max_version = OpenSSL::SSL::TLS1_3_VERSION }
+    server_proc = proc do |_ctx, ssl|
+      ssl.write(ssl.read)
+      ssl.close_write
+    end
+
+    start_server(OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: tls13, server_proc: server_proc) do |_, port|
+      ctx = OpenSSL::SSL::SSLContext.new
+      tls13.call(ctx)
+      server_connect(port, ctx) do |ssl|
+        ssl.write(message)
+        ssl.close_write
+        assert_equal message, ssl.read
+      end
+    end
+  end
+
   private
 
   def server(ssl_version: nil); require 'socket'
