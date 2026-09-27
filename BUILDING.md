@@ -24,6 +24,14 @@ Tests can also be run individually e.g. `jruby -Ilib:test test/test_bn.rb`
 
 NOTE: make sure to **-Ilib** otherwise you end up using the OpenSSL default gem shipped with JRuby.
 
+The upstream Ruby/OpenSSL suite is pinned as a submodule. Initialize it and run the
+OpenSSL-only MRI tests with:
+
+```
+git submodule update --init ruby-openssl
+jruby -rbundler/setup -S rake test:mri
+```
+
 ### Releasing
 
 * fill in [History.md](History.md) change-log entries for release

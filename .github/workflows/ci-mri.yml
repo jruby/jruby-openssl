@@ -1,0 +1,45 @@
+name: ruby/openssl tests
+
+on: [push, pull_request]
+
+env:
+  JRUBY_OPTS: '-J-ea'
+
+jobs:
+  mri:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - ruby-version: jruby-9.4.15.0
+            java-version: 21
+          - ruby-version: jruby-10.0.7.0
+            java-version: 21
+      fail-fast: false
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: check out ruby-openssl submodule
+        run: git submodule update --init ruby-openssl
+
+      - name: set up java ${{ matrix.java-version }}
+        uses: actions/setup-java@v6
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: temurin
+          cache: maven
+
+      - name: set up ${{ matrix.ruby-version }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - name: bundle install
+        run: bash .github/scripts/bundle-install
+
+      - name: ruby/openssl tests
+        run: jruby -rbundler/setup -S rake test:mri
+        timeout-minutes: 15
