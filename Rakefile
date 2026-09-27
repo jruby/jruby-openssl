@@ -95,6 +95,9 @@ task :test => ['lib/jopenssl.jar', 'pkg/test-classes/org/jruby/ext/openssl/Secur
 require_relative 'tasks/vendor_tests'
 define_vendor_test_tasks # root + jopenssl_lib default to this tree
 
+require_relative 'tasks/mri_tests'
+define_mri_test_task
+
 require_relative 'tasks/provider_tests'
 namespace :test do
   namespace :provider do

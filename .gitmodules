@@ -13,3 +13,6 @@
 [submodule "net-imap"]
 	path = net-imap
 	url = https://github.com/ruby/net-imap.git
+[submodule "ruby-openssl"]
+	path = ruby-openssl
+	url = https://github.com/ruby/openssl.git
