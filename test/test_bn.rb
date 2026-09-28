@@ -80,6 +80,12 @@ class TestBN < TestCase
     #assert_equal(-2, -2.to_bn % 7)
   end
 
+  def test_arithmetic_errors
+    assert_raise(OpenSSL::BNError) { 1.to_bn / 0 }
+    assert_raise(OpenSSL::BNError) { 1.to_bn % 0 }
+    assert_raise(OpenSSL::BNError) { 3.to_bn.mod_inverse(6) }
+  end
+
   def test_mod_sqrt
     [2, 3, 5, 7, 13, 17, 41, 97, 515761, 2**127 - 1, 2**255 - 19].each do |modulus|
       [0, 1, 2, 4, 15, modulus - 1].each do |number|

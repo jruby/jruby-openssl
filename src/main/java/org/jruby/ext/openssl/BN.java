@@ -410,7 +410,7 @@ public class BN extends RubyObject {
             return newBN(context.runtime, value.mod(asBigInteger(other)));
         }
         catch (ArithmeticException e) {
-            throw context.runtime.newZeroDivisionError();
+            throw newBNError(context.runtime, e);
         }
     }
 
@@ -422,7 +422,7 @@ public class BN extends RubyObject {
             return runtime.newArray(newBN(runtime, result[0]), newBN(runtime, result[1]));
         }
         catch (ArithmeticException e) {
-            throw runtime.newZeroDivisionError();
+            throw newBNError(runtime, e);
         }
     }
 
@@ -566,7 +566,7 @@ public class BN extends RubyObject {
         try {
             return newBN(context.runtime, value.modInverse(asBigInteger(other)));
         } catch (ArithmeticException e) {
-            throw newZeroDivisionError(context.runtime, e);
+            throw newBNError(context.runtime, e);
         }
     }
 
