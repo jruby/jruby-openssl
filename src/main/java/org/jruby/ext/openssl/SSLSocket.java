@@ -89,11 +89,7 @@ public class SSLSocket extends RubyObject {
         sync_w("sync="),
         flush("flush"),
         // ssl_context
-        verify_mode("verify_mode"),
-        // Fiber and its scheduler
-        _respond_to_current_scheduler("current_scheduler"),
-        current_scheduler("current_scheduler"),
-        io_wait("io_wait");
+        verify_mode("verify_mode");
 
         final String method;
 
@@ -661,23 +657,11 @@ public class SSLSocket extends RubyObject {
         }
     }
 
-    private IRubyObject current_scheduler(final ThreadContext context) {
-        // Fiber.current_scheduler if Fiber.respond_to?(:current_scheduler)
-        // (JRuby 9.4.5+, and missing with -Xexperimental.fiber.scheduler=false)
+    // Fiber.current_scheduler if Fiber.respond_to?(:current_scheduler)
+    // (defined by default since JRuby 10; on 9.4.5+ only with -Xexperimental.fiber.scheduler)
+    private static IRubyObject current_scheduler(final ThreadContext context) {
         final IRubyObject fiber = context.runtime.getObject().getConstantAt("Fiber");
-        final CallSite[] sites = getMetaClass().getExtraCallSites();
-        if (sites == null) return fallback_current_scheduler(context, fiber);
-        IRubyObject respond = callSite(sites, CallSiteIndex._respond_to_current_scheduler).call(context, fiber, fiber, context.runtime.newSymbol("current_scheduler"));
-        if (respond.isTrue()) {
-            return callSite(sites, CallSiteIndex.current_scheduler).call(context, fiber, fiber);
-        }
-        return context.nil;
-    }
-
-    private static IRubyObject fallback_current_scheduler(ThreadContext context, IRubyObject fiber) {
-        if (fiber.respondsTo("current_scheduler")) {
-            return fiber.callMethod(context, "current_scheduler");
-        }
+        if (fiber.respondsTo("current_scheduler")) return fiber.callMethod(context, "current_scheduler");
         return context.nil;
     }
 
@@ -687,11 +671,9 @@ public class SSLSocket extends RubyObject {
         int events = 0;
         if ((operations & SelectionKey.OP_READ) != 0) events |= 1; // IO::READABLE
         if ((operations & SelectionKey.OP_WRITE) != 0) events |= 4; // IO::WRITABLE
-        final RubyFixnum eventsValue = context.runtime.newFixnum(events);
 
-        final CallSite[] sites = getMetaClass().getExtraCallSites();
-        if (sites == null) return scheduler.callMethod(context, "io_wait", new IRubyObject[] { io, eventsValue, context.nil }).isTrue();
-        return callSite(sites, CallSiteIndex.io_wait).call(context, scheduler, scheduler, io, eventsValue, context.nil).isTrue();
+        IRubyObject[] args = { io, context.runtime.newFixnum(events), context.nil };
+        return scheduler.callMethod(context, "io_wait", args).isTrue();
     }
 
     // return values are -1 (EOF) and >= 0 (byte counts), so any value < -1 is safe to use
