@@ -77,7 +77,7 @@ class TestBN < TestCase
   def test_mod
     assert_equal(1, 1.to_bn % 2)
     assert_equal(0, 2.to_bn % 1)
-    #assert_equal(-2, -2.to_bn % 7)
+    assert_equal(-2, -2.to_bn % 7)
   end
 
   def test_arithmetic_errors
@@ -180,6 +180,9 @@ class TestBN < TestCase
     bn = OpenSSL::BN.new('10')
     assert_equal bn.to_s(10), '10'
     assert_equal bn.to_s(16), '0A'
+
+    bn = OpenSSL::BN.new('-999')
+    assert_equal bn.to_s(16), '-03E7'
 
     bn = OpenSSL::BN.new('100')
     assert_equal bn.to_s(16), '64'

@@ -243,10 +243,12 @@ public class BN extends RubyObject {
         case 10:
             return runtime.newString(value.toString(10));
         case 16:
-            final String hex = value.toString(16);
+            final boolean negHex = value.signum() < 0;
+            final String hex = value.abs().toString(16);
             final int len = hex.length();
-            final ByteList val = new ByteList(len + 1);
-            if ( value.signum() == 1 && len % 2 != 0 ) val.append('0');
+            final ByteList val = new ByteList(len + 2);
+            if (negHex) val.append('-');
+            if (len % 2 != 0) val.append('0');
             for ( int i = 0; i < len ; i++ ) {
                 val.append( Character.toUpperCase(hex.charAt(i)) );
             }
@@ -408,7 +410,7 @@ public class BN extends RubyObject {
     @JRubyMethod(name="%")
     public BN mod(final ThreadContext context, IRubyObject other) {
         try {
-            return newBN(context.runtime, value.mod(asBigInteger(other)));
+            return newBN(context.runtime, value.remainder(asBigInteger(other)));
         }
         catch (ArithmeticException e) {
             throw newBNError(context.runtime, e);
