@@ -716,7 +716,7 @@ public class X509ExtensionFactory extends RubyObject {
 
     private void addDistributionPointToVector(final ThreadContext context, ASN1EncodableVector points, final String part)
         throws IOException {
-        final GeneralNames partNames = new GeneralNames(parseGeneralName(context, part));
+        final GeneralNames partNames = parseGeneralNames(context, part);
         points.add(new DistributionPoint(new DistributionPointName(partNames), null, null));
     }
 

@@ -1,6 +1,4 @@
 exclude :test_akiski, "work in progress"
-exclude :test_crl_uris_multiple_general_names, "work in progress"
-exclude :test_crl_uris_no_uris, "work in progress"
 exclude :test_load_file_certificate_der, "work in progress"
 exclude :test_load_file_empty_pem, "work in progress"
 exclude :test_load_file_fullchain_garbage, "work in progress"
