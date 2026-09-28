@@ -120,6 +120,7 @@ public class BN extends RubyObject {
         }
         int argc = Arity.checkArgumentCount(runtime, args, 1, 2);
         int base = argc == 2 ? RubyNumeric.num2int(args[1]) : 10;
+        if (args[0].isNil()) throw runtime.newArgumentError("invalid value");
         final RubyString str = args[0].asString();
         switch (base) {
         case 0:
