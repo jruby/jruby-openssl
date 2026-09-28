@@ -230,6 +230,10 @@ public class X509ExtensionFactory extends RubyObject {
             LOG.debugStack(runtime, null, e);
             throw newExtensionError(runtime, "Unable to create extension: " + e.getMessage());
         }
+        catch (IllegalArgumentException e) {
+            throw newExtensionError(runtime, oid + " = " + valuex +
+                    ": error in extension (name=" + oid + ", value=" + valuex + ")");
+        }
         return newExtension(runtime, objectId, value, critical.isNil() ? null : critical.isTrue());
     }
 

@@ -70,6 +70,14 @@ class TestX509Extension < TestCase
     assert_equal 'IP:127.0.0.1,email:some@example.com', ext.value
   end
 
+  def test_subject_alt_name_invalid_ip
+    error = assert_raise(OpenSSL::X509::ExtensionError) {
+      OpenSSL::X509::ExtensionFactory.new.create_ext('subjectAltName', 'IP:not.a.valid.ip.address')
+    }
+    assert_equal 'subjectAltName = IP:not.a.valid.ip.address: error in extension ' \
+      '(name=subjectAltName, value=IP:not.a.valid.ip.address)', error.message
+  end
+
   def test_to_a
     ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
     assert_equal [ '1.1.1.1.1.1', 'foo', false ], ext.to_a
