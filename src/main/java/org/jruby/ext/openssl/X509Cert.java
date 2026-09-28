@@ -193,6 +193,30 @@ public class X509Cert extends RubyObject {
         return wrap(context, cert.getEncoded());
     }
 
+    @JRubyMethod(meta = true, required = 1)
+    public static RubyArray load(final ThreadContext context, final IRubyObject self, final IRubyObject buffer) {
+        final Ruby runtime = context.runtime;
+        final Collection<? extends Certificate> certificates;
+        try {
+            certificates = SecurityHelper.getCertificateFactory("X.509").generateCertificates(
+                new ByteArrayInputStream(buffer.asString().getBytes()));
+        }
+        catch (CertificateException e) {
+            throw newCertificateError(runtime, e);
+        }
+
+        if (certificates.isEmpty()) throw newCertificateError(runtime, "no certificate");
+
+        final RubyArray result = runtime.newArray();
+        try {
+            for (Certificate certificate : certificates) result.append(wrap(context, certificate));
+        }
+        catch (CertificateEncodingException e) {
+            throw newCertificateError(runtime, e);
+        }
+        return result;
+    }
+
     @JRubyMethod(name="initialize", optional = 1, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args, final Block unusedBlock) {
 

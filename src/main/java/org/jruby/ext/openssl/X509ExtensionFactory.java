@@ -486,7 +486,7 @@ public class X509ExtensionFactory extends RubyObject {
                 throw error;
             }
         } else {
-            IRubyObject der = ASN1.decode(context, ASN1._ASN1(runtime), pkey.callMethod(context, "to_der"));
+            IRubyObject der = ASN1.decode(context, ASN1._ASN1(runtime), pkey.callMethod(context, "public_to_der"));
             der = der.callMethod(context, "value").callMethod(context, "[]", runtime.newFixnum(1)).callMethod(context, "value");
             encoded = der.asString().getByteList();
         }
