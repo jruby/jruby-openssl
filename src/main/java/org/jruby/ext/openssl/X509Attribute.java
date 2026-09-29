@@ -175,7 +175,15 @@ public class X509Attribute extends RubyObject {
 
     @JRubyMethod(name="oid=")
     public IRubyObject set_oid(final IRubyObject oid) {
-        this.objectId = null; return this.oid = oid;
+        final Ruby runtime = getRuntime();
+        try {
+            objectId = ASN1.getObjectID(runtime, oid.toString());
+            final String symbol = ASN1.oid2Sym(runtime, objectId, true);
+            return this.oid = runtime.newString(symbol == null ? objectId.getId() : symbol);
+        }
+        catch (IllegalArgumentException e) {
+            throw newAttributeError(runtime, e);
+        }
     }
 
     @JRubyMethod
@@ -185,10 +193,10 @@ public class X509Attribute extends RubyObject {
 
     @JRubyMethod(name="value=")
     public IRubyObject set_value(final ThreadContext context, final IRubyObject value) {
+        if (!(value instanceof ASN1.ASN1Data)) {
+            throw context.runtime.newTypeError("attribute value must be ASN1::Set");
+        }
         try {
-            //if ( value instanceof ASN1.ASN1Data ) {
-            //    return this.value = value;
-            //}
             final IRubyObject decoded = ASN1.decodeImpl(context, value);
             final RubyClass setClass = _ASN1(context.runtime).getClass("Set");
             if (!setClass.isInstance(decoded)) {
