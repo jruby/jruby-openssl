@@ -89,6 +89,7 @@ import org.jruby.ext.openssl.log.Logger;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.ByteList;
 
 import org.jruby.ext.openssl.x509store.Name;
 import static org.jruby.ext.openssl.OpenSSL.*;
@@ -282,7 +283,7 @@ public class X509Name extends RubyObject {
             case ASN1.OCTET_STRING:
                 return new DEROctetString(value.getBytes());
             case ASN1.UTF8STRING:
-                return new DERUTF8String(value.asJavaString());
+                return new DERUTF8String(valueAsUTF8(value));
             case ASN1.NUMERICSTRING:
                 return new DERNumericString(value.asJavaString()); // validate?
             case ASN1.PRINTABLESTRING:
@@ -309,7 +310,12 @@ public class X509Name extends RubyObject {
                 return new DERBMPString(value.asJavaString());
         }
 
-        return defaultConvertedValue(oid, value.toString());
+        return defaultConvertedValue(oid, valueAsUTF8(value));
+    }
+
+    private static String valueAsUTF8(final RubyString value) {
+        final ByteList bytes = value.getByteList();
+        return new String(bytes.unsafeBytes(), bytes.getBegin(), bytes.getRealSize(), StandardCharsets.UTF_8);
     }
 
     // inlined from X509DefaultEntryConverter.getConvertedValue (not available in BC-FIPS)
@@ -571,8 +577,9 @@ public class X509Name extends RubyObject {
                         sep = i == start ? "," : "+";
                         break;
                     case ONELINE:
-                        str.append(sep).append(oName).append(" = ").append(value);
-                        sep = i == end - 1 ? "," : "+";
+                        str.append(sep).append(oName).append(" = ");
+                        appendValueOneline(str, value);
+                        sep = i == end - 1 ? ", " : " + ";
                         break;
                     case MULTILINE:
                         final Integer nid = ASN1.oid2nid(runtime, oid);
@@ -661,6 +668,35 @@ public class X509Name extends RubyObject {
                 str.append((char) c);
             }
         }
+    }
+
+    private static void appendValueOneline(final StringBuilder str, final Object value) {
+        final byte[] bytes = value.toString().getBytes(StandardCharsets.UTF_8);
+        final boolean quote = bytes.length > 0 && (
+                bytes[0] == ' ' || bytes[bytes.length - 1] == ' ' ||
+                containsAnyQuoteChar(bytes)
+        );
+        if (quote) str.append('"');
+        for (byte val : bytes) {
+            final int c = val & 0xFF;
+            if (c < 0x20 || c >= 0x80) {
+                str.append('\\').append(String.format("%02X", c));
+            }
+            else if (c == '"' || c == '\\') {
+                str.append('\\').append((char) c);
+            }
+            else {
+                str.append((char) c);
+            }
+        }
+        if (quote) str.append('"');
+    }
+
+    private static boolean containsAnyQuoteChar(final byte[] value) {
+        for (byte val : value) {
+            if (val == ',' || val == '+' || val == ';' || val == '<' || val == '>') return true;
+        }
+        return false;
     }
 
     @JRubyMethod
