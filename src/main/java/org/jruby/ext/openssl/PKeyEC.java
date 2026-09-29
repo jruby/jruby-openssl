@@ -1372,22 +1372,6 @@ public final class PKeyEC extends PKey {
             }
             throw runtime.newArgumentError("unsupported point conversion form: " + form.inspect());
         }
-
-
-//        @Override
-//        @JRubyMethod
-//        @SuppressWarnings("unchecked")
-//        public IRubyObject inspect() {
-//            final EllipticCurve curve = getCurve();
-//            final StringBuilder part = new StringBuilder();
-//            String cname = getMetaClass().getRealClass().getName();
-//            part.append("#<").append(cname).append(":0x");
-//            part.append(Integer.toHexString(System.identityHashCode(this)));
-//            // part.append(' ');
-//            part.append(" a:").append(curve.getA()).append(" b:").append(curve.getA());
-//            return RubyString.newString(getRuntime(), part.append('>'));
-//        }
-
     }
 
     @JRubyClass(name = "OpenSSL::PKey::EC::Point")
