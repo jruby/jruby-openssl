@@ -29,8 +29,12 @@ package org.jruby.ext.openssl;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.Provider;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import org.jruby.Ruby;
+import org.jruby.RubyArray;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyInteger;
@@ -152,7 +156,7 @@ public class Digest extends RubyObject {
     private MessageDigest digest;
 
     String getRealName() {
-        return osslToJava(name.toString());
+        return osslToJava(name);
     }
 
     MessageDigest getDigestImpl() {
@@ -244,7 +248,7 @@ public class Digest extends RubyObject {
     }
 
     // name mapping for openssl -> JCE
-    private static String osslToJava(final String digestName) {
+    private static String osslToJava(final CharSequence digestName) {
         String name = digestName.toString();
         final String[] parts = name.split("::");
         if ( parts.length > 1 ) { // only want Digest names from the last part of class name
@@ -256,12 +260,24 @@ public class Digest extends RubyObject {
         if ( "DSS1".equalsIgnoreCase(name) ) return "SHA-1";
         // BC accepts "SHA1" but it should be "SHA-1" per spec
         if ( "SHA1".equalsIgnoreCase(name) ) return "SHA-1";
+        if ( "SHA512-224".equalsIgnoreCase(name) ) return "SHA-512/224";
+        if ( "SHA512-256".equalsIgnoreCase(name) ) return "SHA-512/256";
+        if ( name.toUpperCase().startsWith("SHA3-") ) return name;
         if ( name.toUpperCase().startsWith("SHA") &&
              name.length() > 4 && name.charAt(3) != '-' ) { // SHA512
             return "SHA-" + name.substring(3); // SHA-512
         }
         // BC handles MD2, MD4 and RIPEMD160 names fine ...
         return name;
+    }
+
+    private static String javaToOssl(final String digestName) {
+        if ("SHA-512/224".equalsIgnoreCase(digestName)) return "sha512-224";
+        if ("SHA-512/256".equalsIgnoreCase(digestName)) return "sha512-256";
+        if (digestName.matches("SHA-[0-9]+")) {
+            return digestName.replace("-", "").toLowerCase();
+        }
+        return digestName.toLowerCase();
     }
 
     private static int getBlockLength(final String algorithm) {
@@ -278,6 +294,24 @@ public class Digest extends RubyObject {
         if ( alg.equals("RIPEMD160") ) return 64;
 
         return -1;
+    }
+
+    @JRubyMethod(meta = true)
+    public static RubyArray digests(final ThreadContext context, final IRubyObject self) {
+        final Ruby runtime = context.runtime;
+        final Set<String> names = new LinkedHashSet<>();
+        final Provider provider = SecurityHelper.getSecurityProvider();
+        if (provider != null) {
+            for (Provider.Service service : provider.getServices()) {
+                if ("MessageDigest".equals(service.getType())) {
+                    names.add(javaToOssl(service.getAlgorithm()));
+                }
+            }
+        }
+
+        final RubyArray result = runtime.newArray(names.size());
+        for (String name : names) result.append(runtime.newString(name));
+        return result;
     }
 
     @JRubyMethod(meta = true) // OpenSSL::Digest.digest("SHA256, "abc")
