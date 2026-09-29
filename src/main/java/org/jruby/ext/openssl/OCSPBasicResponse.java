@@ -66,7 +66,6 @@ import org.bouncycastle.cert.ocsp.CertificateID;
 import org.bouncycastle.cert.ocsp.RespID;
 import org.bouncycastle.cert.ocsp.SingleResp;
 import org.bouncycastle.operator.ContentSigner;
-import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.DigestCalculator;
 import org.bouncycastle.operator.DigestCalculatorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -75,7 +74,6 @@ import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
-import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyInteger;
@@ -94,7 +92,6 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
 import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
-import static org.jruby.ext.openssl.Digest._Digest;
 import static org.jruby.ext.openssl.OCSP.*;
 import static org.jruby.ext.openssl.X509._X509;
 
@@ -269,7 +266,6 @@ public class OCSPBasicResponse extends RubyObject {
         IRubyObject additionalCerts = context.nil;
         IRubyObject flags = context.nil;
         IRubyObject digest = context.nil;
-        Digest digestInstance = new Digest(runtime, _Digest(runtime));
         List<X509CertificateHolder> addlCerts = new ArrayList<>();
 
         switch (Arity.checkArgumentCount(runtime, args, 2, 5)) {
@@ -290,17 +286,13 @@ public class OCSPBasicResponse extends RubyObject {
         }
 
         try {
-            if (digest.isNil()) digest = digestInstance.initialize(context, RubyString.newString(runtime, "SHA1"));
             if (!flags.isNil()) flag = RubyFixnum.fix2int(flags);
             if (additionalCerts.isNil()) flag |= RubyFixnum.fix2int((RubyFixnum)_OCSP(runtime).getConstant(OCSP_NOCERTS));
 
             X509Cert signer = (X509Cert) args[0];
             PKey signerKey = (PKey) args[1];
 
-            String keyAlg = signerKey.getAlgorithm();
-            String digAlg = ((Digest) digest).getShortAlgorithm();
-
-            JcaContentSignerBuilder signerBuilder = newJcaContentSignerBuilder(digAlg + "with" + keyAlg);
+            JcaContentSignerBuilder signerBuilder = OCSP.newJcaContentSignerBuilder(context, signerKey, digest);
             ContentSigner contentSigner;
             try {
                 contentSigner = signerBuilder.build(signerKey.getPrivateKey());

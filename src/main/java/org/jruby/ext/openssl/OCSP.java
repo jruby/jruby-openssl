@@ -227,8 +227,26 @@ public class OCSP {
         return bytes;
     }
 
-    static JcaContentSignerBuilder newJcaContentSignerBuilder(String alg) {
-        return new JcaContentSignerBuilder(alg).setProvider(SecurityHelper.getSecurityProvider());
+    private static JcaContentSignerBuilder newJcaContentSignerBuilder(final String signatureAlg) {
+        return new JcaContentSignerBuilder(signatureAlg).setProvider(SecurityHelper.getSecurityProvider());
+    }
+
+    static JcaContentSignerBuilder newJcaContentSignerBuilder(final ThreadContext context,
+                                                              final PKey key,
+                                                              final IRubyObject digest) {
+        return newJcaContentSignerBuilder(signatureAlgorithm(context, key, digest));
+    }
+
+    static String signatureAlgorithm(final ThreadContext context, final PKey key, final IRubyObject digest) {
+        final String keyAlgorithm = key.getAlgorithm();
+        if (digest.isNil() && ("Ed25519".equals(keyAlgorithm) || "Ed448".equals(keyAlgorithm))) {
+            return keyAlgorithm;
+        }
+        final Ruby runtime = context.runtime;
+        final Digest selected = digest.isNil() ?
+                Digest.newInstance(context, runtime.newString("SHA256")) :
+                    Digest.getDigest(context, digest);
+        return selected.getShortAlgorithm() + "with" + keyAlgorithm;
     }
 
     static JcaContentVerifierProviderBuilder newJcaContentVerifierProviderBuilder() {

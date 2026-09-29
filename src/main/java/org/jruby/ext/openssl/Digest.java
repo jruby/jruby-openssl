@@ -133,17 +133,16 @@ public class Digest extends RubyObject {
     }
 
     static Digest getDigest(ThreadContext context, IRubyObject digest) {
-        if (digest instanceof Digest) {
-            return (Digest) digest;
-        } else {
-            RubyString digestString = digest.convertToString();
-            return newInstance(context.runtime, digestString, context.nil);
-        }
+        if (digest instanceof Digest) return (Digest) digest;
+        return newInstance(context.runtime, digest.convertToString(), context.nil);
     }
 
-    private static Digest newInstance(final Ruby runtime, final IRubyObject name, final IRubyObject data) {
-        final RubyClass klass = _Digest(runtime);
-        final Digest instance = new Digest(runtime, klass);
+    static Digest newInstance(final ThreadContext context, final RubyString name) {
+        return newInstance(context.runtime, name, context.nil);
+    }
+
+    private static Digest newInstance(final Ruby runtime, final RubyString name, final IRubyObject data) {
+        final Digest instance = new Digest(runtime, _Digest(runtime));
         instance.initializeImpl(runtime, name.asString(), data);
         return instance;
     }
@@ -178,7 +177,7 @@ public class Digest extends RubyObject {
     void initializeImpl(final Ruby runtime, final RubyString name, final IRubyObject data) {
         this.name = name; // e.g. "MD5"
         this.digest = getDigest(runtime, name.toString());
-        if ( ! data.isNil() ) update( data.asString() );
+        if (!data.isNil()) update(data.convertToString());
     }
 
     @Override
@@ -316,15 +315,14 @@ public class Digest extends RubyObject {
 
     @JRubyMethod(meta = true) // OpenSSL::Digest.digest("SHA256, "abc")
     public static RubyString digest(final ThreadContext context, final IRubyObject self,
-        final IRubyObject name, final IRubyObject data) {
-        return newInstance(context.runtime, name, data).finish();
+                                    final IRubyObject name, final IRubyObject data) {
+        return newInstance(context.runtime, name.convertToString(), data).finish();
     }
 
     @JRubyMethod(meta = true) // OpenSSL::Digest.hexdigest("SHA1" "abc")
     public static RubyString hexdigest(final ThreadContext context, final IRubyObject self,
-        final IRubyObject name, final IRubyObject data) {
-        final Ruby runtime = context.runtime;
-        return hexString( newInstance(runtime, name, data).finish() );
+                                       final IRubyObject name, final IRubyObject data) {
+        return hexString( newInstance(context.runtime, name.convertToString(), data).finish() );
     }
 
     private final static byte[] HEX = {

@@ -59,7 +59,8 @@ import org.jruby.runtime.builtin.IRubyObject;
 
 import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
 import static org.jruby.ext.openssl.Digest._Digest;
-import static org.jruby.ext.openssl.OCSP.*;
+import static org.jruby.ext.openssl.OCSP._OCSP;
+import static org.jruby.ext.openssl.OCSP.newOCSPError;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
 
 /**
@@ -99,7 +100,7 @@ public class OCSPCertificateId extends RubyObject {
         BigInteger serial = subjectCert.getSerial();        
         
         try {
-            return initializeImpl(runtime, serial, originalIssuer, digest);
+            return initializeImpl(context, serial, originalIssuer, digest);
         }
         catch (Throwable ex) {
             return handlePotentialOperationError(runtime, ex);
@@ -115,9 +116,9 @@ public class OCSPCertificateId extends RubyObject {
         BigInteger serial = subjectCert.getSerial();
         try {
             Digest digest = new Digest(runtime, _Digest(runtime));
-            digest.initializeImpl(runtime, RubyString.newString(runtime, "SHA1"), runtime.getNil());
+            digest.initializeImpl(runtime, RubyString.newString(runtime, "SHA1"), context.nil);
 
-            return initializeImpl(runtime, serial, originalIssuer, digest);
+            return initializeImpl(context, serial, originalIssuer, digest);
         }
         catch (Throwable ex) {
             return handlePotentialOperationError(runtime, ex);
@@ -135,8 +136,9 @@ public class OCSPCertificateId extends RubyObject {
         }
     }
     
-    private IRubyObject initializeImpl(final Ruby runtime, BigInteger serial, X509Cert issuerCert, IRubyObject digest) {
-        ASN1ObjectIdentifier oid = ASN1.sym2Oid(runtime, ((Digest) digest).getName().toLowerCase());
+    private IRubyObject initializeImpl(final ThreadContext context, BigInteger serial, X509Cert issuerCert, IRubyObject digest) {
+        final Ruby runtime = context.runtime;
+        ASN1ObjectIdentifier oid = ASN1.sym2Oid(runtime, Digest.getDigest(context, digest).getName().toLowerCase());
         final DigestCalculator calc;
         try {
             DigestCalculatorProvider calculatorProvider = new JcaDigestCalculatorProviderBuilder()

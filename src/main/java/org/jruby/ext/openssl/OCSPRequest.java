@@ -32,11 +32,6 @@
 */
 package org.jruby.ext.openssl;
 
-import static org.jruby.ext.openssl.Digest._Digest;
-import static org.jruby.ext.openssl.OCSP._OCSP;
-import static org.jruby.ext.openssl.OCSP.newOCSPError;
-import static org.jruby.ext.openssl.X509._X509;
-
 import java.io.IOException;
 import java.security.PublicKey;
 import java.security.NoSuchAlgorithmException;
@@ -88,7 +83,10 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
 import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
-import static org.jruby.ext.openssl.OCSP.*;
+import static org.jruby.ext.openssl.OCSP._OCSP;
+import static org.jruby.ext.openssl.OCSP.newOCSPError;
+import static org.jruby.ext.openssl.OCSP.signatureAlgorithm;
+import static org.jruby.ext.openssl.X509._X509;
 
 /*
  * An OpenSSL::OCSP::Request contains the certificate information for determining 
@@ -160,7 +158,7 @@ public class OCSPRequest extends RubyObject {
     public IRubyObject add_nonce(ThreadContext context, IRubyObject[] args) {
         if ( Arity.checkArgumentCount(context.runtime, args, 0, 1) == 0 ) {
             try {
-                nonce = generateNonce(context);
+                nonce = OCSP.generateNonce(context);
             }
             catch (NoSuchAlgorithmException e) {
                 throw newOCSPError(context.runtime, e);
@@ -236,7 +234,6 @@ public class OCSPRequest extends RubyObject {
         IRubyObject additionalCerts = context.nil;
         IRubyObject flags = context.nil;
         IRubyObject digest = context.nil;
-        Digest digestInstance = new Digest(runtime, _Digest(runtime));
         IRubyObject nocerts = _OCSP(runtime).getConstant(OCSP_NOCERTS);
         
         switch (Arity.checkArgumentCount(runtime, args, 2, 5)) {
@@ -258,17 +255,13 @@ public class OCSPRequest extends RubyObject {
         }
 
         try {
-            if (digest.isNil()) digest = digestInstance.initialize(context, RubyString.newString(runtime, "SHA1"));
             if (!flags.isNil()) flag = RubyFixnum.fix2int(flags);
             if (additionalCerts.isNil()) flag |= RubyFixnum.fix2int(nocerts);
                     
             X509Cert signer = (X509Cert) args[0];
             PKey signerKey = (PKey) args[1];
             
-            String keyAlg = signerKey.getAlgorithm();
-            String digAlg = ((Digest) digest).getShortAlgorithm();
-            
-            JcaContentSignerBuilder signerBuilder = newJcaContentSignerBuilder(digAlg + "with" + keyAlg);
+            JcaContentSignerBuilder signerBuilder = OCSP.newJcaContentSignerBuilder(context, signerKey, digest);
             ContentSigner contentSigner;
             try {
                 contentSigner = signerBuilder.build(signerKey.getPrivateKey());
@@ -360,7 +353,7 @@ public class OCSPRequest extends RubyObject {
                flags |= RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOVERIFY));
            if ((flags & RubyFixnum.fix2int(_OCSP(runtime).getConstant(OCSP_NOSIGS))) == 0) {
                PublicKey signerPubKey = signer.getPublicKey();
-               ContentVerifierProvider cvp = newJcaContentVerifierProviderBuilder().build(signerPubKey);
+               ContentVerifierProvider cvp = OCSP.newJcaContentVerifierProviderBuilder().build(signerPubKey);
                ret = bcOCSPReq.isSignatureValid(cvp);
                if (!ret) {
                    return RubyBoolean.newBoolean(runtime, ret);
