@@ -33,11 +33,15 @@ class TestPKCS12 < TestCase
     )
     pbkdf2 = find_algorithms(p12.to_der, "1.2.840.113549.1.5.12")
 
-    assert_equal [1234, 1234, 2345], pbkdf2.map { |algorithm| algorithm.value[1].value[1].value.to_i }.sort
+    if fips?
+      assert_equal [1234, 1234, 2345], pbkdf2.map { |algorithm| algorithm.value[1].value[1].value.to_i }.sort
 
-    pbmac1 = find_algorithms(p12.to_der, "1.2.840.113549.1.5.14").first
-    mac_kdf = pbmac1.value[1].value.first
-    assert_equal 2345, mac_kdf.value[1].value[1].value.to_i
+      pbmac1 = find_algorithms(p12.to_der, "1.2.840.113549.1.5.14").first
+      mac_kdf = pbmac1.value[1].value.first
+      assert_equal 2345, mac_kdf.value[1].value[1].value.to_i
+    else
+      assert_equal [1234, 1234], pbkdf2.map { |algorithm| algorithm.value[1].value[1].value.to_i }.sort
+    end
   end
 
   def test_create_honors_aes_pbe_options
@@ -278,6 +282,8 @@ DQIJBQAwDAYIKoZIhvcNAgkFAAQgWcWc03vi+c4y+IiLx6R9WGHYofVoiZPW
   # PBMAC1 param validation - C OpenSSL (p12_mutl.c) rejects a keyDerivationFunc that
   # is not id-PBKDF2 and a PBKDF2 keyLength that is missing or > EVP_MAX_MD_SIZE (64)
   def test_rejects_malformed_pbmac1
+    skip 'PBMAC1 is only emitted in FIPS mode' unless fips?
+
     der = OpenSSL::PKCS12.create(PASSWORD, "myalias", @key, @cert).to_der
 
     not_pbkdf2 = mutate_pbmac1(der) do |kdf, _pbkdf2|

@@ -25,11 +25,14 @@ package org.jruby.ext.openssl;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
@@ -39,11 +42,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.PBEParameterSpec;
+
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERBMPString;
+import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
@@ -52,11 +59,14 @@ import org.bouncycastle.asn1.pkcs.ContentInfo;
 import org.bouncycastle.asn1.pkcs.MacData;
 import org.bouncycastle.asn1.pkcs.PBKDF2Params;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.Pfx;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.DigestInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.crypto.util.PBKDF2Config;
+import org.bouncycastle.jcajce.PKCS12Key;
 import org.bouncycastle.operator.InputDecryptorProvider;
 import org.bouncycastle.operator.MacCalculator;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -68,10 +78,9 @@ import org.bouncycastle.pkcs.PKCS12SafeBag;
 import org.bouncycastle.pkcs.PKCS12SafeBagBuilder;
 import org.bouncycastle.pkcs.PKCS12SafeBagFactory;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
-import org.bouncycastle.pkcs.PKCSException;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS12SafeBagBuilder;
+import org.bouncycastle.pkcs.jcajce.JcePKCS12MacCalculatorBuilder;
 import org.bouncycastle.pkcs.jcajce.JcePBMac1CalculatorBuilder;
-import org.bouncycastle.pkcs.jcajce.JcePKCS12MacCalculatorBuilderProvider;
 import org.bouncycastle.pkcs.jcajce.JcePKCSPBEInputDecryptorProviderBuilder;
 import org.bouncycastle.pkcs.jcajce.JcePKCSPBEOutputEncryptorBuilder;
 
@@ -214,6 +223,41 @@ public class PKCS12 extends RubyObject {
         return newString(context.runtime, storeBytes.clone());
     }
 
+    @JRubyMethod(name = "set_mac", rest = true)
+    public IRubyObject set_mac(final ThreadContext context, final IRubyObject[] args) {
+        final Ruby runtime = context.runtime;
+        Arity.checkArgumentCount(runtime, args, 1, 4);
+        checkFrozen();
+
+        final char[] password = toPasswordChars(args[0].convertToString());
+        try {
+            final byte[] salt;
+            if (args.length > 1 && !args[1].isNil()) {
+                salt = args[1].convertToString().getBytes();
+            } else {
+                salt = new byte[PBE_SALT_LEN];
+                OpenSSL.getSecureRandom(context).nextBytes(salt);
+            }
+            final int iterationCount = args.length > 2 && !args[2].isNil() ?
+                RubyNumeric.num2int(args[2]) : PBE_DEFAULT_ITER;
+            final ASN1ObjectIdentifier digest = args.length > 3 && !args[3].isNil() ?
+                ASN1.getObjectID(runtime, args[3].asJavaString()) :
+                new ASN1ObjectIdentifier("1.3.14.3.2.26");
+            storeBytes = setMac(storeBytes, password, salt, iterationCount, digest);
+        }
+        catch (Exception e) {
+            if (e instanceof RaiseException) throw (RaiseException) e;
+            throw newPKCS12Error(runtime, e);
+        }
+        catch (Throwable e) {
+            return OpenSSL.handlePotentialOperationError(runtime, e);
+        }
+        finally {
+            clearChars(password);
+        }
+        return context.nil;
+    }
+
     private void generate(final ThreadContext context, final IRubyObject[] args) {
         final Ruby runtime = context.runtime;
         final IRubyObject passArg = args[0];
@@ -260,7 +304,11 @@ public class PKCS12 extends RubyObject {
             keyBag.addBagAttribute(PKCSObjectIdentifiers.pkcs_9_at_localKeyId, new DEROctetString(keyId));
             pfx.addData(keyBag.build());
 
-            storeBytes = pfx.build(pbMac1MacCalculatorBuilder(provider, iterationCount(args, 8)), password).getEncoded();
+            final int macIterCount = iterationCount(args, 8);
+            final PKCS12MacCalculatorBuilder macBuilder = SecurityHelper.isFipsVariant() ?
+                pbMac1MacCalculatorBuilder(provider, macIterCount) :
+                pkcs12MacCalculatorBuilder(provider, macIterCount);
+            storeBytes = pfx.build(macBuilder, password).getEncoded();
 
             this.key = keyArg;
             this.certificate = certArg;
@@ -406,12 +454,19 @@ public class PKCS12 extends RubyObject {
      * PKCS12 provider only knows the classic (PKCS12KDF) MAC, which is not approved
      */
     private static boolean isMacValid(final PKCS12PfxPdu pfx, final Provider provider, final char[] password)
-        throws PKCSException, OperatorCreationException, IOException {
+        throws OperatorCreationException, IOException, InvalidAlgorithmParameterException, NoSuchAlgorithmException, InvalidKeyException {
 
         final MacData macData = pfx.toASN1Structure().getMacData();
         final AlgorithmIdentifier algorithmId = macData.getMac().getAlgorithmId();
         if (!id_PBMAC1.equals(algorithmId.getAlgorithm())) {
-            return pfx.isMacValid(new JcePKCS12MacCalculatorBuilderProvider().setProvider(provider), password);
+            final ASN1OctetString authSafe = ASN1OctetString.getInstance(pfx.toASN1Structure().getAuthSafe().getContent());
+            final byte[] expected = calculateMac(
+                    authSafe, password,
+                    macData.getSalt(),
+                    macData.getIterationCount().intValueExact(),
+                    algorithmId.getAlgorithm()
+            );
+            return MessageDigest.isEqual(expected, macData.getMac().getDigest());
         }
 
         // older BC-FIPS releases do not implement RFC 9579 PBMAC1 verification
@@ -421,6 +476,44 @@ public class PKCS12 extends RubyObject {
             output.write(authSafe.getOctets());
         }
         return MessageDigest.isEqual(calculator.getMac(), macData.getMac().getDigest());
+    }
+
+    private static byte[] setMac(final byte[] encoded,
+                                 final char[] password,
+                                 final byte[] salt,
+                                 final int iterationCount,
+                                 final ASN1ObjectIdentifier digest)
+        throws IOException, InvalidKeyException, InvalidAlgorithmParameterException, NoSuchAlgorithmException {
+
+        final ContentInfo authSafe = new PKCS12PfxPdu(encoded).toASN1Structure().getAuthSafe();
+        final ASN1OctetString authSafeContent = ASN1OctetString.getInstance(authSafe.getContent());
+        final byte[] macValue = calculateMac(authSafeContent, password, salt, iterationCount, digest);
+        final DigestInfo macInfo = new DigestInfo(new AlgorithmIdentifier(digest, DERNull.INSTANCE), macValue);
+        return new Pfx(authSafe, new MacData(macInfo, salt, iterationCount)).getEncoded();
+    }
+
+    private static byte[] calculateMac(final ASN1OctetString content,
+                                       final char[] password,
+                                       final byte[] salt,
+                                       final int iterationCount,
+                                       final ASN1ObjectIdentifier algorithm)
+        throws InvalidKeyException, InvalidAlgorithmParameterException, NoSuchAlgorithmException, IllegalStateException {
+
+        final String macAlgorithm = pkcs12MacAlgorithm(algorithm);
+        final Provider provider = SecurityHelper.getSecurityProvider();
+        final Mac mac = provider == null ? Mac.getInstance(macAlgorithm) : Mac.getInstance(macAlgorithm, provider);
+        mac.init(new PKCS12Key(password), new PBEParameterSpec(salt, iterationCount));
+        return mac.doFinal(content.getOctets());
+    }
+
+    private static String pkcs12MacAlgorithm(final ASN1ObjectIdentifier digest) throws NoSuchAlgorithmException {
+        final String oid = digest.getId();
+        if ("1.3.14.3.2.26".equals(oid)) return "PBEWITHHMACSHA";
+        if ("2.16.840.1.101.3.4.2.4".equals(oid)) return "PBEWITHHMACSHA224";
+        if ("2.16.840.1.101.3.4.2.1".equals(oid)) return "PBEWITHHMACSHA256";
+        if ("2.16.840.1.101.3.4.2.2".equals(oid)) return "PBEWITHHMACSHA384";
+        if ("2.16.840.1.101.3.4.2.3".equals(oid)) return "PBEWITHHMACSHA512";
+        throw new NoSuchAlgorithmException("unsupported PKCS12 MAC digest: " + oid);
     }
 
     private static MacCalculator pbMac1Calculator(final AlgorithmIdentifier algorithmId,
@@ -482,7 +575,7 @@ public class PKCS12 extends RubyObject {
 
     // PBMAC1 (RFC 9579) MAC calculator ~ OpenSSL (under FIPS)
     private static PKCS12MacCalculatorBuilder pbMac1MacCalculatorBuilder(final Provider provider,
-                                                                          final int iterationCount) {
+                                                                         final int iterationCount) {
         return new PKCS12MacCalculatorBuilder() {
             private MacCalculator macCalculator;
 
@@ -507,6 +600,14 @@ public class PKCS12 extends RubyObject {
                     new DERSequence(new ASN1Encodable[] { fixedKdf, macAlg }));
             }
         };
+    }
+
+    private static PKCS12MacCalculatorBuilder pkcs12MacCalculatorBuilder(final Provider provider,
+                                                                         final int iterationCount) {
+        final JcePKCS12MacCalculatorBuilder builder = new JcePKCS12MacCalculatorBuilder()
+            .setIterationCount(iterationCount);
+        if (provider != null) builder.setProvider(provider);
+        return builder;
     }
 
     // args[5] is the key PBE, args[6] the cert PBE
