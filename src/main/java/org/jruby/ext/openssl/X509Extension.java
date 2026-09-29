@@ -659,6 +659,34 @@ public class X509Extension extends RubyObject {
                 }
             }
 
+            if ( oid.equals("2.5.29.32") ) { // certificatePolicies
+                ASN1Encodable value = getRealValue();
+                if (value instanceof ASN1OctetString) {
+                    value = ASN1.readObject(((ASN1OctetString) value).getOctets());
+                }
+
+                final ByteList val = new ByteList(64);
+                final ASN1Sequence policies = ASN1Sequence.getInstance(value);
+                for (int i = 0; i < policies.size(); i++) {
+                    if (i > 0) val.append('\n');
+                    final ASN1Sequence policy = ASN1Sequence.getInstance(policies.getObjectAt(i));
+                    val.append(ByteList.plain("Policy: "));
+                    val.append(ByteList.plain(ASN1ObjectIdentifier.getInstance(policy.getObjectAt(0)).getId()));
+                    if (policy.size() < 2) continue;
+
+                    final ASN1Sequence qualifiers = ASN1Sequence.getInstance(policy.getObjectAt(1));
+                    for (int j = 0; j < qualifiers.size(); j++) {
+                        final ASN1Sequence qualifier = ASN1Sequence.getInstance(qualifiers.getObjectAt(j));
+                        final ASN1ObjectIdentifier qualifierId = ASN1ObjectIdentifier.getInstance(qualifier.getObjectAt(0));
+                        if ("1.3.6.1.5.5.7.2.1".equals(qualifierId.getId())) {
+                            val.append('\n').append(ByteList.plain("  CPS: "));
+                            val.append(ByteList.plain(DERIA5String.getInstance(qualifier.getObjectAt(1)).getString()));
+                        }
+                    }
+                }
+                return runtime.newString(val);
+            }
+
             return rawValueAsString(context);
         }
         catch (IOException e) {

@@ -186,7 +186,10 @@ public class X509ExtensionFactory extends RubyObject {
         final ASN1Encodable value;
         try {
             final String id = objectId.getId();
-            if (id.equals("2.5.29.14")) { // subjectKeyIdentifier
+            if (valuex.startsWith("ASN1:")) {
+                value = parseASN1ConfigValue(context, valuex);
+            }
+            else if (id.equals("2.5.29.14")) { // subjectKeyIdentifier
                 value = new DEROctetString(parseSubjectKeyIdentifier(context, oid, valuex));
             }
             else if (id.equals("2.5.29.35")) { // authorityKeyIdentifier
@@ -222,6 +225,9 @@ public class X509ExtensionFactory extends RubyObject {
             else if (id.equals("2.5.29.30")) { // nameConstraints
                 value = parseNameConstraints(valuex);
             }
+            else if (id.equals("2.5.29.32")) { // certificatePolicies
+                value = parseCertificatePolicies(context, valuex);
+            }
             else {
                 value = new DEROctetString(new DEROctetString(ByteList.plain(valuex)).getEncoded(ASN1Encoding.DER));
             }
@@ -235,6 +241,97 @@ public class X509ExtensionFactory extends RubyObject {
                     ": error in extension (name=" + oid + ", value=" + valuex + ")");
         }
         return newExtension(runtime, objectId, value, critical.isNil() ? null : critical.isTrue());
+    }
+
+    private ASN1Encodable parseASN1ConfigValue(final ThreadContext context, final String value)
+        throws IOException {
+        final int typeStart = "ASN1:".length();
+        final int typeEnd = value.indexOf(':', typeStart);
+        if (typeEnd < 0) throw new IOException("Malformed ASN1 value: " + value);
+
+        final String type = value.substring(typeStart, typeEnd).toUpperCase();
+        final String data = value.substring(typeEnd + 1);
+        if ("SEQUENCE".equals(type)) return parseASN1ConfigSequence(context, data);
+        if ("SET".equals(type)) return parseASN1ConfigSet(context, data);
+        return parseASN1ConfigPrimitive(context.runtime, type, data);
+    }
+
+    private ASN1Sequence parseASN1ConfigSequence(final ThreadContext context, final String sectionName)
+        throws IOException {
+        return new DERSequence(parseASN1ConfigSection(context, sectionName));
+    }
+
+    private ASN1Set parseASN1ConfigSet(final ThreadContext context, final String sectionName)
+        throws IOException {
+        return new DERSet(parseASN1ConfigSection(context, sectionName));
+    }
+
+    private ASN1EncodableVector parseASN1ConfigSection(final ThreadContext context, final String sectionName)
+        throws IOException {
+        final RubyHash section = getConfigSection(context, sectionName);
+        if (section == null) throw new IOException("Malformed ASN1 section: " + sectionName + " in @config");
+
+        final ASN1EncodableVector values = new ASN1EncodableVector();
+        section.visitAll(new RubyHash.Visitor() {
+            public void visit(final IRubyObject key, final IRubyObject value) {
+                final Ruby runtime = context.runtime;
+                final String definition = value.toString();
+                final int separator = definition.indexOf(':');
+                if (separator < 0) {
+                    throw newExtensionError(runtime, "Malformed ASN1 value: " + definition);
+                }
+                try {
+                    final String type = definition.substring(0, separator).toUpperCase();
+                    values.add(parseASN1ConfigPrimitive(runtime, type, definition.substring(separator + 1)));
+                }
+                catch (IOException e) {
+                    Helpers.throwException(e);
+                }
+            }
+        });
+        return values;
+    }
+
+    private static ASN1Encodable parseASN1ConfigPrimitive(final Ruby runtime, final String type, final String value)
+        throws IOException {
+        if ("BOOLEAN".equals(type)) return ASN1Boolean.getInstance("TRUE".equalsIgnoreCase(value));
+        if ("INTEGER".equals(type)) return new ASN1Integer(new BigInteger(value));
+        if ("OBJECT".equals(type) || "OID".equals(type)) return ASN1.getObjectID(runtime, value);
+        if ("UTF8".equals(type) || "UTF8STRING".equals(type)) return new DERUTF8String(value);
+        if ("IA5".equals(type) || "IA5STRING".equals(type)) return new DERIA5String(value);
+        if ("OCTETSTRING".equals(type)) return new DEROctetString(ByteList.plain(value));
+        throw new IOException("Unsupported ASN1 type: " + type);
+    }
+
+    private ASN1Sequence parseCertificatePolicies(final ThreadContext context, final String value)
+        throws IOException {
+        if (!value.startsWith("@")) throw new IOException("Malformed certificatePolicies value: " + value);
+
+        final RubyHash section = getConfigSection(context, value.substring(1).trim());
+        if (section == null) throw new IOException("Malformed certificatePolicies section: " + value + " in @config");
+
+        final String[] policyIdentifier = { null };
+        final ASN1EncodableVector qualifiers = new ASN1EncodableVector();
+        section.visitAll(new RubyHash.Visitor() {
+            public void visit(final IRubyObject key, final IRubyObject value) {
+                final String name = stripNumericSuffix(key.toString());
+                if ("policyIdentifier".equals(name)) {
+                    policyIdentifier[0] = value.toString();
+                }
+                else if ("CPS".equals(name)) {
+                    final ASN1EncodableVector qualifier = new ASN1EncodableVector();
+                    qualifier.add(new ASN1ObjectIdentifier("1.3.6.1.5.5.7.2.1"));
+                    qualifier.add(new DERIA5String(value.toString()));
+                    qualifiers.add(new DERSequence(qualifier));
+                }
+            }
+        });
+        if (policyIdentifier[0] == null) throw new IOException("certificatePolicies requires policyIdentifier");
+
+        final ASN1EncodableVector policy = new ASN1EncodableVector();
+        policy.add(ASN1.getObjectID(context.runtime, policyIdentifier[0]));
+        if (qualifiers.size() > 0) policy.add(new DERSequence(qualifiers));
+        return new DERSequence(new DERSequence(policy));
     }
 
     @JRubyMethod(rest = true)
