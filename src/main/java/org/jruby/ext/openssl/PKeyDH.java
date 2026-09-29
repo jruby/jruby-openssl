@@ -604,6 +604,11 @@ public class PKeyDH extends PKey {
         return newBN(dh_y);
     }
 
+    @JRubyMethod
+    public synchronized PKeyDH public_key() {
+        return new PKeyDH(getRuntime(), new DHParameterSpec(dh_p, dh_g));
+    }
+
     @Override
     public PublicKey getPublicKey() {
         try {
