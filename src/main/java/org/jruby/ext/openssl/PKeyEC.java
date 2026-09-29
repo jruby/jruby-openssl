@@ -7,6 +7,7 @@
  */
 package org.jruby.ext.openssl;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -23,6 +24,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 
+import java.security.SignatureException;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECField;
@@ -45,6 +47,7 @@ import java.util.Optional;
 import javax.crypto.KeyAgreement;
 
 import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
@@ -89,6 +92,7 @@ import org.jruby.ext.openssl.impl.CipherSpec;
 import org.jruby.ext.openssl.impl.ECPrivateKeyWithName;
 
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
+import org.jruby.util.ByteList;
 
 import static org.jruby.ext.openssl.impl.PKey.readECPrivateKey;
 import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
@@ -636,14 +640,16 @@ public final class PKeyEC extends PKey {
     @JRubyMethod(name = "dsa_verify_asn1")
     public IRubyObject dsa_verify_asn1(final ThreadContext context, final IRubyObject data, final IRubyObject sign) {
         final Ruby runtime = context.runtime;
+        final ByteList signature = sign.convertToString().getByteList();
+        final ByteList dataBytes = data.convertToString().getByteList();
         try {
-            Signature verifier = SecurityHelper.getSignature("NONEwithECDSA");
-            verifier.initVerify(publicKey);
-            verifier.update(data.convertToString().getBytes());
-            return runtime.newBoolean(verifier.verify(sign.convertToString().getBytes()));
+            return runtime.newBoolean(doVerifyECDSA(signature, dataBytes));
+        }
+        catch (SignatureException ex) {
+            throw newECError(runtime, "invalid signature: " + ex.getMessage(), ex);
         }
         catch (GeneralSecurityException ex) {
-            throw newECError(runtime, "invalid signature: " + ex.getMessage(), ex);
+            throw newECError(runtime, ex.getMessage(), ex);
         }
         catch (Throwable ex) {
             return handlePotentialOperationError(runtime, ex);
@@ -661,25 +667,46 @@ public final class PKeyEC extends PKey {
 
     // verify_raw(digest, signature, data) -- verifies a DER-encoded ECDSA signature over raw bytes.
     // Returns true/false; returns false (rather than raising) for a malformed or invalid signature.
-    // Argument order matches PKey#verify_raw convention: (digest, signature, data), unlike
-    // dsa_verify_asn1 which takes (data, signature).
+    // Argument order matches PKey#verify_raw convention: (digest, signature, data),
+    // unlike dsa_verify_asn1 which takes (data, signature).
     @JRubyMethod(name = "verify_raw")
     public IRubyObject verify_raw(final ThreadContext context, final IRubyObject digest,
                                   final IRubyObject sign, final IRubyObject data) {
         final Ruby runtime = context.runtime;
+        final ByteList signature = sign.convertToString().getByteList();
+        final ByteList dataBytes = data.convertToString().getByteList();
         try {
-            Signature verifier = SecurityHelper.getSignature("NONEwithECDSA");
-            verifier.initVerify(publicKey);
-            verifier.update(data.convertToString().getBytes());
-            return runtime.newBoolean(verifier.verify(sign.convertToString().getBytes()));
+            checkSignatureEncoding(signature);
+            return runtime.newBoolean(doVerifyECDSA(signature, dataBytes));
+        }
+        catch (IOException | IllegalArgumentException ex) {
+            throw newPKeyError(runtime, ex.getMessage()); // "EVP_PKEY_verify"
         }
         catch (GeneralSecurityException ex) {
-            LOG.debugStack(runtime, null, ex);
+            LOG.debugStack(runtime, "verify_raw", ex);
             return runtime.getFalse();
         }
         catch (Throwable ex) {
             return handlePotentialOperationError(runtime, ex);
         }
+    }
+
+    private boolean doVerifyECDSA(final ByteList signature, final ByteList dataBytes)
+        throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        Signature verifier = SecurityHelper.getSignature("NONEwithECDSA");
+        verifier.initVerify(publicKey);
+        verifier.update(dataBytes.unsafeBytes(), dataBytes.begin(), dataBytes.realSize());
+        return verifier.verify(signature.unsafeBytes(), signature.begin(), signature.realSize());
+    }
+
+    private static void checkSignatureEncoding(final ByteList signature)
+        throws IOException, IllegalArgumentException {
+        final ASN1Sequence sequence = ASN1Sequence.getInstance(ASN1Primitive.fromStream(
+                new ByteArrayInputStream(signature.unsafeBytes(), signature.begin(), signature.realSize()))
+        );
+        if (sequence.size() != 2) throw new IOException("invalid ECDSA signature");
+        ASN1Integer.getInstance(sequence.getObjectAt(0));
+        ASN1Integer.getInstance(sequence.getObjectAt(1));
     }
 
     @JRubyMethod(name = "dh_compute_key")
@@ -1499,7 +1526,9 @@ public final class PKeyEC extends PKey {
                     encoded = encodeCompressed(point);
                     break;
                 case HYBRID:
-                    throw getRuntime().newNotImplementedError(":hybrid compression not implemented");
+                    assert group != null;
+                    encoded = encodeHybrid(group.getBitLength(), point);
+                    break;
                 default:
                     throw new AssertionError("unexpected conversion form: " + conversionForm);
             }
@@ -1519,6 +1548,17 @@ public final class PKeyEC extends PKey {
         @JRubyMethod(name = "infinity?")
         public RubyBoolean infinity_p() {
             return getRuntime().newBoolean( isInfinity() );
+        }
+
+        @JRubyMethod(name = "on_curve?")
+        public RubyBoolean on_curve_p(ThreadContext context) {
+            if (isInfinity()) return context.tru;
+            try {
+                return context.runtime.newBoolean(toBCPoint(toBCCurve(group.getCurve()), point).isValid());
+            }
+            catch (IllegalArgumentException ex) {
+                return context.fals;
+            }
         }
 
         @JRubyMethod(name = "set_to_infinity!")
@@ -1692,6 +1732,12 @@ public final class PKeyEC extends PKey {
 
         addIntBytes(point.getAffineX(), bytesLength, encoded, 1);
 
+        return encoded;
+    }
+
+    private static byte[] encodeHybrid(final int fieldSize, final ECPoint point) {
+        final byte[] encoded = encodeUncompressed(fieldSize, point);
+        if (encoded.length > 1) encoded[0] = (byte) (point.getAffineY().testBit(0) ? 0x07 : 0x06);
         return encoded;
     }
 
