@@ -218,19 +218,21 @@ public class NetscapeCertRequest // extends ASN1Object
         publicKey = value;
     }
 
-    public boolean verify(String challenge) throws NoSuchAlgorithmException,
-        InvalidKeyException, SignatureException
-    {
+    public boolean verify(String challenge)
+        throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         if ( ! challenge.equals(this.challenge) ) return false;
+        return verify(publicKey);
+    }
+
+    public boolean verify(PublicKey publicKey)
+        throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         //
         // Verify the signature .. shows the response was generated
         // by someone who knew the associated private key
         //
         final Signature signature = getSignature();
-
         signature.initVerify(publicKey);
         signature.update(content.getBytes());
-
         return signature.verify(signatureBits);
     }
 

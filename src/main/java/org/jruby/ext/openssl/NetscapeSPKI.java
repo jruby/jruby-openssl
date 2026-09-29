@@ -31,13 +31,8 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 
-import org.bouncycastle.asn1.ASN1EncodableVector;
-import org.bouncycastle.asn1.DERBitString;
-import org.bouncycastle.asn1.DERIA5String;
-import org.bouncycastle.asn1.DERNull;
+import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 
 import org.jruby.Ruby;
@@ -138,31 +133,7 @@ public class NetscapeSPKI extends RubyObject {
     }
 
     private byte[] toDER() throws IOException {
-        ASN1Sequence b = (ASN1Sequence) ((NetscapeCertRequest) cert).toASN1Primitive();
-        ASN1ObjectIdentifier encType = (ASN1ObjectIdentifier)((ASN1Sequence)((ASN1Sequence)((ASN1Sequence)b.getObjectAt(0)).getObjectAt(0)).getObjectAt(0)).getObjectAt(0);
-        ASN1ObjectIdentifier sigAlg = ((AlgorithmIdentifier)b.getObjectAt(1)).getAlgorithm();
-        DERBitString sig = (DERBitString) b.getObjectAt(2);
-
-        DERBitString publicKey = new DERBitString(((PKey) public_key).to_der().convertToString().getBytes());
-        DERIA5String encodedChallenge = new DERIA5String(this.challenge.toString());
-
-        ASN1EncodableVector v1 = new ASN1EncodableVector();
-        ASN1EncodableVector v1_2 = new ASN1EncodableVector();
-        ASN1EncodableVector v2 = new ASN1EncodableVector();
-        ASN1EncodableVector v3 = new ASN1EncodableVector();
-        ASN1EncodableVector v4 = new ASN1EncodableVector();
-        v4.add(encType);
-        v4.add(DERNull.INSTANCE);
-        v3.add(new DLSequence(v4));
-        v3.add(publicKey);
-        v2.add(new DLSequence(v3));
-        v2.add(encodedChallenge);
-        v1.add(new DLSequence(v2));
-        v1_2.add(sigAlg);
-        v1_2.add(DERNull.INSTANCE);
-        v1.add(new DLSequence(v1_2));
-        v1.add(sig);
-        return new DLSequence(v1).getEncoded();
+        return ((NetscapeCertRequest) cert).toASN1Primitive().getEncoded(ASN1Encoding.DER);
     }
 
     @JRubyMethod
@@ -262,9 +233,9 @@ public class NetscapeSPKI extends RubyObject {
     @JRubyMethod
     public IRubyObject verify(final IRubyObject pkey) {
         final NetscapeCertRequest cert = (NetscapeCertRequest) this.cert;
-        cert.setPublicKey( ((PKey) pkey).getPublicKey() );
         try {
-            boolean result = cert.verify(challenge.toString());
+            final PublicKey publicKey = ((PKey) pkey).getPublicKey();
+            boolean result = cert.verify(publicKey);
             return getRuntime().newBoolean(result);
         }
         catch (GeneralSecurityException ex) {
