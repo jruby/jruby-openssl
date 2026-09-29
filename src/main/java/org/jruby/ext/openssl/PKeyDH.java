@@ -588,6 +588,14 @@ public class PKeyDH extends PKey {
         return context.nil;
     }
 
+    @JRubyMethod(name = "params_ok?")
+    public RubyBoolean params_ok_p() {
+        final BigInteger p = dh_p, g = dh_g;
+        final boolean valid = p != null && g != null && p.signum() > 0 && p.testBit(0) &&
+            p.isProbablePrime(128) && g.compareTo(TWO) >= 0 && g.compareTo(p.subtract(TWO)) <= 0;
+        return getRuntime().newBoolean(valid);
+    }
+
     @JRubyMethod
     public IRubyObject set_pqg(final ThreadContext context, IRubyObject p, IRubyObject q, IRubyObject g) {
         set_p(p);
