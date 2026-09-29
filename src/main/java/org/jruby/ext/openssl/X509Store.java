@@ -284,9 +284,16 @@ public class X509Store extends RubyObject {
             if ( ! proc.isNil() ) {
                 final Ruby runtime = proc.getRuntime();
                 X509StoreContext store_context = X509StoreContext.newStoreContext(runtime, context);
-                IRubyObject ret = proc.callMethod(runtime.getCurrentContext(), "call",
-                    new IRubyObject[] { runtime.newBoolean(preverify_ok != 0), store_context }
-                );
+                final IRubyObject ret;
+                try {
+                    ret = proc.callMethod(runtime.getCurrentContext(), "call",
+                        new IRubyObject[] { runtime.newBoolean(preverify_ok != 0), store_context }
+                    );
+                }
+                catch (RaiseException e) {
+                    OpenSSL.doWarn(runtime.getCurrentContext(), "exception in verify_callback is ignored");
+                    return 0;
+                }
                 if (ret.isTrue()) {
                     context.setError(X509Utils.V_OK);
                     preverify_ok = 1;
