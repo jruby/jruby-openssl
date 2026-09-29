@@ -238,17 +238,29 @@ public class X509Cert extends RubyObject {
     }
 
     private void initialize(final ThreadContext context, final byte[] encoded, final int offset, final int length) {
-        byte[] bytes = StringHelper.readX509PEM(encoded, offset, length);
-        final X509Certificate cert;
+        X509Certificate cert;
         try {
-            final ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
-            cert = (X509Certificate) SecurityHelper.getCertificateFactory("X.509").generateCertificate(bis);
+            cert = parseCertificate(encoded, offset, length);
         }
         catch (CertificateException e) {
-            throw newCertificateError(context.runtime, e);
+            LOG.debug(context.runtime, "failed to parse certificate", e);
+
+            final byte[] bytes = StringHelper.readX509PEM(encoded, offset, length);
+            try {
+                cert = parseCertificate(bytes, 0, bytes.length);
+            }
+            catch (CertificateException pemException) {
+                throw newCertificateError(context.runtime, pemException);
+            }
         }
 
         initialize(context, cert);
+    }
+
+    private static X509Certificate parseCertificate(final byte[] encoded, final int offset, final int length)
+        throws CertificateException {
+        return (X509Certificate) SecurityHelper.getCertificateFactory("X.509")
+                .generateCertificate(new ByteArrayInputStream(encoded, offset, length));
     }
 
     private void initialize(final ThreadContext context, final X509Certificate cert) {
