@@ -35,7 +35,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
-import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.CRLException;
 import java.security.cert.CertificateEncodingException;
@@ -58,6 +57,7 @@ import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.log.Logger;
+import org.jruby.ext.openssl.util.RubySupport;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
@@ -198,15 +198,12 @@ public class PKCS7 extends RubyObject {
 
         final int flg = flags.isNil() ? 0 : RubyNumeric.fix2int(flags);
 
-        String smime;
+        StringBuilder smime;
         try {
-            smime = new SMIME().writePKCS7(pkcs7.p7, data.asJavaString(), flg);
+            smime = new SMIME().writePKCS7(pkcs7.p7, data.isNil() ? null : data.convertToString(), flg);
         }
-        catch (PKCS7Exception e) {
+        catch (PKCS7Exception | IOException e) {
             throw newPKCS7Error(runtime, e);
-        }
-        catch (IOException e) {
-            throw newPKCS7Error(runtime, e.getMessage());
         }
 
         return RubyString.newString(runtime, smime);
@@ -266,12 +263,8 @@ public class PKCS7 extends RubyObject {
         data = args[1]; certs = args[0];
 
         CipherSpec cipherSpec;
-        if ( cipher.isNil() ) {
-            try {
-                javax.crypto.Cipher c = SecurityHelper.getCipher("RC2/CBC/PKCS5Padding");
-                cipherSpec = new CipherSpec(c, Cipher.Algorithm.javaToOssl("RC2/CBC/PKCS5Padding", 40), 40);
-            }
-            catch (GeneralSecurityException e) { throw newPKCS7Error(runtime, e); }
+        if (cipher.isNil()) {
+            throw runtime.newArgumentError("cipher must be specified; RC2-40-CBC is no longer supported");
         }
         else {
             final Cipher c = (Cipher) cipher;
@@ -304,13 +297,14 @@ public class PKCS7 extends RubyObject {
 
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, IRubyObject[] args) {
-        if ( Arity.checkArgumentCount(context.runtime, args, 0, 1) == 0 ) {
+        final Ruby runtime = context.runtime;
+        if ( Arity.checkArgumentCount(runtime, args, 0, 1) == 0 ) {
             p7 = new org.jruby.ext.openssl.impl.PKCS7();
             try {
                 p7.setType(ASN1Registry.NID_undef);
             }
             catch (PKCS7Exception e) {
-                throw newPKCS7Error(context.runtime, e);
+                throw newPKCS7Error(runtime, e);
             }
             return this;
         }
@@ -325,13 +319,10 @@ public class PKCS7 extends RubyObject {
             }
         }
         catch (IllegalArgumentException e) {
-            throw context.runtime.newArgumentError(e.getMessage());
+            throw RubySupport.newError(runtime, runtime.getArgumentError(), e);
         }
-        catch (IOException e) {
-            throw newPKCS7Error(context.runtime, e.getMessage());
-        }
-        catch (PKCS7Exception e) {
-            throw newPKCS7Error(context.runtime, e);
+        catch (IOException | PKCS7Exception e) {
+            throw RubySupport.newError(runtime, runtime.getArgumentError(), "Could not parse the PKCS7", e);
         }
         setData(context.nil);
         return this;
@@ -775,6 +766,13 @@ public class PKCS7 extends RubyObject {
         catch (IllegalStateException|IOException e) {
             throw newPKCS7Error(getRuntime(), e);
         }
+    }
+
+    @JRubyMethod
+    public IRubyObject to_text() {
+        final IRubyObject type = get_type();
+        final String name = type.isNil() ? "undefined" : type.asJavaString();
+        return getRuntime().newString("PKCS7:\n  type: " + name + '\n');
     }
 
     public void setData(IRubyObject object) {

@@ -285,7 +285,7 @@ public class SMIME {
     /* c: SMIME_write_PKCS7
     *
     */
-    public String writePKCS7(PKCS7 p7, String data, int flags) throws PKCS7Exception, IOException {
+    public StringBuilder writePKCS7(PKCS7 p7, CharSequence data, int flags) throws PKCS7Exception, IOException {
 
         int ctype = p7.getType();
         Set<AlgorithmIdentifier> mdAlgs = null;
@@ -298,9 +298,9 @@ public class SMIME {
             flags |= PKCS7.SMIME_DETACHED; // to be compliant with cruby implementation.
         }
 
-        String mimePrefix = "application/pkcs7-";
+        String mimePrefix = "application/x-pkcs7-";
         String mimeEOL;
-        String cName = "smime.p7s";
+        String cName = "smime.p7m";
 
         if ((flags & PKCS7.SMIME_CRLFEOL) > 0) {
             mimeEOL = "\r\n";
@@ -313,6 +313,7 @@ public class SMIME {
 
         // Detached sign.
         if ((flags & PKCS7.SMIME_DETACHED) > 0 && data != null) {
+            cName = "smime.p7s";
             String mimeBoundary = generateMIMEBoundary(32);
 
             // write headers
@@ -349,7 +350,7 @@ public class SMIME {
             // write final boundary
             output.append("------").append(mimeBoundary).append("--").append(mimeEOL);
 
-            return output.toString();
+            return output;
         }
 
         String msgType = null;
@@ -375,15 +376,14 @@ public class SMIME {
         if (msgType != null) {
             output.append(" smime-type=").append(msgType).append(";");
         }
-        output.append(" name=").append(cName).append(mimeEOL);
+        output.append(" name=\"").append(cName).append("\"").append(mimeEOL);
         output.append("Content-Transfer-Encoding: base64").append(mimeEOL).append(mimeEOL);
 
         // Write content
         byte[] p7Bytes = p7.toASN1();
-        String p7Base64 = Base64.encodeBytes(p7Bytes, Base64.DO_BREAK_LINES);
-        output.append(p7Base64).append(mimeEOL);
+        output.append(Base64.encodeBytes(p7Bytes, Base64.DO_BREAK_LINES)).append(mimeEOL);
 
-        return output.toString();
+        return output;
     }
 
     /**

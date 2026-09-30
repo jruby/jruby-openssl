@@ -129,17 +129,18 @@ public class PKCS7 {
         PKCS7 p7 = new PKCS7();
 
         try {
-            int size = ((ASN1Sequence) obj).size();
-            if (size == 0) {
-                return p7;
-            }
-            ASN1ObjectIdentifier contentType = (ASN1ObjectIdentifier) (((ASN1Sequence) obj).getObjectAt(0));
+            ASN1Sequence sequence = (ASN1Sequence) obj;
+            int size = sequence.size();
+            ASN1ObjectIdentifier contentType = (ASN1ObjectIdentifier) sequence.getObjectAt(0);
             if ( EMPTY_PKCS7_OID.equals( contentType.getId() ) ) {
                 // OpenSSL behavior
                 p7.setType(ASN1Registry.NID_undef);
             }
             else {
-                ASN1Encodable content = size == 1 ? null : ((ASN1Sequence) obj).getObjectAt(1);
+                if (size != 2 && !(size == 1 && OID_pkcs7_data.equals(contentType))) {
+                    throw new PKCS7Exception(F_B64_READ_PKCS7, R_NO_CONTENT);
+                }
+                ASN1Encodable content = size == 1 ? null : sequence.getObjectAt(1);
 
                 if (content != null && content instanceof ASN1TaggedObject && ((ASN1TaggedObject) content).getTagNo() == 0) {
                     content = ASN1Shim.getTaggedObject((ASN1TaggedObject) content);
@@ -148,8 +149,8 @@ public class PKCS7 {
             }
         }
         // somewhere the object does not obey to be PKCS7 object
-        catch (ClassCastException e) {
-            throw new IllegalArgumentException("not a PKCS7 Object", e);
+        catch (RuntimeException e) {
+            throw new PKCS7Exception(F_B64_READ_PKCS7, R_DECODE_ERROR, e);
         }
 
         return p7;
