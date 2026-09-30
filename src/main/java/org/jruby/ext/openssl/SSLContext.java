@@ -1097,7 +1097,8 @@ public class SSLContext extends RubyObject {
             );
             internalContext.initSSLContext(context);
         }
-        catch (GeneralSecurityException e) {
+        catch (GeneralSecurityException | IllegalStateException e) {
+            // IllegalStateException from BC random initialization: "RDSEED persistently failed to produce entropy"
             throw newSSLError(context.runtime, e);
         }
         return internalContext;
