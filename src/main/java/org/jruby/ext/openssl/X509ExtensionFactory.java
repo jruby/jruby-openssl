@@ -161,7 +161,7 @@ public class X509ExtensionFactory extends RubyObject {
     }
 
     @JRubyMethod(rest = true)
-    public IRubyObject create_ext(final ThreadContext context, final IRubyObject[] args) {
+    public IRubyObject create_ext(final ThreadContext context, final IRubyObject... args) {
         final Ruby runtime = context.runtime;
         IRubyObject critical;
         if (Arity.checkArgumentCount(runtime, args, 2, 3) == 3 && !args[2].isNil()) {
@@ -169,67 +169,76 @@ public class X509ExtensionFactory extends RubyObject {
         } else {
             critical = runtime.getFalse();
         }
-        final String oid = args[0].toString();
-        String valuex = args[1].toString();
+        return create_ext(context, args[0], args[1], critical);
+    }
+
+    private X509Extension create_ext(final ThreadContext context,
+                                     final IRubyObject oid,
+                                     final IRubyObject value,
+                                     IRubyObject critical) {
+        final Ruby runtime = context.runtime;
+        final String oidString = oid.toString();
+        String valuex = value.toString();
         final ASN1ObjectIdentifier objectId;
         try {
-            objectId = ASN1.getObjectID(runtime, oid);
+            objectId = ASN1.getObjectID(runtime, oidString);
         } catch (IllegalArgumentException e) {
             LOG.debug(runtime, "create_ext getObjectID failed", e);
-            throw newExtensionError(runtime, "unknown OID `" + oid + "'");
+            throw newExtensionError(runtime, "unknown OID `" + oidString + "'");
         }
         final String critical_ = "critical,";
         if ( valuex.startsWith(critical_) ) {
-            critical = runtime.getTrue();
+            critical = context.tru;
             valuex = valuex.substring(critical_.length()).trim();
         }
-        final ASN1Encodable value;
+
+        final ASN1Encodable val;
         try {
             final String id = objectId.getId();
             if (valuex.startsWith("ASN1:")) {
-                value = parseASN1ConfigValue(context, valuex);
+                val = parseASN1ConfigValue(context, valuex);
             }
             else if (id.equals("2.5.29.14")) { // subjectKeyIdentifier
-                value = new DEROctetString(parseSubjectKeyIdentifier(context, oid, valuex));
+                val = new DEROctetString(parseSubjectKeyIdentifier(context, oidString, valuex));
             }
             else if (id.equals("2.5.29.35")) { // authorityKeyIdentifier
-                value = parseAuthorityKeyIdentifier(context, valuex);
+                val = parseAuthorityKeyIdentifier(context, valuex);
             }
             else if (id.equals("2.5.29.17")) { // subjectAltName
-                value = parseSubjectAltName(valuex);
+                val = parseSubjectAltName(valuex);
             }
             else if (id.equals("2.5.29.18")) { // issuerAltName
-                value = parseIssuerAltName(context, valuex);
+                val = parseIssuerAltName(context, valuex);
             }
             else if (id.equals("2.5.29.19")) { // basicConstraints
-                value = parseBasicConstrains(valuex);
+                val = parseBasicConstrains(valuex);
             }
             else if (id.equals("2.5.29.15")) { // keyUsage
-                value = parseKeyUsage(oid, valuex);
+                val = parseKeyUsage(oidString, valuex);
             }
             else if (id.equals("2.16.840.1.113730.1.1")) { // nsCertType
-                value = parseNsCertType(oid, valuex);
+                val = parseNsCertType(oidString, valuex);
             }
             else if (id.equals("2.5.29.37")) { // extendedKeyUsage
-                value = parseExtendedKeyUsage(runtime, oid, valuex, critical.isTrue());
+                val = parseExtendedKeyUsage(runtime, oidString, valuex, critical.isTrue());
             }
             else if (id.equals("2.5.29.31")) { // crlDistributionPoints
-                value = parseCRLDistributionPoints(context, valuex);
+                val = parseCRLDistributionPoints(context, valuex);
             }
             else if (id.equals("1.3.6.1.5.5.7.1.1")) { // authorityInfoAccess
-                value = parseAuthorityInfoAccess(valuex);
+                val = parseAuthorityInfoAccess(valuex);
             }
             else if (isNetscapeIA5StringExtension(id)) {
-                value = new DEROctetString(new DERIA5String(valuex).getEncoded(ASN1Encoding.DER));
+                val = new DEROctetString(new DERIA5String(valuex).getEncoded(ASN1Encoding.DER));
             }
             else if (id.equals("2.5.29.30")) { // nameConstraints
-                value = parseNameConstraints(valuex);
+                val = parseNameConstraints(valuex);
             }
             else if (id.equals("2.5.29.32")) { // certificatePolicies
-                value = parseCertificatePolicies(context, valuex);
+                val = parseCertificatePolicies(context, valuex);
             }
             else {
-                value = new DEROctetString(new DEROctetString(ByteList.plain(valuex)).getEncoded(ASN1Encoding.DER));
+                val = new DEROctetString(new DEROctetString(ByteList.plain(valuex)).getEncoded(ASN1Encoding.DER));
             }
         }
         catch (IOException e) {
@@ -237,10 +246,10 @@ public class X509ExtensionFactory extends RubyObject {
             throw newExtensionError(runtime, "Unable to create extension: " + e.getMessage());
         }
         catch (IllegalArgumentException e) {
-            throw newExtensionError(runtime, oid + " = " + valuex +
-                    ": error in extension (name=" + oid + ", value=" + valuex + ")");
+            throw newExtensionError(runtime, oidString + " = " + valuex +
+                    ": error in extension (name=" + oidString + ", value=" + valuex + ")");
         }
-        return newExtension(runtime, objectId, value, critical.isNil() ? null : critical.isTrue());
+        return newExtension(runtime, objectId, val, critical.isNil() ? null : critical.isTrue());
     }
 
     private ASN1Encodable parseASN1ConfigValue(final ThreadContext context, final String value)
@@ -355,8 +364,13 @@ public class X509ExtensionFactory extends RubyObject {
     @JRubyMethod
     public IRubyObject create_ext_from_array(final ThreadContext context, final IRubyObject arg) {
         final RubyArray ary = (RubyArray) arg;
-        if ( ary.size() > 3 ) throw newExtensionError(context.runtime, "unexpected array form");
-        return create_ext(context, ary.toJavaArrayUnsafe());
+        final int size = ary.size();
+        if ( size > 3 ) throw newExtensionError(context.runtime, "unexpected array form");
+        if ( size < 2 ) { // fail with appropriate ArgumentError
+            return size == 1 ? create_ext(context, ary.eltInternal(0)) : create_ext(context);
+        }
+        final IRubyObject critical = size == 3 ? ary.eltInternal(2) : context.fals;
+        return create_ext(context, ary.eltInternal(0), ary.eltInternal(1), critical);
     }
 
     @JRubyMethod
@@ -366,7 +380,7 @@ public class X509ExtensionFactory extends RubyObject {
         final IRubyObject oid = hash.op_aref(context, newStringFrozen(runtime, "oid"));
         final IRubyObject value = hash.op_aref(context, newStringFrozen(runtime, "value"));
         final IRubyObject critical = hash.op_aref(context, newStringFrozen(runtime, "critical"));
-        return create_ext(context, new IRubyObject[]{oid, value, critical});
+        return create_ext(context, oid, value, critical);
     }
 
     // "oid = critical, value"
@@ -387,7 +401,7 @@ public class X509ExtensionFactory extends RubyObject {
             value.op_aset19(context, runtime.newFixnum(0), runtime.newFixnum(critical__.length), RubyString.newEmptyString(runtime));
         }
         value.strip_bang19(context);
-        return create_ext(context, new IRubyObject[]{oid, value, critical});
+        return create_ext(context, oid, value, critical);
     }
 
     private DERBitString parseKeyUsage(final String oid, final String valuex) {
