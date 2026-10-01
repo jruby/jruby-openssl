@@ -458,10 +458,10 @@ public class SSLContext extends RubyObject {
 
         value = getInstanceVariable("@alpn_protocols");
         if ( value != null && ! value.isNil() ) {
-            IRubyObject[] alpn_protocols = ((RubyArray) value).toJavaArrayMaybeUnsafe();
-            String[] protocols = new String[alpn_protocols.length];
+            final RubyArray alpnProtocolsAry = value.convertToArray();
+            final String[] protocols = new String[alpnProtocolsAry.size()];
             for(int i = 0; i < protocols.length; i++) {
-                protocols[i] = alpn_protocols[i].convertToString().asJavaString();
+                protocols[i] = alpnProtocolsAry.eltInternal(i).convertToString().asJavaString();
             }
             alpnProtocols = protocols;
         } else {
