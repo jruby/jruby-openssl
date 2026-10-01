@@ -53,6 +53,7 @@ import org.jruby.RubyString;
 import org.jruby.RubyTime;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
+import org.jruby.ext.openssl.util.RubySupport;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.Visibility;
@@ -124,6 +125,32 @@ public class X509Revoked extends RubyObject {
         super(runtime,type);
     }
 
+    static X509Revoked copy(final Ruby runtime, final X509Revoked revoked) {
+        final X509Revoked copy = new X509Revoked(runtime, _Revoked(runtime));
+        copy.serial = BN.newInstance(runtime, revoked.getSerial().getValue());
+        if (revoked.time != null) {
+            copy.time = RubyTime.newTime(runtime, revoked.time.getJavaDate().getTime());
+        }
+        if (revoked.extensions != null) {
+            copy.extensions = X509Extension.copyExtensions(runtime, revoked.extensions);
+        }
+        return copy;
+    }
+
+    static RubyArray copyRevoked(final Ruby runtime, final RubyArray array) {
+        final int length = array.size();
+        final IRubyObject[] copy = new IRubyObject[length];
+        for (int i = 0; i < length; i++) {
+            copy[i] = X509Revoked.copy(runtime, X509Revoked.asRevoked(runtime, array.eltInternal(i)));
+        }
+        return RubyArray.newArrayNoCopy(runtime, copy);
+    }
+
+    static X509Revoked asRevoked(final Ruby runtime, final IRubyObject value) {
+        if (!(value instanceof X509Revoked)) throw runtime.newTypeError(value, _Revoked(runtime));
+        return (X509Revoked) value;
+    }
+
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, final IRubyObject[] args) {
         serial = BN.newInstance(context.runtime, BigInteger.ZERO);
@@ -171,24 +198,30 @@ public class X509Revoked extends RubyObject {
     }
 
     @JRubyMethod
-    public RubyArray extensions() {
+    public RubyArray extensions(ThreadContext context) {
+        return extensions == null ? context.runtime.newEmptyArray() : RubySupport.copyArray(context.runtime, extensions);
+    }
+
+    private RubyArray extensionsInternal() {
         return extensions == null ? extensions = RubyArray.newArray(getRuntime(), 4) : extensions;
     }
 
     @JRubyMethod(name = "extensions=")
-    public IRubyObject set_extensions(final IRubyObject extensions) {
+    public IRubyObject set_extensions(ThreadContext context, final IRubyObject extensions) {
         if (!(extensions instanceof RubyArray)) {
-            throw getRuntime().newTypeError(extensions, getRuntime().getArray());
+            throw context.runtime.newTypeError(extensions, context.runtime.getArray());
         }
-        return this.extensions = (RubyArray) extensions;
+        this.extensions = X509Extension.copyExtensions(context.runtime, (RubyArray) extensions);
+        return extensions;
     }
 
     @JRubyMethod
-    public IRubyObject add_extension(final ThreadContext context, final IRubyObject ext) {
+    public IRubyObject add_extension(ThreadContext context, final IRubyObject ext) {
         if (!(ext instanceof X509Extension)) {
             throw context.runtime.newTypeError(ext, X509Extension._Extension(context.runtime));
         }
-        return extensions().append(ext);
+        extensionsInternal().append(X509Extension.copy(context.runtime, (X509Extension) ext));
+        return ext;
     }
 
     @Override
@@ -216,7 +249,7 @@ public class X509Revoked extends RubyObject {
         vec.add(new ASN1Integer(getSerial().getValue()));
         vec.add(new Time(revokedTime.toDate()));
         if (hasExtensions()) {
-            final RubyArray extensions = this.extensions();
+            final RubyArray extensions = this.extensions;
             final ASN1Encodable[] entries = new ASN1Encodable[extensions.size()];
             for (int i = 0; i < extensions.size(); i++) {
                 entries[i] = ((X509Extension) extensions.eltInternal(i)).toASN1Sequence();

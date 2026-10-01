@@ -78,6 +78,15 @@ class TestX509Extension < TestCase
       '(name=subjectAltName, value=IP:not.a.valid.ip.address)', error.message
   end
 
+  def test_extension_factory_accepts_shifted_array_arguments
+    args = [:discard, 'basicConstraints', 'CA:FALSE']
+    args.shift
+
+    ext = OpenSSL::X509::ExtensionFactory.new.create_extension(args)
+    assert_equal 'basicConstraints', ext.oid
+    assert_equal 'CA:FALSE', ext.value
+  end
+
   def test_to_a
     ext = OpenSSL::X509::Extension.new('1.1.1.1.1.1', 'foo')
     assert_equal [ '1.1.1.1.1.1', 'foo', false ], ext.to_a

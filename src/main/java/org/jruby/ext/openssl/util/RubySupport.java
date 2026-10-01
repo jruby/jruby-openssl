@@ -31,6 +31,7 @@ import java.util.function.Function;
 import org.jcodings.specific.ASCIIEncoding;
 import org.jcodings.specific.UTF8Encoding;
 import org.jruby.Ruby;
+import org.jruby.RubyArray;
 import org.jruby.RubyBasicObject;
 import org.jruby.RubyClass;
 import org.jruby.RubyEncoding;
@@ -88,6 +89,13 @@ public abstract class RubySupport {
             throw context.runtime.newTypeError(value, "Time");
         }
         return ((RubyTime) value).getJavaDate();
+    }
+
+    public static RubyArray copyArray(final Ruby runtime, final RubyArray array) {
+        final int length = array.size();
+        final IRubyObject[] copy = new IRubyObject[length];
+        for (int i = 0; i < length; i++) copy[i] = array.eltInternal(i);
+        return RubyArray.newArrayNoCopy(runtime, copy);
     }
 
     // error/exception factory helpers
