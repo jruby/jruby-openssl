@@ -37,6 +37,32 @@ class TestX509Revoked < TestCase
     assert_equal '4242', rev.serial.to_s
   end
 
+  def test_assigned_extensions_are_owned_by_revoked
+    rev = OpenSSL::X509::Revoked.new
+    extension = OpenSSL::X509::Extension.new('CRLReason', 'keyCompromise')
+    extensions = [extension]
+    rev.extensions = extensions
+
+    extensions.clear
+    extension.oid = 'keyUsage'
+    assert_equal 1, rev.extensions.size
+    assert_equal 'CRLReason', rev.extensions.first.oid
+
+    rev.extensions.clear
+    assert_equal 1, rev.extensions.size
+
+    assert_raises(TypeError) { rev.extensions = [Object.new] }
+    assert_equal 1, rev.extensions.size
+
+    rev = OpenSSL::X509::Revoked.new
+    extension.oid = 'CRLReason'
+
+    rev.add_extension(extension)
+
+    extension.oid = 'keyUsage'
+    assert_equal 'CRLReason', rev.extensions.first.oid
+  end
+
   def test_to_der
     rev = OpenSSL::X509::Revoked.new
     rev.serial = 42

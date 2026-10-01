@@ -228,6 +228,50 @@ EOF
     assert_equal 1, crl.to_java.getRevokedCertificates.size
   end
 
+  def test_assigned_revoked_and_extensions_are_owned_by_crl
+    crl = OpenSSL::X509::CRL.new
+    revoked = OpenSSL::X509::Revoked.new
+    revoked.serial = 1
+    revoked.time = Time.at(1)
+    extension = OpenSSL::X509::Extension.new('crlNumber', '1')
+    revoked_entries = [revoked]
+    extensions = [extension]
+    crl.revoked = revoked_entries
+    crl.extensions = extensions
+
+    revoked_entries.clear
+    extensions.clear
+    revoked.serial = 2
+    extension.oid = 'keyUsage'
+
+    assert_equal 1, crl.revoked.size
+    assert_equal 1, crl.revoked.first.serial
+    assert_equal 1, crl.extensions.size
+    assert_equal 'crlNumber', crl.extensions.first.oid
+
+    crl.revoked.clear
+    crl.extensions.clear
+    assert_equal 1, crl.revoked.size
+    assert_equal 1, crl.extensions.size
+
+    assert_raises(TypeError) { crl.revoked = [Object.new] }
+    assert_raises(TypeError) { crl.extensions = [Object.new] }
+    assert_equal 1, crl.revoked.size
+    assert_equal 1, crl.extensions.size
+
+    crl = OpenSSL::X509::CRL.new
+    revoked.serial = 1
+    extension.oid = 'crlNumber'
+
+    crl.add_revoked(revoked)
+    crl.add_extension(extension)
+
+    revoked.serial = 2
+    extension.oid = 'keyUsage'
+    assert_equal 1, crl.revoked.first.serial
+    assert_equal 'crlNumber', crl.extensions.first.oid
+  end
+
   def test_revoked_requires_time
     now = Time.now
     key = OpenSSL::PKey::RSA.new TEST_KEY_RSA2048

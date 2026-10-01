@@ -164,6 +164,31 @@ public class X509Extension extends RubyObject {
         return ext;
     }
 
+    static X509Extension copy(final Ruby runtime, final X509Extension extension) {
+        final X509Extension copy = new X509Extension(runtime, _Extension(runtime));
+        copy.setRealObjectID(extension.getRealObjectID());
+        copy.setRealCritical(extension.isRealCritical());
+        try {
+            copy.value = extension.getRealValueEncoded().clone();
+        } catch (IOException e) {
+            throw newExtensionError(runtime, e);
+        }
+        return copy;
+    }
+
+    static RubyArray copyExtensions(final Ruby runtime, final RubyArray array) {
+        final int length = array.size();
+        final IRubyObject[] copy = new IRubyObject[length];
+        for (int i = 0; i < length; i++) {
+            final IRubyObject extension = array.eltInternal(i);
+            if (!(extension instanceof X509Extension)) {
+                throw runtime.newTypeError(extension, X509Extension._Extension(runtime));
+            }
+            copy[i] = copy(runtime, (X509Extension) extension);
+        }
+        return RubyArray.newArrayNoCopy(runtime, copy);
+    }
+
     ASN1ObjectIdentifier getRealObjectID() {
         return objectID;
     }

@@ -80,6 +80,7 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.log.Logger;
 import org.jruby.ext.openssl.shim.ASN1Shim;
+import org.jruby.ext.openssl.util.RubySupport;
 import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
@@ -88,7 +89,6 @@ import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.Variable;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
-import org.jruby.util.TypeConverter;
 
 import static org.jruby.ext.openssl.OpenSSL.*;
 import static org.jruby.ext.openssl.X509._X509;
@@ -250,7 +250,7 @@ public class X509CRL extends RubyObject {
             final X509CRLEntry[] revokedSorted = revokedCRLs.toArray(new X509CRLEntry[revokedCRLs.size()]);
             Arrays.sort(revokedSorted, 0, revokedSorted.length, Comparator.comparing(X509CRLEntry::getRevocationDate));
             for (X509CRLEntry entry : revokedSorted) {
-                revoked().append( X509Revoked.newInstance(context, entry) );
+                revokedInternal().append( X509Revoked.newInstance(context, entry) );
             }
         }
 
@@ -544,44 +544,56 @@ public class X509CRL extends RubyObject {
     }
 
     @JRubyMethod
-    public RubyArray revoked() {
+    public RubyArray revoked(ThreadContext context) {
+        return revoked == null ? context.runtime.newEmptyArray() : RubySupport.copyArray(context.runtime, revoked);
+    }
+
+    private RubyArray revokedInternal() {
         return revoked == null ? revoked = getRuntime().newArray(4) : revoked;
     }
 
     @JRubyMethod(name="revoked=")
     public IRubyObject set_revoked(final IRubyObject revoked) {
         if (!(revoked instanceof RubyArray)) throw getRuntime().newTypeError(revoked, getRuntime().getArray());
+        this.revoked = X509Revoked.copyRevoked(getRuntime(), (RubyArray) revoked);
         this.changed = true;
-        return this.revoked = (RubyArray) revoked;
+        return revoked;
     }
 
     @JRubyMethod
     public IRubyObject add_revoked(final ThreadContext context, IRubyObject val) {
-        final X509Revoked revoked = asRevoked(context.runtime, val);
+        final X509Revoked revoked = X509Revoked.asRevoked(context.runtime, val);
         if (revoked.getTime() == null) throw X509Revoked.newRevokedError(context.runtime, "revocation time not set");
+        revokedInternal().append(X509Revoked.copy(context.runtime, revoked));
         this.changed = true;
-        revoked().callMethod(context, "<<", val); return val;
+        return val;
     }
 
     @JRubyMethod
-    public RubyArray extensions() {
-        return this.extensions;
+    public RubyArray extensions(ThreadContext context) {
+        return extensions == null ? context.runtime.newEmptyArray() : RubySupport.copyArray(context.runtime, extensions);
+    }
+
+    private RubyArray extensionsInternal() {
+        return extensions == null ? extensions = getRuntime().newArray(4) : extensions;
     }
 
     @SuppressWarnings("unchecked")
     @JRubyMethod(name="extensions=")
     public IRubyObject set_extensions(final IRubyObject extensions) {
         if (!(extensions instanceof RubyArray)) throw getRuntime().newTypeError(extensions, getRuntime().getArray());
+        this.extensions = X509Extension.copyExtensions(getRuntime(), (RubyArray) extensions);
         this.changed = true;
-        return this.extensions = (RubyArray) extensions;
+        return extensions;
     }
 
     @JRubyMethod
     public IRubyObject add_extension(final IRubyObject extension) {
         if (!(extension instanceof X509Extension)) throw getRuntime().newTypeError(
                 extension, X509Extension._Extension(getRuntime()));
+        extensionsInternal().append(X509Extension.copy(getRuntime(), (X509Extension) extension));
         this.changed = true;
-        extensions().append(extension); return extension;
+        return extension;
     }
 
     @JRubyMethod
@@ -598,13 +610,13 @@ public class X509CRL extends RubyObject {
 
         if ( revoked != null ) {
             for ( int i = 0; i < revoked.size(); i++ ) {
-                final X509Revoked rev = asRevoked(runtime, revoked.eltInternal(i));
+                final X509Revoked rev = X509Revoked.asRevoked(runtime, revoked.eltInternal(i));
                 final DateTime revTime = rev.getTime();
                 if (revTime == null) throw X509Revoked.newRevokedError(runtime, "revocation time not set");
 
                 final Extensions revExts;
                 if ( rev.hasExtensions() ) {
-                    final RubyArray exts = rev.extensions();
+                    final RubyArray exts = rev.extensions(context);
                     final ASN1Encodable[] array = new ASN1Encodable[ exts.size() ];
                     for ( int j = 0; j < exts.size(); j++ ) {
                         final X509Extension ext = (X509Extension) exts.entry(j);
@@ -754,7 +766,7 @@ public class X509CRL extends RubyObject {
             final ASN1EncodableVector revokedEntries = new ASN1EncodableVector(revoked.size());
             try {
                 for (int i = 0; i < revoked.size(); i++) {
-                    revokedEntries.add(asRevoked(runtime, revoked.eltInternal(i)).toASN1Sequence());
+                    revokedEntries.add(X509Revoked.asRevoked(runtime, revoked.eltInternal(i)).toASN1Sequence());
                 }
             } catch (IOException e) {
                 throw newCRLError(runtime, e);
@@ -780,11 +792,6 @@ public class X509CRL extends RubyObject {
                 certificateList.getObjectAt(1),
                 certificateList.getObjectAt(2)
         });
-    }
-
-    private static X509Revoked asRevoked(final Ruby runtime, final IRubyObject value) {
-        if (!(value instanceof X509Revoked)) throw runtime.newTypeError(value, X509Revoked._Revoked(runtime));
-        return (X509Revoked) value;
     }
 
     private ASN1Primitive readCRL(final Ruby runtime) {
