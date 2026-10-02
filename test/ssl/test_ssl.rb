@@ -1313,4 +1313,73 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
     end
   end
 
+  # Just enough of a Fiber scheduler to record io_wait calls and wait with IO.select
+  class RecordingScheduler
+    attr_reader :waits
+
+    def initialize
+      @waits = []
+      @readable = {}
+      @writable = {}
+    end
+
+    def io_wait(io, events, timeout)
+      @waits << events
+      @readable[io] = Fiber.current if events & IO::READABLE != 0
+      @writable[io] = Fiber.current if events & IO::WRITABLE != 0
+      Fiber.yield
+      events
+    ensure
+      @readable.delete(io)
+      @writable.delete(io)
+    end
+
+    def fiber(&block)
+      Fiber.new(blocking: false, &block).tap(&:resume)
+    end
+
+    def close
+      until @readable.empty? && @writable.empty?
+        readable, writable = IO.select(@readable.keys, @writable.keys)
+        (readable.map(&@readable) | writable.map(&@writable)).each(&:resume)
+      end
+    end
+
+    def kernel_sleep(duration = nil) raise NotImplementedError end
+    def block(blocker, timeout = nil) raise NotImplementedError end
+    def unblock(blocker, fiber) raise NotImplementedError end
+  end
+
+  def test_blocking_operations_wait_through_fiber_scheduler
+    assert_waits_through_fiber_scheduler(OpenSSL::SSL::SSLSocket)
+  end
+
+  def test_blocking_operations_wait_through_fiber_scheduler_in_subclass
+    assert_waits_through_fiber_scheduler(Class.new(OpenSSL::SSL::SSLSocket))
+  end
+
+  def assert_waits_through_fiber_scheduler(socket_class)
+    omit "no Fiber scheduler" unless Fiber.respond_to?(:set_scheduler)
+
+    start_server0(PORT, OpenSSL::SSL::VERIFY_NONE, true) do |server, port|
+      scheduler = RecordingScheduler.new
+      line = nil
+      Thread.new do
+        sock = TCPSocket.new("127.0.0.1", port)
+        Fiber.set_scheduler(scheduler)
+        Fiber.schedule do
+          ssl = socket_class.new(sock)
+          ssl.connect
+          ssl.puts "hello"
+          line = ssl.gets
+          ssl.close
+        end
+        Fiber.set_scheduler(nil) # closes the scheduler, running it until the fiber is done
+      end.join
+
+      assert_equal "hello\n", line
+      assert_not_empty scheduler.waits
+    end
+  end
+
 end
