@@ -177,6 +177,8 @@ class TestBN < TestCase
   end
 
   def test_to_s
+    assert_equal '0', OpenSSL::BN.new(0).to_s(16)
+
     bn = OpenSSL::BN.new('10')
     assert_equal bn.to_s(10), '10'
     assert_equal bn.to_s(16), '0A'

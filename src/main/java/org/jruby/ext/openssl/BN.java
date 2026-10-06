@@ -243,6 +243,7 @@ public class BN extends RubyObject {
         case 10:
             return runtime.newString(value.toString(10));
         case 16:
+            if (value.signum() == 0) return runtime.newString("0");
             final boolean negHex = value.signum() < 0;
             final String hex = value.abs().toString(16);
             final int len = hex.length();
