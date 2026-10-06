@@ -489,6 +489,8 @@ YoaOffgTf5qxiwkjnlVZQc3whgnEt9FpVMvQ9eknyeGB5KHfayAc3+hUAvI3/Cr3
       # Therefore, on TLS 1.2, this method will cause the connection to be
       # completely shut down. On TLS 1.3, the connection will remain open for
       # reading only.
+      #
+      # NOTE: JRuby, when using BC-JSSE, closes both directions even on TLS 1.3
       def close_write
         stop
       end

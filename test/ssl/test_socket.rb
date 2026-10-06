@@ -352,6 +352,10 @@ class TestSSLSocket < TestCase
   end
 
   def test_close_write_allows_reading_peer_response
+    if jruby? && org.jruby.ext.openssl.SecurityHelper.getSSLContext('SSL').provider.name == 'BCJSSE'
+      skip 'BC-JSSE does not support TLS 1.3 half-close (close_notify closes both directions)'
+    end
+
     message = "abc" * 1024
     tls13 = proc { |ctx| ctx.min_version = ctx.max_version = OpenSSL::SSL::TLS1_3_VERSION }
     server_proc = proc do |_ctx, ssl|
