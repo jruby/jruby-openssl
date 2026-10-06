@@ -7,7 +7,6 @@
  */
 package org.jruby.ext.openssl;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -701,9 +700,7 @@ public final class PKeyEC extends PKey {
 
     private static void checkSignatureEncoding(final ByteList signature)
         throws IOException, IllegalArgumentException {
-        final ASN1Sequence sequence = ASN1Sequence.getInstance(ASN1Primitive.fromStream(
-                new ByteArrayInputStream(signature.unsafeBytes(), signature.begin(), signature.realSize()))
-        );
+        final ASN1Sequence sequence = ASN1Sequence.getInstance(ASN1Primitive.fromByteArray(signature.bytes()));
         if (sequence.size() != 2) throw new IOException("invalid ECDSA signature");
         ASN1Integer.getInstance(sequence.getObjectAt(0));
         ASN1Integer.getInstance(sequence.getObjectAt(1));
