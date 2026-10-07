@@ -1,3 +1,32 @@
+## 0.19.3
+
+Broader OpenSSL compatibility across PKCS7, X.509, key handling and big numbers,
+with new DH validation and digest enumeration support.
+
+- [feat] implement `Digest.digests` algorithm enumeration
+- [feat] add `PKey::DH#params_ok?` parameter validation
+- [compat] add `PKey::DH#public_key`
+- [feat] add EC `on_curve?` checks and hybrid point serialization
+- [compat] align PKCS7 behavior with OpenSSL
+- [compat] align PKCS12 MAC handling (PKCS12KDF & PBMAC1) with OpenSSL
+- [compat] support configured X.509 extensions
+- [compat] load X.509 certificate chains
+- [compat] support multiple CRL distribution point URIs
+- [compat] format X.509 names like OpenSSL
+- [compat] validate X.509 attribute values
+- [compat] suppress X.509 store callback exceptions
+- [compat] parse DER certificates before trying PEM
+- [compat] align Netscape SPKI serialization with OpenSSL
+- [compat] align OCSP signing with OpenSSL
+- [compat] align BN modular arithmetic and negative string conversion
+- [compat] raise `BNError` for invalid arithmetic
+- [compat] reject `nil` BN values
+- [compat] map invalid X.509 extension values to `ExtensionError`
+- [compat] copy X.509 collection arguments to avoid retaining caller-owned arrays
+- [fix] format zero BN as single hex digit
+- [fix] report BouncyCastle `SecureRandom` initialization errors
+- [fix] reset TLS output buffer after shutdown
+
 ## 0.19.2
 
 ASN.1 and X.509 compatibility improvements, new OpenSSL::Timestamp support & 

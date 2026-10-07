@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 module JOpenSSL
-  VERSION = '0.19.3.dev'
+  VERSION = '0.19.3'
   BOUNCY_CASTLE_VERSION = '1.86'
 
   # @private

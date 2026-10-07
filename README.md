@@ -85,9 +85,13 @@ Bouncy Castle libraries, so some entry points are unavailable, behave differentl
 
 **SSL / TLS** (backed by JSSE)
 - `SSLSocket#state` and NPN (`#npn_protocol`) are unimplemented and return `nil` - use ALPN instead
+- `SSLSocket#close_write` closes both TLS directions even on TLS 1.3; reading a peer response afterward 
+  is unsupported, use message lengths or delimiters to frame requests instead of TLS EOF 
+  NOTE: that you can enforce the half-close when using the JDK built-in SunJSSE provider
 - Forced session resumption (`SSLSocket#session=`) is best-effort and only fully works with the
   BouncyCastle JSSE provider; `session_reused?` may return `nil` ("can't decide")
-- `SSL::Session#id=` / `#time=` are no-ops; `SSL::Session.new` on a non-socket raises `NotImplementedError`
+- `SSL::Session#id=` / `#time=` are no-ops 
+- `SSL::Session.new` on a non-socket raises `NotImplementedError`
 - Hostname / `subjectAltName` matching runs over Java's certificate parsing and can differ from
   MRI's `GeneralName` handling in edge cases
 
@@ -99,9 +103,8 @@ Bouncy Castle libraries, so some entry points are unavailable, behave differentl
 
 **PKey** (EC / DH / EdDSA)
 - EC is limited to prime curves (`:GFp`); binary-field curves (`:GF2m`) fail
-- `EC::Point#mul` with array arguments, `:hybrid` point compression, and encrypted EC private-key
-  export are not implemented
-- `DH#set_pqg` accepts but silently ignores the `q` parameter
+- `EC::Point#mul` with array arguments and encrypted EC private-key export are not implemented
+- `DH#set_pqg` ignores the `q` parameter (and warns when it is non-`nil`)
 - EdDSA (`Ed25519` / `Ed448`) rejects digest arguments
 
 **X509**
