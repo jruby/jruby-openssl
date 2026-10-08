@@ -709,6 +709,34 @@ class TestSSL < TestCase
     }
   end
 
+  # An explicit TLS version selects BCJSSE, which asks the key manager for
+  # "ECDHE_ECDSA" / "EC/<group>" / "Ed25519" rather than "EC" or "EdDSA"
+  def test_server_key_types_with_explicit_tls_version
+    keys = {
+      "P-256" => OpenSSL::PKey::EC.generate("prime256v1"),
+      "P-384" => OpenSSL::PKey::EC.generate("secp384r1"),
+    }
+    # BCJSSE in FIPS mode does not offer the ed25519 signature scheme
+    keys["Ed25519"] = OpenSSL::PKey.generate_key("ED25519") unless fips?
+    keys.each do |name, key|
+      dn = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=#{name}")
+      cert = issue_cert(dn, key, 10, [["keyUsage", "digitalSignature", true]], @ca_cert, @ca_key)
+      [:TLSv1_2, :TLSv1_3].each do |version|
+        ctx_proc = -> ctx {
+          ctx.ssl_version = version
+          ctx.cert = cert
+          ctx.key = key
+        }
+        start_server(OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: ctx_proc) { |server, port|
+          server_connect(port, OpenSSL::SSL::SSLContext.new(version)) { |ssl|
+            assert_equal dn.to_s, ssl.peer_cert.subject.to_s, "#{name} #{version}"
+            ssl.puts "abc"; assert_equal "abc\n", ssl.gets
+          }
+        }
+      end
+    end
+  end
+
   def test_add_certificate_validates_private_key_and_chain
     ctx = OpenSSL::SSL::SSLContext.new
     public_key = OpenSSL::PKey.read(@svr_key.public_to_der)
