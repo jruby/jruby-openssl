@@ -715,8 +715,9 @@ class TestSSL < TestCase
     keys = {
       "P-256" => OpenSSL::PKey::EC.generate("prime256v1"),
       "P-384" => OpenSSL::PKey::EC.generate("secp384r1"),
-      "Ed25519" => OpenSSL::PKey.generate_key("ED25519"),
     }
+    # BCJSSE in FIPS mode does not offer the ed25519 signature scheme
+    keys["Ed25519"] = OpenSSL::PKey.generate_key("ED25519") unless fips?
     keys.each do |name, key|
       dn = OpenSSL::X509::Name.parse("/DC=org/DC=ruby-lang/CN=#{name}")
       cert = issue_cert(dn, key, 10, [["keyUsage", "digitalSignature", true]], @ca_cert, @ca_key)
