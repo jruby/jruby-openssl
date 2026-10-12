@@ -24,6 +24,13 @@ class TestX509Certificate < TestCase
     assert_equal java_cert.getPublicKey, cert.public_key.to_java
   end
 
+  def test_rejects_malformed_pem_end_marker
+    pem = File.read(File.expand_path('rsa.crt', File.dirname(__FILE__)))
+    malformed = pem.sub('-----END CERTIFICATE-----', '-----END CERTIFICATE----')
+
+    assert_raise(OpenSSL::X509::CertificateError) { OpenSSL::X509::Certificate.new(malformed) }
+  end
+
   def test_alt_name_extension
     cert = OpenSSL::X509::Certificate.new
     cert.add_extension OpenSSL::X509::Extension.new('subjectAltName', 'email:self@jruby.org, IP:127.0.0.1', false)

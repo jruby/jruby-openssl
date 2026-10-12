@@ -220,7 +220,7 @@ public class PEMInputOutput {
                     throw new IOException("problem creating X509 Aux certificate: " + e.toString(), e);
                 }
             }
-            else if ( line.indexOf(BEG_STRING_X509) != -1 ) {
+            else if ( line.indexOf(BEG_STRING_X509 + AFT) != -1 ) {
                 try {
                     return readAuxCertificate(reader,BEF_E+PEM_STRING_X509);
                 } catch (Exception e) {
@@ -262,7 +262,7 @@ public class PEMInputOutput {
                     throw new IOException("problem reading PEM X509 Aux certificate: " + e.toString(), e);
                 }
             }
-            else if ( line.indexOf(BEG_STRING_X509) != -1 ) {
+            else if ( line.indexOf(BEG_STRING_X509 + AFT) != -1 ) {
                 try {
                     return readBase64Bytes(reader, BEF_E + PEM_STRING_X509);
                 } catch (Exception e) {
@@ -1545,7 +1545,7 @@ public class PEMInputOutput {
         StringBuilder lines = new StringBuilder(64);
 
         while ( ( line = reader.readLine() ) != null ) {
-            if ( line.contains(endMarker) ) break;
+            if ( line.startsWith(endMarker) && line.trim().equals(endMarker + "-----") ) break;
             lines.append( line.trim() );
         }
 
