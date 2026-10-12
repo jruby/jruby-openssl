@@ -54,6 +54,10 @@ class TestSSLSession < TestCase
   end
 
   def test_session_reuse
+    if jruby? && org.jruby.ext.openssl.SecurityHelper.getSSLContext('TLS').provider.name == 'SunJSSE'
+      omit 'SunJSSE cannot resume an explicit session across SSLContext instances'
+    end
+
     ctx_proc = proc { |ctx|
       ctx.options &= ~OpenSSL::SSL::OP_NO_TICKET
     }
