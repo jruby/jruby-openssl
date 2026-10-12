@@ -176,6 +176,7 @@ class TestCipher < TestCase
     skip_fips_unapproved_ciphers
     {
       'camellia-128-cbc' => 16,
+      'camellia-192-cbc' => 16,
       'camellia-256-cbc' => 16,
       'seed-cbc' => 16,
       'cast6-cbc' => 16,
