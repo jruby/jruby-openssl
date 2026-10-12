@@ -102,17 +102,18 @@ require_relative 'tasks/provider_tests'
 namespace :test do
   namespace :provider do
     define_provider_test_task :bc_all,
-                              description: 'Run tests with BC providers registered through java.security',
+                              description: 'Run tests with BC providers registered',
                               providers: [
                                 { name: 'BC', class: 'org.bouncycastle.jce.provider.BouncyCastleProvider' },
                                 { name: 'BCJSSE', class: 'org.bouncycastle.jsse.provider.BouncyCastleJsseProvider' }
                               ],
                               jars: -> { FileList['vendor/**/*.jar'].map { |path| File.expand_path(path) } }
-    define_provider_test_task :bc_wout_jsse,
-                              description: 'Run tests with only BC provider registered (without BC-JSSE)',
+    define_provider_test_task :bc_wout_jsse, # BC registered but BC-JSSE n/a
+                              description: 'Run tests with BC provider and default SSL engine',
                               providers: [
                                 { name: 'BC', class: 'org.bouncycastle.jce.provider.BouncyCastleProvider' },
                               ],
+                              extra_ruby_opts: ['-J-Djruby.openssl.provider.ssl=false'], # use built-in SunJSSE
                               jdk_providers: ['SUN', 'SunJSSE', 'SunJCE', 'SunEC'],
                               jars: -> { FileList['vendor/**/*.jar'].map { |path| File.expand_path(path) } }
   end

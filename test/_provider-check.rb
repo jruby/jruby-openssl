@@ -25,3 +25,10 @@ ENV.fetch('JOSSL_TEST_PROVIDERS').split(',').each do |name|
     fail.("#{name} provider loaded by #{loader}, expected system class-loader")
   end
 end
+
+if ENV_JAVA['jruby.openssl.provider.ssl'] == 'false'
+  require 'openssl'
+  provider = org.jruby.ext.openssl.SecurityHelper.getSSLContext('TLS').provider.name
+  fail.("SSL engine is #{provider}, expected SunJSSE") unless provider == 'SunJSSE'
+  puts "SSL engine: #{provider}"
+end
