@@ -183,6 +183,23 @@ class TestSSLContext < TestCase
     assert actual.include?("AES128-SHA") unless jruby? && self.class.java_version.last.to_i >= 11
   end
 
+  def test_set_ciphers_by_ecdh_group_name
+    [OpenSSL::SSL::SSLContext.new, OpenSSL::SSL::SSLContext.new('TLSv1_2')].each do |context|
+      context.ciphers = 'ECDHE'
+      selected = context.ciphers.map(&:first)
+      assert_include selected, 'ECDHE-RSA-AES128-GCM-SHA256'
+      assert_include selected, 'ECDHE-ECDSA-AES128-GCM-SHA256'
+      assert_not_include selected, 'AES128-GCM-SHA256'
+
+      context.ciphers = 'EECDH'
+      assert_equal selected, context.ciphers.map(&:first)
+
+      context.ciphers = 'ECDHE+aECDSA'
+      assert_include context.ciphers.map(&:first), 'ECDHE-ECDSA-AES128-GCM-SHA256'
+      assert_not_include context.ciphers.map(&:first), 'ECDHE-RSA-AES128-GCM-SHA256'
+    end
+  end
+
   def test_set_ciphers_by_cipher_name
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384"

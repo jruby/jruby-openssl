@@ -302,7 +302,7 @@ public class CipherStrings {
 
     public final static long SSL_AESGCM = (SSL_AES128GCM | SSL_AES256GCM);
     public final static long SSL_AESCCM = (SSL_AES128CCM | SSL_AES256CCM | SSL_AES128CCM8 | SSL_AES256CCM8);
-    public final static long SSL_AES = (SSL_AES128|SSL_AES256|SSL_AESGCM|SSL_AESCCM);
+    public final static long SSL_AES = 0x04000000L;
     public final static long SSL_CAMELLIA = (SSL_CAMELLIA128|SSL_CAMELLIA256);
     public final static long SSL_CHACHA20 = (SSL_CHACHA20POLY1305);
     public final static long SSL_ARIAGCM = (SSL_ARIA128GCM | SSL_ARIA256GCM);
@@ -493,6 +493,7 @@ public class CipherStrings {
         final int algBits; // alg_bits
         private final long mask;
         private final long algStrengthMask;
+        private final long requiredAlgorithms;
 
         // OpenSSL 1.1.1
         private long algorithm_mkey;
@@ -516,6 +517,20 @@ public class CipherStrings {
             this.algBits = alg_bits;
             this.mask = mask;
             this.algStrengthMask = maskStrength;
+            this.requiredAlgorithms = 0;
+        }
+
+        Def(String name, long algorithms, long mask, long requiredAlgorithms) {
+            this.valid = false;
+            this.name = name;
+            this.id = 0;
+            this.algorithms = algorithms;
+            this.algStrength = 0;
+            this.algStrengthBits = 0;
+            this.algBits = 0;
+            this.mask = mask;
+            this.algStrengthMask = 0;
+            this.requiredAlgorithms = requiredAlgorithms;
         }
 
         Def(String name, long algorithms, long algo_strength, int strength_bits, int alg_bits, long mask, long maskStrength) {
@@ -528,6 +543,7 @@ public class CipherStrings {
             this.algBits = alg_bits;
             this.mask = mask;
             this.algStrengthMask = maskStrength;
+            this.requiredAlgorithms = 0;
         }
 
         Def(int valid, String name, String stdname, /* RFC name */
@@ -561,6 +577,7 @@ public class CipherStrings {
 
             this.mask = 0;
             this.algStrengthMask = 0;
+            this.requiredAlgorithms = 0;
         }
 
 
@@ -618,6 +635,7 @@ public class CipherStrings {
 
         // from ssl_cipher_apply_rule
         public boolean matches(Def current) {
+            if ( (current.algorithms & requiredAlgorithms) != requiredAlgorithms ) return false;
 //            ma = mask & cp->algorithms;
 //            ma_s = mask_strength & cp->algo_strength;
 //
@@ -802,15 +820,23 @@ public class CipherStrings {
         Definitions.put(SSL_TXT_kDHr,new Def(0,SSL_TXT_kDHr,0,SSL_kDHr,  0,0,0,0,SSL_MKEY_MASK,0));
         Definitions.put(SSL_TXT_kDHd,new Def(0,SSL_TXT_kDHd,0,SSL_kDHd,  0,0,0,0,SSL_MKEY_MASK,0));
         Definitions.put(SSL_TXT_kEDH,new Def(0,SSL_TXT_kEDH,0,SSL_kEDH,  0,0,0,0,SSL_MKEY_MASK,0));
+        Definitions.put(SSL_TXT_kEECDH,new Def(0,SSL_TXT_kEECDH,0,SSL_kECDHE,0,0,0,0,SSL_MKEY_MASK,0));
+        Definitions.put(SSL_TXT_kECDHE,new Def(0,SSL_TXT_kECDHE,0,SSL_kECDHE,0,0,0,0,SSL_MKEY_MASK,0));
         Definitions.put(SSL_TXT_kFZA,new Def(0,SSL_TXT_kFZA,0,SSL_kFZA,  0,0,0,0,SSL_MKEY_MASK,0));
         Definitions.put(SSL_TXT_DH,new Def(0,SSL_TXT_DH,	0,SSL_DH,    0,0,0,0,SSL_MKEY_MASK,0));
         Definitions.put(SSL_TXT_ECC,new Def(0,SSL_TXT_ECC,	0,(SSL_kECDH|SSL_kECDHE), 0,0,0,0,SSL_MKEY_MASK,0));
         Definitions.put(SSL_TXT_EDH,new Def(0,SSL_TXT_EDH,	0,SSL_EDH,   0,0,0,0,SSL_MKEY_MASK|SSL_AUTH_MASK,0));
+        Definitions.put(SSL_TXT_ECDH,new Def(0,SSL_TXT_ECDH,0,SSL_kECDHE,0,0,0,0,SSL_MKEY_MASK,0));
+        Definitions.put(SSL_TXT_EECDH,new Def(SSL_TXT_EECDH,SSL_kECDHE|(SSL_AUTH_MASK & ~SSL_aNULL),SSL_MKEY_MASK|SSL_AUTH_MASK,SSL_kECDHE));
+        Definitions.put(SSL_TXT_ECDHE,new Def(SSL_TXT_ECDHE,SSL_kECDHE|(SSL_AUTH_MASK & ~SSL_aNULL),SSL_MKEY_MASK|SSL_AUTH_MASK,SSL_kECDHE));
+        Definitions.put(SSL_TXT_AECDH,new Def(SSL_TXT_AECDH,SSL_kECDHE|SSL_aNULL,SSL_MKEY_MASK|SSL_AUTH_MASK,SSL_kECDHE));
         Definitions.put(SSL_TXT_aKRB5,new Def(0,SSL_TXT_aKRB5,0,SSL_aKRB5,0,0,0,0,SSL_AUTH_MASK,0));
         Definitions.put(SSL_TXT_aRSA,new Def(0,SSL_TXT_aRSA,0,SSL_aRSA,  0,0,0,0,SSL_AUTH_MASK,0));
         Definitions.put(SSL_TXT_aDSS,new Def(0,SSL_TXT_aDSS,0,SSL_aDSS,  0,0,0,0,SSL_AUTH_MASK,0));
         Definitions.put(SSL_TXT_aFZA,new Def(0,SSL_TXT_aFZA,0,SSL_aFZA,  0,0,0,0,SSL_AUTH_MASK,0));
         Definitions.put(SSL_TXT_aNULL,new Def(0,SSL_TXT_aNULL,0,SSL_aNULL,0,0,0,0,SSL_AUTH_MASK,0));
+        Definitions.put(SSL_TXT_aECDSA,new Def(0,SSL_TXT_aECDSA,0,SSL_aECDSA,0,0,0,0,SSL_AUTH_MASK,0));
+        Definitions.put(SSL_TXT_ECDSA,new Def(0,SSL_TXT_ECDSA,0,SSL_aECDSA,0,0,0,0,SSL_AUTH_MASK,0));
         Definitions.put(SSL_TXT_aDH,new Def(0,SSL_TXT_aDH, 0,SSL_aDH,   0,0,0,0,SSL_AUTH_MASK,0));
         Definitions.put(SSL_TXT_DSS,new Def(0,SSL_TXT_DSS,	0,SSL_DSS,   0,0,0,0,SSL_AUTH_MASK,0));
         Definitions.put(SSL_TXT_DES,new Def(0,SSL_TXT_DES,	0,SSL_DES,   0,0,0,0,SSL_ENC_MASK,0));
@@ -1977,7 +2003,7 @@ public class CipherStrings {
 
         SuiteToOSSL.put("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", name = "ECDHE-RSA-AES128-GCM-SHA256");
         CipherNames.put(name, new Def(name,
-                SSL_kECDHE|SSL_RSA|SSL_AES|SSL_SHA|SSL_TLSV1,
+                SSL_kECDHE|SSL_aRSA|SSL_AES|SSL_SHA|SSL_TLSV1,
                 SSL_NOT_EXP|SSL_HIGH, 128, 256, SSL_ALL_CIPHERS, SSL_ALL_STRENGTHS
         ));
 
@@ -2238,7 +2264,7 @@ public class CipherStrings {
         SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_128_CBC_SHA",      "ECDHE-RSA-AES128-SHA");
         SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_128_CBC_SHA256",   "ECDHE-RSA-AES128-SHA256");
         SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_256_CBC_SHA",      "ECDHE-RSA-AES256-SHA");
-        SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_256_CBC_SHA384",   "ECDHE-RSA-AES128-SHA384");
+        SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_256_CBC_SHA384",   "ECDHE-RSA-AES256-SHA384");
         SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_128_GCM_SHA256",   "ECDHE-RSA-AES128-GCM-SHA256");
         SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_AES_256_GCM_SHA384",   "ECDHE-RSA-AES256-GCM-SHA384");
         SuiteToOSSL.put("SSL_ECDHE_RSA_WITH_NULL_SHA",             "ECDHE-RSA-NULL-SHA");
