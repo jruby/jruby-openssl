@@ -863,9 +863,9 @@ public class SSLSocket extends RubyObject {
 
     private int read(final ByteBuffer dst, final boolean blocking, final boolean exception) throws IOException {
         if ( initialHandshake ) return 0;
-        if ( engine.isInboundDone() ) return -1;
 
         if ( ! appReadData.hasRemaining() ) {
+            if ( engine.isInboundDone() ) return -1;
             final int appBytesProduced = readAndUnwrap(blocking, exception);
             if (appBytesProduced == -1 || appBytesProduced == 0 || isWouldBlockResult(appBytesProduced)) {
                 return appBytesProduced;
@@ -880,7 +880,7 @@ public class SSLSocket extends RubyObject {
     private int readAndUnwrap(final boolean blocking, final boolean exception) throws IOException {
         final int bytesRead = socketChannelImpl().read(netReadData);
         if ( bytesRead == -1 ) {
-            if ( ! netReadData.hasRemaining() ||
+            if ( netReadData.position() == 0 ||
                  ( status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) ) {
                 closeInbound();
                 return -1;
@@ -916,16 +916,16 @@ public class SSLSocket extends RubyObject {
         status = result.getStatus();
         handshakeStatus = result.getHandshakeStatus();
 
-        if ( bytesRead == -1 && ! netReadData.hasRemaining() ) {
-            // now it's safe to call closeInbound().
+        if ( bytesRead == -1 && ! netReadData.hasRemaining() && appReadData.position() == 0 ) {
+            // Deliver decrypted data first; report an unclean EOF on the next read.
             closeInbound();
-        }
-        if ( status == SSLEngineResult.Status.CLOSED ) {
-            return -1;
         }
 
         netReadData.compact();
         appReadData.flip();
+        if ( status == SSLEngineResult.Status.CLOSED && ! appReadData.hasRemaining() ) {
+            return -1;
+        }
         if ( ! initialHandshake && (
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||

@@ -489,6 +489,48 @@ class TestSSL < TestCase
     tcp_server&.close rescue nil
   end
 
+  def test_unexpected_eof_delivers_buffered_data_first
+    [:sysread, :read_nonblock].each do |read_method|
+      server_ctx = OpenSSL::SSL::SSLContext.new
+      server_ctx.cert = @svr_cert
+      server_ctx.key = @svr_key
+      server_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+      tcp_server = TCPServer.new("127.0.0.1", 0)
+      ssl_server = OpenSSL::SSL::SSLServer.new(tcp_server, server_ctx)
+      records = ["first record", "second record"]
+
+      server_thread = Thread.new do
+        peer = ssl_server.accept
+        records.each { |record| peer.write(record) }
+        peer.flush
+        peer.to_io.close
+      end
+
+      begin
+        client_ctx = OpenSSL::SSL::SSLContext.new
+        client_ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        client_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+        sock = TCPSocket.new("127.0.0.1", tcp_server.addr[1])
+        ssl = OpenSSL::SSL::SSLSocket.new(sock, client_ctx)
+        ssl.connect
+        # Queue both TLS records and the transport EOF before reading any plaintext.
+        server_thread.value
+
+        payload = records.join
+        received = +""
+        received << ssl.public_send(read_method, 1) until received.bytesize == payload.bytesize
+        assert_equal payload, received
+        assert_raise(OpenSSL::SSL::SSLError) { ssl.public_send(read_method, 1) }
+      ensure
+        ssl&.close rescue nil
+        sock&.close rescue nil
+        server_thread&.join rescue nil
+        ssl_server&.close rescue nil
+        tcp_server&.close rescue nil
+      end
+    end
+  end
+
   def test_unexpected_eof_can_be_ignored_with_option
     server_ctx = OpenSSL::SSL::SSLContext.new
     server_ctx.cert = @svr_cert
