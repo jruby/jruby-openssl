@@ -1239,16 +1239,51 @@ public class SSLContext extends RubyObject {
             return chooseAlias(keyType);
         }
 
-        // BCJSSE asks per negotiated key type (RSA / EC / ...)
+        // BCJSSE asks per negotiated key type: "RSA", "EC/secp256r1" or "Ed25519",
+        // or (TLS 1.2) a legacy auth type such as "ECDHE_ECDSA" or "ECDHE_RSA"
         private String chooseAlias(final String keyType) {
             if (keyType == null) return null;
             for (int i = 0; i < internalContext.credentials.size(); i++) {
                 final Credential credential = internalContext.credentials.get(i);
-                if (credential.privateKey != null && keyType.equalsIgnoreCase(credential.keyType)) {
+                if (credential.privateKey != null && keyTypeMatches(keyType, credential)) {
                     return credential.alias; // pick the first credential that matches
                 }
             }
             return null;
+        }
+
+        private static boolean keyTypeMatches(final String keyType, final Credential credential) {
+            final int slash = keyType.indexOf('/');
+            final String keyAlgorithm = slash < 0 ? keyType : keyType.substring(0, slash);
+            switch (keyAlgorithm.toUpperCase(java.util.Locale.ROOT)) {
+                case "ECDHE_ECDSA":
+                    return "EC".equalsIgnoreCase(credential.keyType);
+                case "ECDHE_RSA": case "DHE_RSA":
+                    return "RSA".equalsIgnoreCase(credential.keyType);
+                case "DHE_DSS":
+                    return "DSA".equalsIgnoreCase(credential.keyType);
+                case "ED25519": case "ED448": // credential key type is "EdDSA"
+                    if (!"EdDSA".equalsIgnoreCase(credential.keyType)) return false;
+                    final String algorithm = credential.privateKey.getAlgorithm();
+                    return keyAlgorithm.equalsIgnoreCase(algorithm) || "EdDSA".equalsIgnoreCase(algorithm);
+                default:
+                    if (!keyAlgorithm.equalsIgnoreCase(credential.keyType)) return false;
+                    return slash < 0 || isOnCurve(credential.privateKey, keyType.substring(slash + 1));
+            }
+        }
+
+        private static boolean isOnCurve(final java.security.PrivateKey key, final String namedGroup) {
+            if (!(key instanceof java.security.interfaces.ECKey)) return false;
+            try {
+                final java.security.AlgorithmParameters params = java.security.AlgorithmParameters.getInstance("EC");
+                params.init(new java.security.spec.ECGenParameterSpec(namedGroup));
+                final java.security.spec.ECParameterSpec group = params.getParameterSpec(java.security.spec.ECParameterSpec.class);
+                final java.security.spec.ECParameterSpec own = ((java.security.interfaces.ECKey) key).getParams();
+                return group.getCurve().equals(own.getCurve()) && group.getOrder().equals(own.getOrder());
+            }
+            catch (java.security.GeneralSecurityException e) {
+                return false;
+            }
         }
 
         private Credential credentialByAlias(String alias) {
