@@ -880,8 +880,7 @@ public class SSLSocket extends RubyObject {
     private int readAndUnwrap(final boolean blocking, final boolean exception) throws IOException {
         final int bytesRead = socketChannelImpl().read(netReadData);
         if ( bytesRead == -1 ) {
-            if ( netReadData.position() == 0 ||
-                 ( status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) ) {
+            if ( netReadData.position() == 0 ) {
                 closeInbound();
                 return -1;
             }
@@ -916,16 +915,18 @@ public class SSLSocket extends RubyObject {
         status = result.getStatus();
         handshakeStatus = result.getHandshakeStatus();
 
-        if ( bytesRead == -1 && ! netReadData.hasRemaining() && appReadData.position() == 0 ) {
-            // Deliver decrypted data first; report an unclean EOF on the next read.
-            closeInbound();
-        }
-
         netReadData.compact();
         appReadData.flip();
-        if ( status == SSLEngineResult.Status.CLOSED && ! appReadData.hasRemaining() ) {
+        if ( status == SSLEngineResult.Status.CLOSED ) {
+            return appReadData.hasRemaining() ? appReadData.remaining() : -1;
+        }
+        if ( bytesRead == -1 && ! appReadData.hasRemaining() &&
+                ( netReadData.position() == 0 || status == SSLEngineResult.Status.BUFFER_UNDERFLOW ) ) {
+            // close only after buffered plaintext and complete TLS records have been drained
+            closeInbound();
             return -1;
         }
+
         if ( ! initialHandshake && (
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
                 handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||

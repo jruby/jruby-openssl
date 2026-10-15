@@ -489,48 +489,6 @@ class TestSSL < TestCase
     tcp_server&.close rescue nil
   end
 
-  def test_unexpected_eof_delivers_buffered_data_first
-    [:sysread, :read_nonblock].each do |read_method|
-      server_ctx = OpenSSL::SSL::SSLContext.new
-      server_ctx.cert = @svr_cert
-      server_ctx.key = @svr_key
-      server_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
-      tcp_server = TCPServer.new("127.0.0.1", 0)
-      ssl_server = OpenSSL::SSL::SSLServer.new(tcp_server, server_ctx)
-      records = ["first record", "second record"]
-
-      server_thread = Thread.new do
-        peer = ssl_server.accept
-        records.each { |record| peer.write(record) }
-        peer.flush
-        peer.to_io.close
-      end
-
-      begin
-        client_ctx = OpenSSL::SSL::SSLContext.new
-        client_ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
-        client_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
-        sock = TCPSocket.new("127.0.0.1", tcp_server.addr[1])
-        ssl = OpenSSL::SSL::SSLSocket.new(sock, client_ctx)
-        ssl.connect
-        # Queue both TLS records and the transport EOF before reading any plaintext.
-        server_thread.value
-
-        payload = records.join
-        received = +""
-        received << ssl.public_send(read_method, 1) until received.bytesize == payload.bytesize
-        assert_equal payload, received
-        assert_raise(OpenSSL::SSL::SSLError) { ssl.public_send(read_method, 1) }
-      ensure
-        ssl&.close rescue nil
-        sock&.close rescue nil
-        server_thread&.join rescue nil
-        ssl_server&.close rescue nil
-        tcp_server&.close rescue nil
-      end
-    end
-  end
-
   def test_unexpected_eof_can_be_ignored_with_option
     server_ctx = OpenSSL::SSL::SSLContext.new
     server_ctx.cert = @svr_cert
@@ -562,6 +520,79 @@ class TestSSL < TestCase
     ssl_server&.close rescue nil
     tcp_server&.close rescue nil
   end
+
+  def test_sysread_delivers_buffered_data_before_unexpected_eof
+    assert_buffered_data_before_eof(:sysread, false)
+  end
+
+  def test_sysread_delivers_buffered_data_before_ignored_eof
+    assert_buffered_data_before_eof(:sysread, true)
+  end
+
+  def test_read_nonblock_delivers_buffered_data_before_unexpected_eof
+    assert_buffered_data_before_eof(:read_nonblock, false)
+  end
+
+  def test_read_nonblock_delivers_buffered_data_before_ignored_eof
+    assert_buffered_data_before_eof(:read_nonblock, true)
+  end
+
+  def test_sysread_delivers_buffered_data_before_truncated_record
+    assert_buffered_data_before_eof(:sysread, false, truncated_record: true)
+  end
+
+  def test_sysread_delivers_buffered_data_before_ignored_truncated_record
+    assert_buffered_data_before_eof(:sysread, true, truncated_record: true)
+  end
+
+  def test_read_nonblock_delivers_buffered_data_before_truncated_record
+    assert_buffered_data_before_eof(:read_nonblock, false, truncated_record: true)
+  end
+
+  def test_read_nonblock_delivers_buffered_data_before_ignored_truncated_record
+    assert_buffered_data_before_eof(:read_nonblock, true, truncated_record: true)
+  end
+
+  def assert_buffered_data_before_eof(read_method, ignore_eof, truncated_record: false)
+    server_ctx = OpenSSL::SSL::SSLContext.new
+    server_ctx.cert = @svr_cert
+    server_ctx.key = @svr_key
+    server_ctx.min_version = server_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+    tcp_server = TCPServer.new("127.0.0.1", 0)
+    ssl_server = OpenSSL::SSL::SSLServer.new(tcp_server, server_ctx)
+
+    server_thread = Thread.new do
+      peer = ssl_server.accept
+      peer.syswrite("first")
+      peer.syswrite("second")
+      peer.to_io.write("\x17\x03\x03\x00") if truncated_record
+    ensure
+      peer&.to_io&.close
+    end
+
+    client_ctx = OpenSSL::SSL::SSLContext.new
+    client_ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    client_ctx.min_version = client_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+    client_ctx.options |= OpenSSL::SSL::OP_IGNORE_UNEXPECTED_EOF if ignore_eof
+    sock = TCPSocket.new("127.0.0.1", tcp_server.addr[1])
+    ssl = OpenSSL::SSL::SSLSocket.new(sock, client_ctx)
+
+    ssl.connect
+    # queue both TLS records and TCP EOF before the first read
+    server_thread.value
+    %w[fi rs t se co nd].each do |chunk|
+      assert_equal chunk, ssl.public_send(read_method, 2)
+    end
+    assert_raise(ignore_eof ? EOFError : OpenSSL::SSL::SSLError) { ssl.public_send(read_method, 2) }
+  ensure
+    ssl&.close rescue nil
+    sock&.close rescue nil
+    server_thread&.kill if server_thread&.alive?
+    server_thread&.join rescue nil
+    ssl_server&.close rescue nil
+    tcp_server&.close rescue nil
+  end
+  private :assert_buffered_data_before_eof
 
   # verify_result should report V_ERR_HOSTNAME_MISMATCH when hostname
   # verification fails during connect (matches CRuby behavior).
