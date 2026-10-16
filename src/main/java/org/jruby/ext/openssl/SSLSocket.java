@@ -550,9 +550,16 @@ public class SSLSocket extends RubyObject {
         if ( ! channel.isSelectable() ) return Boolean.TRUE;
 
         final Ruby runtime = getRuntime();
-        final RubyThread thread = runtime.getCurrentContext().getThread();
+        final ThreadContext context = runtime.getCurrentContext();
+        final RubyThread thread = context.getThread();
 
         channel.configureBlocking(false);
+
+        if (blocking) {
+            IRubyObject scheduler = current_scheduler(context);
+            if (!scheduler.isNil()) return scheduler_io_wait(context, scheduler, operations);
+        }
+
         final Selector selector = runtime.getSelectorPool().get();
         SelectionKey key = null;
 
@@ -648,6 +655,25 @@ public class SSLSocket extends RubyObject {
                 thread.afterBlockingCall();
             }
         }
+    }
+
+    // Fiber.current_scheduler if Fiber.respond_to?(:current_scheduler)
+    // (defined by default since JRuby 10; on 9.4.5+ only with -Xexperimental.fiber.scheduler)
+    private static IRubyObject current_scheduler(final ThreadContext context) {
+        final IRubyObject fiber = context.runtime.getObject().getConstantAt("Fiber");
+        if (fiber.respondsTo("current_scheduler")) return fiber.callMethod(context, "current_scheduler");
+        return context.nil;
+    }
+
+    // MRI: blocking SSL operations wait in rb_io_wait, which defers to the fiber scheduler
+    private boolean scheduler_io_wait(final ThreadContext context, IRubyObject scheduler, int operations) {
+        // scheduler.io_wait(@io, events, nil)
+        int events = 0;
+        if ((operations & SelectionKey.OP_READ) != 0) events |= 1; // IO::READABLE
+        if ((operations & SelectionKey.OP_WRITE) != 0) events |= 4; // IO::WRITABLE
+
+        IRubyObject[] args = { io, context.runtime.newFixnum(events), context.nil };
+        return scheduler.callMethod(context, "io_wait", args).isTrue();
     }
 
     // return values are -1 (EOF) and >= 0 (byte counts), so any value < -1 is safe to use
