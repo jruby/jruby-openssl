@@ -114,22 +114,8 @@ def define_vendor_test_tasks(root: File.expand_path('..', __dir__),
 
     desc 'Run ruby-jwt (OpenSSL) tests against jruby-openssl'
     task :test => [ jar, :deps_check ] do
-      spec_files = [
-        'spec/jwt/jwt_spec.rb',
-        'spec/jwt/jwa_spec.rb',
-        'spec/jwt/jwa/ecdsa_spec.rb',
-        'spec/jwt/jwa/hmac_spec.rb',
-        'spec/jwt/jwa/rsa_spec.rb',
-        'spec/jwt/jwk_spec.rb',
-        'spec/jwt/jwk/decode_with_jwk_spec.rb',
-        'spec/jwt/jwk/ec_spec.rb',
-        'spec/jwt/jwk/rsa_spec.rb',
-        'spec/jwt/x5c_key_finder_spec.rb',
-        'spec/integration/readme_examples_spec.rb'
-      ].map { |file| File.expand_path(file, dir) }
-
       ruby '-C', dir, "-I#{jopenssl_lib}", *extra_ruby_opts,
-           '-S', 'rspec', "-I#{jopenssl_lib}", *spec_files
+           '-S', 'rspec', "-I#{jopenssl_lib}", 'spec'
     end
   end
 
