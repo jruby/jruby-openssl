@@ -188,7 +188,7 @@ public class PKeyDSA extends PKey {
             throw newDSAError(context.runtime, e.getMessage(), e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
 
@@ -475,7 +475,7 @@ public class PKeyDSA extends PKey {
             throw newDSAError(runtime, ex.getMessage());
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -501,7 +501,7 @@ public class PKeyDSA extends PKey {
             throw newDSAError(context.runtime, ex.getMessage());
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
 
@@ -523,7 +523,7 @@ public class PKeyDSA extends PKey {
             throw newDSAError(runtime, "invalid key");
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -545,7 +545,7 @@ public class PKeyDSA extends PKey {
             throw newDSAError(runtime, "invalid key");
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 

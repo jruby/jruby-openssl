@@ -91,7 +91,7 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.OCSP.*;
 import static org.jruby.ext.openssl.X509._X509;
 
@@ -365,7 +365,7 @@ public class OCSPBasicResponse extends RubyObject {
             return this;
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -476,7 +476,7 @@ public class OCSPBasicResponse extends RubyObject {
             return runtime.getTrue();
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 

@@ -354,7 +354,7 @@ public class PKeyDH extends PKey {
             throw newDHError(context.runtime, e.getMessage());
         }
         catch (Throwable e) {
-            OpenSSL.handlePotentialOperationError(context.runtime, e);
+            OpenSSL.throwOperationErrorOrOriginal(context.runtime, e);
         }
     }
 
@@ -376,7 +376,7 @@ public class PKeyDH extends PKey {
             throw newDHError(runtime, e.getMessage());
         }
         catch (Throwable e) {
-            return OpenSSL.handlePotentialOperationError(runtime, e);
+            return OpenSSL.throwOperationErrorOrOriginal(runtime, e);
         }
     }
 

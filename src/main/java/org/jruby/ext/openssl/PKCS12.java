@@ -180,7 +180,7 @@ public class PKCS12 extends RubyObject {
             throw newPKCS12Error(runtime, e);
         }
         catch (Throwable e) { // unapproved MAC/KDF under FIPS
-            return OpenSSL.handlePotentialOperationError(runtime, e);
+            return OpenSSL.throwOperationErrorOrOriginal(runtime, e);
         }
         finally {
             clearChars(password);
@@ -250,7 +250,7 @@ public class PKCS12 extends RubyObject {
             throw newPKCS12Error(runtime, e);
         }
         catch (Throwable e) {
-            return OpenSSL.handlePotentialOperationError(runtime, e);
+            return OpenSSL.throwOperationErrorOrOriginal(runtime, e);
         }
         finally {
             clearChars(password);
@@ -319,7 +319,7 @@ public class PKCS12 extends RubyObject {
             throw newPKCS12Error(runtime, e);
         }
         catch (Throwable e) { // unapproved MAC/KDF
-            OpenSSL.handlePotentialOperationError(runtime, e);
+            OpenSSL.throwOperationErrorOrOriginal(runtime, e);
         }
         finally {
             clearChars(password);

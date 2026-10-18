@@ -41,7 +41,7 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
 
 /**
@@ -197,7 +197,7 @@ public class PKeyEdDSA extends PKey {
             throw newPKeyError(runtime, ex.getMessage());
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -228,7 +228,7 @@ public class PKeyEdDSA extends PKey {
             throw newPKeyError(runtime, "unsupported algorithm: " + getAlgorithm());
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 

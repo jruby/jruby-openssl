@@ -70,7 +70,7 @@ import org.jruby.ext.openssl.log.Logger;
 
 import static javax.crypto.Cipher.DECRYPT_MODE;
 import static javax.crypto.Cipher.ENCRYPT_MODE;
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 import static org.jruby.ext.openssl.util.RubySupport.setByteListShared;
 
@@ -789,7 +789,7 @@ public class Cipher extends RubyObject {
             updateCipher(name, padding);
         }
         catch (Throwable ex) {
-            handlePotentialOperationError(runtime, ex);
+            throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -832,7 +832,7 @@ public class Cipher extends RubyObject {
             return this;
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -969,7 +969,7 @@ public class Cipher extends RubyObject {
             return this;
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
 
@@ -981,7 +981,7 @@ public class Cipher extends RubyObject {
             return this;
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
 
@@ -999,7 +999,7 @@ public class Cipher extends RubyObject {
             return this;
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -1090,7 +1090,7 @@ public class Cipher extends RubyObject {
             return runtime.getNil();
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -1151,7 +1151,7 @@ public class Cipher extends RubyObject {
             throw (RaiseException) newCipherError(runtime, e).initCause(e);
         }
         catch (Throwable ex) {
-            handlePotentialOperationError(runtime, ex);
+            throwOperationErrorOrOriginal(runtime, ex);
         }
 
         cipherInited = true;
@@ -1239,7 +1239,7 @@ public class Cipher extends RubyObject {
             throw (RaiseException) newCipherError(runtime, e).initCause(e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
 
         if ( buffer == null ) return RubyString.newString(runtime, str);
@@ -1354,7 +1354,7 @@ public class Cipher extends RubyObject {
             throw (RaiseException) newCipherError(runtime, e).initCause(e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
         return RubyString.newString(runtime, str);
     }
@@ -1464,7 +1464,7 @@ public class Cipher extends RubyObject {
             return padding;
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 

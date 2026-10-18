@@ -57,7 +57,7 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.Digest._Digest;
 import static org.jruby.ext.openssl.OCSP._OCSP;
 import static org.jruby.ext.openssl.OCSP.newOCSPError;
@@ -103,7 +103,7 @@ public class OCSPCertificateId extends RubyObject {
             return initializeImpl(context, serial, originalIssuer, digest);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
     
@@ -121,7 +121,7 @@ public class OCSPCertificateId extends RubyObject {
             return initializeImpl(context, serial, originalIssuer, digest);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
     

@@ -94,7 +94,7 @@ import org.jruby.ext.openssl.x509store.PEMInputOutput;
 import org.jruby.util.ByteList;
 
 import static org.jruby.ext.openssl.impl.PKey.readECPrivateKey;
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
 
@@ -599,7 +599,7 @@ public final class PKeyEC extends PKey {
             throw (RaiseException) newECError(context.runtime, ex.toString()).initCause(ex);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
         return this;
     }
@@ -632,7 +632,7 @@ public final class PKeyEC extends PKey {
             throw newECError(context.runtime, ex.toString(), ex);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
 
@@ -651,7 +651,7 @@ public final class PKeyEC extends PKey {
             throw newECError(runtime, ex.getMessage(), ex);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -686,7 +686,7 @@ public final class PKeyEC extends PKey {
             return runtime.getFalse();
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -733,7 +733,7 @@ public final class PKeyEC extends PKey {
             throw newECError(context.runtime, ex.toString());
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
 

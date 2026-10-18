@@ -35,7 +35,7 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.anno.JRubyModule;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.KDF.newKDFError;
 import static org.jruby.ext.openssl.util.RubySupport.newRuntimeError;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
@@ -78,7 +78,7 @@ public class PKCS5 {
             throw newKDFError(runtime, ex.getMessage()); // in MRI PKCS5 delegates to KDF impl
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 

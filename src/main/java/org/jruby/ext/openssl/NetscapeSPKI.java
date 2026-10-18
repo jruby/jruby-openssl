@@ -50,7 +50,7 @@ import org.jruby.runtime.Visibility;
 
 import org.jruby.ext.openssl.impl.NetscapeCertRequest;
 
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
 
@@ -225,7 +225,7 @@ public class NetscapeSPKI extends RubyObject {
             throw newSPKIError(ex);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(getRuntime(), ex);
+            return throwOperationErrorOrOriginal(getRuntime(), ex);
         }
         return this;
     }
@@ -243,7 +243,7 @@ public class NetscapeSPKI extends RubyObject {
             throw newSPKIError(ex);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(getRuntime(), ex);
+            return throwOperationErrorOrOriginal(getRuntime(), ex);
         }
     }
 

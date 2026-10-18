@@ -31,10 +31,15 @@ public abstract class ExceptionUtil {
 
     /**
      * Handle potential FIPS operation error
-     * @param e
+     * @param e exception to handle (or re-throw)
      * @param handler
      */
-    public static void handlePotentialOperationError(Throwable e, Function<Throwable, Throwable> handler) {
+    public static void throwMappedOperationErrorOrOriginal(Throwable e, Function<Throwable, Throwable> handler) {
+        throwMappedIfOperationError(e, handler);
+        throwException(e);
+    }
+
+    public static void throwMappedIfOperationError(Throwable e, Function<Throwable, Throwable> handler) {
         if (ErrorShim.isFipsOperationError(e)) {
             Throwable ex = handler.apply(e);
             if (ex != null && ex != e) {
@@ -42,7 +47,7 @@ public abstract class ExceptionUtil {
                 throwException(ex);
             }
         }
-        throwException(e);
+        // don't do anything
     }
 
     @SuppressWarnings("unchecked")

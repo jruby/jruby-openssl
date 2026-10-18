@@ -56,7 +56,7 @@ import static org.jruby.ext.openssl.X509CRL._CRL;
 import static org.jruby.ext.openssl.X509Cert._Certificate;
 import static org.jruby.ext.openssl.x509store.StoreContext.ossl_ssl_ex_vcb_idx;
 import static org.jruby.ext.openssl.x509store.X509Utils.verifyCertificateErrorString;
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
 
@@ -178,7 +178,7 @@ public class X509StoreContext extends RubyObject {
             throw newStoreError(runtime, e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 

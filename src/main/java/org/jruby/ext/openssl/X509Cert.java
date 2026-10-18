@@ -108,7 +108,7 @@ import static org.jruby.ext.openssl.X509CRL.extensions_to_text;
 import static org.jruby.ext.openssl.StringHelper.appendGMTDateTime;
 import static org.jruby.ext.openssl.StringHelper.appendLowerHexValue;
 import static org.jruby.ext.openssl.StringHelper.lowerHexBytes;
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
 
@@ -797,7 +797,7 @@ public class X509Cert extends RubyObject {
         } catch (RuntimeException e) {
             throw newCertificateError(runtime, e);
         } catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
 
         try {
@@ -860,7 +860,7 @@ public class X509Cert extends RubyObject {
             return runtime.getFalse();
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 

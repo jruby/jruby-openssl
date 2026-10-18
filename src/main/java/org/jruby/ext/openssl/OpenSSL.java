@@ -316,9 +316,13 @@ public class OpenSSL {
 
     // internals
 
-    static <T> T handlePotentialOperationError(final Ruby runtime, Throwable e) {
-        ExceptionUtil.handlePotentialOperationError(e, ex -> newSecurityError(runtime, ex));
+    static <T> T throwOperationErrorOrOriginal(final Ruby runtime, Throwable e) {
+        ExceptionUtil.throwMappedOperationErrorOrOriginal(e, ex -> newSecurityError(runtime, ex));
         return null; // never happens
+    }
+
+    static void throwIfOperationError(final Ruby runtime, Throwable e) {
+        ExceptionUtil.throwMappedIfOperationError(e, ex -> newSecurityError(runtime, ex));
     }
 
     /**

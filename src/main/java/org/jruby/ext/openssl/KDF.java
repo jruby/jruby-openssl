@@ -34,7 +34,7 @@ import org.jruby.exceptions.RaiseException;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.util.RubySupport.extractKeywordArgs;
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 import static org.jruby.ext.openssl.util.RubySupport.newSecurityError;
@@ -68,7 +68,7 @@ public class KDF {
             throw newKDFError(context.runtime, e.getMessage());
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
 
@@ -82,7 +82,7 @@ public class KDF {
             throw newKDFError(context.runtime, e.getMessage());
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
 

@@ -42,7 +42,7 @@ import org.jruby.util.ByteList;
 import org.jruby.runtime.Visibility;
 import org.jruby.ext.openssl.log.Logger;
 
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
 
@@ -99,7 +99,7 @@ public class HMAC extends RubyObject {
             throw newHMACError(runtime, e.getMessage(), e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -123,7 +123,7 @@ public class HMAC extends RubyObject {
             throw newHMACError(runtime, e.getMessage(), e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -151,7 +151,7 @@ public class HMAC extends RubyObject {
             throw newHMACError(getRuntime(), e.getMessage(), e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(getRuntime(), ex);
+            return throwOperationErrorOrOriginal(getRuntime(), ex);
         }
         return this;
     }
@@ -178,7 +178,7 @@ public class HMAC extends RubyObject {
             throw newHMACError(getRuntime(), e.getMessage(), e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(getRuntime(), ex);
+            return throwOperationErrorOrOriginal(getRuntime(), ex);
         }
 
         data = new ByteList(that.data);
@@ -214,7 +214,7 @@ public class HMAC extends RubyObject {
             mac.update(data.getUnsafeBytes(), data.getBegin(), data.getRealSize());
             return mac.doFinal();
         } catch (Throwable ex) {
-            return handlePotentialOperationError(getRuntime(), ex);
+            return throwOperationErrorOrOriginal(getRuntime(), ex);
         }
     }
 

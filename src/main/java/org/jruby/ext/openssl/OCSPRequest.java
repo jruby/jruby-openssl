@@ -82,10 +82,9 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import static org.jruby.ext.openssl.OpenSSL.handlePotentialOperationError;
+import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.OCSP._OCSP;
 import static org.jruby.ext.openssl.OCSP.newOCSPError;
-import static org.jruby.ext.openssl.OCSP.signatureAlgorithm;
 import static org.jruby.ext.openssl.X509._X509;
 
 /*
@@ -310,7 +309,7 @@ public class OCSPRequest extends RubyObject {
             return this;
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(context.runtime, ex);
+            return throwOperationErrorOrOriginal(context.runtime, ex);
         }
     }
         
@@ -388,7 +387,7 @@ public class OCSPRequest extends RubyObject {
             throw newOCSPError(runtime, e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
         
         return RubyBoolean.newBoolean(getRuntime(), ret);

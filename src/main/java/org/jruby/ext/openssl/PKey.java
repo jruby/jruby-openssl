@@ -141,7 +141,7 @@ public abstract class PKey extends RubyObject {
                 return readImpl(context, args);
             }
             catch (Throwable ex) {
-                return handlePotentialOperationError(runtime, ex);
+                return throwOperationErrorOrOriginal(runtime, ex);
             }
         }
 
@@ -308,7 +308,7 @@ public abstract class PKey extends RubyObject {
                 throw newPKeyError(runtime, "unsupported algorithm: " + algorithm);
             }
             catch (Throwable ex) {
-                return handlePotentialOperationError(runtime, ex);
+                return throwOperationErrorOrOriginal(runtime, ex);
             }
         }
 
@@ -623,7 +623,7 @@ public abstract class PKey extends RubyObject {
             throw newPKeyError(runtime, ex.getMessage());
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
@@ -693,7 +693,7 @@ public abstract class PKey extends RubyObject {
             throw newPKeyError(runtime, "invalid key");
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 

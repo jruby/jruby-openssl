@@ -409,7 +409,7 @@ public class X509Request extends RubyObject {
             throw newRequestError(runtime, e);
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
         return this;
     }
@@ -448,7 +448,7 @@ public class X509Request extends RubyObject {
             return context.nil;
         }
         catch (Throwable ex) {
-            return handlePotentialOperationError(runtime, ex);
+            return throwOperationErrorOrOriginal(runtime, ex);
         }
     }
 
