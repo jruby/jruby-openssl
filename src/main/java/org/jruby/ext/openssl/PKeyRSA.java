@@ -85,6 +85,7 @@ import org.jruby.RubySymbol;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.openssl.log.Logger;
+import org.jruby.ext.openssl.shim.ErrorShim;
 import org.jruby.ext.openssl.shim.PKeyShim;
 import org.jruby.runtime.Arity;
 import org.jruby.runtime.Block;
@@ -689,14 +690,18 @@ public class PKeyRSA extends PKey {
         final int initMode, final Key initKey) {
 
         final String cipherPadding = getPadding(padding);
-        final RubyString buffer = content.convertToString();
+        final ByteList buffer = content.convertToString().getByteList();
         try {
             javax.crypto.Cipher engine = SecurityHelper.getCipher("RSA" + cipherPadding);
             engine.init(initMode, initKey);
-            byte[] output = engine.doFinal(buffer.getBytes());
+            byte[] output = engine.doFinal(buffer.unsafeBytes(), buffer.begin(), buffer.length());
             return newString(runtime, output);
         }
         catch (GeneralSecurityException | InvalidParameterException ex) {
+            throw newRSAError(runtime, ex);
+        }
+        catch (Exception ex) {
+            throwIfOperationError(runtime, ex);
             throw newRSAError(runtime, ex);
         }
         catch (Throwable ex) {
@@ -732,8 +737,11 @@ public class PKeyRSA extends PKey {
                 if (saltLen < 0) saltLen = getDigestLength(digestAlg);
                 try {
                     return newString(runtime, signWithPSS(hashBytes, digestAlg, mgf1Alg, saltLen));
-                } catch (IllegalArgumentException | GeneralSecurityException e) {
-                    throw (RaiseException) newRSAError(runtime, e.getMessage()).initCause(e);
+                } catch (GeneralSecurityException e) {
+                    throw newRSAError(runtime, e);
+                } catch (Exception e) {
+                    throwIfOperationError(runtime, e);
+                    throw newRSAError(runtime, e);
                 } catch (Throwable ex) {
                     return throwOperationErrorOrOriginal(runtime, ex);
                 }
@@ -850,11 +858,15 @@ public class PKeyRSA extends PKey {
                 if (mgf1Alg == null) mgf1Alg = digestAlg;
                 if (saltLen < 0) saltLen = maxPSSSaltLength(digestAlg, privateKey.getModulus().bitLength());
 
+                final ByteList dataBytes = data.convertToString().getByteList();
                 final byte[] signedData;
                 try {
-                    signedData = signDataWithPSS(runtime, data.convertToString(), digestAlg, mgf1Alg, saltLen);
-                } catch (IllegalArgumentException | GeneralSecurityException e) {
-                    throw (RaiseException) newRSAError(runtime, e.getMessage()).initCause(e);
+                    signedData = signDataWithPSS(runtime, dataBytes, digestAlg, mgf1Alg, saltLen);
+                } catch (GeneralSecurityException e) {
+                    throw newRSAError(runtime, e);
+                } catch (Exception e) {
+                    throwIfOperationError(runtime, e);
+                    throw newRSAError(runtime, e);
                 } catch (Throwable ex) {
                     return throwOperationErrorOrOriginal(runtime, ex);
                 }
@@ -891,11 +903,15 @@ public class PKeyRSA extends PKey {
             saltLen = getDigestLength(digestAlg);
         }
 
+        final RubyString data = args[1].convertToString();
         final byte[] signedData;
         try {
-            signedData = signDataWithPSS(runtime, args[1].convertToString(), digestAlg, mgf1Alg, saltLen);
-        } catch (IllegalArgumentException | GeneralSecurityException e) {
-            throw (RaiseException) newRSAError(runtime, e.getMessage()).initCause(e);
+            signedData = signDataWithPSS(runtime, data.getByteList(), digestAlg, mgf1Alg, saltLen);
+        } catch (GeneralSecurityException e) {
+            throw newRSAError(runtime, e);
+        } catch (Exception e) {
+            throwIfOperationError(runtime, e);
+            throw newRSAError(runtime, e);
         } catch (Throwable ex) {
             return throwOperationErrorOrOriginal(runtime, ex);
         }
@@ -922,7 +938,12 @@ public class PKeyRSA extends PKey {
             String sym = saltLenArg.asJavaString();
             if ("auto".equals(sym)) {
                 if (isInvalidSignatureBytes(publicKey, sigBytes)) return runtime.getFalse();
-                saltLen = PKeyShim.autoPSSSaltLength(publicKey, dataBytes, sigBytes, digestAlg, mgf1Alg);
+                try {
+                    saltLen = PKeyShim.autoPSSSaltLength(publicKey, dataBytes, sigBytes, digestAlg, mgf1Alg);
+                } catch (Exception e) {
+                    throwIfOperationError(runtime, e);
+                    throw newRSAError(runtime, e);
+                }
                 if (saltLen < 0) return runtime.getFalse();
             } else if ("max".equals(sym)) {
                 saltLen = maxPSSSaltLength(digestAlg, publicKey.getModulus().bitLength());
@@ -948,14 +969,12 @@ public class PKeyRSA extends PKey {
         boolean verified;
         try {
             verified = verifyWithPSS(rawVerify, publicKey, dataBytes, digestAlg, mgf1Alg, saltLen, sigBytes);
-        } catch (IllegalArgumentException e) {
-            verified = false;
         } catch (GeneralSecurityException e) {
             // could not verify - reporting false here is indistinguishable from a forgery
             throw newRSAError(runtime, e.getMessage(), e);
         } catch (Exception e) {
-            LOG.debugStack(runtime, null, e);
-            return runtime.getNil();
+            throwIfOperationError(runtime, e);
+            throw newRSAError(runtime, e);
         } catch (Throwable ex) {
             return throwOperationErrorOrOriginal(runtime, ex);
         }
@@ -1175,6 +1194,9 @@ public class PKeyRSA extends PKey {
         }
         catch (BadPaddingException | IllegalBlockSizeException e) { // not a signature block
             return false;
+        } catch (Exception e) {
+            if (ErrorShim.isFipsOperationError(e)) throw e;
+            return false;
         }
         return verifyRawPSS(hash, em, digestAlg, mgf1Alg, saltLen, emBits);
     }
@@ -1185,23 +1207,22 @@ public class PKeyRSA extends PKey {
                 new BigInteger(1, signature).compareTo(pubKey.getModulus()) >= 0;
     }
 
-    private byte[] signDataWithPSS(Ruby runtime, RubyString data, String digestAlg, String mgf1Alg, int saltLen)
+    private byte[] signDataWithPSS(Ruby runtime, ByteList data, String digestAlg, String mgf1Alg, int saltLen)
         throws GeneralSecurityException, IllegalArgumentException {
         final String javaDigestAlg = getJcaDigestName(digestAlg);
         final String javaMgf1Alg = getJcaDigestName(mgf1Alg);
 
-        final ByteList dataBytes = data.getByteList();
         // when content and MGF1 digests match, use standard JCA RSASSA-PSS
         if (javaDigestAlg.equals(javaMgf1Alg)) {
             Signature signer = SecurityHelper.getSignature("RSASSA-PSS");
             signer.setParameter(buildPSSParameterSpec(javaDigestAlg, javaMgf1Alg, saltLen));
             signer.initSign(privateKey, getSecureRandom(runtime.getCurrentContext()));
-            signer.update(dataBytes.unsafeBytes(), dataBytes.getBegin(), dataBytes.getRealSize());
+            signer.update(data.unsafeBytes(), data.begin(), data.length());
             return signer.sign();
         }
         // mismatched digests: hash ourselves and use manual EMSA-PSS encode + raw RSA
         final MessageDigest digest = SecurityHelper.getMessageDigest(javaDigestAlg);
-        digest.update(dataBytes.unsafeBytes(), dataBytes.getBegin(), dataBytes.getRealSize());
+        digest.update(data.unsafeBytes(), data.begin(), data.length());
         return signWithPSS(digest.digest(), digestAlg, mgf1Alg, saltLen);
     }
 

@@ -142,6 +142,18 @@ class TestRSA < TestCase
     # }
   end
 
+  def test_rsa_cipher_rejects_invalid_blocks
+    omit_on_fips 'legacy RSA encryption is not FIPS-approved'
+    key = Fixtures.pkey("rsa2048")
+    outside_modulus = key.n.to_s(2)
+    oversized = "\xff".b * (outside_modulus.bytesize + 1)
+
+    [:public_encrypt, :public_decrypt, :private_encrypt, :private_decrypt].each do |operation|
+      assert_raise(OpenSSL::PKey::RSAError) { key.public_send(operation, outside_modulus, OpenSSL::PKey::RSA::NO_PADDING) }
+      assert_raise(OpenSSL::PKey::RSAError) { key.public_send(operation, oversized, OpenSSL::PKey::RSA::NO_PADDING) }
+    end
+  end
+
   def test_sign_verify
     rsa = Fixtures.pkey("rsa2048")
     data = "Sign me!"
@@ -382,7 +394,11 @@ class TestRSA < TestCase
 
     assert_equal false, key.verify_pss("SHA256", signature, "data", salt_length: :auto, mgf1_hash: "SHA256")
     assert_equal false, key.verify_pss("SHA256", signature, "data", salt_length: :digest, mgf1_hash: "SHA256")
-    assert_equal false, key.verify_pss("SHA256", signature, "data", salt_length: 32, mgf1_hash: "SHA1")
+    if fips?
+      assert_raise(OpenSSL::PKey::RSAError) { key.verify_pss("SHA256", signature, "data", salt_length: 32, mgf1_hash: "SHA1") }
+    else
+      assert_equal false, key.verify_pss("SHA256", signature, "data", salt_length: 32, mgf1_hash: "SHA1")
+    end
   end
 
   # omitting salt_length must round-trip (sign and verify share the same default)
