@@ -79,6 +79,11 @@ def define_vendor_test_tasks(root: File.expand_path('..', __dir__),
         test/authentication/test_certificate.rb
         test/authentication/test_ed25519.rb
         test/authentication/test_key_manager.rb
+        test/authentication/test_agent.rb
+        test/authentication/methods/test_publickey.rb
+        test/authentication/methods/test_hostbased.rb
+        test/test_known_hosts.rb
+        test/verifiers/test_cert_authority_checks.rb
       ]
       test_files += FileList[File.join(dir, 'test/transport/{kex,hmac}/test_*.rb')].to_a
 
@@ -88,7 +93,8 @@ def define_vendor_test_tasks(root: File.expand_path('..', __dir__),
       # exclude the CTR *_encryption2/decryption2 tests: they update-then-final-then-update
       # JOSSL' native CTR resets the counter on final (MRI continues) - a test-only pattern,
       # real SSH streams updates continuously (see test/test_cipher.rb for CTR coverage)
-      task.options = "--verbose --exclude='/_ctr_for_.*cryption2/'"
+      # known_hosts add tests use a 64-bit RSA key rejected by Java providers
+      task.options = "--verbose --exclude='/_ctr_for_.*cryption2|test_(missing_then_add|search_for_then_add)/'"
       task.ruby_opts = [ '-v', '-C', dir, '-rcommon' ] + extra_ruby_opts
     end
     task :test => [ jar, :bundle_check ]
