@@ -376,6 +376,15 @@ class TestRSA < TestCase
     assert_equal false, key.verify_pss("SHA256", sig, "data", salt_length: -5, mgf1_hash: "SHA256")
   end
 
+  def test_verify_pss_signature_outside_modulus_returns_false
+    key = Fixtures.pkey("rsa2048")
+    signature = key.n.to_s(2)
+
+    assert_equal false, key.verify_pss("SHA256", signature, "data", salt_length: :auto, mgf1_hash: "SHA256")
+    assert_equal false, key.verify_pss("SHA256", signature, "data", salt_length: :digest, mgf1_hash: "SHA256")
+    assert_equal false, key.verify_pss("SHA256", signature, "data", salt_length: 32, mgf1_hash: "SHA1")
+  end
+
   # omitting salt_length must round-trip (sign and verify share the same default)
   def test_sign_verify_pss_default_salt_roundtrips
     key = Fixtures.pkey("rsa2048")

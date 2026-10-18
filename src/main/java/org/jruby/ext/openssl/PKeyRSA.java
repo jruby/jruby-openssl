@@ -921,6 +921,7 @@ public class PKeyRSA extends PKey {
         if (saltLenArg instanceof RubySymbol) {
             String sym = saltLenArg.asJavaString();
             if ("auto".equals(sym)) {
+                if (isInvalidSignatureBytes(publicKey, sigBytes)) return runtime.getFalse();
                 saltLen = PKeyShim.autoPSSSaltLength(publicKey, dataBytes, sigBytes, digestAlg, mgf1Alg);
                 if (saltLen < 0) return runtime.getFalse();
             } else if ("max".equals(sym)) {
@@ -1165,6 +1166,7 @@ public class PKeyRSA extends PKey {
         final byte[] hash = rawVerify ? inputBytes : SecurityHelper.getMessageDigest(javaDigestAlg).digest(inputBytes);
         javax.crypto.Cipher rsa = SecurityHelper.getCipher("RSA/ECB/NoPadding");
         rsa.init(DECRYPT_MODE, pubKey);
+        if (isInvalidSignatureBytes(pubKey, sigBytes)) return false;
         final int emBits = pubKey.getModulus().bitLength() - 1;
         final int emLen = (emBits + 7) / 8;
         final byte[] em;
@@ -1175,6 +1177,12 @@ public class PKeyRSA extends PKey {
             return false;
         }
         return verifyRawPSS(hash, em, digestAlg, mgf1Alg, saltLen, emBits);
+    }
+
+    private static boolean isInvalidSignatureBytes(RSAPublicKey pubKey, byte[] signature) {
+        final int keyBytes = (pubKey.getModulus().bitLength() + 7) / 8;
+        return signature.length == 0 || signature.length > keyBytes ||
+                new BigInteger(1, signature).compareTo(pubKey.getModulus()) >= 0;
     }
 
     private byte[] signDataWithPSS(Ruby runtime, RubyString data, String digestAlg, String mgf1Alg, int saltLen)
