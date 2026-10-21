@@ -32,6 +32,31 @@ git submodule update --init ruby-openssl
 jruby -rbundler/setup -S rake test:mri
 ```
 
+The local ML-DSA mutual TLS acceptance test requires BCJSSE 1.82 or later
+with its ML-DSA signature schemes explicitly enabled. This task starts a
+separate JRuby process with the existing JSSE properties set before provider
+initialization:
+
+```
+jruby -rbundler/setup -S rake test:mldsa_tls
+```
+
+It performs actual Net::HTTP GET and POST requests for all three parameter
+sets without selecting a client SSL method. It checks the server's authenticated
+peer certificate and TLS version, and exercises invalid server and client
+identities. It also checks ML-DSA server identities with a default server context.
+CI runs it on Java 25 with the default BC version and on Java 11
+with BCJSSE 1.82; the task does not skip the deployment acceptance test.
+The key and X.509 regressions also run with the regular unit suite.
+
+An optional interoperability test checks that native OpenSSL accepts keys and
+signatures produced by JRuby for all three ML-DSA parameter sets. It requires
+`openssl` 3.5 or later on `PATH` and runs separately from the regular suite:
+
+```
+jruby -rbundler/setup -S rake test:mldsa_openssl
+```
+
 ### Releasing
 
 * fill in [History.md](History.md) change-log entries for release

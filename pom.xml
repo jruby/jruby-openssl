@@ -1041,6 +1041,7 @@ DO NOT MODIFY - GENERATED CODE
                         <include>org/jruby/ext/openssl/PKeyEC.java</include>
                         <include>org/jruby/ext/openssl/PKeyEdDSA.java</include>
                         <include>org/jruby/ext/openssl/PKeyHMAC.java</include>
+                        <include>org/jruby/ext/openssl/PKeyMLDSA.java</include>
                         <include>org/jruby/ext/openssl/PKeyRSA.java</include>
                         <include>org/jruby/ext/openssl/PKeyXDH.java</include>
                         <include>org/jruby/ext/openssl/Random.java</include>

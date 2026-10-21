@@ -100,6 +100,20 @@ define_mri_test_task
 
 require_relative 'tasks/provider_tests'
 namespace :test do
+  desc 'Check JRuby ML-DSA keys and signatures with native OpenSSL 3.5 or later'
+  task :mldsa_openssl => 'lib/jopenssl.jar' do
+    ruby '-rbundler/setup -Ilib:test integration/mldsa_openssl.rb'
+  end
+
+  desc 'Run local ML-DSA Net::HTTP TLS 1.3 mutual authentication tests with BCJSSE'
+  task :mldsa_tls => 'lib/jopenssl.jar' do
+    # BCJSSE disables standalone PQ signature schemes by default.
+    schemes = 'mldsa44,mldsa65,mldsa87,rsa_pss_rsae_sha256,rsa_pkcs1_sha256'
+    ruby "-J-Djdk.tls.client.SignatureSchemes=#{schemes} " \
+         "-J-Djdk.tls.server.SignatureSchemes=#{schemes} " \
+         '-rbundler/setup -Ilib:test integration/mldsa_http.rb'
+  end
+
   namespace :provider do
     define_provider_test_task :bc_all,
                               description: 'Run tests with BC providers registered',
