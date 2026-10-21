@@ -583,18 +583,19 @@ public class SSLContext extends RubyObject {
     }
 
     private CipherListCache matchedCiphersWithCache(final ThreadContext context, final String ciphers) {
+        final String contextProtocol = getContextProtocol();
         final CipherListCache cache = cipherListCache;
-        if ( protocol.equals(cache.protocol) && ciphers.equals(cache.ciphers) ) {
+        if ( contextProtocol.equals(cache.protocol) && ciphers.equals(cache.ciphers) ) {
             return cache;
         }
 
-        return cipherListCache = matchedCiphers(context, ciphers);
+        return cipherListCache = matchedCiphers(context, ciphers, contextProtocol);
     }
 
-    private CipherListCache matchedCiphers(final ThreadContext context, final String ciphers) {
+    private CipherListCache matchedCiphers(final ThreadContext context, final String ciphers, final String contextProtocol) {
         final Ruby runtime = context.runtime;
         try {
-            final String[] supported = getSupportedCipherSuites(protocol);
+            final String[] supported = getSupportedCipherSuites(contextProtocol);
             final Collection<CipherStrings.Def> cipherDefs =
                     CipherStrings.matchingCiphers(ciphers, supported, false);
 
@@ -612,7 +613,7 @@ public class SSLContext extends RubyObject {
                 cipherList.add(cipherInfo(context, def).freeze(context));
                 legacyCipherCount++;
             }
-            return new CipherListCache(protocol, ciphers,
+            return new CipherListCache(contextProtocol, ciphers,
                     runtime.newArrayNoCopy(cipherList.toArray(new IRubyObject[cipherList.size()])), legacyCipherCount);
         }
         catch (GeneralSecurityException gse) {
@@ -1091,6 +1092,28 @@ public class SSLContext extends RubyObject {
         return credentials;
     }
 
+    private String getContextProtocol() {
+        final InternalContext context = internalContext;
+        if (context != null) return context.sslContext.getProtocol();
+        final IRubyObject cert = getInstanceVariable("@cert");
+        final IRubyObject key = getInstanceVariable("@key");
+        return getContextProtocol(buildCredentials(
+            cert instanceof X509Cert ? (X509Cert) cert : t_cert,
+            key instanceof PKey ? (PKey) key : t_key, null));
+    }
+
+    private String getContextProtocol(final List<Credential> credentials) {
+        if ("SSL".equals(protocol)) {
+            for (Credential credential : credentials) {
+                if (PKeyMLDSA.isMLDSAAlgorithm(credential.keyType)) {
+                    // BCJSSE provides ML-DSA credentials through its TLS context.
+                    return "TLS";
+                }
+            }
+        }
+        return protocol;
+    }
+
     private InternalContext initSSLContext(ThreadContext context,
         final Store store, final List<X509AuxCertificate> clientCA,
         final int verifyMode, final IRubyObject verifyCallback, final int verifyDepth, final int timeout,
@@ -1140,7 +1163,7 @@ public class SSLContext extends RubyObject {
             this.alpnProtocols = alpnProtocols;
             this.alpnSelectCallback = alpnSelectCallback;
 
-            this.sslContext = SecurityHelper.getSSLContext(protocol);
+            this.sslContext = SecurityHelper.getSSLContext(getContextProtocol(certsAndKeys));
         }
 
         void initSSLContext(final ThreadContext context) throws NoSuchAlgorithmException, KeyManagementException {

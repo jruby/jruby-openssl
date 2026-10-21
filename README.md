@@ -32,6 +32,79 @@ For older versions of the gem compatibility wasn't reported:
 | ~>0.15.x      | 9.2.x-10.0.x |  Java 8-25 |    1.78-1.83 |
 | ~>0.16.x      | 9.3.x-10.1.x |  Java 8-25 |    1.83-1.86 |
 
+### ML-DSA
+
+| Feature | Minimum provider version |
+|---------|--------------------------|
+| ML-DSA keys, signatures, certificates, CSRs and CRLs | BC 1.80 |
+| ML-DSA mutual TLS | BCJSSE 1.82 |
+
+Java requirements remain those of the selected JRuby version; Java 25 is not
+required. BCJSSE's ML-DSA signature schemes must be explicitly enabled before
+provider initialization.
+
+Pure ML-DSA-44, ML-DSA-65, and ML-DSA-87 keys use the existing generic
+`OpenSSL::PKey::PKey` API:
+
+```ruby
+key = OpenSSL::PKey.generate_key('ML-DSA-65')
+public_key = OpenSSL::PKey.read(key.public_to_pem)
+signature = key.sign(nil, message)
+public_key.verify(nil, signature, message)
+```
+
+`OpenSSL::PKey.read` accepts PEM/DER SubjectPublicKeyInfo and PKCS#8, including
+password-encrypted PKCS#8. Private keys derive their public key through BC.
+`public_to_pem` / `public_to_der` export SubjectPublicKeyInfo;
+`private_to_pem` / `private_to_der` export unencrypted expanded-only PKCS#8. `oid` reports the
+OpenSSL short name (`id-ml-dsa-65`); certificate, CSR, and CRL signature names
+are `ML-DSA-65`. All three parameter sets support certificate, CSR, and CRL
+signing with a `nil` digest, verification, and PEM/DER serialization.
+
+Signatures use pure ML-DSA with an empty context. Explicit digests, HashML-DSA,
+OpenSSL signature/key-generation options, raw-key operations, key agreement,
+and encrypted private-key export are outside this implementation. PKCS#8 import
+supports standard seed-only, seed-and-expanded, and expanded-only keys.
+Prestandard bare encodings emitted by BC 1.80 are not accepted. Inconsistent
+seed/expanded or private/public components are rejected; unlike OpenSSL's
+default, contradictory expanded data is not ignored in favor of the seed. See the
+independent [test fixtures](test/fixtures/mldsa/README.md).
+
+For Net::HTTP client authentication, a default SSL context with an ML-DSA
+credential automatically uses the existing TLS provider selection, normally
+BCJSSE. No Java-specific application code or `ssl_version` setting is needed.
+BCJSSE disables its ML-DSA signature schemes by default; enable them before
+provider initialization. For example, start JRuby with the existing JSSE
+properties (the classical schemes below allow an RSA server certificate):
+
+```sh
+JRUBY_OPTS='-J-Djdk.tls.client.SignatureSchemes=mldsa44,mldsa65,mldsa87,rsa_pss_rsae_sha256,rsa_pkcs1_sha256' jruby client.rb
+```
+
+```ruby
+require 'net/http'
+require 'openssl'
+
+http = Net::HTTP.new('vault.example', 443)
+http.use_ssl = true
+http.min_version = http.max_version = OpenSSL::SSL::TLS1_3_VERSION
+http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+http.verify_hostname = true
+http.ca_file = 'ca.pem'
+http.cert = OpenSSL::X509::Certificate.new(File.read('client.pem'))
+http.key = OpenSSL::PKey.read(File.read('client-key.pem'))
+response = http.get('/v1/example')
+```
+
+The peer must also enable the corresponding ML-DSA client-authentication
+signature schemes. A JRuby BCJSSE server uses the existing
+`jdk.tls.server.SignatureSchemes` property and `SSLContext.new(:TLS)`.
+Contexts without an ML-DSA credential retain their existing provider selection.
+Explicit SSL methods, protocol bounds, and the `jruby.openssl.provider.ssl`
+property remain effective. TLS support depends on both peers and their policy.
+ML-DSA support in the separately distributed FIPS variant is not established
+by these regular-BC tests.
+
 ## Security
 
 JRuby-OpenSSL is an essential part of [JRuby](https://www.jruby.org/), please report security vulnerabilities to

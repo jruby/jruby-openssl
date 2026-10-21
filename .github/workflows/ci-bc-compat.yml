@@ -48,3 +48,11 @@ jobs:
       - name: invoker test (BC ${{ matrix.bc-version }})
         run: ./mvnw -ntp test -f src/it/${{ matrix.bc-version }}/pom.xml
         timeout-minutes: 15
+
+      - name: ML-DSA Net::HTTP mutual TLS acceptance (BCJSSE 1.82 / Java 11)
+        if: matrix.bc-version == '1.82' && matrix.java-version == 11
+        env:
+          JAVA_TOOL_OPTIONS: '-Djruby.openssl.load.jars=false'
+          CLASSPATH: 'src/it/1.82/target/dependency/*'
+        run: jruby -rbundler/setup -S rake test:mldsa_tls
+        timeout-minutes: 5
