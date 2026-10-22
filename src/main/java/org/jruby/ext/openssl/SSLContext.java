@@ -579,34 +579,41 @@ public class SSLContext extends RubyObject {
 
     @JRubyMethod
     public RubyArray ciphers(final ThreadContext context) { // SSL_CTX_get_ciphers
-        return matchedCiphersWithCache(context, this.ciphers);
+        return newSharedArray(matchedCiphersWithCache(context, this.ciphers).cipherList);
     }
 
-    private RubyArray matchedCiphersWithCache(final ThreadContext context, final String ciphers) {
+    private CipherListCache matchedCiphersWithCache(final ThreadContext context, final String ciphers) {
         final CipherListCache cache = cipherListCache;
         if ( protocol.equals(cache.protocol) && ciphers.equals(cache.ciphers) ) {
-            return newSharedArray(cache.cipherList);
+            return cache;
         }
 
-        final RubyArray match = matchedCiphers(context, ciphers);
-        cipherListCache = new CipherListCache(protocol, ciphers, match);
-        return newSharedArray(match);
+        return cipherListCache = matchedCiphers(context, ciphers);
     }
 
-    private RubyArray matchedCiphers(final ThreadContext context, final String ciphers) {
+    private CipherListCache matchedCiphers(final ThreadContext context, final String ciphers) {
         final Ruby runtime = context.runtime;
         try {
             final String[] supported = getSupportedCipherSuites(protocol);
             final Collection<CipherStrings.Def> cipherDefs =
                     CipherStrings.matchingCiphers(ciphers, supported, false);
 
-            final IRubyObject[] cipherList = new IRubyObject[ cipherDefs.size() ];
-
-            int i = 0;
-            for ( CipherStrings.Def def : cipherDefs ) {
-                cipherList[i++] = cipherInfo(context, def).freeze(context);
+            final List<IRubyObject> cipherList = new ArrayList<>(supported.length);
+            for (final String suite : supported) {
+                if (isTLSv13CipherSuite(suite)) {
+                    final CipherStrings.Def def = CipherStrings.suiteToDef(suite);
+                    if (def != null) cipherList.add(cipherInfo(context, def).freeze(context));
+                }
             }
-            return runtime.newArrayNoCopy(cipherList);
+
+            int legacyCipherCount = 0;
+            for ( CipherStrings.Def def : cipherDefs ) {
+                if (isTLSv13CipherSuite(def.name)) continue;
+                cipherList.add(cipherInfo(context, def).freeze(context));
+                legacyCipherCount++;
+            }
+            return new CipherListCache(protocol, ciphers,
+                    runtime.newArrayNoCopy(cipherList.toArray(new IRubyObject[cipherList.size()])), legacyCipherCount);
         }
         catch (GeneralSecurityException gse) {
             throw newSSLError(runtime, gse.getMessage());
@@ -650,7 +657,7 @@ public class SSLContext extends RubyObject {
             cipherString = CipherStrings.SSL_DEFAULT_CIPHER_LIST; // due caching
         }
 
-        if ( matchedCiphersWithCache(context, cipherString).isEmpty() ) {
+        if ( matchedCiphersWithCache(context, cipherString).legacyCipherCount == 0 ) {
             throw newSSLError(context.runtime, "no cipher match");
         }
 
@@ -780,18 +787,20 @@ public class SSLContext extends RubyObject {
         this.verifyResult = verifyResult;
     }
 
-    private static CipherListCache cipherListCache = new CipherListCache(null, null, null);
+    private static CipherListCache cipherListCache = new CipherListCache(null, null, null, 0);
 
     private static class CipherListCache {
         final String protocol;
         final String ciphers;
 
         final RubyArray cipherList;
+        final int legacyCipherCount;
 
-        CipherListCache(String protocol, String ciphers, RubyArray cipherList) {
+        CipherListCache(String protocol, String ciphers, RubyArray cipherList, int legacyCipherCount) {
             this.protocol = protocol;
             this.ciphers = ciphers;
             this.cipherList = cipherList;
+            this.legacyCipherCount = legacyCipherCount;
         }
     }
 
@@ -929,7 +938,7 @@ public class SSLContext extends RubyObject {
         final Ruby runtime = context.runtime;
         return runtime.newArrayNoCopy(
             newUTF8String(runtime, def.name).freeze(context),
-            newUTF8String(runtime, sslVersionString(def.algorithms)).freeze(context),
+            newUTF8String(runtime, isTLSv13CipherSuite(def.name) ? "TLSv1.3" : sslVersionString(def.algorithms)).freeze(context),
             runtime.newFixnum(def.algStrengthBits),
             runtime.newFixnum(def.algBits)
         );

@@ -216,6 +216,23 @@ class TestSSLContext < TestCase
     assert_raise(OpenSSL::SSL::SSLError) { context.ciphers = 'EECDH+FOO' }
   end
 
+  def test_ciphers_preserve_tls13_suites_after_legacy_selection
+    context = OpenSSL::SSL::SSLContext.new
+    tls13 = context.ciphers.select { |_, version, *| version == 'TLSv1.3' }
+    # skip 'TLS 1.3 unavailable' if tls13.empty?
+    aes128 = tls13.find { |name, *| name == 'TLS_AES_128_GCM_SHA256' }
+    assert_equal ['TLS_AES_128_GCM_SHA256', 'TLSv1.3', 128, 128], aes128 if aes128
+
+    context.ciphers = 'AES128'
+    assert_equal tls13, context.ciphers.first(tls13.size)
+
+    context.max_version = OpenSSL::SSL::TLS1_2_VERSION
+    assert_equal tls13, context.ciphers.first(tls13.size)
+    assert OpenSSL::SSL::SSLContext.new(:TLSv1_2).ciphers.any? { |_, version, *| version == 'TLSv1.3' }
+
+    assert_raise(OpenSSL::SSL::SSLError) { context.ciphers = 'TLS_AES_128_GCM_SHA256' }
+  end
+
   def test_set_ciphers_by_cipher_name_in_combined_rule
     context = OpenSSL::SSL::SSLContext.new
     ['AES128+ECDHE-RSA-AES128-GCM-SHA256', 'AES128+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256'].each do |rule|
@@ -269,7 +286,7 @@ class TestSSLContext < TestCase
     assert actual.include?("TLS_AES_256_GCM_SHA384"), actual.inspect
 
     context.ciphers = [ 'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384' ]
-    actual = context.ciphers.map { |cipher| cipher[0] }
+    actual = context.ciphers.reject { |_, version, *| version == 'TLSv1.3' }.map(&:first)
     assert_equal actual, ['ECDHE-RSA-AES256-GCM-SHA384']
   end
 
