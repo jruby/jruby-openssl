@@ -494,6 +494,7 @@ public class CipherStrings {
         private final long mask;
         private final long algStrengthMask;
         private final long requiredAlgorithms;
+        private final int requiredStrengthBits; // 0 matches any
 
         // OpenSSL 1.1.1
         private long algorithm_mkey;
@@ -518,9 +519,14 @@ public class CipherStrings {
             this.mask = mask;
             this.algStrengthMask = maskStrength;
             this.requiredAlgorithms = 0;
+            this.requiredStrengthBits = 0;
         }
 
         Def(String name, long algorithms, long mask, long requiredAlgorithms) {
+            this(name, algorithms, mask, requiredAlgorithms, 0);
+        }
+
+        Def(String name, long algorithms, long mask, long requiredAlgorithms, int requiredStrengthBits) {
             this.valid = false;
             this.name = name;
             this.id = 0;
@@ -531,6 +537,7 @@ public class CipherStrings {
             this.mask = mask;
             this.algStrengthMask = 0;
             this.requiredAlgorithms = requiredAlgorithms;
+            this.requiredStrengthBits = requiredStrengthBits;
         }
 
         Def(String name, long algorithms, long algo_strength, int strength_bits, int alg_bits, long mask, long maskStrength) {
@@ -544,6 +551,7 @@ public class CipherStrings {
             this.mask = mask;
             this.algStrengthMask = maskStrength;
             this.requiredAlgorithms = 0;
+            this.requiredStrengthBits = 0;
         }
 
         Def(int valid, String name, String stdname, /* RFC name */
@@ -578,6 +586,7 @@ public class CipherStrings {
             this.mask = 0;
             this.algStrengthMask = 0;
             this.requiredAlgorithms = 0;
+            this.requiredStrengthBits = 0;
         }
 
 
@@ -636,6 +645,7 @@ public class CipherStrings {
         // from ssl_cipher_apply_rule
         public boolean matches(Def current) {
             if ( (current.algorithms & requiredAlgorithms) != requiredAlgorithms ) return false;
+            if ( requiredStrengthBits != 0 && current.algStrengthBits != requiredStrengthBits ) return false;
 //            ma = mask & cp->algorithms;
 //            ma_s = mask_strength & cp->algo_strength;
 //
@@ -740,11 +750,13 @@ public class CipherStrings {
             return matchingPattern(pattern, all, true, setSuite);
         }
 
-        final Def def = CipherNames.get(name);
+        // an OpenSSL cipher name, or an RFC (Java) suite name
+        final String ossl = CipherNames.containsKey(name) ? name : SuiteToOSSL.get(name);
+        final Def def = ossl == null ? null : CipherNames.get(ossl);
         if (def != null) {
             if (setSuite) {
                 for (final String entry : all) {
-                    if (name.equals(SuiteToOSSL.get(entry))) {
+                    if (ossl.equals(SuiteToOSSL.get(entry))) {
                         return Collections.singleton(def.setCipherSuite(entry));
                     }
                 }
@@ -759,14 +771,13 @@ public class CipherStrings {
         final boolean setSuite) {
         Collection<Def> matching = null;
         for ( final String name : defs ) {
-            final Def pattern = Definitions.get(name);
-            if ( pattern != null ) {
-                if ( matching == null ) {
-                    matching = matchingPattern(pattern, all, true, setSuite);
-                }
-                else {
-                    matching.retainAll( matchingPattern(pattern, all, false, setSuite) );
-                }
+            final Collection<Def> found = matchingExact(name, all, setSuite);
+            if ( found == null ) return null; // unknown name drops the rule (libssl ssl_cipher_process_rulestr)
+            if ( matching == null ) {
+                matching = new LinkedHashSet<Def>(found);
+            }
+            else {
+                matching.retainAll(found);
             }
         }
         return matching;
@@ -847,6 +858,9 @@ public class CipherStrings {
         Definitions.put(SSL_TXT_eNULL,new Def(0,SSL_TXT_eNULL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_eFZA,new Def(0,SSL_TXT_eFZA,0,SSL_eFZA,  0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_AES,new Def(0,SSL_TXT_AES,	0,SSL_AES,   0,0,0,0,SSL_ENC_MASK,0));
+        Definitions.put(SSL_TXT_AES128,new Def(SSL_TXT_AES128,SSL_AES,SSL_ENC_MASK,SSL_AES,128));
+        Definitions.put(SSL_TXT_AES256,new Def(SSL_TXT_AES256,SSL_AES,SSL_ENC_MASK,SSL_AES,256));
+        Definitions.put(SSL_TXT_CHACHA20,new Def(0,SSL_TXT_CHACHA20,0,SSL_CHACHA20,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_MD5,new Def(0,SSL_TXT_MD5,	0,SSL_MD5,   0,0,0,0,SSL_MAC_MASK,0));
         Definitions.put(SSL_TXT_SHA1,new Def(0,SSL_TXT_SHA1,0,SSL_SHA1,  0,0,0,0,SSL_MAC_MASK,0));
         Definitions.put(SSL_TXT_SHA,new Def(0,SSL_TXT_SHA,	0,SSL_SHA,   0,0,0,0,SSL_MAC_MASK,0));

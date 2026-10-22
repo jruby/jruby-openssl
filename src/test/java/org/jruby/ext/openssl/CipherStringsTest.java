@@ -54,8 +54,49 @@ public class CipherStringsTest {
         ), javaNames);
     }
 
+    private static final String[] ENC_SUITES = {
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+        "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
+        "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+    };
+
+    @Test
+    public void encryptionSelectorsMatchKeySize() {
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256", "DHE-RSA-AES128-SHA"), names("AES128", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-AES256-GCM-SHA384"), names("AES256", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-CHACHA20-POLY1305", "DHE-RSA-CHACHA20-POLY1305"), names("CHACHA20", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-CHACHA20-POLY1305"), names("EECDH+CHACHA20", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("EECDH+AES128", ENC_SUITES));
+    }
+
+    @Test
+    public void unknownAliasVoidsCombinedRule() {
+        assertEquals(Arrays.asList(), names("EECDH+FOO", ENC_SUITES));
+        assertEquals(Arrays.asList(), names("FOO+EECDH", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-AES256-GCM-SHA384"), names("EECDH+FOO:EECDH+AES256", ENC_SUITES));
+    }
+
+    @Test
+    public void combinedRuleAcceptsCipherNames() {
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("AES128+ECDHE-RSA-AES128-GCM-SHA256", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("ECDHE-RSA-AES128-GCM-SHA256+AES128", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("AES128+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", ENC_SUITES));
+        assertEquals(Arrays.asList(), names("AES256+ECDHE-RSA-AES128-GCM-SHA256", ENC_SUITES));
+    }
+
+    @Test
+    public void rfcCipherName() {
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", ENC_SUITES));
+    }
+
     private static List<String> names(final String selector) {
-        final Collection<CipherStrings.Def> ciphers = CipherStrings.matchingCiphers(selector, SUITES, false);
+        return names(selector, SUITES);
+    }
+
+    private static List<String> names(final String selector, final String[] suites) {
+        final Collection<CipherStrings.Def> ciphers = CipherStrings.matchingCiphers(selector, suites, false);
         final List<String> names = new ArrayList<>(ciphers.size());
         for (final CipherStrings.Def cipher : ciphers) names.add(cipher.name);
         return names;
