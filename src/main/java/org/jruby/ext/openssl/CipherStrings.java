@@ -494,6 +494,7 @@ public class CipherStrings {
         private final long mask;
         private final long algStrengthMask;
         private final long requiredAlgorithms;
+        private int requiredStrengthBits; // 0 matches any
 
         // OpenSSL 1.1.1
         private long algorithm_mkey;
@@ -607,6 +608,17 @@ public class CipherStrings {
             }
         }
 
+        Def withStrengthBits(final int bits) {
+            try {
+                Def clone = (Def) super.clone();
+                clone.requiredStrengthBits = bits;
+                return clone;
+            }
+            catch (CloneNotSupportedException e) {
+                throw new AssertionError(e); // won't happen
+            }
+        }
+
         @Override
         public int hashCode() {
             return name.hashCode();
@@ -636,6 +648,7 @@ public class CipherStrings {
         // from ssl_cipher_apply_rule
         public boolean matches(Def current) {
             if ( (current.algorithms & requiredAlgorithms) != requiredAlgorithms ) return false;
+            if ( requiredStrengthBits != 0 && current.algStrengthBits != requiredStrengthBits ) return false;
 //            ma = mask & cp->algorithms;
 //            ma_s = mask_strength & cp->algo_strength;
 //
@@ -760,13 +773,12 @@ public class CipherStrings {
         Collection<Def> matching = null;
         for ( final String name : defs ) {
             final Def pattern = Definitions.get(name);
-            if ( pattern != null ) {
-                if ( matching == null ) {
-                    matching = matchingPattern(pattern, all, true, setSuite);
-                }
-                else {
-                    matching.retainAll( matchingPattern(pattern, all, false, setSuite) );
-                }
+            if ( pattern == null ) return null; // unknown name drops the rule (libssl ssl_cipher_process_rulestr)
+            if ( matching == null ) {
+                matching = matchingPattern(pattern, all, true, setSuite);
+            }
+            else {
+                matching.retainAll( matchingPattern(pattern, all, false, setSuite) );
             }
         }
         return matching;
@@ -847,6 +859,9 @@ public class CipherStrings {
         Definitions.put(SSL_TXT_eNULL,new Def(0,SSL_TXT_eNULL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_eFZA,new Def(0,SSL_TXT_eFZA,0,SSL_eFZA,  0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_AES,new Def(0,SSL_TXT_AES,	0,SSL_AES,   0,0,0,0,SSL_ENC_MASK,0));
+        Definitions.put(SSL_TXT_AES128,new Def(0,SSL_TXT_AES128,0,SSL_AES,0,0,0,0,SSL_ENC_MASK,0).withStrengthBits(128));
+        Definitions.put(SSL_TXT_AES256,new Def(0,SSL_TXT_AES256,0,SSL_AES,0,0,0,0,SSL_ENC_MASK,0).withStrengthBits(256));
+        Definitions.put(SSL_TXT_CHACHA20,new Def(0,SSL_TXT_CHACHA20,0,SSL_CHACHA20,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_MD5,new Def(0,SSL_TXT_MD5,	0,SSL_MD5,   0,0,0,0,SSL_MAC_MASK,0));
         Definitions.put(SSL_TXT_SHA1,new Def(0,SSL_TXT_SHA1,0,SSL_SHA1,  0,0,0,0,SSL_MAC_MASK,0));
         Definitions.put(SSL_TXT_SHA,new Def(0,SSL_TXT_SHA,	0,SSL_SHA,   0,0,0,0,SSL_MAC_MASK,0));

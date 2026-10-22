@@ -200,6 +200,22 @@ class TestSSLContext < TestCase
     end
   end
 
+  def test_set_ciphers_by_encryption_alias
+    context = OpenSSL::SSL::SSLContext.new
+    context.ciphers = 'EECDH+CHACHA20:EECDH+AES128'
+    selected = context.ciphers.map(&:first)
+    assert_include selected, 'ECDHE-RSA-CHACHA20-POLY1305'
+    assert_include selected, 'ECDHE-RSA-AES128-GCM-SHA256'
+    assert_not_include selected, 'ECDHE-RSA-AES256-GCM-SHA384'
+
+    context.ciphers = 'AES256'
+    selected = context.ciphers.map(&:first)
+    assert_include selected, 'ECDHE-RSA-AES256-GCM-SHA384'
+    assert_not_include selected, 'ECDHE-RSA-AES128-GCM-SHA256'
+
+    assert_raise(OpenSSL::SSL::SSLError) { context.ciphers = 'EECDH+FOO' }
+  end
+
   def test_set_ciphers_by_cipher_name
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384"
