@@ -494,7 +494,7 @@ public class CipherStrings {
         private final long mask;
         private final long algStrengthMask;
         private final long requiredAlgorithms;
-        private int requiredStrengthBits; // 0 matches any
+        private final int requiredStrengthBits; // 0 matches any
 
         // OpenSSL 1.1.1
         private long algorithm_mkey;
@@ -519,9 +519,14 @@ public class CipherStrings {
             this.mask = mask;
             this.algStrengthMask = maskStrength;
             this.requiredAlgorithms = 0;
+            this.requiredStrengthBits = 0;
         }
 
         Def(String name, long algorithms, long mask, long requiredAlgorithms) {
+            this(name, algorithms, mask, requiredAlgorithms, 0);
+        }
+
+        Def(String name, long algorithms, long mask, long requiredAlgorithms, int requiredStrengthBits) {
             this.valid = false;
             this.name = name;
             this.id = 0;
@@ -532,6 +537,7 @@ public class CipherStrings {
             this.mask = mask;
             this.algStrengthMask = 0;
             this.requiredAlgorithms = requiredAlgorithms;
+            this.requiredStrengthBits = requiredStrengthBits;
         }
 
         Def(String name, long algorithms, long algo_strength, int strength_bits, int alg_bits, long mask, long maskStrength) {
@@ -545,6 +551,7 @@ public class CipherStrings {
             this.mask = mask;
             this.algStrengthMask = maskStrength;
             this.requiredAlgorithms = 0;
+            this.requiredStrengthBits = 0;
         }
 
         Def(int valid, String name, String stdname, /* RFC name */
@@ -579,6 +586,7 @@ public class CipherStrings {
             this.mask = 0;
             this.algStrengthMask = 0;
             this.requiredAlgorithms = 0;
+            this.requiredStrengthBits = 0;
         }
 
 
@@ -601,17 +609,6 @@ public class CipherStrings {
             try {
                 Def clone = (Def) super.clone();
                 clone.cipherSuite = suite;
-                return clone;
-            }
-            catch (CloneNotSupportedException e) {
-                throw new AssertionError(e); // won't happen
-            }
-        }
-
-        Def withStrengthBits(final int bits) {
-            try {
-                Def clone = (Def) super.clone();
-                clone.requiredStrengthBits = bits;
                 return clone;
             }
             catch (CloneNotSupportedException e) {
@@ -859,8 +856,8 @@ public class CipherStrings {
         Definitions.put(SSL_TXT_eNULL,new Def(0,SSL_TXT_eNULL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_eFZA,new Def(0,SSL_TXT_eFZA,0,SSL_eFZA,  0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_AES,new Def(0,SSL_TXT_AES,	0,SSL_AES,   0,0,0,0,SSL_ENC_MASK,0));
-        Definitions.put(SSL_TXT_AES128,new Def(0,SSL_TXT_AES128,0,SSL_AES,0,0,0,0,SSL_ENC_MASK,0).withStrengthBits(128));
-        Definitions.put(SSL_TXT_AES256,new Def(0,SSL_TXT_AES256,0,SSL_AES,0,0,0,0,SSL_ENC_MASK,0).withStrengthBits(256));
+        Definitions.put(SSL_TXT_AES128,new Def(SSL_TXT_AES128,SSL_AES,SSL_ENC_MASK,SSL_AES,128));
+        Definitions.put(SSL_TXT_AES256,new Def(SSL_TXT_AES256,SSL_AES,SSL_ENC_MASK,SSL_AES,256));
         Definitions.put(SSL_TXT_CHACHA20,new Def(0,SSL_TXT_CHACHA20,0,SSL_CHACHA20,0,0,0,0,SSL_ENC_MASK,0));
         Definitions.put(SSL_TXT_MD5,new Def(0,SSL_TXT_MD5,	0,SSL_MD5,   0,0,0,0,SSL_MAC_MASK,0));
         Definitions.put(SSL_TXT_SHA1,new Def(0,SSL_TXT_SHA1,0,SSL_SHA1,  0,0,0,0,SSL_MAC_MASK,0));
