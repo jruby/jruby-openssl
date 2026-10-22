@@ -216,6 +216,23 @@ class TestSSLContext < TestCase
     assert_raise(OpenSSL::SSL::SSLError) { context.ciphers = 'EECDH+FOO' }
   end
 
+  def test_set_ciphers_by_cipher_name_in_combined_rule
+    context = OpenSSL::SSL::SSLContext.new
+    ['AES128+ECDHE-RSA-AES128-GCM-SHA256', 'AES128+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256'].each do |rule|
+      context.ciphers = rule
+      selected = context.ciphers.reject { |_, version, *| version == 'TLSv1.3' }.map(&:first)
+      assert_equal ['ECDHE-RSA-AES128-GCM-SHA256'], selected, rule
+    end
+
+    assert_raise(OpenSSL::SSL::SSLError) { context.ciphers = 'AES256+ECDHE-RSA-AES128-GCM-SHA256' }
+  end
+
+  def test_set_ciphers_by_rfc_name
+    context = OpenSSL::SSL::SSLContext.new
+    context.ciphers = 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256'
+    assert_equal ['ECDHE-RSA-AES128-GCM-SHA256'], context.ciphers.reject { |_, version, *| version == 'TLSv1.3' }.map(&:first)
+  end
+
   def test_set_ciphers_by_cipher_name
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384"

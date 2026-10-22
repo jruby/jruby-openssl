@@ -78,6 +78,19 @@ public class CipherStringsTest {
         assertEquals(Arrays.asList("ECDHE-RSA-AES256-GCM-SHA384"), names("EECDH+FOO:EECDH+AES256", ENC_SUITES));
     }
 
+    @Test
+    public void combinedRuleAcceptsCipherNames() {
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("AES128+ECDHE-RSA-AES128-GCM-SHA256", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("ECDHE-RSA-AES128-GCM-SHA256+AES128", ENC_SUITES));
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("AES128+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", ENC_SUITES));
+        assertEquals(Arrays.asList(), names("AES256+ECDHE-RSA-AES128-GCM-SHA256", ENC_SUITES));
+    }
+
+    @Test
+    public void rfcCipherName() {
+        assertEquals(Arrays.asList("ECDHE-RSA-AES128-GCM-SHA256"), names("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", ENC_SUITES));
+    }
+
     private static List<String> names(final String selector) {
         return names(selector, SUITES);
     }

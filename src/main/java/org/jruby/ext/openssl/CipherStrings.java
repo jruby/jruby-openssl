@@ -750,11 +750,13 @@ public class CipherStrings {
             return matchingPattern(pattern, all, true, setSuite);
         }
 
-        final Def def = CipherNames.get(name);
+        // an OpenSSL cipher name, or an RFC (Java) suite name
+        final String ossl = CipherNames.containsKey(name) ? name : SuiteToOSSL.get(name);
+        final Def def = ossl == null ? null : CipherNames.get(ossl);
         if (def != null) {
             if (setSuite) {
                 for (final String entry : all) {
-                    if (name.equals(SuiteToOSSL.get(entry))) {
+                    if (ossl.equals(SuiteToOSSL.get(entry))) {
                         return Collections.singleton(def.setCipherSuite(entry));
                     }
                 }
@@ -769,13 +771,13 @@ public class CipherStrings {
         final boolean setSuite) {
         Collection<Def> matching = null;
         for ( final String name : defs ) {
-            final Def pattern = Definitions.get(name);
-            if ( pattern == null ) return null; // unknown name drops the rule (libssl ssl_cipher_process_rulestr)
+            final Collection<Def> found = matchingExact(name, all, setSuite);
+            if ( found == null ) return null; // unknown name drops the rule (libssl ssl_cipher_process_rulestr)
             if ( matching == null ) {
-                matching = matchingPattern(pattern, all, true, setSuite);
+                matching = new LinkedHashSet<Def>(found);
             }
             else {
-                matching.retainAll( matchingPattern(pattern, all, false, setSuite) );
+                matching.retainAll(found);
             }
         }
         return matching;
