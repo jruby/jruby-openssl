@@ -13,11 +13,13 @@ import java.io.OutputStream;
 import java.security.Key;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.KeyStoreSpi;
 import java.security.cert.Certificate;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -29,11 +31,11 @@ final class SSLKeyStore extends KeyStore {
 
     SSLKeyStore(Map<String, PrivateKeyEntry> entries) throws GeneralSecurityException, IOException {
         super(new Store(entries), null, "JOSSL");
-        load(null, null); // so that the store is initialized (doe spi.engineLoad)
+        load(null, null); // marks the store initialized through spi.engineLoad
     }
 
     private static final class Store extends KeyStoreSpi {
-        private final Map<String, PrivateKeyEntry> entries; // we're using a LinkedHashMap
+        private final Map<String, PrivateKeyEntry> entries;
 
         Store(Map<String, PrivateKeyEntry> entries) {
             this.entries = entries;
@@ -96,23 +98,23 @@ final class SSLKeyStore extends KeyStore {
         }
 
         @Override
-        public void engineSetKeyEntry(String alias, Key key, char[] password, Certificate[] chain) {
-            throw new UnsupportedOperationException("read-only TLS credentials");
+        public void engineSetKeyEntry(String alias, Key key, char[] password, Certificate[] chain) throws KeyStoreException {
+            throw new KeyStoreException("read-only TLS credentials");
         }
 
         @Override
-        public void engineSetKeyEntry(String alias, byte[] key, Certificate[] chain) {
-            throw new UnsupportedOperationException("read-only TLS credentials");
+        public void engineSetKeyEntry(String alias, byte[] key, Certificate[] chain) throws KeyStoreException {
+            throw new KeyStoreException("read-only TLS credentials");
         }
 
         @Override
-        public void engineSetCertificateEntry(String alias, Certificate cert) {
-            throw new UnsupportedOperationException("read-only TLS credentials");
+        public void engineSetCertificateEntry(String alias, Certificate cert) throws KeyStoreException {
+            throw new KeyStoreException("read-only TLS credentials");
         }
 
         @Override
-        public void engineDeleteEntry(String alias) {
-            throw new UnsupportedOperationException("read-only TLS credentials");
+        public void engineDeleteEntry(String alias) throws KeyStoreException {
+            throw new KeyStoreException("read-only TLS credentials");
         }
 
         @Override
@@ -121,12 +123,12 @@ final class SSLKeyStore extends KeyStore {
         }
 
         @Override
-        public void engineLoad(InputStream stream, char[] password) throws IOException {
-            if (stream != null) throw new IOException("read-only TLS credentials");
+        public void engineLoad(InputStream stream, char[] password) {
+            if (stream != null) throw new UnsupportedOperationException("read-only TLS credentials");
         }
 
         @Override
-        public void engineLoad(final LoadStoreParameter param) throws IOException {
+        public void engineLoad(final LoadStoreParameter param) {
             engineLoad((InputStream) null, (char[]) null);
         }
     }
