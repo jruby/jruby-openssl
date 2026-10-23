@@ -3,7 +3,7 @@ name: integration test
 on: [push, pull_request]
 
 env:
-  JRUBY_OPTS: '-J-ea'
+  JRUBY_OPTS: '-J-ea -J-Djruby.openssl.debug=true'
   MAVEN_OPTS: '-Dstyle.color=always' # force Maven colored output
 
 # hits live services (badssl.com, howsmyssl.com, check-tls.akamai.io, rubygems.org, ...)
