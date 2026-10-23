@@ -1092,6 +1092,7 @@ public class StoreContext {
                     ASN1OctetString oct = ASN1OctetString.getInstance(constaintsBytes);
                     constraints = NameConstraints.getInstance(ASN1Sequence.getInstance(oct.getOctets()));
                 } catch (Exception e) {
+                    LOG.debugStack("checkNameConstraints extension decode", e);
                     if (verify_cb_cert(x, i, V_ERR_UNSPECIFIED) == 0) return 0;
                     continue;
                 }
@@ -1831,14 +1832,12 @@ public class StoreContext {
         return null; // xtmp = null
     }
 
-    /*
+    /**
      * Inform the verify callback of an error.
-     * If B<x> is not NULL it is the error cert, otherwise use the chain cert at
-     * B<depth>.
-     * If B<err> is not X509_V_OK, that's the error value, otherwise leave
-     * unchanged (presumably set by the caller).
+     * If B<x> is not NULL it is the error cert, otherwise use the chain cert at B<depth>.
+     * If B<err> is not X509_V_OK, that's the error value, otherwise leave unchanged (presumably set by the caller).
      *
-     * Returns 0 to abort verification with an error, non-zero to continue.
+     * @return 0 to abort verification with an error, non-zero to continue
      */
     private int verify_cb_cert(X509AuxCertificate x, int depth, int err) throws Exception {
         this.error_depth = depth;
@@ -1847,12 +1846,11 @@ public class StoreContext {
         return verifyCallback.call(this, 0); // ctx->verify_cb(0, ctx)
     }
 
-    /*-
-     * Inform the verify callback of an error, CRL-specific variant.  Here, the
-     * error depth and certificate are already set, we just specify the error
-     * number.
+    /**
+     * Inform the verify callback of an error, CRL-specific variant.
+     * Here, the error depth and certificate are already set, we just specify the error number.
      *
-     * Returns 0 to abort verification with an error, non-zero to continue.
+     * @return 0 to abort verification with an error, non-zero to continue
      */
     private int verify_cb_crl(int err) throws Exception {
         this.error = err;
@@ -1942,14 +1940,12 @@ public class StoreContext {
     private static boolean internal_verify_check_cert(
             final StoreContext ctx, X509AuxCertificate xi, X509AuxCertificate xs, int n)
             throws Exception {
-        /* Calls verify callback as needed */
+        // calls verify callback as needed:
         if (!ctx.x509_check_cert_time(xs, n))
             return false;
 
-        /*
-         * Signal success at this depth.  However, the previous error (if any)
-         * is retained.
-         */
+        // signal success at this depth;
+        // however, the previous error (if any) is retained
         ctx.current_issuer = xi;
         ctx.current_cert = xs;
         ctx.error_depth = n;
@@ -1969,6 +1965,7 @@ public class StoreContext {
         try {
             xs.verify(pkey);
         } catch (Exception e) {
+            LOG.debugStack("X509_verify", e);
             return false;
         }
         return xs.verified = true;
@@ -2046,9 +2043,6 @@ public class StoreContext {
         return 1;
     };
 
-    /**
-     * c: get_crl
-     */
     // issuing distribution point (2.5.29.28) scope of a CRL relative to a cert
     static final int IDP_SCOPE_OK = 0;        // in scope
     static final int IDP_SCOPE_DIFFERENT = 1; // onlyUser/onlyCA/onlyAttr mismatch

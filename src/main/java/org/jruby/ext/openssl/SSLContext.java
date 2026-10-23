@@ -434,11 +434,11 @@ public class SSLContext extends RubyObject {
         if (caFile != null || caPath != null) {
             try {
                 if (store.loadLocations(runtime, caFile, caPath) == 0) {
-                    LOG.warn(runtime, "can't set verify locations");
+                    LOG.warn(runtime, "doSetup can't set verify locations");
                 }
             }
             catch (Exception e) {
-                if ( e instanceof RuntimeException ) LOG.debugStack(runtime, null, e);
+                LOG.debugStack(runtime, "doSetup", e);
                 throw newSSLError(runtime, e);
             }
         }
@@ -1391,7 +1391,7 @@ public class SSLContext extends RubyObject {
                 }
                 storeContext.setCertificate(chain[0]);
                 storeContext.setChain(chain);
-                verifyChain(storeContext, verifyPeer);
+                verifyCertChain(storeContext, verifyPeer);
             } else {
                 if ( "ssl_client".equals(purpose) && verifyPeer
                         && (verifyMode & SSL.VERIFY_FAIL_IF_NO_PEER_CERT) != 0 ) {
@@ -1400,7 +1400,7 @@ public class SSLContext extends RubyObject {
             }
         }
 
-        private void verifyChain(final StoreContext storeContext, final boolean raiseOnFailure) throws CertificateException {
+        private void verifyCertChain(final StoreContext storeContext, final boolean raiseOnFailure) throws CertificateException {
             final int ok;
             try {
                 ok = storeContext.verifyCertificate();
@@ -1413,6 +1413,7 @@ public class SSLContext extends RubyObject {
                 if ( raiseOnFailure ) {
                     throw new CertificateException("certificate verify failed", e);
                 }
+                LOG.debugStack("verifyCertChain (failure retained in verify_result)", e);
                 return;
             }
 

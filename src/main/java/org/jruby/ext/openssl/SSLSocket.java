@@ -340,13 +340,13 @@ public class SSLSocket extends RubyObject {
             if ( ex != null ) return ex; // :wait_readable | :wait_writable
         }
         catch (SSLHandshakeException e) {
-            //debugStackTrace(runtime, e);
+            LOG.debug(context.runtime, "connectImpl", e);
             // unlike server side, client should close outbound channel even if we have remaining data to be sent
             forceClose();
             throw newSSLErrorFromHandshake(context.runtime, e);
         }
         catch (IOException e) {
-            //debugStackTrace(context.runtime, e);
+            LOG.debug(context.runtime, "connectImpl", e);
             forceClose();
             throw newSSLError(context.runtime, e);
         }
