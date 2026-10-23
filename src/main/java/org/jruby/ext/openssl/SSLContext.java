@@ -29,6 +29,7 @@ package org.jruby.ext.openssl;
 
 import java.net.Socket;
 import java.io.IOException;
+import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -42,6 +43,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.CertificateException;
@@ -49,7 +51,6 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
 
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSessionContext;
@@ -1118,11 +1119,21 @@ public class SSLContext extends RubyObject {
 
         if (cert != null && key != null && key.getPrivateKey() != null && cert.getAuxCert() != null) {
             final X509AuxCertificate leaf = cert.getAuxCert();
+            final PublicKey certPublicKey = leaf.getPublicKey();
             final PublicKey publicKey = key.getPublicKey();
-            if (publicKey == null || !Arrays.equals(leaf.getPublicKey().getEncoded(), publicKey.getEncoded())) {
+            if (certPublicKey == null || publicKey == null ||
+                    !Arrays.equals(certPublicKey.getEncoded(), publicKey.getEncoded())) {
                 throw newSSLError(getRuntime(), "certificate and private key do not match");
             }
-            putCredential(credentials, leaf, key.getPrivateKey(), extraChainCert);
+            putCredential(credentials, leaf, key.getPrivateKey(), null);
+        }
+        if (extraChainCert != null) { // explicit add_certificate chains take priority over shared chain
+            for (Map.Entry<String, Credential> entry : credentials.entrySet()) {
+                final Credential credential = entry.getValue();
+                if (credential.chain == null) {
+                    entry.setValue(new Credential(credential.leaf, credential.privateKey, extraChainCert));
+                }
+            }
         }
         return credentials;
     }
@@ -1178,26 +1189,17 @@ public class SSLContext extends RubyObject {
 
         void initSSLContext(final ThreadContext context, final Map<String, Credential> credentials)
             throws GeneralSecurityException, IOException {
-            final Map<String, KeyStore.PrivateKeyEntry> entries = new LinkedHashMap<>();
+
+            final LinkedHashMap<String, KeyStore.PrivateKeyEntry> entries = new LinkedHashMap<>();
+            final boolean usingSunProvider = "SunJSSE".equals(sslContext.getProvider().getName());
+
             for (Map.Entry<String, Credential> entry : credentials.entrySet()) {
                 final Credential credential = entry.getValue();
                 final X509Certificate[] chain = outputCertChain(credential);
                 PrivateKey privateKey = credential.privateKey;
-                final String algorithm = chain[0].getPublicKey().getAlgorithm();
-                if (PKeyEdDSA.isEdDSAAlgorithm(algorithm) && "SunJSSE".equals(sslContext.getProvider().getName())) {
-                    // both keys must report EdDSA to SunJSSE
-                    final KeyFactory keyFactory = KeyFactory.getInstance("EdDSA", "SunEC");
-                    if (!"EdDSA".equals(privateKey.getAlgorithm())) {
-                        privateKey = (PrivateKey) keyFactory.translateKey(privateKey);
-                    }
-                    if (!"EdDSA".equals(algorithm)) {
-                        final PublicKey publicKey = (PublicKey) keyFactory.translateKey(chain[0].getPublicKey());
-                        // expose SunEC key without changing certificate bytes (SUN parsing can still pick BC)
-                        chain[0] = new X509AuxCertificate(chain[0]) {
-                            @Override
-                            public PublicKey getPublicKey() { return publicKey; }
-                        };
-                    }
+                if (usingSunProvider) {
+                    privateKey = translateKeysForSunEngineIfNecessary(chain, chain[0].getPublicKey(), privateKey);
+                    if (privateKey == null) continue; // NOTE: key type not supported - best we can do is to skip?
                 }
                 entries.put(entry.getKey(), new KeyStore.PrivateKeyEntry(privateKey, chain));
             }
@@ -1226,6 +1228,33 @@ public class SSLContext extends RubyObject {
                     serverContext.setSessionCacheSize(sessionCacheSize);
                 }
             }
+        }
+
+        private PrivateKey translateKeysForSunEngineIfNecessary(final X509Certificate[] chain,
+                                                                final PublicKey publicKey,
+                                                                PrivateKey privateKey) throws InvalidKeyException {
+            if (PKeyEdDSA.isEdDSAAlgorithm(publicKey.getAlgorithm())) {
+                final KeyFactory keyFactory;
+                try {
+                    keyFactory = KeyFactory.getInstance("EdDSA", "SunEC");
+                } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+                    return null; // older SunJSSE can still use other configured credential types
+                }
+
+                // both keys must report EdDSA to SunJSSE
+                if (!"EdDSA".equals(privateKey.getAlgorithm())) {
+                    privateKey = (PrivateKey) keyFactory.translateKey(privateKey);
+                }
+                if (!"EdDSA".equals(publicKey.getAlgorithm())) {
+                    final PublicKey newPublicKey = (PublicKey) keyFactory.translateKey(publicKey);
+                    // expose SunEC key without changing certificate bytes (SUN parsing can still pick BC)
+                    chain[0] = new X509AuxCertificate(chain[0]) {
+                        @Override
+                        public PublicKey getPublicKey() { return newPublicKey; }
+                    };
+                }
+            }
+            return privateKey; // publicKey is replaced in the chain directly
         }
 
         final Store store;
@@ -1276,10 +1305,11 @@ public class SSLContext extends RubyObject {
                 return chain;
             }
 
-            final ArrayList<X509Certificate> chain = new ArrayList<>(8);
             final StoreContext storeCtx = createStoreContext(null);
-            assert storeCtx != null;
+            // store may be absent or fail init - still send the configured leaf
+            if (storeCtx == null) return new X509Certificate[] { credential.leaf };
 
+            final ArrayList<X509Certificate> chain = new ArrayList<>(8);
             X509AuxCertificate x = credential.leaf;
             while (!chain.contains(x)) {
 
