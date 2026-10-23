@@ -40,6 +40,7 @@ import java.util.Set;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
+import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -59,8 +60,8 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
@@ -558,29 +559,35 @@ public class SSLContext extends RubyObject {
             extraChain = null;
         }
 
-        final String alias = keyAlgorithmId(certPublicKey).getId();
-        final Credential previous = addedCredentials.get(alias);
-        addedCredentials.put(alias, new Credential(alias, auxCert, privateKey,
-                extraChain == null && previous != null ? previous.chain : extraChain));
+        putCredential(addedCredentials, auxCert, privateKey, extraChain);
 
         return this;
     }
 
     private static class Credential {
-        final String alias;
         final X509AuxCertificate leaf;
         final PrivateKey privateKey;
         final List<X509AuxCertificate> chain; // null => build from the cert store
 
-        Credential(final String alias,
-                   final X509AuxCertificate leaf,
+        Credential(final X509AuxCertificate leaf,
                    final PrivateKey privateKey,
                    final List<X509AuxCertificate> chain) {
-            this.alias = alias;
             this.leaf = leaf;
             this.privateKey = privateKey;
             this.chain = chain;
         }
+    }
+
+    // one credential per key algorithm OID (all EC curves share a slot - like in OpenSSL)
+    private static void putCredential(final Map<String, Credential> credentials,
+                                      final X509AuxCertificate leaf,
+                                      final PrivateKey privateKey,
+                                      final List<X509AuxCertificate> chain) {
+        final String alias = keyAlgorithmId(leaf.getPublicKey()).getId();
+        final Credential previous = credentials.get(alias);
+        // a replaced certificate keeps its slot's chain unless a new one is given
+        final List<X509AuxCertificate> effectiveChain = chain == null && previous != null ? previous.chain : chain;
+        credentials.put(alias, new Credential(leaf, privateKey, effectiveChain));
     }
 
     private static ASN1ObjectIdentifier keyAlgorithmId(final PublicKey publicKey) {
@@ -1105,9 +1112,9 @@ public class SSLContext extends RubyObject {
         return (RubyClass) _SSL(runtime).getConstantAt("SSLContext");
     }
 
-    private List<Credential> buildCredentials(final X509Cert cert, final PKey key,
-                                              final List<X509AuxCertificate> extraChainCert) {
-        final LinkedHashMap<String, Credential> credentials = new LinkedHashMap<>(addedCredentials);
+    private Map<String, Credential> buildCredentials(final X509Cert cert, final PKey key,
+                                                     final List<X509AuxCertificate> extraChainCert) {
+        final Map<String, Credential> credentials = new LinkedHashMap<>(addedCredentials);
 
         if (cert != null && key != null && key.getPrivateKey() != null && cert.getAuxCert() != null) {
             final X509AuxCertificate leaf = cert.getAuxCert();
@@ -1115,31 +1122,28 @@ public class SSLContext extends RubyObject {
             if (publicKey == null || !Arrays.equals(leaf.getPublicKey().getEncoded(), publicKey.getEncoded())) {
                 throw newSSLError(getRuntime(), "certificate and private key do not match");
             }
-            final String alias = keyAlgorithmId(leaf.getPublicKey()).getId();
-            final Credential previous = credentials.get(alias);
-            credentials.put(alias, new Credential(alias, leaf, key.getPrivateKey(),
-                    extraChainCert == null && previous != null ? previous.chain : extraChainCert));
+            putCredential(credentials, leaf, key.getPrivateKey(), extraChainCert);
         }
-        return new ArrayList<>(credentials.values());
+        return credentials;
     }
 
     private InternalContext initSSLContext(ThreadContext context,
         final Store store, final List<X509AuxCertificate> clientCA,
         final int verifyMode, final IRubyObject verifyCallback, final int verifyDepth, final int timeout,
-        final String[] alpnProtocols, final RubyProc alpnSelectCb, final List<Credential> certsAndKeys) {
+        final String[] alpnProtocols, final RubyProc alpnSelectCb, final Map<String, Credential> credentials) {
 
         final InternalContext internalContext;
         try {
             internalContext = new InternalContext(
                     store, clientCA,
                     verifyMode, verifyCallback, verifyDepth,
-                    timeout, alpnProtocols, alpnSelectCb,
-                    certsAndKeys
+                    timeout, alpnProtocols, alpnSelectCb
             );
-            internalContext.initSSLContext(context);
+            internalContext.initSSLContext(context, credentials);
         }
-        catch (GeneralSecurityException | IOException | IllegalStateException e) {
-            // IllegalStateException from BC random initialization: "RDSEED persistently failed to produce entropy"
+        catch (GeneralSecurityException | IOException | IllegalStateException | IllegalArgumentException e) {
+            // IllegalStateException - BC random initialization: "RDSEED persistently failed to produce entropy"
+            // IllegalArgumentException - PrivateKeyEntry: key and certificate algorithm names differ
             throw newSSLError(context.runtime, e);
         }
         return internalContext;
@@ -1158,10 +1162,7 @@ public class SSLContext extends RubyObject {
             final int verifyDepth,
             final int timeout,
             final String[] alpnProtocols,
-            final RubyProc alpnSelectCallback,
-            final List<Credential> certsAndKeys) throws NoSuchAlgorithmException {
-
-            this.credentials = certsAndKeys;
+            final RubyProc alpnSelectCallback) throws NoSuchAlgorithmException {
 
             this.store = store;
             this.clientCA = clientCA;
@@ -1175,9 +1176,11 @@ public class SSLContext extends RubyObject {
             this.sslContext = SecurityHelper.getSSLContext(protocol);
         }
 
-        void initSSLContext(final ThreadContext context) throws GeneralSecurityException, IOException {
-            final LinkedHashMap<String, SSLKeyStore.Entry> entries = new LinkedHashMap<>();
-            for (Credential credential : credentials) {
+        void initSSLContext(final ThreadContext context, final Map<String, Credential> credentials)
+            throws GeneralSecurityException, IOException {
+            final Map<String, KeyStore.PrivateKeyEntry> entries = new LinkedHashMap<>();
+            for (Map.Entry<String, Credential> entry : credentials.entrySet()) {
+                final Credential credential = entry.getValue();
                 final X509Certificate[] chain = outputCertChain(credential);
                 PrivateKey privateKey = credential.privateKey;
                 final String algorithm = chain[0].getPublicKey().getAlgorithm();
@@ -1196,7 +1199,7 @@ public class SSLContext extends RubyObject {
                         };
                     }
                 }
-                entries.put(credential.alias, new SSLKeyStore.Entry(privateKey, chain));
+                entries.put(entry.getKey(), new KeyStore.PrivateKeyEntry(privateKey, chain));
             }
             final KeyManagerFactory keyManager = KeyManagerFactory.getInstance("PKIX", sslContext.getProvider());
             keyManager.init(new SSLKeyStore(entries), null);
@@ -1230,9 +1233,6 @@ public class SSLContext extends RubyObject {
         final int verifyMode;
         final IRubyObject verifyCallback; // null when unset
         final int verifyDepth; // -1 when unset
-
-        // one or more server/client credentials; empty when no cert/key configured
-        final List<Credential> credentials;
 
         // @client_ca - CAs whose names go into the CertificateRequest message
         final List<X509AuxCertificate> clientCA; // assumed always != null

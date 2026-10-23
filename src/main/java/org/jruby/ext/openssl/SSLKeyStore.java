@@ -14,9 +14,7 @@ import java.security.Key;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.KeyStoreSpi;
-import java.security.PrivateKey;
 import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
@@ -29,44 +27,34 @@ import java.util.Map;
  */
 final class SSLKeyStore extends KeyStore {
 
-    static final class Entry {
-        private final PrivateKey key;
-        private final X509Certificate[] chain;
-
-        Entry(PrivateKey key, X509Certificate[] chain) {
-            this.key = key;
-            this.chain = chain;
-        }
-    }
-
-    SSLKeyStore(Map<String, Entry> entries) throws GeneralSecurityException, IOException {
+    SSLKeyStore(Map<String, PrivateKeyEntry> entries) throws GeneralSecurityException, IOException {
         super(new Store(entries), null, "JOSSL");
         load(null, null); // so that the store is initialized (doe spi.engineLoad)
     }
 
     private static final class Store extends KeyStoreSpi {
-        private final Map<String, Entry> entries; // we're using a LinkedHashMap
+        private final Map<String, PrivateKeyEntry> entries; // we're using a LinkedHashMap
 
-        Store(Map<String, Entry> entries) {
+        Store(Map<String, PrivateKeyEntry> entries) {
             this.entries = entries;
         }
 
         @Override
         public Key engineGetKey(String alias, char[] password) {
-            Entry entry = entries.get(alias);
-            return entry == null ? null : entry.key;
+            PrivateKeyEntry entry = entries.get(alias);
+            return entry == null ? null : entry.getPrivateKey();
         }
 
         @Override
         public Certificate[] engineGetCertificateChain(String alias) {
-            Entry entry = entries.get(alias);
-            return entry == null ? null : entry.chain.clone();
+            PrivateKeyEntry entry = entries.get(alias);
+            return entry == null ? null : entry.getCertificateChain();
         }
 
         @Override
         public Certificate engineGetCertificate(String alias) {
-            Entry entry = entries.get(alias);
-            return entry == null ? null : entry.chain[0];
+            PrivateKeyEntry entry = entries.get(alias);
+            return entry == null ? null : entry.getCertificate();
         }
 
         @Override
@@ -101,8 +89,8 @@ final class SSLKeyStore extends KeyStore {
 
         @Override
         public String engineGetCertificateAlias(Certificate cert) {
-            for (Map.Entry<String, Entry> entry : entries.entrySet()) {
-                if (entry.getValue().chain[0].equals(cert)) return entry.getKey();
+            for (Map.Entry<String, PrivateKeyEntry> entry : entries.entrySet()) {
+                if (entry.getValue().getCertificate().equals(cert)) return entry.getKey();
             }
             return null;
         }

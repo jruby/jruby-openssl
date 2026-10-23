@@ -52,7 +52,7 @@ public class SSLKeyStoreTest extends OpenSSLHelper {
     }
 
     private SSLKeyStore keyStore() throws Exception {
-        return new SSLKeyStore(Collections.singletonMap("rsa", new SSLKeyStore.Entry(
+        return new SSLKeyStore(Collections.singletonMap("rsa", new KeyStore.PrivateKeyEntry(
             key, new X509Certificate[] { certificate })));
     }
 
@@ -84,9 +84,9 @@ public class SSLKeyStoreTest extends OpenSSLHelper {
 
     @Test
     public void snapshotsCredentialMapAndCertificateChain() throws Exception {
-        Map<String, SSLKeyStore.Entry> entries = new LinkedHashMap<>();
+        Map<String, KeyStore.PrivateKeyEntry> entries = new LinkedHashMap<>();
         X509Certificate[] chain = { certificate };
-        entries.put("rsa", new SSLKeyStore.Entry(key, chain));
+        entries.put("rsa", new KeyStore.PrivateKeyEntry(key, chain));
         SSLKeyStore store = new SSLKeyStore(entries);
 
         entries.clear();
