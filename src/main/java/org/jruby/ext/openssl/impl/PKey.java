@@ -62,13 +62,16 @@ import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.edec.EdECObjectIdentifiers;
+import org.bouncycastle.asn1.nist.NISTObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
@@ -76,7 +79,10 @@ import org.bouncycastle.asn1.x509.DSAParameter;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
 import org.bouncycastle.jcajce.interfaces.EdDSAPrivateKey;
+import org.bouncycastle.jcajce.interfaces.MLDSAPrivateKey;
 import org.bouncycastle.jcajce.interfaces.XDHPrivateKey;
+import org.bouncycastle.jcajce.spec.MLDSAParameterSpec;
+import org.bouncycastle.jcajce.spec.MLDSAPrivateKeySpec;
 import org.bouncycastle.openssl.PEMParser;
 
 import org.jruby.ext.openssl.SecurityHelper;
@@ -90,7 +96,7 @@ import org.jruby.ext.openssl.shim.PKeyShim;
  */
 public class PKey {
 
-    public enum Type { RSA, DSA, EC, EdDSA, XDH, DH; }
+    public enum Type { RSA, DSA, EC, EdDSA, XDH, DH, MLDSA; }
 
     public static KeyPair readPrivateKey(final Type type, final byte[] input)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
@@ -158,6 +164,8 @@ public class PKey {
                 return readEdDSAPrivateKey(keyInfo);
             case XDH:
                 return readXDHPrivateKey(keyInfo);
+            case MLDSA:
+                return readMLDSAPrivateKey(keyInfo);
             case DH:
                 return readDHPrivateKey(keyInfo);
             default:
@@ -210,6 +218,9 @@ public class PKey {
         if (EdECObjectIdentifiers.id_Ed448.equals(algIdentifier)) return Type.EdDSA;
         if (EdECObjectIdentifiers.id_X25519.equals(algIdentifier)) return Type.XDH;
         if (EdECObjectIdentifiers.id_X448.equals(algIdentifier)) return Type.XDH;
+        if (NISTObjectIdentifiers.id_ml_dsa_44.equals(algIdentifier) ||
+            NISTObjectIdentifiers.id_ml_dsa_65.equals(algIdentifier) ||
+            NISTObjectIdentifiers.id_ml_dsa_87.equals(algIdentifier)) return Type.MLDSA;
         if (PKCSObjectIdentifiers.dhKeyAgreement.equals(algIdentifier)) return Type.DH;
 
         throw new IOException("unsupported public key algorithm: " + algIdentifier);
@@ -353,6 +364,51 @@ public class PKey {
         BigInteger y = params.getG().modPow(privateKey.getX(), params.getP());
         PublicKey publicKey = keyFactory.generatePublic(new DHPublicKeySpec(y, params.getP(), params.getG()));
         return new KeyPair(publicKey, privateKey);
+    }
+
+    private static KeyPair readMLDSAPrivateKey(final PrivateKeyInfo keyInfo)
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        final ASN1ObjectIdentifier oid = keyInfo.getPrivateKeyAlgorithm().getAlgorithm();
+        final int parameter = NISTObjectIdentifiers.id_ml_dsa_44.equals(oid) ? 44 :
+            NISTObjectIdentifiers.id_ml_dsa_65.equals(oid) ? 65 : 87;
+        final int expandedLength = parameter == 44 ? 2560 : parameter == 65 ? 4032 : 4896;
+        final ASN1Encodable encoded = keyInfo.parsePrivateKey();
+        byte[] seed = null;
+        byte[] expanded = null;
+        if (encoded instanceof ASN1TaggedObject) {
+            ASN1TaggedObject tagged = (ASN1TaggedObject) encoded;
+            if (!tagged.hasContextTag(0) || tagged.isExplicit()) throw new InvalidKeySpecException("invalid ML-DSA seed tag");
+            seed = ASN1OctetString.getInstance(tagged, false).getOctets();
+        }
+        else if (encoded instanceof ASN1Sequence) {
+            ASN1Sequence both = (ASN1Sequence) encoded;
+            if (both.size() != 2) throw new InvalidKeySpecException("invalid ML-DSA private key sequence");
+            seed = ASN1OctetString.getInstance(both.getObjectAt(0)).getOctets();
+            expanded = ASN1OctetString.getInstance(both.getObjectAt(1)).getOctets();
+        }
+        else {
+            expanded = ASN1OctetString.getInstance(encoded).getOctets();
+        }
+        if (expanded != null && expanded.length != expandedLength) {
+            throw new InvalidKeySpecException("invalid ML-DSA expanded key length");
+        }
+        final MLDSAParameterSpec parameters = MLDSAParameterSpec.fromName("ML-DSA-" + parameter);
+        // BC 1.80 misreads standardized seed encodings; its KeySpec works across supported BCs.
+        final KeySpec spec = seed != null ? new MLDSAPrivateKeySpec(parameters, seed) :
+            new MLDSAPrivateKeySpec(parameters, expanded, null);
+        final PrivateKey privateKey = SecurityHelper.getKeyFactory("ML-DSA").generatePrivate(spec);
+        if (!(privateKey instanceof MLDSAPrivateKey)) {
+            throw new InvalidKeySpecException("ML-DSA public key derivation requires a BC private key");
+        }
+        final MLDSAPrivateKey key = (MLDSAPrivateKey) privateKey;
+        if (expanded != null && !org.bouncycastle.util.Arrays.constantTimeAreEqual(expanded, key.getPrivateData())) {
+            throw new InvalidKeySpecException("ML-DSA seed does not match expanded key");
+        }
+        if (keyInfo.hasPublicKey() && !org.bouncycastle.util.Arrays.constantTimeAreEqual(
+                keyInfo.getPublicKeyData().getOctets(), key.getPublicKey().getPublicData())) {
+            throw new InvalidKeySpecException("ML-DSA public key does not match private key");
+        }
+        return new KeyPair(key.getPublicKey(), privateKey);
     }
 
     // XDH (X25519 / X448)

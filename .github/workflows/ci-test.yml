@@ -102,3 +102,8 @@ jobs:
       - name: rake ${{ matrix.test-target }}
         run: jruby -rbundler/setup -S rake ${{ matrix.test-target }}
         timeout-minutes: 15
+
+      - name: ML-DSA Net::HTTP mutual TLS acceptance
+        if: matrix.runtime.java == 25 && matrix.test-target == 'test'
+        run: jruby -rbundler/setup -S rake test:mldsa_tls
+        timeout-minutes: 5

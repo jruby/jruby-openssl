@@ -709,8 +709,8 @@ public class X509CRL extends RubyObject {
         // Have to obey some artificial constraints of the OpenSSL implementation. Stupid.
         final String keyAlg = key.getAlgorithm();
 
-        // PureEdDSA (Ed25519/Ed448) — no digest needed
-        if (digest.isNil() && PKeyEdDSA.isEdDSAAlgorithm(keyAlg)) {
+        // Pure signatures do not take a digest.
+        if (digest.isNil() && (PKeyEdDSA.isEdDSAAlgorithm(keyAlg) || PKeyMLDSA.isMLDSAAlgorithm(keyAlg))) {
             return keyAlg;
         }
 

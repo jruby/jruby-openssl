@@ -361,7 +361,8 @@ public class X509Request extends RubyObject {
     private String getSignatureAlgorithm() {
         AlgorithmIdentifier signatureAlgId = request == null ? null : request.getSignatureAlgorithm();
         if (signatureAlgId == null) return "NULL";
-        final String name = ASN1Registry.o2a(signatureAlgId.getAlgorithm());
+        String name = ASN1Registry.o2a(signatureAlgId.getAlgorithm());
+        if (name == null) name = ASN1.o2a(getRuntime(), signatureAlgId.getAlgorithm(), true);
         return name == null ? "" : name;
     }
 
@@ -388,13 +389,17 @@ public class X509Request extends RubyObject {
 
         try {
             request = null;
-            if (_digest.isNil() && PKeyEdDSA.isEdDSAAlgorithm(pkey.getAlgorithm())) {
-                // PureEdDSA (Ed25519/Ed448) — pass algorithm identifier directly
+            if (_digest.isNil() && (PKeyEdDSA.isEdDSAAlgorithm(pkey.getAlgorithm()) ||
+                                   PKeyMLDSA.isMLDSAAlgorithm(pkey.getAlgorithm()))) {
+                // Pure signatures take the algorithm identifier directly.
                 final String keyAlg = pkey.getAlgorithm();
                 AlgorithmIdentifier algId = new DefaultSignatureAlgorithmIdentifierFinder().find(keyAlg);
                 getRequest().sign( pkey.getPrivateKey(), algId );
             }
             else {
+                if (PKeyMLDSA.isMLDSAAlgorithm(pkey.getAlgorithm())) {
+                    throw newRequestError(runtime, new IllegalArgumentException("ML-DSA does not support digests"));
+                }
                 Digest digest = Digest.getDigest(context, _digest);
                 supportedSignatureAlgorithm(runtime, _RequestError(runtime), public_key, digest);
                 getRequest().sign( pkey.getPrivateKey(), digest.getShortAlgorithm() );

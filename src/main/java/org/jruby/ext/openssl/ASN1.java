@@ -297,6 +297,10 @@ public class ASN1 {
         addObject(runtime, 1087, "ED25519", "ED25519", "1.3.101.112");
         addObject(runtime, 1088, "ED448", "ED448", "1.3.101.113");
 
+        addObject(runtime, 1457, "id-ml-dsa-44", "ML-DSA-44", "2.16.840.1.101.3.4.3.17");
+        addObject(runtime, 1458, "id-ml-dsa-65", "ML-DSA-65", "2.16.840.1.101.3.4.3.18");
+        addObject(runtime, 1459, "id-ml-dsa-87", "ML-DSA-87", "2.16.840.1.101.3.4.3.19");
+
         addObject(runtime, 660, "street", "streetAddress", "2.5.4.9");
         addObject(runtime, 391, "DC", "domainComponent", "0.9.2342.19200300.100.1.25");
         //addObject(runtime, 509, null, "generationQualifier", "2.5.4.44");
