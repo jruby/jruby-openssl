@@ -1203,13 +1203,13 @@ public class SSLContext extends RubyObject {
                 }
                 entries.put(entry.getKey(), new KeyStore.PrivateKeyEntry(privateKey, chain));
             }
-            final KeyManagerFactory keyManager = KeyManagerFactory.getInstance("PKIX", sslContext.getProvider());
-            keyManager.init(new SSLKeyStore(entries), null);
+
             final TrustManager[] trustManager = new TrustManager[] { new TrustManagerImpl(this) };
             // SSLContext (internals) on Sun JDK :
             // private final java.security.Provider provider; "SunJSSE"
             // private final javax.net.ssl.SSLContextSpi; sun.security.ssl.SSLContextImpl
-            sslContext.init(keyManager.getKeyManagers(), trustManager, OpenSSL.getSecureRandom(context));
+            sslContext.init(SSLKeyManager.create(sslContext.getProvider(), entries),
+                    trustManager, OpenSSL.getSecureRandom(context));
             // if secureRandom == null JSSE will try :
             // - new SecureRandom();
             // - SecureRandom.getInstance("PKCS11", cryptoProvider);
