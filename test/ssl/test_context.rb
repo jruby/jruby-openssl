@@ -204,9 +204,9 @@ class TestSSLContext < TestCase
     context = OpenSSL::SSL::SSLContext.new
     context.ciphers = 'EECDH+CHACHA20:EECDH+AES128'
     selected = context.ciphers.map(&:first)
-    assert_include selected, 'ECDHE-RSA-CHACHA20-POLY1305'
     assert_include selected, 'ECDHE-RSA-AES128-GCM-SHA256'
     assert_not_include selected, 'ECDHE-RSA-AES256-GCM-SHA384'
+    assert_include selected, 'ECDHE-RSA-CHACHA20-POLY1305' unless fips?
 
     context.ciphers = 'AES256'
     selected = context.ciphers.map(&:first)
