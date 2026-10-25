@@ -1156,6 +1156,7 @@ public class Cipher extends RubyObject {
 
         cipherInited = true;
         processedDataBytes = 0;
+        outputDataBytes = 0;
 
         if ( switchToManualBlockUpdateBuffer() ) {
             // switch JCE cipher to NoPadding so it flushes complete blocks immediately; add PKCS7 padding in do_final
@@ -1185,6 +1186,7 @@ public class Cipher extends RubyObject {
     }
 
     private int processedDataBytes = 0;
+    private int outputDataBytes = 0;
     private byte[] lastIV;
 
     @JRubyMethod
@@ -1223,6 +1225,7 @@ public class Cipher extends RubyObject {
             else {
                 final byte[] out = cipher.update(in, offset, length);
                 if ( out != null ) {
+                    outputDataBytes += out.length;
                     str = new ByteList(out, false);
                     if ( realIV != null ) {
                         if ( encryptMode ) setLastIVIfNeeded( out );
@@ -1313,8 +1316,14 @@ public class Cipher extends RubyObject {
         checkAuthTag(runtime);
 
         if ( ! cipherInited ) doInitCipher(runtime);
-        // trying to allow update after final like cruby-openssl. Bad idea.
-        if ( "RC4".equalsIgnoreCase(cryptoBase) ) return runtime.newString("");
+
+        if ( "RC4".equalsIgnoreCase(cryptoBase) ) return RubyString.newEmptyString(runtime);
+        // complete CTR and OFB blocks have nothing to flush (doFinal would reset the state)
+        if ( ( "CTR".equalsIgnoreCase(cryptoMode) || "OFB".equalsIgnoreCase(cryptoMode) ) &&
+             "NoPadding".equals(paddingType) &&
+             processedDataBytes == outputDataBytes && processedDataBytes % ivLength == 0 ) {
+            return RubyString.newEmptyString(runtime);
+        }
 
         final ByteList str;
         try {
@@ -1327,11 +1336,6 @@ public class Cipher extends RubyObject {
             else {
                 final byte[] out = cipher.doFinal();
                 if ( out != null ) {
-                    // TODO: Modifying this line appears to fix the issue, but I do
-                    // not have a good reason for why. Best I can tell, lastIv needs
-                    // to be set regardless of encryptMode, so we'll go with this
-                    // for now. JRUBY-3335.
-                    //if ( realIV != null && encryptMode ) ...
                     str = new ByteList(out, false);
                     if ( realIV != null ) setLastIVIfNeeded(out);
                 }
@@ -1732,7 +1736,7 @@ public class Cipher extends RubyObject {
         public AES allocate(Ruby runtime, RubyClass klass) {
             return new AES(runtime, klass, keyLength);
         }
-    };
+    }
 
     public static class AES extends Cipher {
         private static final long serialVersionUID = -3627749495034257750L;

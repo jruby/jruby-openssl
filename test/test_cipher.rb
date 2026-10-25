@@ -336,7 +336,7 @@ class TestCipher < TestCase
   def test_aes_ctr_streaming_arbitrary_chunks
     iv = ['f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff'].pack('H*')
     data = ("Streaming CTR keeps a running counter across updates. " * 5).b # 265 bytes
-    %w[aes-128-ctr aes-256-ctr].each do |algo|
+    %w[aes-128-ctr aes-192-ctr aes-256-ctr].each do |algo|
       key = OpenSSL::Cipher.new(algo).random_key
       one = OpenSSL::Cipher.new(algo).encrypt; one.key = key; one.iv = iv
       expected = one.update(data) + one.final
@@ -349,6 +349,88 @@ class TestCipher < TestCase
       end
       out << c.final
       assert_equal expected, out, "#{algo} arbitrary-chunk streaming"
+    end
+  end
+
+  def test_other_ctr_ciphers_continue_after_final_on_block_boundary
+    skip_fips_unapproved_ciphers
+
+    algos = %w[camellia-128-ctr camellia-192-ctr camellia-256-ctr]
+    algos += %w[bf-ctr cast5-ctr des-ctr des-ede3-ctr rc2-ctr twofish-ctr] if defined? JRUBY_VERSION
+    algos.each do |algo|
+      base = OpenSSL::Cipher.new(algo)
+      key = "k" * base.key_len
+      iv = "\0".b * base.iv_len
+      data = ("0123456789abcdef" * 2).b
+
+      whole = OpenSSL::Cipher.new(algo).encrypt; whole.key = key; whole.iv = iv
+      expected = whole.update(data) + whole.final
+
+      split = OpenSSL::Cipher.new(algo).encrypt; split.key = key; split.iv = iv
+      first = split.update(data.byteslice(0, base.iv_len)) + split.final
+      second = split.update(data.byteslice(base.iv_len, data.bytesize - base.iv_len)) + split.final
+      assert_equal expected, first + second, "#{algo} encrypt after final"
+    end
+  end
+
+  def test_ofb_ciphers_continue_after_final_on_block_boundary
+    skip_fips_unapproved_ciphers
+
+    algos = %w[aes-128-ofb aes-192-ofb aes-256-ofb
+                camellia-128-ofb camellia-192-ofb camellia-256-ofb]
+    algos.each do |algo|
+      base = OpenSSL::Cipher.new(algo)
+      key = "k" * base.key_len
+      iv = "v" * base.iv_len
+      data = ("0123456789abcdef" * 2).b
+
+      whole = OpenSSL::Cipher.new(algo).encrypt; whole.key = key; whole.iv = iv
+      expected = whole.update(data) + whole.final
+
+      split = OpenSSL::Cipher.new(algo).encrypt; split.key = key; split.iv = iv
+      first = split.update(data.byteslice(0, base.iv_len)) + split.final
+      second = split.update(data.byteslice(base.iv_len, data.bytesize - base.iv_len)) + split.final
+      assert_equal expected, first + second, "#{algo} encrypt after final"
+
+      dec = OpenSSL::Cipher.new(algo).decrypt; dec.key = key; dec.iv = iv
+      plain = dec.update(first) + dec.final + dec.update(second) + dec.final
+      assert_equal data, plain, "#{algo} decrypt after final"
+    end
+  end
+
+  def test_aes_ctr_continues_after_final_on_block_boundary
+    iv = ['000102030405060708090a0b0c0dfeff'].pack('H*')
+    data = ("0123456789abcdef" * 4).b
+
+    %w[aes-128-ctr aes-192-ctr aes-256-ctr].each do |algo|
+      key = "k" * OpenSSL::Cipher.new(algo).key_len
+      whole = OpenSSL::Cipher.new(algo).encrypt; whole.key = key; whole.iv = iv
+      expected = whole.update(data) + whole.final
+
+      enc = OpenSSL::Cipher.new(algo).encrypt; enc.padding = 0; enc.key = key; enc.iv = iv
+      encrypted = "".b; offset = 0
+      4.times do
+        chunk = data.byteslice(offset, 16)
+        encrypted << enc.update(chunk)
+        assert_equal "", enc.final, "#{algo} encrypt final"
+        assert_equal "", enc.final, "#{algo} repeated final"
+        offset += chunk.bytesize
+      end
+      assert_equal expected, encrypted, "#{algo} encrypt after final"
+
+      dec = OpenSSL::Cipher.new(algo).decrypt; dec.padding = 0; dec.key = key; dec.iv = iv
+      plain = "".b; offset = 0
+      4.times do
+        chunk = encrypted.byteslice(offset, 16)
+        plain << dec.update(chunk)
+        assert_equal "", dec.final, "#{algo} decrypt final"
+        offset += chunk.bytesize
+      end
+      assert_equal data, plain, "#{algo} decrypt after final"
+
+      enc.reset
+      enc.iv = iv
+      assert_equal expected, enc.update(data) + enc.final, "#{algo} reset with IV after final"
     end
   end
 
