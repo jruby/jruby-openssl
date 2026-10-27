@@ -1,3 +1,18 @@
+## 0.19.4
+
+TLS compatibility, cipher selection and key-handling (regression) fixes.
+
+- [fix] match BCJSSE credential key in TLS handshakes (#383)
+- [fix] keep CTR (and OFB) cipher state after final (#392)
+- [fix] report 1.3 ciphers independently of legacy selectors
+- [fix] support AES128, AES256 and CHACHA20 cipher aliases (#390)
+- [fix] translate unchecked RSA provider errors
+- [fix] return `false` for out-of-range RSA-PSS signatures
+- [fix] finalize buffered TLS EOF handling (#388)
+- [fix] deliver buffered data before EOF (#388)
+- [fix] support ECDHE cipher selectors (#387)
+- [fix] reject incomplete PEM end markers (#385)
+
 ## 0.19.3
 
 Broader OpenSSL compatibility across PKCS7, X.509, key handling and big numbers,
