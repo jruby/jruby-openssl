@@ -117,6 +117,13 @@ class TestSSL < TestCase
     cert
   end
 
+  # JDK 15 SunEC has EdDSA keys but its JSSE still disables EdDSA for TLS (JDK-8166596, Java 16)
+  def sunjsse_without_eddsa?(protocol)
+    return unless jruby?
+    provider = org.jruby.ext.openssl.SecurityHelper.getSSLContext(protocol).provider.name
+    provider == 'SunJSSE' && self.class.java_version.last.to_i < 16
+  end
+
   public
 
   # Ported from CRuby's test_verify_hostname_on_connect (test/openssl/test_ssl.rb).
@@ -780,6 +787,169 @@ class TestSSL < TestCase
         assert_equal [@svr_cert.subject.to_s, @ca_cert.subject.to_s], ssl.peer_cert_chain.map { |c| c.subject.to_s }
       }
     }
+  end
+
+  def test_explicit_tls_server_credential_key_types
+    keys = {
+      'P-256' => OpenSSL::PKey::EC.generate('prime256v1'),
+      'P-384' => OpenSSL::PKey::EC.generate('secp384r1')
+    }
+    keys['Ed25519'] = OpenSSL::PKey.generate_key('ED25519') if !fips? && !sunjsse_without_eddsa?('TLSv1.2')
+
+    keys.each_with_index do |(name, key), index|
+      subject = OpenSSL::X509::Name.parse("/CN=#{name}")
+      cert = issue_cert(subject, key, 500 + index,
+        [['keyUsage', 'digitalSignature', true]], @ca_cert, @ca_key)
+
+      [:TLSv1_2, :TLSv1_3].each do |version|
+        next if fips? && version == :TLSv1_2
+        %w[legacy add_certificate].each do |registration|
+          set_version = proc do |ctx|
+            if jruby?
+              ctx.ssl_version = version
+            else
+              value = version == :TLSv1_2 ? OpenSSL::SSL::TLS1_2_VERSION : OpenSSL::SSL::TLS1_3_VERSION
+              ctx.min_version = ctx.max_version = value
+            end
+          end
+          configure = proc do |ctx|
+            set_version.call(ctx)
+            ctx.cert = ctx.key = nil
+            if registration == 'legacy'
+              ctx.cert = cert
+              ctx.key = key
+              ctx.extra_chain_cert = [@ca_cert]
+            else
+              ctx.add_certificate(cert, key, [@ca_cert])
+            end
+          end
+          start_server(OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: configure) do |_server, port|
+            client_ctx = OpenSSL::SSL::SSLContext.new
+            set_version.call(client_ctx)
+            server_connect(port, client_ctx) do |ssl|
+              assert_equal version == :TLSv1_2 ? 'TLSv1.2' : 'TLSv1.3', ssl.ssl_version
+              assert_equal cert.to_der, ssl.peer_cert.to_der, "#{name} #{version} #{registration}"
+              ssl.puts 'ping'
+              assert_equal "ping\n", ssl.gets
+            end
+          end
+        end
+      end
+    end
+  end
+
+  def test_explicit_tls_add_certificate_selects_rsa_and_ec
+    skip('BCJSSE FIPS does not offer ECDHE-ECDSA in TLS 1.2') if fips?
+
+    ec_key = OpenSSL::PKey::EC.generate('prime256v1')
+    ec_subject = OpenSSL::X509::Name.parse('/CN=EC credential')
+    ec_cert = issue_cert(ec_subject, ec_key, 510,
+      [['keyUsage', 'digitalSignature', true]], @ca_cert, @ca_key)
+    configure = proc do |ctx|
+      ctx.ssl_version = :TLSv1_2 if jruby?
+      ctx.min_version = ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+      ctx.cert = ctx.key = nil
+      ctx.add_certificate(@svr_cert, @svr_key, [@ca_cert])
+      ctx.add_certificate(ec_cert, ec_key, [@ca_cert])
+    end
+
+    start_server(OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: configure) do |_server, port|
+      {
+        'ECDHE-ECDSA-AES128-GCM-SHA256' => ec_cert,
+        'ECDHE-RSA-AES128-GCM-SHA256' => @svr_cert
+      }.each do |cipher, expected|
+        client_ctx = OpenSSL::SSL::SSLContext.new
+        client_ctx.min_version = client_ctx.max_version = OpenSSL::SSL::TLS1_2_VERSION
+        client_ctx.ciphers = cipher
+        server_connect(port, client_ctx) do |ssl|
+          assert_equal 'TLSv1.2', ssl.ssl_version
+          assert_equal expected.to_der, ssl.peer_cert.to_der, cipher
+          ssl.puts 'ping'
+          assert_equal "ping\n", ssl.gets
+        end
+      end
+    end
+  end
+
+  # BCJSSE asks clients for EC/<named group> in TLS 1.3
+  def test_explicit_tls13_ec_client_certificate
+    keys = {
+      'P-256' => OpenSSL::PKey::EC.generate('prime256v1'),
+      'P-384' => OpenSSL::PKey::EC.generate('secp384r1')
+    }
+    configure = proc do |ctx|
+      if jruby?
+        ctx.ssl_version = :TLSv1_3
+      else
+        ctx.min_version = ctx.max_version = OpenSSL::SSL::TLS1_3_VERSION
+      end
+    end
+    server_ctx = proc do |ctx|
+      configure.call(ctx)
+      ctx.client_ca = [@ca_cert]
+    end
+    report_peer = proc do |_ctx, ssl|
+      ssl.puts ssl.peer_cert ? ssl.peer_cert.to_der.unpack1('H*') : 'none'
+    end
+    verify = OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
+
+    keys.each_with_index do |(name, key), index|
+      subject = OpenSSL::X509::Name.parse("/CN=#{name} client")
+      cert = issue_cert(subject, key, 520 + index,
+        [['keyUsage', 'digitalSignature', true], ['extendedKeyUsage', 'clientAuth', false]], @ca_cert, @ca_key)
+
+      %w[legacy add_certificate].each do |registration|
+        start_server(verify, true, ctx_proc: server_ctx, server_proc: report_peer) do |_server, port|
+          client_ctx = OpenSSL::SSL::SSLContext.new
+          configure.call(client_ctx)
+          if registration == 'legacy'
+            client_ctx.cert = cert
+            client_ctx.key = key
+          else
+            client_ctx.add_certificate(cert, key, [@ca_cert])
+          end
+          server_connect(port, client_ctx) do |ssl|
+            assert_equal 'TLSv1.3', ssl.ssl_version
+            assert_equal cert.to_der.unpack1('H*'), ssl.gets.chomp, "#{name} #{registration}"
+          end
+        end
+      end
+    end
+  end
+
+  # SSLContext.new without a version uses SunJSSE (BC EdDSA keys need translation there)
+  def test_default_context_ed25519_credentials
+    omit_on_fips
+    skip 'SunJSSE supports EdDSA in TLS since Java 16' if sunjsse_without_eddsa?('SSL')
+
+    server_key = OpenSSL::PKey.generate_key('ED25519')
+    server_cert = issue_cert(OpenSSL::X509::Name.parse('/CN=Ed25519 server'), server_key, 530,
+      [['keyUsage', 'digitalSignature', true]], @ca_cert, @ca_key)
+    client_key = OpenSSL::PKey.generate_key('ED25519')
+    client_cert = issue_cert(OpenSSL::X509::Name.parse('/CN=Ed25519 client'), client_key, 531,
+      [['keyUsage', 'digitalSignature', true], ['extendedKeyUsage', 'clientAuth', false]], @ca_cert, @ca_key)
+
+    configure = proc do |ctx|
+      ctx.cert = server_cert
+      ctx.key = server_key
+      ctx.extra_chain_cert = [@ca_cert]
+      ctx.client_ca = [@ca_cert]
+    end
+    report = proc do |_ctx, ssl| # local key and peer certificate as seen by the server
+      ssl.puts [ssl.cert.public_key.raw_public_key, ssl.peer_cert.to_der].map { |bytes| bytes.unpack1('H*') }.join(' ')
+    end
+    verify = OpenSSL::SSL::VERIFY_PEER | OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT
+    start_server(verify, true, ctx_proc: configure, server_proc: report) do |_server, port|
+      client_ctx = OpenSSL::SSL::SSLContext.new
+      client_ctx.add_certificate(client_cert, client_key, [@ca_cert])
+      server_connect(port, client_ctx) do |ssl|
+        assert_equal server_cert.to_der, ssl.peer_cert.to_der
+        assert_equal server_key.raw_public_key, ssl.peer_cert.public_key.raw_public_key
+        local_key, peer_cert = ssl.gets.split.map { |hex| [hex].pack('H*') }
+        assert_equal server_key.raw_public_key, local_key
+        assert_equal client_cert.to_der, peer_cert
+      end
+    end
   end
 
   def test_add_certificate_validates_private_key_and_chain

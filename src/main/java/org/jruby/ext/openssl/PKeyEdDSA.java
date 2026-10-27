@@ -67,7 +67,18 @@ public class PKeyEdDSA extends PKey {
     }
 
     PKeyEdDSA(Ruby runtime, PublicKey publicKey) {
-        this(runtime, publicKey, null);
+        this(runtime, convertNonBCPublicKey(runtime, publicKey), null);
+    }
+
+    // handle JDK (SunEC) keys e.g. from SunJSSE certificates
+    private static PublicKey convertNonBCPublicKey(final Ruby runtime, final PublicKey publicKey) {
+        if (publicKey instanceof EdDSAPublicKey) return publicKey;
+        try {
+            return SecurityHelper.getKeyFactory("EdDSA")
+                    .generatePublic(new X509EncodedKeySpec(publicKey.getEncoded()));
+        } catch (GeneralSecurityException e) {
+            throw newPKeyError(runtime, e);
+        }
     }
 
     static PKeyEdDSA newInstance(final Ruby runtime, final KeyPair keyPair) {
@@ -326,12 +337,10 @@ public class PKeyEdDSA extends PKey {
     }
 
     static boolean isEdDSAAlgorithm(final String alg) {
-        return "EdDSA".equalsIgnoreCase(alg) ||
-               "Ed25519".equalsIgnoreCase(alg) ||
-               "Ed448".equalsIgnoreCase(alg);
+        return "EdDSA".equalsIgnoreCase(alg) || "Ed25519".equalsIgnoreCase(alg) || "Ed448".equalsIgnoreCase(alg);
     }
 
     static boolean isEdDSAKey(final PublicKey key) {
-        return key instanceof EdDSAPublicKey;
+        return key instanceof EdDSAPublicKey || (key != null && isEdDSAAlgorithm(key.getAlgorithm()));
     }
 }

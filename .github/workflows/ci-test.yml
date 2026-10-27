@@ -31,6 +31,9 @@ jobs:
           - java: 21
             distribution: oracle
             ruby: jruby-9.4.15.0
+          - java: 17
+            distribution: temurin
+            ruby: jruby-9.4.15.0
           - java: 11
             distribution: corretto
             ruby: jruby-9.4.14.0
