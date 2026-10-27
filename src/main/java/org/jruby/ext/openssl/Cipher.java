@@ -826,6 +826,8 @@ public class Cipher extends RubyObject {
             }
             this.orgIV = this.realIV;
             padding = other.padding;
+            ctrNextIV = null;
+            ctrBlockOffset = 0;
 
             cipher = getCipherInstance();
 
@@ -908,6 +910,10 @@ public class Cipher extends RubyObject {
         System.arraycopy(ivBytes.unsafeBytes(), ivBytes.getBegin(), i, 0, ivLength);
         this.realIV = i;
         this.orgIV = this.realIV;
+        if (isCTRMode()) {
+            ctrNextIV = Arrays.copyOf(i, i.length);
+            ctrBlockOffset = 0;
+        }
 
         if ( ! isStreamCipher() ) cipherInited = false;
         if ( encryptMode ) auth_tag = null;
@@ -933,6 +939,8 @@ public class Cipher extends RubyObject {
         if ( encryptMode ) auth_tag = null; // stale from a previous encryption
         encryptMode = encrypt;
         cipherInited = false;
+        ctrNextIV = null;
+        ctrBlockOffset = 0;
 
         if ( args.length > 0 ) {
             /*
@@ -991,7 +999,16 @@ public class Cipher extends RubyObject {
         try {
             checkCipherNotNull(runtime);
             if ( ! isStreamCipher() ) {
-                this.realIV = orgIV;
+                if ( isCTRMode() && key != null ) {
+                    if (ctrNextIV == null) {
+                        ctrNextIV = realIV == null ? new byte[ivLength] : Arrays.copyOf(realIV, ivLength);
+                    }
+                    ctrBlockOffset = 0;
+                    this.realIV = Arrays.copyOf(ctrNextIV, ivLength);
+                }
+                else {
+                    this.realIV = orgIV;
+                }
                 // CRuby's reset calls EVP_CipherInit_ex with NULL key/IV which
                 // is a no-op if key hasn't been set yet. Match that behavior.
                 if ( key != null ) doInitCipher(runtime);
@@ -1022,6 +1039,8 @@ public class Cipher extends RubyObject {
         cryptoMode = alg.mode;
         realName = alg.getRealName();
         paddingType = alg.getPadding();
+        ctrNextIV = null;
+        ctrBlockOffset = 0;
 
         keyLength = alg.getKeyLength();
         ivLength = alg.getIvLength();
@@ -1084,6 +1103,8 @@ public class Cipher extends RubyObject {
             this.key = result.key;
             this.realIV = result.iv;
             this.orgIV = this.realIV;
+            this.ctrNextIV = null;
+            this.ctrBlockOffset = 0;
 
             doInitCipher(runtime);
 
@@ -1157,6 +1178,9 @@ public class Cipher extends RubyObject {
         cipherInited = true;
         processedDataBytes = 0;
         outputDataBytes = 0;
+        if ( isCTRMode() && ctrNextIV == null ) {
+            ctrNextIV = Arrays.copyOf(realIV, ivLength);
+        }
 
         if ( switchToManualBlockUpdateBuffer() ) {
             // switch JCE cipher to NoPadding so it flushes complete blocks immediately; add PKCS7 padding in do_final
@@ -1187,6 +1211,8 @@ public class Cipher extends RubyObject {
 
     private int processedDataBytes = 0;
     private int outputDataBytes = 0;
+    private byte[] ctrNextIV;
+    private int ctrBlockOffset = 0;
     private byte[] lastIV;
 
     @JRubyMethod
@@ -1235,6 +1261,7 @@ public class Cipher extends RubyObject {
                     str = new ByteList(ByteList.NULL_ARRAY);
                 }
             }
+            if ( isCTRMode() ) advanceCtrPosition(length);
             processedDataBytes += length;
         }
         catch (Exception e) {
@@ -1250,6 +1277,17 @@ public class Cipher extends RubyObject {
         buffer = TypeConverter.convertToType(buffer, context.runtime.getString(), "to_str", true);
         ((RubyString) buffer).setValue(str);
         return buffer;
+    }
+
+    private void advanceCtrPosition(final int length) {
+        final long bytes = (long) ctrBlockOffset + length;
+        long blocks = (bytes + ivLength - 1) / ivLength - (ctrBlockOffset == 0 ? 0 : 1);
+        for ( int i = ctrNextIV.length - 1; i >= 0 && blocks != 0; i-- ) {
+            blocks += ctrNextIV[i] & 0xFFL;
+            ctrNextIV[i] = (byte) blocks;
+            blocks >>>= 8;
+        }
+        ctrBlockOffset = (int) (bytes % ivLength);
     }
 
     private ByteList updateWithBuffer(final byte[] in, int offset, int length) throws GeneralSecurityException {
@@ -1319,8 +1357,7 @@ public class Cipher extends RubyObject {
 
         if ( "RC4".equalsIgnoreCase(cryptoBase) ) return RubyString.newEmptyString(runtime);
         // complete CTR and OFB blocks have nothing to flush (doFinal would reset the state)
-        if ( ( "CTR".equalsIgnoreCase(cryptoMode) || "OFB".equalsIgnoreCase(cryptoMode) ) &&
-             "NoPadding".equals(paddingType) &&
+        if ( ( isCTRMode() || isOFBMode() ) && "NoPadding".equals(paddingType) &&
              processedDataBytes == outputDataBytes && processedDataBytes % ivLength == 0 ) {
             return RubyString.newEmptyString(runtime);
         }
@@ -1605,6 +1642,14 @@ public class Cipher extends RubyObject {
 
     private boolean isStreamCipher() {
         return cipher.getBlockSize() == 0;
+    }
+
+    private boolean isCTRMode() {
+        return "CTR".equalsIgnoreCase(cryptoMode);
+    }
+
+    private boolean isOFBMode() {
+        return "OFB".equalsIgnoreCase(cryptoMode);
     }
 
     private static RaiseException newCipherError(Ruby runtime, Exception e) {
