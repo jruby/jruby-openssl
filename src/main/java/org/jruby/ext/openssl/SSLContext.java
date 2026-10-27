@@ -28,6 +28,7 @@
 package org.jruby.ext.openssl;
 
 import java.net.Socket;
+import java.security.AlgorithmParameters;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -37,14 +38,19 @@ import java.util.Map;
 import java.util.Set;
 
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.interfaces.ECKey;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECParameterSpec;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Locale;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLEngine;
@@ -1091,6 +1097,30 @@ public class SSLContext extends RubyObject {
         return credentials;
     }
 
+    // NOTE: only used under SunJSSE (engine) provider
+    private static Credential translateEdDSAKeys(final Ruby runtime, final Credential credential) {
+        final PublicKey publicKey = credential.leaf.getPublicKey();
+        if (!"EdDSA".equals(credential.keyType) || publicKey == null) return credential;
+        if ("EdDSA".equals(publicKey.getAlgorithm()) && "EdDSA".equals(credential.privateKey.getAlgorithm())) {
+            return credential;
+        }
+        try {
+            final KeyFactory keyFactory = KeyFactory.getInstance("EdDSA", "SunEC"); // Java 15+
+            final PrivateKey privateKey = (PrivateKey) keyFactory.translateKey(credential.privateKey);
+            final PublicKey sunPublicKey = (PublicKey) keyFactory.translateKey(publicKey);
+            // same certificate bytes, only the public key object differs
+            final X509AuxCertificate leaf = new X509AuxCertificate(credential.leaf) {
+                @Override
+                public PublicKey getPublicKey() { return sunPublicKey; }
+            };
+            return new Credential(credential.alias, leaf, privateKey, credential.keyType, credential.chain);
+        }
+        catch (GeneralSecurityException e) {
+            LOG.warn(runtime, "SunJSSE can not use " + publicKey.getAlgorithm() + " credential: ", e);
+            return credential;
+        }
+    }
+
     private InternalContext initSSLContext(ThreadContext context,
         final Store store, final List<X509AuxCertificate> clientCA,
         final int verifyMode, final IRubyObject verifyCallback, final int verifyDepth, final int timeout,
@@ -1129,8 +1159,6 @@ public class SSLContext extends RubyObject {
             final RubyProc alpnSelectCallback,
             final List<Credential> certsAndKeys) throws NoSuchAlgorithmException {
 
-            this.credentials = certsAndKeys;
-
             this.store = store;
             this.clientCA = clientCA;
             this.verifyMode = verifyMode;
@@ -1141,6 +1169,24 @@ public class SSLContext extends RubyObject {
             this.alpnSelectCallback = alpnSelectCallback;
 
             this.sslContext = SecurityHelper.getSSLContext(protocol);
+            this.credentials = convertCredentialsIfNeeded(certsAndKeys);
+        }
+
+        private List<Credential> convertCredentialsIfNeeded(final List<Credential> certsAndKeys) {
+            if (!"SunJSSE".equals(sslContext.getProvider().getName())) return certsAndKeys;
+
+            final Ruby runtime = getRuntime();
+            // SunJSSE skips EdDSA credentials unless both keys report "EdDSA" (BC keys report Ed25519/Ed448)
+            List<Credential> credentials = certsAndKeys;
+            for (int i = 0; i < certsAndKeys.size(); i++) {
+                final Credential credential = certsAndKeys.get(i);
+                final Credential translated = translateEdDSAKeys(runtime, credential);
+                if (translated != credential) {
+                    if (certsAndKeys == credentials) credentials = new ArrayList<>(certsAndKeys);
+                    credentials.set(i, translated);
+                }
+            }
+            return credentials;
         }
 
         void initSSLContext(final ThreadContext context) throws NoSuchAlgorithmException, KeyManagementException {
@@ -1248,16 +1294,58 @@ public class SSLContext extends RubyObject {
             return chooseAlias(keyType);
         }
 
-        // BCJSSE asks per negotiated key type (RSA / EC / ...)
+        // BCJSSE asks for cipher key types in TLS 1.2 and named curves in TLS 1.3
         private String chooseAlias(final String keyType) {
             if (keyType == null) return null;
             for (int i = 0; i < internalContext.credentials.size(); i++) {
                 final Credential credential = internalContext.credentials.get(i);
-                if (credential.privateKey != null && keyType.equalsIgnoreCase(credential.keyType)) {
+                if (credential.privateKey != null && keyTypeMatches(keyType, credential)) {
                     return credential.alias; // pick the first credential that matches
                 }
             }
             return null;
+        }
+
+        private static boolean keyTypeMatches(final String requested, final Credential credential) {
+            // BCJSSE may ask for cipher or signature names where SunJSSE asks for key algorithms
+            if (requested.equalsIgnoreCase(credential.keyType)) return true;
+
+            switch (requested.toUpperCase(Locale.ROOT)) {
+                case "ECDHE_ECDSA":
+                    return "EC".equalsIgnoreCase(credential.keyType);
+                case "ECDHE_RSA": case "DHE_RSA":
+                    return "RSA".equalsIgnoreCase(credential.keyType);
+                case "DHE_DSS":
+                    return "DSA".equalsIgnoreCase(credential.keyType);
+                case "ED25519": case "ED448": // EdDSA alone cannot distinguish Ed25519 from Ed448
+                    if (!"EdDSA".equalsIgnoreCase(credential.keyType)) return false;
+                    final PublicKey publicKey = credential.leaf.getPublicKey();
+                    return (publicKey != null && requested.equalsIgnoreCase(publicKey.getAlgorithm())) ||
+                        requested.equalsIgnoreCase(credential.privateKey.getAlgorithm());
+                default:
+                    if (!"EC".equalsIgnoreCase(credential.keyType) ||
+                            !requested.regionMatches(true, 0, "EC/", 0, 3)) return false;
+                    return matchesCurve(credential.leaf.getPublicKey(), requested.substring(3));
+            }
+        }
+
+        private static boolean matchesCurve(final PublicKey publicKey, final String namedGroup) {
+            if (!(publicKey instanceof ECKey)) return false;
+
+            try {
+                final AlgorithmParameters parameters = AlgorithmParameters.getInstance("EC");
+                parameters.init(new ECGenParameterSpec(namedGroup));
+                final ECParameterSpec expected = parameters.getParameterSpec(ECParameterSpec.class);
+                final ECParameterSpec actual = ((ECKey) publicKey).getParams();
+                // BCJSSE names the TLS 1.3 group; EC alone could select a certificate on another curve
+                return actual != null && expected.getCurve().equals(actual.getCurve()) &&
+                    expected.getGenerator().equals(actual.getGenerator()) &&
+                    expected.getOrder().equals(actual.getOrder()) &&
+                    expected.getCofactor() == actual.getCofactor();
+            }
+            catch (GeneralSecurityException | IllegalArgumentException e) {
+                return false;
+            }
         }
 
         private Credential credentialByAlias(String alias) {
