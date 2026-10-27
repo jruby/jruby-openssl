@@ -167,6 +167,10 @@ class TLSVerifyTest < TestCase
   rescue SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EHOSTUNREACH,
          Errno::ENETUNREACH, Errno::ETIMEDOUT, Timeout::Error => e
     omit "badssl.com not reachable (#{e.class}: #{e.message})"
+  rescue OpenSSL::SSL::SSLError => e
+    # JRuby reports a peer dropping the connection mid-handshake as SSLError (MRI: Errno::ECONNRESET)
+    raise unless e.message.match?(/Connection reset|closing inbound before receiving peer's close_notify/i)
+    omit "badssl.com dropped the connection (#{e.message})"
   end
 
 end
