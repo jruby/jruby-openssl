@@ -74,7 +74,7 @@ public class HMAC extends RubyObject {
             return SecurityHelper.getMac(algName.toString());
         } // some algorithms need the - removed; this is ugly, I know.
         catch (NoSuchAlgorithmException e) {
-            algName.insert(5, '-'); // "HMAC-" + algorithmSuffix
+            algName.insert(4, '-'); // "HMAC-" + algorithmSuffix
             return SecurityHelper.getMac(algName.toString());
         }
     }
