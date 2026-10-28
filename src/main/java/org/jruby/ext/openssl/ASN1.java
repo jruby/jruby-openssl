@@ -641,10 +641,16 @@ public class ASN1 {
         return typeId( obj.getClass() );
     }
 
-    private static Integer typeId(final RubyClass metaClass) {
-        final String name = metaClass.getRealClass().getBaseName();
-        final Integer id = RCLASS_TO_ID.get(name);
-        return id == null ? null : id;
+    private static Integer typeId(RubyClass metaClass) {
+        while (metaClass != null) {
+            final String name = metaClass.getRealClass().getBaseName();
+            final Integer id = RCLASS_TO_ID.get(name);
+            if (id != null) return id;
+            final RubyClass superKlass = metaClass.getSuperClass();
+            if (superKlass == metaClass) break;
+            metaClass = superKlass;
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -1457,7 +1463,7 @@ public class ASN1 {
 
         int tag = identifier & 0x1F;
         if (tag == 0x1F) {
-            tag = 0;
+            long tagNo = 0;
             if (cursor >= end) throw newASN1Error(runtime, "EOF found inside tag value");
 
             int b = bytes[cursor++] & 0xFF;
@@ -1466,12 +1472,19 @@ public class ASN1 {
             }
 
             while ((b & 0x80) != 0) {
-                tag |= (b & 0x7F);
-                tag <<= 7;
+                tagNo |= (b & 0x7F);
+                tagNo <<= 7;
+                if (tagNo > Integer.MAX_VALUE) {
+                    throw newASN1Error(runtime, "tag number too large");
+                }
                 if (cursor >= end) throw newASN1Error(runtime, "EOF found inside tag value.");
                 b = bytes[cursor++] & 0xFF;
             }
-            tag |= (b & 0x7F);
+            tagNo |= (b & 0x7F);
+            if (tagNo > Integer.MAX_VALUE) {
+                throw newASN1Error(runtime, "tag number too large");
+            }
+            tag = (int) tagNo;
         }
 
         if (cursor >= end) throw newASN1Error(runtime, "header too short");
@@ -1882,7 +1895,7 @@ public class ASN1 {
         }
 
         void writeDERIdentifier(int tag, int flags, java.io.ByteArrayOutputStream out) {
-            if (tag > 0x1f) {
+            if (tag >= 0x1f) {
                 byte[] stack = new byte[6];
                 int pos = stack.length;
 
@@ -2078,10 +2091,6 @@ public class ASN1 {
                 if ( ! (tag_class instanceof RubySymbol) ) {
                     throw newASN1Error(runtime, "invalid tag class");
                 }
-
-                if ( tagging.toString().equals("IMPLICIT") && RubyNumeric.fix2int(tag) > MAX_TAG_VALUE ) {
-                    throw newASN1Error(runtime, "tag number for Universal too large");
-                }
             }
             else {
                 tag = self.defaultTag();
@@ -2203,10 +2212,10 @@ public class ASN1 {
                 return DERGeneralizedTime.getInstance( val.asString().getBytes() );
             }
             if ( ASN1Integer.class.isAssignableFrom(type) ) {
-                return new ASN1Integer( bigIntegerValue(val) );
+                return new ASN1Integer( bigIntegerValue(context, val) );
             }
             if ( ASN1Enumerated.class.isAssignableFrom(type) ) {
-                return new ASN1Enumerated( bigIntegerValue(val) );
+                return new ASN1Enumerated( bigIntegerValue(context, val) );
             }
             if ( ASN1OctetString.class.isAssignableFrom(type) ) {
                 return new DEROctetString( val.asString().getBytes() );
@@ -2275,12 +2284,15 @@ public class ASN1 {
             return chars;
         }
 
-        private static BigInteger bigIntegerValue(final IRubyObject val) {
+        private static BigInteger bigIntegerValue(final ThreadContext context, final IRubyObject val) {
             if ( val instanceof RubyInteger ) { // RubyBignum
                 return ((RubyInteger) val).getBigIntegerValue();
             }
             if ( val instanceof BN ) return ((BN) val).getValue();
-            return new BigInteger( val.asString().getBytes() );
+            if ( val == null || val.isNil() ) {
+                throw context.runtime.newTypeError("Can't convert nil into Integer");
+            }
+            throw context.runtime.newTypeError("Cannot convert into OpenSSL::BN");
         }
 
         @Override

@@ -1339,6 +1339,46 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal 2, decoded[1].value
   end
 
+  def test_tag_31_boundary_der_encoding
+    assert_equal "\x1F\x1F\x00".b, OpenSSL::ASN1::ASN1Data.new("", 31, :UNIVERSAL).to_der
+  end
+
+  def test_implicit_tagging_large_tag
+    prim = OpenSSL::ASN1::Primitive.new("foo", 32, :IMPLICIT)
+    assert_equal 32, prim.tag
+  end
+
+  def test_subclassing_asn1_types
+    sub_int_class = Class.new(OpenSSL::ASN1::Integer)
+    int_inst = sub_int_class.new(42)
+    assert_equal 2, int_inst.tag
+    assert_equal "\x02\x01*".b, int_inst.to_der
+
+    sub_seq_class = Class.new(OpenSSL::ASN1::Sequence)
+    seq_inst = sub_seq_class.new([int_inst])
+    assert_equal 16, seq_inst.tag
+    assert_equal "\x30\x03\x02\x01*".b, seq_inst.to_der
+  end
+
+  def test_integer_and_enumerated_big_integer_conversion
+    assert_raise(TypeError) { OpenSSL::ASN1::Integer.new("42").to_der }
+    assert_raise(TypeError) { OpenSSL::ASN1::Integer.new(nil).to_der }
+    assert_raise(TypeError) { OpenSSL::ASN1::Integer.new([]).to_der }
+    assert_raise(TypeError) { OpenSSL::ASN1::Enumerated.new("42").to_der }
+    assert_raise(TypeError) { OpenSSL::ASN1::Enumerated.new(nil).to_der }
+
+    bn = OpenSSL::BN.new(42)
+    assert_equal "\x02\x01*".b, OpenSSL::ASN1::Integer.new(bn).to_der
+    assert_equal "\n\x01*".b, OpenSSL::ASN1::Enumerated.new(bn).to_der
+  end
+
+  def test_traverse_tag_overflow_raises_asn1error
+    der_overflow = ["5f88808080000100"].pack("H*")
+    assert_raise(OpenSSL::ASN1::ASN1Error) do
+      OpenSSL::ASN1.traverse(der_overflow) { |*args| }
+    end
+  end
+
   private
 
   def B(ary)
