@@ -57,9 +57,17 @@ public class KDF {
     private static final String[] PBKDF2_ARGS = new String[] { "salt", "iterations", "length", "hash" };
     private static final String[] HKDF_ARGS = new String[] { "salt", "info", "length", "hash" };
 
+    @JRubyMethod(module = true)
+    public static IRubyObject pbkdf2_hmac(ThreadContext context, IRubyObject self, IRubyObject pass) {
+        return pbkdf2_hmac(context, self, pass, RubyHash.newSmallHash(context.runtime));
+    }
+
     @JRubyMethod(module = true) // pbkdf2_hmac(pass, salt:, iterations:, length:, hash:)
     public static IRubyObject pbkdf2_hmac(ThreadContext context, IRubyObject self, IRubyObject pass, IRubyObject opts) {
-        IRubyObject[] args = extractRequiredKeywordArgs(context, opts, PBKDF2_ARGS, 1);
+        if (!(opts instanceof RubyHash)) {
+            throw context.runtime.newArgumentError("wrong number of arguments (given 2, expected 1)");
+        }
+        IRubyObject[] args = extractRequiredKeywordArgs(context, (RubyHash) opts, PBKDF2_ARGS, 1);
         args[0] = pass;
         try {
             return PKCS5.pbkdf2Hmac(context.runtime, args);
@@ -72,9 +80,17 @@ public class KDF {
         }
     }
 
+    @JRubyMethod(module = true)
+    public static IRubyObject hkdf(ThreadContext context, IRubyObject self, IRubyObject ikm) {
+        return hkdf(context, self, ikm, RubyHash.newSmallHash(context.runtime));
+    }
+
     @JRubyMethod(module = true) // hkdf(ikm, salt:, info:, length:, hash:)
     public static IRubyObject hkdf(ThreadContext context, IRubyObject self, IRubyObject ikm, IRubyObject opts) {
-        IRubyObject[] args = extractRequiredKeywordArgs(context, opts, HKDF_ARGS, 0);
+        if (!(opts instanceof RubyHash)) {
+            throw context.runtime.newArgumentError("wrong number of arguments (given 2, expected 1)");
+        }
+        IRubyObject[] args = extractRequiredKeywordArgs(context, (RubyHash) opts, HKDF_ARGS, 0);
         try {
             return hkdfImpl(context.runtime, ikm, args);
         }

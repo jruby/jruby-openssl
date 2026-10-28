@@ -147,6 +147,8 @@ class TestKDF < TestCase
     assert_raise(ArgumentError) { OpenSSL::KDF.pbkdf2_hmac('password', 'not-a-hash') }
     assert_raise(ArgumentError) { OpenSSL::KDF.pbkdf2_hmac('password', 42) }
     assert_raise(ArgumentError) { OpenSSL::KDF.pbkdf2_hmac('password', salt: 's') }
+    e = assert_raise(ArgumentError) { OpenSSL::KDF.pbkdf2_hmac('password') }
+    assert_equal 'missing keywords: :salt, :iterations, :length, :hash', e.message
   end
 
   def test_hkdf_invalid_opts
@@ -154,6 +156,8 @@ class TestKDF < TestCase
     assert_raise(ArgumentError) { OpenSSL::KDF.hkdf('ikm', 'not-a-hash') }
     assert_raise(ArgumentError) { OpenSSL::KDF.hkdf('ikm', 42) }
     assert_raise(ArgumentError) { OpenSSL::KDF.hkdf('ikm', salt: 's') }
+    e = assert_raise(ArgumentError) { OpenSSL::KDF.hkdf('ikm') }
+    assert_equal 'missing keywords: :salt, :info, :length, :hash', e.message
   end
 
   private

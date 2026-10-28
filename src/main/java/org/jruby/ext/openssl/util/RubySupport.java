@@ -219,15 +219,12 @@ public abstract class RubySupport {
         return ret;
     }
 
-    public static IRubyObject[] extractRequiredKeywordArgs(final ThreadContext context, final IRubyObject opts, final String... requiredKeys) {
+    public static IRubyObject[] extractRequiredKeywordArgs(final ThreadContext context, final RubyHash opts, final String... requiredKeys) {
         return extractRequiredKeywordArgs(context, opts, requiredKeys, 0);
     }
 
-    public static IRubyObject[] extractRequiredKeywordArgs(final ThreadContext context, final IRubyObject opts, final String[] requiredKeys, final int offset) {
-        if (!(opts instanceof RubyHash)) {
-            throw context.runtime.newArgumentError("wrong number of arguments (given 2, expected 1)");
-        }
-        final IRubyObject[] args = extractKeywordArgs(context, (RubyHash) opts, requiredKeys, offset);
+    public static IRubyObject[] extractRequiredKeywordArgs(final ThreadContext context, final RubyHash opts, final String[] requiredKeys, final int offset) {
+        final IRubyObject[] args = extractKeywordArgs(context, opts, requiredKeys, offset);
 
         ArrayList<String> missing = null;
         for (int i = 0; i < requiredKeys.length; i++) {
