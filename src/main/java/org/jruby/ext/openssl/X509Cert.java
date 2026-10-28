@@ -389,6 +389,9 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod
     public IRubyObject to_der() {
+        if ( cert == null ) {
+            throw newCertificateError(getRuntime(), "illegal zero content");
+        }
         try {
             return newString(getRuntime(), cert.getEncoded());
         }

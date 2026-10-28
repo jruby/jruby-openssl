@@ -1043,4 +1043,9 @@ EOF
       "  original: #{cert_oids.inspect}\n" \
       "  after:    #{cert2_oids.inspect}"
   end
+
+  def test_to_der_empty_cert_raises_error
+    cert = OpenSSL::X509::Certificate.new
+    assert_raise(OpenSSL::X509::CertificateError) { cert.to_der }
+  end
 end
