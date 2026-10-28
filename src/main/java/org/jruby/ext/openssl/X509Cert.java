@@ -135,7 +135,7 @@ public class X509Cert extends RubyObject {
 
     private IRubyObject subject;
     private IRubyObject issuer;
-    private BigInteger serial = BigInteger.ZERO;
+    private BigInteger serial;
     private RubyTime not_before;
     private RubyTime not_after;
 
@@ -515,7 +515,10 @@ public class X509Cert extends RubyObject {
         // Serial Number:
         //      11:22:33:44:55:66:77:88:99
         text.append(S20,0,8).append("Serial Number:");
-        if ( serial.compareTo( new BigInteger("FFFFFFFFFFFFFFFF", 16) ) > 0 ) {
+        if ( serial == null ) {
+            text.append(" (Empty)\n");
+        }
+        else if ( serial.compareTo( new BigInteger("FFFFFFFFFFFFFFFF", 16) ) > 0 ) {
             text.append('\n');
             text.append(S20,0,12).append( lowerHexBytes(serial.toByteArray(), 1) ).append('\n');
         }
@@ -539,27 +542,32 @@ public class X509Cert extends RubyObject {
         text.append(S20,0,8).append("Subject Public Key Info:\n");
 
         final PublicKey publicKey = getPublicKey();
-        text.append(S20,0,12).append("Public Key Algorithm: ").append(publicKey.getAlgorithm()).append('\n');
-
-        if (publicKey instanceof RSAPublicKey) {
-            final RSAPublicKey rsaKey = ((RSAPublicKey) publicKey);
-            text.append(S20,0,16).append("Public-Key: (").append( rsaKey.getModulus().bitLength() ).append(" bit)\n");
-
-            text.append(S20,0,16).append("Modulus:\n");
-            appendLowerHexValue(text, rsaKey.getModulus().toByteArray(), 20, 45);
-
-            final BigInteger exponent = rsaKey.getPublicExponent();
-            text.append(S20,0,16).append("Exponent: ").append(exponent).
-                 append(" (0x").append( exponent.toString(16) ).append(")\n");
+        if (publicKey == null) {
+            text.append(S20,0,12).append("Public Key Algorithm: NULL\n");
         }
-        else if (publicKey instanceof DSAPublicKey) {
-            final DSAPublicKey dsaKey = ((DSAPublicKey) publicKey);
-            text.append(S20,0,16).append("Public-Key: (").append( dsaKey.getY().bitLength() ).append(" bit)\n");
+        else {
+            text.append(S20,0,12).append("Public Key Algorithm: ").append(publicKey.getAlgorithm()).append('\n');
 
-            text.append(S20,0,16).append("TODO: not-implemented (PR HOME-WORK)").append('\n'); // left-TODO
-        }
-        else { // "EC" or "ECDSA"
-            text.append(S20,0,16).append("TODO: not-implemented (PRs WELCOME!)").append('\n'); // left-TODO
+            if (publicKey instanceof RSAPublicKey) {
+                final RSAPublicKey rsaKey = ((RSAPublicKey) publicKey);
+                text.append(S20,0,16).append("Public-Key: (").append( rsaKey.getModulus().bitLength() ).append(" bit)\n");
+
+                text.append(S20,0,16).append("Modulus:\n");
+                appendLowerHexValue(text, rsaKey.getModulus().toByteArray(), 20, 45);
+
+                final BigInteger exponent = rsaKey.getPublicExponent();
+                text.append(S20,0,16).append("Exponent: ").append(exponent).
+                     append(" (0x").append( exponent.toString(16) ).append(")\n");
+            }
+            else if (publicKey instanceof DSAPublicKey) {
+                final DSAPublicKey dsaKey = ((DSAPublicKey) publicKey);
+                text.append(S20,0,16).append("Public-Key: (").append( dsaKey.getY().bitLength() ).append(" bit)\n");
+
+                text.append(S20,0,16).append("TODO: not-implemented (PR HOME-WORK)").append('\n'); // left-TODO
+            }
+            else { // "EC" or "ECDSA"
+                text.append(S20,0,16).append("TODO: not-implemented (PRs WELCOME!)").append('\n'); // left-TODO
+            }
         }
 
         if ( extensions != null && extensions.size() > 0 ) {
@@ -569,7 +577,10 @@ public class X509Cert extends RubyObject {
 
         text.append(S20,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
 
-        appendLowerHexValue(text, getSignature(), 9, 54);
+        final byte[] signature = getSignature();
+        if (signature != null) {
+            appendLowerHexValue(text, signature, 9, 54);
+        }
 
         return RubyString.newString( runtime, text );
     }
@@ -603,18 +614,18 @@ public class X509Cert extends RubyObject {
 
     @JRubyMethod
     public IRubyObject signature_algorithm() {
-        return sig_alg;
+        return sig_alg == null ? RubyString.newString(getRuntime(), "NULL") : sig_alg;
     }
 
     private byte[] getSignature() {
-        return cert.getSignature();
+        return cert == null ? null : cert.getSignature();
     }
 
-    BigInteger getSerial() { return serial; }
+    BigInteger getSerial() { return serial != null ? serial : BigInteger.ZERO; }
 
     @JRubyMethod
     public IRubyObject serial() {
-        return BN.newBN(getRuntime(), serial);
+        return BN.newBN(getRuntime(), getSerial());
     }
 
     @JRubyMethod(name = "serial=")
@@ -719,7 +730,7 @@ public class X509Cert extends RubyObject {
 
     private PublicKey getPublicKey() {
         if (public_key == null) {
-            return cert.getPublicKey();
+            return cert == null ? null : cert.getPublicKey();
         }
         return public_key.getPublicKey();
     }
@@ -832,7 +843,7 @@ public class X509Cert extends RubyObject {
 
         return new X509v3CertificateBuilder(
                 issuer == null ? null : ((X509Name) issuer).getX500Name(),
-                serial.abs(),
+                (serial != null ? serial : BigInteger.ZERO).abs(),
                 not_before != null ? not_before.getJavaDate() : new Date(0),
                 not_after != null ? not_after.getJavaDate() : new Date(0),
                 subject == null ? null : ((X509Name) subject).getX500Name(),

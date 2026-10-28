@@ -98,6 +98,7 @@ abstract class StringHelper {
                       .withZone(DateTimeZone.UTC);
 
     static StringBuilder appendGMTDateTime(final StringBuilder text, final DateTime time) {
+        if ( time == null ) return text.append("Bad time value");
         final String date = ASN_DATE_NO_ZONE.print( time.getMillis() );
         final int len = text.length();
         text.append(date).append(' ').append("GMT");

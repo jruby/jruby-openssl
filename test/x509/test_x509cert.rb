@@ -1048,4 +1048,16 @@ EOF
     cert = OpenSSL::X509::Certificate.new
     assert_raise(OpenSSL::X509::CertificateError) { cert.to_der }
   end
+
+  def test_to_text_empty_cert
+    cert = OpenSSL::X509::Certificate.new
+    text = cert.to_text
+    assert_match(/Certificate:/, text)
+    assert_match(/Data:/, text)
+    assert_match(/Version: 1 \(0x0\)/, text)
+    assert_match(/Signature Algorithm: NULL/, text)
+    assert_match(/Not Before: Bad time value/, text)
+    assert_match(/Not After : Bad time value/, text)
+    assert_match(/Public Key Algorithm: NULL/, text)
+  end
 end
