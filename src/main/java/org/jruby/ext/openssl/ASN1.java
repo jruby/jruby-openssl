@@ -1685,7 +1685,7 @@ public class ASN1 {
         }
 
         private boolean isConstructive() {
-            return "Constructive".equals(getMetaClass().getRealClass().getBaseName());
+            return this instanceof Constructive;
         }
 
         boolean isInfiniteLength() {
@@ -1795,8 +1795,10 @@ public class ASN1 {
         }
 
         byte[] toDER(final ThreadContext context) throws IOException {
-            if ("ASN1Data".equals(getClassBaseName()) && isUniversal(context)) {
-                return toDERInternal(context, isConstructive(), isInfiniteLength(), value(context));
+            if (!(this instanceof Constructive) && !(this instanceof Primitive) && isUniversal(context)) {
+                final IRubyObject val = value(context);
+                final boolean constructed = isConstructive() || val instanceof RubyArray;
+                return toDERInternal(context, constructed, isInfiniteLength(), val);
             }
 
             final ASN1Primitive prim = toASN1(context).toASN1Primitive();
@@ -2098,20 +2100,22 @@ public class ASN1 {
             }
 
             // NOTE: Primitive only
-            final String baseName = self.getMetaClass().getRealClass().getBaseName();
-            switch (baseName) {
-                case "ObjectId":
-                    if ( value instanceof RubyString ) {
-                        try {
-                            final String name = oid2Sym( runtime, getObjectID(runtime, value.toString()), true );
-                            if ( name != null ) value = runtime.newString(name);
+            final Integer typeId = typeId(self.getMetaClass());
+            if (typeId != null) {
+                switch (typeId.intValue()) {
+                    case OBJECT:
+                        if ( value instanceof RubyString ) {
+                            try {
+                                final String name = oid2Sym( runtime, getObjectID(runtime, value.toString()), true );
+                                if ( name != null ) value = runtime.newString(name);
+                            }
+                            catch (IllegalArgumentException ignored) {}
                         }
-                        catch (IllegalArgumentException ignored) {}
-                    }
-                    break;
-                case "BitString":
-                    self.setInstanceVariable("@unused_bits", runtime.newFixnum(0));
-                    break;
+                        break;
+                    case BIT_STRING:
+                        self.setInstanceVariable("@unused_bits", runtime.newFixnum(0));
+                        break;
+                }
             }
 
             self.setInstanceVariable("@tag", tag);
@@ -2143,7 +2147,7 @@ public class ASN1 {
         }
 
         private boolean isNull() {
-            return "Null".equals(getMetaClass().getRealClass().getBaseName());
+            return getMetaClass().isKindOfModule(_ASN1(getRuntime()).getClass("Null"));
         }
 
         @Override

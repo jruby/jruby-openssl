@@ -1379,6 +1379,21 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     end
   end
 
+  def test_universal_asn1_data_constructed_bit
+    seq_data = OpenSSL::ASN1::ASN1Data.new([OpenSSL::ASN1::Integer.new(1)], 16, :UNIVERSAL)
+    assert_equal "\x30\x03\x02\x01\x01".b, seq_data.to_der
+  end
+
+  def test_subclassing_asn1_data_and_bitstring
+    sub_data_class = Class.new(OpenSSL::ASN1::ASN1Data)
+    data_inst = sub_data_class.new("hello", 4, :UNIVERSAL)
+    assert_equal "\x04\x05hello".b, data_inst.to_der
+
+    sub_bs_class = Class.new(OpenSSL::ASN1::BitString)
+    bs_inst = sub_bs_class.new("abc")
+    assert_equal 0, bs_inst.unused_bits
+  end
+
   private
 
   def B(ary)
