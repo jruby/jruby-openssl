@@ -397,6 +397,22 @@ EOF
     assert_match(/No Revoked Certificates\./, text)
   end
 
+  def test_to_text_revoked_entry_extensions
+    crl = OpenSSL::X509::CRL.new
+    crl.version = 1
+    crl.issuer = OpenSSL::X509::Name.parse("/CN=CA")
+    crl.last_update = Time.utc(2025, 1, 1)
+    crl.add_extension(OpenSSL::X509::Extension.new("crlNumber", OpenSSL::ASN1::Integer.new(42).to_der))
+    rev = OpenSSL::X509::Revoked.new
+    rev.serial = 123
+    rev.time = Time.utc(2025, 1, 1)
+    rev.add_extension(OpenSSL::X509::Extension.new("CRLReason", OpenSSL::ASN1::Enumerated.new(1).to_der))
+    crl.add_revoked(rev)
+    text = crl.to_text
+    assert_match(/CRL extensions:\s+X509v3 CRL Number:\s+42/, text)
+    assert_match(/CRL entry extensions:\s+(X509v3 )?CRL Reason Code:\s+Key Compromise/, text)
+  end
+
   private
 
   def get_subject_key_id(cert)

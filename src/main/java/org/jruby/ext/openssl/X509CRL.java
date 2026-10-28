@@ -404,7 +404,7 @@ public class X509CRL extends RubyObject {
                 appendGMTDateTime( text, rev.getTime() ).append('\n');
                 if ( rev.hasExtensions() ) {
                     text.append(S16,0,8).append("CRL entry extensions:\n");
-                    extensions_to_text(context, extensions, text, 12);
+                    extensions_to_text(context, (List) rev.extensions(context), text, 12);
                 }
             }
         }
