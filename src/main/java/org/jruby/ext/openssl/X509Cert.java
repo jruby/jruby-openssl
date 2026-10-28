@@ -431,7 +431,7 @@ public class X509Cert extends RubyObject {
         final int version = this.version == null ? 0 : RubyNumeric.fix2int(this.version);
         final ASN1EncodableVector vec = new ASN1EncodableVector(10);
         if ( version != 0 ) vec.add(new DERTaggedObject(true, 0, new ASN1Integer((long) version)));
-        vec.add(new ASN1Integer(serial));
+        vec.add(new ASN1Integer(getSerial()));
         vec.add(certTBS.getSignature());
         vec.add(issuer == null ? certTBS.getIssuer() : ((X509Name) issuer).getX500Name());
         vec.add(ASN1Shim.newValidity(
@@ -843,7 +843,7 @@ public class X509Cert extends RubyObject {
 
         return new X509v3CertificateBuilder(
                 issuer == null ? null : ((X509Name) issuer).getX500Name(),
-                (serial != null ? serial : BigInteger.ZERO).abs(),
+                getSerial().abs(),
                 not_before != null ? not_before.getJavaDate() : new Date(0),
                 not_after != null ? not_after.getJavaDate() : new Date(0),
                 subject == null ? null : ((X509Name) subject).getX500Name(),
