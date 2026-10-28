@@ -957,33 +957,36 @@ public class X509Extension extends RubyObject {
             }
         }
 
-        int index = size; // 0
-        int end = out.getRealSize() - size;
+        int index = size;
+        int end = out.getRealSize();
 
-        if (end >= 2 && out.charAt(index) == '\\' && out.charAt(index + 1) == '#') {
+        if (end - index >= 2 && out.charAt(index) == '\\' && out.charAt(index + 1) == '#') {
             index += 2;
         }
 
-        while ( index <= end ) {
+        while ( index < end ) {
             final char c = out.charAt(index);
             if ( c == ',' || c == '"' || c == '\\' || c == '+' ||
                  c == '=' || c == '<' || c == '>'  || c == ';' ) {
                 out.insert(index, '\\');
-                index++; end++;
+                index += 2;
+                end++;
             }
-            index++;
-        }
-
-        if ( out.getRealSize() - size > 0 ) {
-            index = size; // 0
-            while ( out.charAt(index) == ' ' ) {
-                out.insert(index, '\\'); index += 2;
+            else {
+                index++;
             }
         }
 
-        index = out.getRealSize() - 1; // length - 1
-        while ( index >= size && out.charAt(index) == ' ' ) {
-            out.insert(index, '\\'); index--;
+        int start = size;
+        while ( out.getRealSize() > start && out.charAt(start) == ' ' ) {
+            out.insert(start, '\\');
+            start += 2;
+        }
+
+        int endBuf = out.getRealSize() - 1;
+        while ( endBuf >= start && out.charAt(endBuf) == ' ' ) {
+            out.insert(endBuf, '\\');
+            endBuf--;
         }
     }
 

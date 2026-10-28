@@ -373,6 +373,36 @@ class TestX509Extension < TestCase
     # cert.sign(key, OpenSSL::Digest::SHA1.new)
   end
 
+  def test_authority_key_identifier_whitespace_value
+    key = OpenSSL::PKey::RSA.new(2048)
+    cert = OpenSSL::X509::Certificate.new
+    cert.version = 2
+    cert.serial = 1
+    cert.public_key = key.public_key
+    cert.not_before = Time.now
+    cert.not_after = Time.now + 3600
+
+    ef = OpenSSL::X509::ExtensionFactory.new
+    ef.issuer_certificate = cert
+
+    tests = [
+      ["", "DirName:/CN="],
+      ["foo   bar", "DirName:/CN=foo   bar"],
+      [" ", defined?(JRUBY_VERSION) ? "DirName:/CN=\\ " : "DirName:/CN= "],
+      ["   ", defined?(JRUBY_VERSION) ? "DirName:/CN=\\ \\ \\ " : "DirName:/CN=   "],
+      [" foo ", defined?(JRUBY_VERSION) ? "DirName:/CN=\\ foo\\ " : "DirName:/CN= foo "],
+    ]
+
+    tests.each do |input, expected|
+      name = OpenSSL::X509::Name.new([["CN", input, OpenSSL::ASN1::UTF8STRING]])
+      cert.subject = cert.issuer = name
+      cert.sign(key, OpenSSL::Digest.new("SHA256"))
+      ext = ef.create_extension("authorityKeyIdentifier", "issuer:always")
+      dir_name = ext.value.split("\n")[0]
+      assert_equal expected, dir_name
+    end
+  end
+
   def test_subject_alt_name_sign_to_pem_through_cert
     domain_list = 'test.example.com,test2.example.com,example.com,www.example.com'
     rsa_key = OpenSSL::PKey::RSA.new(2048)
