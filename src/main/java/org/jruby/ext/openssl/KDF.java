@@ -35,7 +35,7 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
 import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
-import static org.jruby.ext.openssl.util.RubySupport.extractKeywordArgs;
+import static org.jruby.ext.openssl.util.RubySupport.extractRequiredKeywordArgs;
 import static org.jruby.ext.openssl.util.RubySupport.newError;
 import static org.jruby.ext.openssl.util.RubySupport.newSecurityError;
 import static org.jruby.ext.openssl.util.RubySupport.newString;
@@ -59,7 +59,7 @@ public class KDF {
 
     @JRubyMethod(module = true) // pbkdf2_hmac(pass, salt:, iterations:, length:, hash:)
     public static IRubyObject pbkdf2_hmac(ThreadContext context, IRubyObject self, IRubyObject pass, IRubyObject opts) {
-        IRubyObject[] args = extractKeywordArgs(context, (RubyHash) opts, PBKDF2_ARGS, 1);
+        IRubyObject[] args = extractRequiredKeywordArgs(context, opts, PBKDF2_ARGS, 1);
         args[0] = pass;
         try {
             return PKCS5.pbkdf2Hmac(context.runtime, args);
@@ -74,7 +74,7 @@ public class KDF {
 
     @JRubyMethod(module = true) // hkdf(ikm, salt:, info:, length:, hash:)
     public static IRubyObject hkdf(ThreadContext context, IRubyObject self, IRubyObject ikm, IRubyObject opts) {
-        IRubyObject[] args = extractKeywordArgs(context, (RubyHash) opts, HKDF_ARGS, 0);
+        IRubyObject[] args = extractRequiredKeywordArgs(context, opts, HKDF_ARGS, 0);
         try {
             return hkdfImpl(context.runtime, ikm, args);
         }

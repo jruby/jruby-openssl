@@ -142,6 +142,20 @@ class TestKDF < TestCase
                                    hash: 'sha1')
   end
 
+  def test_pbkdf2_hmac_invalid_opts
+    assert_raise(ArgumentError) { OpenSSL::KDF.pbkdf2_hmac('password', nil) }
+    assert_raise(ArgumentError) { OpenSSL::KDF.pbkdf2_hmac('password', 'not-a-hash') }
+    assert_raise(ArgumentError) { OpenSSL::KDF.pbkdf2_hmac('password', 42) }
+    assert_raise(ArgumentError) { OpenSSL::KDF.pbkdf2_hmac('password', salt: 's') }
+  end
+
+  def test_hkdf_invalid_opts
+    assert_raise(ArgumentError) { OpenSSL::KDF.hkdf('ikm', nil) }
+    assert_raise(ArgumentError) { OpenSSL::KDF.hkdf('ikm', 'not-a-hash') }
+    assert_raise(ArgumentError) { OpenSSL::KDF.hkdf('ikm', 42) }
+    assert_raise(ArgumentError) { OpenSSL::KDF.hkdf('ikm', salt: 's') }
+  end
+
   private
 
   def b(ary)

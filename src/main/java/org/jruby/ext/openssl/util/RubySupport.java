@@ -24,6 +24,7 @@
 package org.jruby.ext.openssl.util;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.function.Function;
@@ -216,6 +217,30 @@ public abstract class RubySupport {
         });
 
         return ret;
+    }
+
+    public static IRubyObject[] extractRequiredKeywordArgs(final ThreadContext context, final IRubyObject opts, final String... requiredKeys) {
+        return extractRequiredKeywordArgs(context, opts, requiredKeys, 0);
+    }
+
+    public static IRubyObject[] extractRequiredKeywordArgs(final ThreadContext context, final IRubyObject opts, final String[] requiredKeys, final int offset) {
+        if (!(opts instanceof RubyHash)) {
+            throw context.runtime.newArgumentError("wrong number of arguments (given 2, expected 1)");
+        }
+        final IRubyObject[] args = extractKeywordArgs(context, (RubyHash) opts, requiredKeys, offset);
+
+        ArrayList<String> missing = null;
+        for (int i = 0; i < requiredKeys.length; i++) {
+            if (args[offset + i] == RubyBasicObject.UNDEF) {
+                if (missing == null) missing = new ArrayList<>(requiredKeys.length);
+                missing.add(":" + requiredKeys[i]);
+            }
+        }
+        if (missing != null) {
+            final String msg = (missing.size() == 1 ? "missing keyword: " : "missing keywords: ") + String.join(", ", missing);
+            throw context.runtime.newArgumentError(msg);
+        }
+        return args;
     }
 
     public static String extractStringOpt(ThreadContext context, IRubyObject opts, String key) {
