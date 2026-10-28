@@ -386,6 +386,17 @@ EOF
     assert_equal crl.version, crl2.version
   end
 
+  def test_to_text_empty_crl
+    crl = OpenSSL::X509::CRL.new
+    text = crl.to_text
+    assert_match(/Certificate Revocation List \(CRL\):/, text)
+    assert_match(/Version 1 \(0x0\)/, text)
+    assert_match(/Signature Algorithm: NULL/, text)
+    assert_match(/Last Update: Bad time value/, text)
+    assert_match(/Next Update: NONE/, text)
+    assert_match(/No Revoked Certificates\./, text)
+  end
+
   private
 
   def get_subject_key_id(cert)

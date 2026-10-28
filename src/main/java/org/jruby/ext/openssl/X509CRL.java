@@ -181,6 +181,10 @@ public class X509CRL extends RubyObject {
     }
 
     java.security.cert.X509CRL getCRL() {
+        return getCRL(false);
+    }
+
+    java.security.cert.X509CRL getCRL(boolean allowNull) {
         if (changed && (crlHolder != null || crl != null)) {
             try {
                 final byte[] encoded = getEncoded();
@@ -190,7 +194,7 @@ public class X509CRL extends RubyObject {
                 throw newCRLError(getRuntime(), ex);
             }
         }
-        return originalCRL();
+        return originalCRL(allowNull);
     }
 
     private static final boolean avoidJavaSecurity = false; // true NOT SUPPORTED
@@ -368,7 +372,7 @@ public class X509CRL extends RubyObject {
         final StringBuilder text = new StringBuilder(160);
 
         text.append("Certificate Revocation List (CRL):\n");
-        final int version = RubyNumeric.fix2int(this.version);
+        final int version = this.version == null ? 0 : RubyNumeric.fix2int(this.version);
         text.append(S16,0,8).append("Version ").append( version + 1 ).
              append(" (0x").append( Integer.toString( version, 16 ) ).append(")\n");
         text.append(S16,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
@@ -411,9 +415,19 @@ public class X509CRL extends RubyObject {
         // TODO we shall parse / use crlValue when != null :
         text.append(S16,0,4).append("Signature Algorithm: ").append( signature_algorithm() ).append('\n');
 
-        appendLowerHexValue(text, getCRL().getSignature(), 9, 54);
+        final byte[] signature = tryGetSignature();
+        if ( signature != null ) {
+            appendLowerHexValue(text, signature, 9, 54);
+        }
 
         return RubyString.newString( runtime, text );
+    }
+
+    private byte[] tryGetSignature() {
+        if (crl == null && crlHolder == null) return null;
+
+        final java.security.cert.X509CRL crl = getCRL(true);
+        return crl != null ? crl.getSignature() : null;
     }
 
     static void extensions_to_text(final ThreadContext context,
