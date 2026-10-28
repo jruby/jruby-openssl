@@ -60,7 +60,7 @@ public class SimpleSecretKey implements SecretKey {
     }
 
     public byte[] getEncoded() {
-        return value;
+        return value.clone(); // NOTE: providers (SunJCE) wipe the returned bytes after init
     }
 
     public String getFormat() {
