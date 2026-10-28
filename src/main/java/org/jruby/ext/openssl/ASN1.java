@@ -1028,7 +1028,9 @@ public class ASN1 {
         }
 
         if ( obj instanceof ASN1ObjectIdentifier ) {
-            final String objId = ((ASN1ObjectIdentifier) obj).getId();
+            final ASN1ObjectIdentifier oid = (ASN1ObjectIdentifier) obj;
+            final String name = oid2Sym(runtime, oid, true); // short name (when known) like MRI
+            final String objId = name != null ? name : oid.getId();
             return ASN1.getClass("ObjectId").newInstance(context, runtime.newString(objId), Block.NULL_BLOCK);
         }
 
@@ -2101,21 +2103,8 @@ public class ASN1 {
 
             // NOTE: Primitive only
             final Integer typeId = typeId(self.getMetaClass());
-            if (typeId != null) {
-                switch (typeId.intValue()) {
-                    case OBJECT:
-                        if ( value instanceof RubyString ) {
-                            try {
-                                final String name = oid2Sym( runtime, getObjectID(runtime, value.toString()), true );
-                                if ( name != null ) value = runtime.newString(name);
-                            }
-                            catch (IllegalArgumentException ignored) {}
-                        }
-                        break;
-                    case BIT_STRING:
-                        self.setInstanceVariable("@unused_bits", runtime.newFixnum(0));
-                        break;
-                }
+            if (typeId != null && typeId == BIT_STRING) {
+                self.setInstanceVariable("@unused_bits", runtime.newFixnum(0));
             }
 
             self.setInstanceVariable("@tag", tag);

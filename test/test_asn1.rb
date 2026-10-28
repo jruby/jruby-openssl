@@ -1394,6 +1394,22 @@ dPMQD5JX6g5HKnHFg2mZtoXQrWmJSn7p8GJK8yNTopEErA==
     assert_equal 0, bs_inst.unused_bits
   end
 
+  def test_object_id_keeps_value_as_given
+    [ OpenSSL::ASN1::ObjectId, Class.new(OpenSSL::ASN1::ObjectId) ].each do |klass|
+      obj = klass.new("2.5.4.3")
+      assert_equal "2.5.4.3", obj.value
+      assert_equal "CN", obj.sn
+      assert_equal "commonName", obj.ln
+      assert_equal "2.5.4.3", obj.oid
+      assert_equal "\x06\x03U\x04\x03".b, obj.to_der
+      assert_equal "commonName", klass.new("commonName").value
+    end
+    assert_equal OpenSSL::ASN1::ObjectId.new("CN"), OpenSSL::ASN1::ObjectId.new("2.5.4.3")
+    # decoding yields the short name when one is known
+    assert_equal "CN", OpenSSL::ASN1.decode("\x06\x03U\x04\x03".b).value
+    assert_equal "1.2.3.4.5", OpenSSL::ASN1.decode(OpenSSL::ASN1::ObjectId.new("1.2.3.4.5").to_der).value
+  end
+
   private
 
   def B(ary)
