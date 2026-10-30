@@ -385,13 +385,14 @@ public class PKCS12 extends RubyObject {
             final X509CertificateHolder leafHolder = certificateHolderAt(certBags, leaf);
             certificate = X509Cert.wrap(context, leafHolder.getEncoded());
 
+            final boolean[] visited = new boolean[certBags.size()];
+            visited[leaf] = true;
             X500Name issuer = leafHolder.getIssuer();
             X500Name subject = leafHolder.getSubject();
-            int previous = leaf;
             while (!issuer.equals(subject)) {
                 int next = -1;
                 for (int i = 0; i < certBags.size(); i++) {
-                    if (i == previous) continue;
+                    if (visited[i]) continue;
                     final X509CertificateHolder holder = certificateHolderAt(certBags, i);
                     if (issuer.equals(holder.getSubject())) {
                         next = i;
@@ -399,11 +400,11 @@ public class PKCS12 extends RubyObject {
                     }
                 }
                 if (next < 0) break;
+                visited[next] = true;
                 final X509CertificateHolder holder = certificateHolderAt(certBags, next);
                 chain.append(X509Cert.wrap(context, holder.toASN1Structure()));
                 issuer = holder.getIssuer();
                 subject = holder.getSubject();
-                previous = next;
             }
         }
 

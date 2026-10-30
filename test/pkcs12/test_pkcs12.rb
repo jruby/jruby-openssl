@@ -114,6 +114,39 @@ class TestPKCS12 < TestCase
     assert_equal ca_cert.subject.to_s, parsed.ca_certs.first.subject.to_s
   end
 
+  def test_parse_with_cyclic_ca_certs
+    ca1_key = OpenSSL::PKey::RSA.new(2048)
+    ca2_key = OpenSSL::PKey::RSA.new(2048)
+
+    ca1 = OpenSSL::X509::Certificate.new
+    ca1.version = 2
+    ca1.serial = 1
+    ca1.subject = OpenSSL::X509::Name.parse("/CN=CA1")
+    ca1.issuer = OpenSSL::X509::Name.parse("/CN=CA2")
+    ca1.public_key = ca1_key.public_key
+    ca1.not_before = Time.now - 60
+    ca1.not_after = Time.now + 3600
+    ca1.sign(ca2_key, OpenSSL::Digest.new("SHA256"))
+
+    ca2 = OpenSSL::X509::Certificate.new
+    ca2.version = 2
+    ca2.serial = 2
+    ca2.subject = OpenSSL::X509::Name.parse("/CN=CA2")
+    ca2.issuer = OpenSSL::X509::Name.parse("/CN=CA1")
+    ca2.public_key = ca2_key.public_key
+    ca2.not_before = Time.now - 60
+    ca2.not_after = Time.now + 3600
+    ca2.sign(ca1_key, OpenSSL::Digest.new("SHA256"))
+
+    leaf = issue_cert(cn: "leaf", issuer: ca1, issuer_key: ca1_key)
+
+    p12 = OpenSSL::PKCS12.create(PASSWORD, "myalias", @key, leaf, [ca1, ca2])
+    parsed = OpenSSL::PKCS12.new(p12.to_der, PASSWORD)
+
+    assert_equal leaf.subject.to_s, parsed.certificate.subject.to_s
+    assert_equal ["/CN=CA1", "/CN=CA2"], parsed.ca_certs.map { |c| c.subject.to_s }
+  end
+
   def test_parse_returns_only_selected_key_chain
     unrelated_cert = issue_cert(cn: "unrelated", key: OpenSSL::PKey::RSA.new(2048))
 
