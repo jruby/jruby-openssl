@@ -27,6 +27,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Map;
 
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.util.Arrays;
 import org.jruby.*;
 import org.jruby.anno.JRubyMethod;
@@ -72,9 +73,21 @@ public class OpenSSL {
         SecurityHelper.setFipsVariant(fipsGem);
         SecurityHelper.checkAndRegisterProviderOnce();
         LoggingSupport.silenceBouncyCastleLoggers();
+        clearBouncyCastleThreadProperties();
 
         createOpenSSL(runtime);
         loaded = true;
+    }
+
+    /**
+     * BouncyCastle's {@code CryptoServicesRegistrar} sets its default DSA and DH parameters globally, and in a
+     * thread-local for the thread that initializes it (bcgit/bc-java#2536). That thread then keeps BouncyCastle's class
+     * loader alive for as long as it lives, and with it the class loader of an embedded JRuby. Lookups fall back to the
+     * global values, so the thread's copies can go. This also initializes the registrar on this thread, if needed.
+     */
+    private static void clearBouncyCastleThreadProperties() {
+        CryptoServicesRegistrar.clearThreadProperty(CryptoServicesRegistrar.Property.DSA_DEFAULT_PARAMS);
+        CryptoServicesRegistrar.clearThreadProperty(CryptoServicesRegistrar.Property.DH_DEFAULT_PARAMS);
     }
 
     public static boolean isLoaded() {
