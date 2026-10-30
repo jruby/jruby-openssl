@@ -245,6 +245,11 @@ public class PKCS10Request {
         else if (X9ObjectIdentifiers.id_ecPublicKey.equals(algOID)) {
             algorithm = "EC";
         }
+        else if (org.bouncycastle.asn1.nist.NISTObjectIdentifiers.id_ml_dsa_44.equals(algOID) ||
+                 org.bouncycastle.asn1.nist.NISTObjectIdentifiers.id_ml_dsa_65.equals(algOID) ||
+                 org.bouncycastle.asn1.nist.NISTObjectIdentifiers.id_ml_dsa_87.equals(algOID)) {
+            algorithm = "ML-DSA";
+        }
         else {
             throw new NoSuchAlgorithmException("could not generate public key for request, oid: " + algOID);
         }

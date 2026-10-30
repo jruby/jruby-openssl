@@ -1,3 +1,9 @@
+## 0.19.5 (unreleased)
+
+- [feat] add ML-DSA-44/65/87 keys, signatures and X.509 operations with BC 1.80+.
+  Mutual TLS through Net::HTTP requires BCJSSE 1.82+ and explicitly enabled
+  ML-DSA signature schemes; Java requirements remain unchanged
+
 ## 0.19.4
 
 TLS compatibility, cipher selection and key-handling (regression) fixes.

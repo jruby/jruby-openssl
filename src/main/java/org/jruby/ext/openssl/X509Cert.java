@@ -283,6 +283,8 @@ public class X509Cert extends RubyObject {
         if ( sigAlgorithm == null ) sigAlgorithm = cert.getSigAlgName(); // e.g. SHA256withRSA
         else {
             sigAlgorithm = ASN1.oid2name(runtime, new ASN1ObjectIdentifier(sigAlgorithm), true);
+            final String longName = ASN1.o2a(runtime, new ASN1ObjectIdentifier(cert.getSigAlgOID()), true);
+            if (PKeyMLDSA.isMLDSAAlgorithm(longName)) sigAlgorithm = longName;
             if (sigAlgorithm == null) {
                 sigAlgorithm = "0.0"; // "NULL";
                 // for some certificates that MRI parses,
@@ -760,8 +762,8 @@ public class X509Cert extends RubyObject {
         // Have to obey some artificial constraints of the OpenSSL implementation. Stupid.
         final String keyAlg = ((PKey) key).getAlgorithm();
         final String digAlg; final String digName;
-        if (digest.isNil() && PKeyEdDSA.isEdDSAAlgorithm(keyAlg)) {
-            // PureEdDSA (Ed25519/Ed448) — no digest needed
+        if (digest.isNil() && (PKeyEdDSA.isEdDSAAlgorithm(keyAlg) || PKeyMLDSA.isMLDSAAlgorithm(keyAlg))) {
+            // Pure signatures do not take a digest.
             digAlg = null; digName = null;
         }
         else if (digest instanceof Digest) {
@@ -823,6 +825,7 @@ public class X509Cert extends RubyObject {
         }
 
         String name = ASN1Registry.o2a(certHolder.getSignatureAlgorithm().getAlgorithm());
+        if (name == null) name = ASN1.o2a(runtime, certHolder.getSignatureAlgorithm().getAlgorithm(), true);
         if ( name == null ) name = cert.getSigAlgOID();
         this.sig_alg = runtime.newString(name);
         this.changed = false;

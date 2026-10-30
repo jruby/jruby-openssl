@@ -1475,6 +1475,12 @@ public class PEMInputOutput {
     private static Type getPrivateKeyType(final AlgorithmIdentifier algId) {
         final ASN1ObjectIdentifier algIdentifier = algId.getAlgorithm();
 
+        if (org.bouncycastle.asn1.nist.NISTObjectIdentifiers.id_ml_dsa_44.equals(algIdentifier) ||
+            org.bouncycastle.asn1.nist.NISTObjectIdentifiers.id_ml_dsa_65.equals(algIdentifier) ||
+            org.bouncycastle.asn1.nist.NISTObjectIdentifiers.id_ml_dsa_87.equals(algIdentifier)) {
+            return Type.MLDSA;
+        }
+
         if (X9ObjectIdentifiers.id_ecPublicKey.equals(algIdentifier)) {
             return Type.EC;
         }

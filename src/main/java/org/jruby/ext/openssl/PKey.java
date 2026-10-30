@@ -122,6 +122,9 @@ public abstract class PKey extends RubyObject {
         if (PKeyXDH.isXDHKey(publicKey)) {
             return new PKeyXDH(runtime, publicKey);
         }
+        if (PKeyMLDSA.isMLDSAAlgorithm(publicKey.getAlgorithm())) {
+            return new PKeyMLDSA(runtime, publicKey, null);
+        }
         if (publicKey instanceof DHPublicKey) {
             return new PKeyDH(runtime, (DHPublicKey) publicKey, null);
         }
@@ -203,6 +206,9 @@ public abstract class PKey extends RubyObject {
                 if ( PKeyXDH.isXDHAlgorithm(alg) ) {
                     return PKeyXDH.newInstance(runtime, keyPair);
                 }
+                if ( PKeyMLDSA.isMLDSAAlgorithm(alg) ) {
+                    return new PKeyMLDSA(runtime, keyPair.getPublic(), keyPair.getPrivate());
+                }
                 if ( "DH".equals(alg) ) {
                     return new PKeyDH(runtime, (DHPublicKey) keyPair.getPublic(), (DHPrivateKey) keyPair.getPrivate());
                 }
@@ -254,6 +260,9 @@ public abstract class PKey extends RubyObject {
             if (PKeyXDH.isXDHKey(pubKey)) {
                 return new PKeyXDH(runtime, pubKey);
             }
+            if (pubKey != null && PKeyMLDSA.isMLDSAAlgorithm(pubKey.getAlgorithm())) {
+                return new PKeyMLDSA(runtime, pubKey, null);
+            }
             if (pubKey instanceof DHPublicKey) {
                 return new PKeyDH(runtime, (DHPublicKey) pubKey, null);
             }
@@ -293,6 +302,12 @@ public abstract class PKey extends RubyObject {
                 }
                 if ( PKeyXDH.isXDHAlgorithm(algorithm) ) {
                     return PKeyXDH.generate(context, algorithm);
+                }
+                if ( PKeyMLDSA.isMLDSAAlgorithm(algorithm) ) {
+                    if (!options.isNil() && !options.convertToHash().isEmpty()) {
+                        throw newPKeyError(runtime, "ML-DSA key generation options are not supported");
+                    }
+                    return PKeyMLDSA.generate(context, algorithm);
                 }
                 if ( "RSA".equalsIgnoreCase(algorithm) ) {
                     return generateRSAKey(context, options);
