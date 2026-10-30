@@ -158,12 +158,15 @@ public class Digest extends RubyObject {
         return osslToJava(name);
     }
 
-    MessageDigest getDigestImpl() {
+    MessageDigest getDigest() {
+        if (digest == null) {
+            throw getRuntime().newRuntimeError("Digest CTX wasn't initialized!");
+        }
         return digest;
     }
 
     public String getName() {
-        return name.toString();
+        return name != null ? name.toString() : null;
     }
 
     @JRubyMethod(required = 1, optional = 1, visibility = Visibility.PRIVATE)
@@ -186,9 +189,10 @@ public class Digest extends RubyObject {
         checkFrozen();
         if ( this == obj ) return this;
         final Digest that = ((Digest) obj);
+        final MessageDigest thatDigest = that.getDigest();
         this.name = (RubyString) that.name.dup();
         try {
-            this.digest = (MessageDigest) that.digest.clone();
+            this.digest = (MessageDigest) thatDigest.clone();
         }
         catch (CloneNotSupportedException e) {
             final Ruby runtime = getRuntime();
@@ -201,36 +205,39 @@ public class Digest extends RubyObject {
     @JRubyMethod(name = "update", alias = "<<")
     public IRubyObject update(final IRubyObject obj) {
         final ByteList bytes = obj.asString().getByteList();
-        digest.update(bytes.getUnsafeBytes(), bytes.getBegin(), bytes.getRealSize());
+        getDigest().update(bytes.getUnsafeBytes(), bytes.getBegin(), bytes.getRealSize());
         return this;
     }
 
     @JRubyMethod
     public IRubyObject reset() {
-        digest.reset();
+        getDigest().reset();
         return this;
     }
 
     @JRubyMethod
     public RubyString finish() {
-        final byte[] hash = digest.digest();
-        digest.reset();
+        final MessageDigest md = getDigest();
+        final byte[] hash = md.digest();
+        md.reset();
         return newString(getRuntime(), hash);
     }
 
     @JRubyMethod
-    public RubyString name() { return name; }
+    public RubyString name() {
+        return name;
+    }
 
     @JRubyMethod
     public IRubyObject digest_length() {
-        return RubyFixnum.newFixnum(getRuntime(), digest.getDigestLength());
+        return RubyFixnum.newFixnum(getRuntime(), getDigest().getDigestLength());
     }
 
     @JRubyMethod
     public RubyInteger block_length(final ThreadContext context) {
         final Ruby runtime = context.runtime;
 
-        final int blockLength = getBlockLength( digest.getAlgorithm() );
+        final int blockLength = getBlockLength( getDigest().getAlgorithm() );
 
         if ( blockLength == -1 ) {
             throw runtime.newRuntimeError(getMetaClass() + " doesn't implement block_length()");
@@ -239,7 +246,7 @@ public class Digest extends RubyObject {
     }
 
     String getAlgorithm() {
-        return this.digest.getAlgorithm();
+        return getDigest().getAlgorithm();
     }
 
     String getShortAlgorithm() {

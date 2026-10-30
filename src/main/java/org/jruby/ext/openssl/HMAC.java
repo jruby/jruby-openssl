@@ -164,6 +164,13 @@ public class HMAC extends RubyObject {
         checkFrozen();
 
         final HMAC that = ((HMAC) obj);
+        if ( that.mac == null ) {
+            this.mac = null;
+            this.key = null;
+            this.data = that.data != null ? new ByteList(that.data) : new ByteList(64);
+            return this;
+        }
+
         final String algName = that.mac.getAlgorithm();
         try {
             this.mac = SecurityHelper.getMac(algName);
@@ -188,12 +195,18 @@ public class HMAC extends RubyObject {
 
     @JRubyMethod(name = { "update", "<<" })
     public IRubyObject update(final IRubyObject obj) {
+        if ( mac == null ) {
+            throw newHMACError(getRuntime(), "EVP_DigestSignUpdate");
+        }
         data.append(obj.convertToString().getByteList());
         return this;
     }
 
     @JRubyMethod
     public IRubyObject reset() {
+        if ( mac == null ) {
+            throw newHMACError(getRuntime(), "HMAC wasn't initialized");
+        }
         data = new ByteList(64);
         return this;
     }
@@ -209,6 +222,9 @@ public class HMAC extends RubyObject {
     }
 
     private byte[] getSignatureBytes() {
+        if ( mac == null ) {
+            throw newHMACError(getRuntime(), "EVP_DigestSignFinal: initialization error");
+        }
         try {
             mac.reset();
             mac.update(data.getUnsafeBytes(), data.getBegin(), data.getRealSize());
@@ -247,6 +263,10 @@ public class HMAC extends RubyObject {
             return mac;
         }
         return super.toJava(target);
+    }
+
+    static RaiseException newHMACError(Ruby runtime, String message) {
+        return newHMACError(runtime, message, null);
     }
 
     private static RaiseException newHMACError(Ruby runtime, String message, Throwable cause) {

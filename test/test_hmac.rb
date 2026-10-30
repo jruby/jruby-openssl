@@ -87,4 +87,25 @@ class TestHMAC < TestCase
     # a key under 112 bits is rejected in approved mode, even with an approved digest
     assert_raise(OpenSSL::HMACError) { OpenSSL::HMAC.new('xyz', 'SHA256') }
   end
+
+  def test_uninitialized_copy
+    uninit = OpenSSL::HMAC.allocate
+    assert_instance_of OpenSSL::HMAC, uninit.dup
+    assert_instance_of OpenSSL::HMAC, uninit.clone
+
+    h = OpenSSL::HMAC.new('key', 'SHA256')
+    h.send(:initialize_copy, uninit)
+    assert_raise(OpenSSL::HMACError) { h.digest }
+  end
+
+  def test_uninitialized_methods
+    uninit = OpenSSL::HMAC.allocate
+    assert_raise(OpenSSL::HMACError) { uninit.digest }
+    assert_raise(OpenSSL::HMACError) { uninit.hexdigest }
+    assert_raise(OpenSSL::HMACError) { uninit.inspect }
+    assert_raise(OpenSSL::HMACError) { uninit.to_s }
+    assert_raise(OpenSSL::HMACError) { uninit << "data" }
+    assert_raise(OpenSSL::HMACError) { uninit.update("data") }
+    assert_raise(OpenSSL::HMACError) { uninit.reset } if defined?(JRUBY_VERSION)
+  end
 end

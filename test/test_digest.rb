@@ -100,6 +100,28 @@ class TestDigest < TestCase
     assert_equal(@d1.digest, @d1.clone.digest, "clone .digest")
   end
 
+  def test_uninitialized_copy
+    uninit = OpenSSL::Digest.allocate
+    assert_raise(RuntimeError) { uninit.dup }
+    assert_raise(RuntimeError) { uninit.clone }
+
+    d = OpenSSL::Digest.new('SHA256')
+    uninit.send(:initialize_copy, d)
+    assert_equal d.digest, uninit.digest
+  end
+
+  def test_uninitialized_methods
+    uninit = OpenSSL::Digest.allocate
+    assert_raise(RuntimeError) { uninit.digest }
+    assert_raise(RuntimeError) { uninit.hexdigest }
+    assert_raise(RuntimeError) { uninit << "data" }
+    assert_raise(RuntimeError) { uninit.update("data") }
+    assert_raise(RuntimeError) { uninit.reset }
+    assert_raise(RuntimeError) { uninit.send(:finish) }
+    assert_raise(RuntimeError) { uninit.digest_length }
+    assert_raise(RuntimeError) { uninit.block_length }
+  end
+
   def test_reset
     @d1.update(@data)
     dig1 = @d1.digest

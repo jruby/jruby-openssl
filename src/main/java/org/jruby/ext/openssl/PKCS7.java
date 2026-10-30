@@ -826,7 +826,7 @@ public class PKCS7 extends RubyObject {
             this.info = new SignerInfoWithPkey();
             final X509AuxCertificate cert = ((X509Cert) arg1).getAuxCert();
             final PrivateKey pkey = ((PKey) arg2).getPrivateKey();
-            final java.security.MessageDigest digest = Digest.getDigest(context, arg3).getDigestImpl();
+            final java.security.MessageDigest digest = Digest.getDigest(context, arg3).getDigest();
 
             try {
                 info.set(cert, pkey, digest);
