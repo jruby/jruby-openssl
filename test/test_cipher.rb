@@ -434,6 +434,60 @@ class TestCipher < TestCase
     end
   end
 
+  def test_ctr_reset_continues_at_next_block
+    plain = 'x' * 96
+
+    algos = %w[aes-128-ctr aes-192-ctr aes-256-ctr]
+    algos << 'camellia-128-ctr' unless fips?
+    algos << 'bf-ctr' if defined?(JRUBY_VERSION) && !fips?
+    algos.each do |algo|
+      base = OpenSSL::Cipher.new(algo)
+      key = 'k' * base.key_len
+      iv = ['000102030405060708090a0b0c0dfeff'].pack('H*').byteslice(-base.iv_len, base.iv_len)
+      whole = OpenSSL::Cipher.new(algo).encrypt; whole.key = key; whole.iv = iv
+      encrypted = whole.update(plain) + whole.final
+
+      [0, 5, base.iv_len, base.iv_len + 1, base.iv_len * 2].each do |length|
+        next_offset = ((length + base.iv_len - 1) / base.iv_len) * base.iv_len
+        [false, true].each do |finish|
+          enc = OpenSSL::Cipher.new(algo).encrypt; enc.key = key; enc.iv = iv
+          enc.update(plain.byteslice(0, length)) if length > 0
+          enc.final if finish
+          enc.reset
+          enc.reset
+          assert_equal encrypted.byteslice(next_offset, base.iv_len),
+            enc.update(plain.byteslice(next_offset, base.iv_len)) + enc.final,
+            "#{algo} encrypt reset after #{length} bytes (final=#{finish})"
+
+          dec = OpenSSL::Cipher.new(algo).decrypt; dec.key = key; dec.iv = iv
+          dec.update(encrypted.byteslice(0, length)) if length > 0
+          dec.final if finish
+          dec.reset
+          assert_equal plain.byteslice(next_offset, base.iv_len),
+            dec.update(encrypted.byteslice(next_offset, base.iv_len)) + dec.final,
+            "#{algo} decrypt reset after #{length} bytes (final=#{finish})"
+        end
+      end
+
+      split = OpenSSL::Cipher.new(algo).encrypt; split.key = key; split.iv = iv
+      split.update(plain.byteslice(0, 5))
+      split.update(plain.byteslice(5, 12))
+      split.reset
+      next_offset = ((17 + base.iv_len - 1) / base.iv_len) * base.iv_len
+      assert_equal encrypted.byteslice(next_offset, base.iv_len),
+        split.update(plain.byteslice(next_offset, base.iv_len)) + split.final,
+        "#{algo} reset after split updates"
+
+      rewound = OpenSSL::Cipher.new(algo).encrypt; rewound.key = key; rewound.iv = iv
+      rewound.update(plain.byteslice(0, base.iv_len))
+      rewound.reset
+      rewound.iv = iv
+      assert_equal encrypted.byteslice(0, base.iv_len),
+        rewound.update(plain.byteslice(0, base.iv_len)) + rewound.final,
+        "#{algo} explicit IV after reset"
+    end
+  end
+
   # NIST SP 800-38A F.5.5/F.5.6 AES-256-CTR known-answer vector
   def test_aes256_ctr_nist_kat
     key = ['603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4'].pack('H*')
