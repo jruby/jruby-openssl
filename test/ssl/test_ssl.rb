@@ -465,6 +465,36 @@ class TestSSL < TestCase
     end
   end
 
+  # a client rejecting the server certificate must send its alert, even with the socket still open
+  def test_client_verify_failure_sends_alert_to_server
+    [:TLSv1_2, :TLSv1_3].each do |version|
+      begin
+        server_ctx = OpenSSL::SSL::SSLContext.new
+        server_ctx.cert = @svr_cert
+        server_ctx.key = @svr_key
+        server_ctx.ssl_version = version if jruby?
+        tcp_server = TCPServer.new("127.0.0.1", 0)
+        ssl_server = OpenSSL::SSL::SSLServer.new(tcp_server, server_ctx)
+        server_thread = Thread.new { ssl_server.accept rescue $! }
+
+        client_ctx = OpenSSL::SSL::SSLContext.new
+        client_ctx.ssl_version = version if jruby?
+        client_ctx.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        client_ctx.cert_store = OpenSSL::X509::Store.new # trusts nothing
+        sock = TCPSocket.new("127.0.0.1", tcp_server.addr[1])
+        assert_raise(OpenSSL::SSL::SSLError) { OpenSSL::SSL::SSLSocket.new(sock, client_ctx).connect }
+
+        assert server_thread.join(5), "#{version}: server accept blocked, no alert from client"
+        assert_kind_of OpenSSL::SSL::SSLError, server_thread.value, version.to_s
+      ensure
+        sock&.close rescue nil # unblocks a still waiting server
+        server_thread&.join rescue nil
+        ssl_server&.close rescue nil
+        tcp_server&.close rescue nil
+      end
+    end
+  end
+
   def test_unexpected_eof_is_not_accepted_by_default
     server_ctx = OpenSSL::SSL::SSLContext.new
     server_ctx.cert = @svr_cert
