@@ -209,6 +209,20 @@ public class PKey {
         return null;
     }
 
+    // d2i_PrivateKey_bio - type specific DER encodings (PKCS#1 RSA, DSA, SEC1 EC)
+    public static KeyPair readPrivateKeyDER(final byte[] input) throws IOException {
+        try {
+            // each reader matches on sequence shape so order does not matter
+            KeyPair keyPair = readRSAPrivateKey(input);
+            if (keyPair == null) keyPair = readDSAPrivateKey(input);
+            if (keyPair == null) keyPair = readECPrivateKey(input);
+            return keyPair;
+        }
+        catch (Exception e) { // the EC reader mocks up a PrivateKeyInfo and blows up in all sorts of ways
+            throw new IOException("Could not parse private key: " + e.getMessage(), e);
+        }
+    }
+
     // d2i_RSAPublicKey_bio
     public static PublicKey readRSAPublicKey(final byte[] input)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {

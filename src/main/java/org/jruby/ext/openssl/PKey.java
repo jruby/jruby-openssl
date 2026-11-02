@@ -147,6 +147,14 @@ public abstract class PKey extends RubyObject {
                     debugStackTrace(runtime, "PKey readPrivateKeyFromDER", e); /* ignore */
                 }
             }
+            // d2i_PrivateKey_bio - PKCS#1 RSA, DSA and SEC1 EC keys (as written by #to_der)
+            if (keyPair == null) {
+                try {
+                    keyPair = org.jruby.ext.openssl.impl.PKey.readPrivateKeyDER(str.getBytes());
+                } catch (IOException e) {
+                    debugStackTrace(runtime, "PKey readPrivateKeyDER", e); /* ignore */
+                }
+            }
             // PEM_read_bio_PrivateKey
             if (keyPair != null) {
                 final String alg = getAlgorithm(keyPair);
