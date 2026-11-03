@@ -467,23 +467,25 @@ class TestSSL < TestCase
 
   # client rejecting server cert must send an alert, even with TCP socket kept open
   def test_client_verify_failure_sends_alert_to_server
-    [:TLSv1_2, :TLSv1_3].each do |version|
+    [nil, :TLSv1_2, :TLSv1_3].each do |version|
       begin
-        server_ctx = OpenSSL::SSL::SSLContext.new(version) # NOTE: BC-JSSE isn't used for plain "SSL"
+        new_ctx = -> { version ? OpenSSL::SSL::SSLContext.new(version) : OpenSSL::SSL::SSLContext.new }
+        server_ctx = new_ctx.call # NOTE: BC-JSSE isn't used for plain "SSL"
         server_ctx.cert = @svr_cert
         server_ctx.key = @svr_key
         tcp_server = TCPServer.new("127.0.0.1", 0)
         ssl_server = OpenSSL::SSL::SSLServer.new(tcp_server, server_ctx)
         server_thread = Thread.new { ssl_server.accept rescue $! }
 
-        client_ctx = OpenSSL::SSL::SSLContext.new(version)
+        client_ctx = new_ctx.call
         client_ctx.verify_mode = OpenSSL::SSL::VERIFY_PEER
         client_ctx.cert_store = OpenSSL::X509::Store.new # trusts nothing
         sock = TCPSocket.new("127.0.0.1", tcp_server.addr[1])
         assert_raise(OpenSSL::SSL::SSLError) { OpenSSL::SSL::SSLSocket.new(sock, client_ctx).connect }
 
-        assert server_thread.join(5), "server accept blocked (version: #{version})"
+        assert server_thread.join(5), "server accept blocked (version: #{version.inspect})"
         assert_kind_of OpenSSL::SSL::SSLError, server_thread.value
+        assert_match(/certificate_unknown|unknown ca/, server_thread.value.message) # alert, not garbage
       ensure
         sock&.close rescue nil # unblocks a still waiting server
         server_thread&.join rescue nil

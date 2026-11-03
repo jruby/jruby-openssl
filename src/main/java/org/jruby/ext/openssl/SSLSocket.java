@@ -754,8 +754,13 @@ public class SSLSocket extends RubyObject {
             // clear() would silently discard them, corrupting TLS record stream
             while ( netWriteData.hasRemaining() && flushData(blocking) ) { /* loop */ }
             netWriteData.clear();
-            SSLEngineResult result = engine.wrap(EMPTY_DATA.duplicate(), netWriteData);
-            netWriteData.flip();
+            final SSLEngineResult result;
+            try {
+                result = engine.wrap(EMPTY_DATA.duplicate(), netWriteData);
+            }
+            finally { // NOTE: failed wrap must not leave (stale) buffer contents to be flushed
+                netWriteData.flip();
+            }
             handshakeStatus = result.getHandshakeStatus();
             status = result.getStatus();
             if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK && status == SSLEngineResult.Status.OK) {
