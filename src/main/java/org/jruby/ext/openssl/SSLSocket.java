@@ -975,7 +975,16 @@ public class SSLSocket extends RubyObject {
             try {
                 SSLEngineResult result;
                 do {
-                    result = engine.wrap(EMPTY_DATA.duplicate(), netWriteData); // send close (after engine.closeOutbound)
+                    try {
+                        result = engine.wrap(EMPTY_DATA.duplicate(), netWriteData); // send close (after engine.closeOutbound)
+                    }
+                    catch (SSLException e) {
+                        // BCJSSE re-throws a failed unwrap here (writing nothing); next wrap writes the queued alert
+                        if (engine.isOutboundDone()) throw e;
+                        LOG.debug(getRuntime(), "doShutdown", e);
+                        result = engine.wrap(EMPTY_DATA.duplicate(), netWriteData);
+                    }
+
                     if (result.getStatus() == SSLEngineResult.Status.BUFFER_OVERFLOW) {
                         netWriteData = ensureCapacity(netWriteData, engine.getSession().getPacketBufferSize());
                         continue;
