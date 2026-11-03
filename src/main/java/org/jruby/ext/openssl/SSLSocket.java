@@ -148,10 +148,22 @@ public class SSLSocket extends RubyObject {
     // JSSE may abort a handshake with a plain runtime exception (e.g. no protocol left enabled)
     private static RaiseException newSSLErrorFromException(Ruby runtime, Exception exception) {
         LOG.debugStack(runtime, null, exception);
-        if ( "Could not generate DH keypair".equals( exception.getMessage() ) ) {
+        if ("Could not generate DH keypair".equals(exception.getMessage())) {
             return SSL.handleCouldNotGenerateDHKeyPairError(runtime, exception);
         }
         return SSL.newSSLError(runtime, exception);
+    }
+
+    // JSSE wraps a trust manager rejection (e.g. in a fatal alert exception) - report it as MRI
+    private RaiseException tryExtractVerifyError(Ruby runtime, Exception exception) {
+        Throwable cause = exception;
+        for (int i = 0; cause != null && i < 10; i++, cause = cause.getCause()) {
+            if (cause instanceof SSLContext.VerifyCertificateException) {
+                verifyResult = ((SSLContext.VerifyCertificateException) cause).verifyError;
+                return SSL.newSSLError(runtime, (SSLContext.VerifyCertificateException) cause);
+            }
+        }
+        return null;
     }
 
     private static CallSite callSite(final CallSite[] sites, final CallSiteIndex index) {
@@ -343,12 +355,14 @@ public class SSLSocket extends RubyObject {
             LOG.debug(context.runtime, "connectImpl", e);
             // unlike server side, client should close outbound channel even if we have remaining data to be sent
             forceClose();
-            throw newSSLErrorFromHandshake(context.runtime, e);
+            final RaiseException verifyError = tryExtractVerifyError(context.runtime, e);
+            throw verifyError != null ? verifyError : newSSLErrorFromHandshake(context.runtime, e);
         }
         catch (IOException e) {
             LOG.debug(context.runtime, "connectImpl", e);
             forceClose();
-            throw newSSLError(context.runtime, e);
+            final RaiseException verifyError = tryExtractVerifyError(context.runtime, e);
+            throw verifyError != null ? verifyError : newSSLError(context.runtime, e);
         }
         catch (NotYetConnectedException e) {
             throw newErrnoEPIPEError(context.runtime, "SSL_connect");
@@ -444,11 +458,13 @@ public class SSLSocket extends RubyObject {
             else {
                 LOG.debugStack(context.runtime, null, e);
             }
-            throw newSSLErrorFromHandshake(context.runtime, e);
+            final RaiseException verifyError = tryExtractVerifyError(context.runtime, e);
+            throw verifyError != null ? verifyError : newSSLErrorFromHandshake(context.runtime, e);
         }
         catch (IOException e) {
             LOG.debugStack(context.runtime, null, e);
-            throw newSSLError(context.runtime, e);
+            final RaiseException verifyError = tryExtractVerifyError(context.runtime, e);
+            throw verifyError != null ? verifyError : newSSLError(context.runtime, e);
         }
         catch (RaiseException e) {
             throw e;
@@ -697,6 +713,10 @@ public class SSLSocket extends RubyObject {
                 int unwrapResult = readAndUnwrap(blocking, exception);
                 if (isWouldBlockResult(unwrapResult)) return wouldBlockSymbol(unwrapResult);
                 if (unwrapResult == -1 && handshakeStatus != SSLEngineResult.HandshakeStatus.FINISHED) {
+                    if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
+                        doWrap(blocking); // BCJSSE raises the actual (deferred) handshake failure here
+                        flushData(blocking);
+                    }
                     throw new SSLHandshakeException("Socket closed");
                 }
                 // during initialHandshake, calling readAndUnwrap that results UNDERFLOW does not mean writable.

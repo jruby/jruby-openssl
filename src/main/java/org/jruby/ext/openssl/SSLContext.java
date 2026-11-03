@@ -1494,12 +1494,11 @@ public class SSLContext extends RubyObject {
                 ok = storeContext.verifyCertificate();
             }
             catch (Exception e) {
-                internalContext.setLastVerifyResult(storeContext.getError());
-                if ( storeContext.getError() == X509Utils.V_OK ) {
-                    internalContext.setLastVerifyResult(X509Utils.V_ERR_CERT_REJECTED);
-                }
+                int error = storeContext.getError();
+                if ( error == X509Utils.V_OK ) error = X509Utils.V_ERR_CERT_REJECTED;
+                internalContext.setLastVerifyResult(error);
                 if ( raiseOnFailure ) {
-                    throw new CertificateException("certificate verify failed", e);
+                    throw new VerifyCertificateException(error, e);
                 }
                 LOG.debugStack("verifyCertChain (failure retained in verify_result)", e);
                 return;
@@ -1507,8 +1506,24 @@ public class SSLContext extends RubyObject {
 
             internalContext.setLastVerifyResult(storeContext.getError());
             if ( ok == 0 && raiseOnFailure ) {
-                throw new CertificateException("certificate verify failed");
+                throw new VerifyCertificateException(storeContext.getError(), null);
             }
+        }
+    }
+
+    // trust manager rejection carrying (per handshake) verify error
+    static final class VerifyCertificateException extends CertificateException {
+        final int verifyError;
+
+        VerifyCertificateException(final int verifyError, final Throwable cause) {
+            super(verifyErrorMessage(verifyError), cause);
+            this.verifyError = verifyError;
+        }
+
+        private static String verifyErrorMessage(final int verifyError) {
+            return verifyError == X509Utils.V_OK ?
+                    "certificate verify failed" :
+                    "certificate verify failed (" + X509Utils.verifyCertificateErrorString(verifyError) + ")";
         }
     }
 
