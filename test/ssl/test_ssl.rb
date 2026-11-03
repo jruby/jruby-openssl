@@ -493,6 +493,26 @@ class TestSSL < TestCase
     end
   end
 
+  # client rejecting server cert reports the verify error (message and verify_result) like MRI (#399)
+  def test_client_verify_failure_error_and_verify_result
+    [nil, :TLSv1_2, :TLSv1_3].each do |version|
+      start_server(OpenSSL::SSL::VERIFY_NONE, true, ignore_listener_error: true) do |_server, port|
+        ctx = version ? OpenSSL::SSL::SSLContext.new(version) : OpenSSL::SSL::SSLContext.new
+        ctx.verify_mode = OpenSSL::SSL::VERIFY_PEER
+        ctx.cert_store = OpenSSL::X509::Store.new # trusts nothing
+        sock = TCPSocket.new("127.0.0.1", port)
+        ssl = OpenSSL::SSL::SSLSocket.new(sock, ctx)
+        assert_raise_with_message(OpenSSL::SSL::SSLError, /certificate verify failed \(self.signed certificate in certificate chain\)/) do
+          ssl.connect
+        end
+        assert_equal OpenSSL::X509::V_ERR_SELF_SIGNED_CERT_IN_CHAIN, ssl.verify_result, "version: #{version.inspect}"
+      ensure
+        ssl&.close rescue nil
+        sock&.close rescue nil
+      end
+    end
+  end
+
   def test_unexpected_eof_is_not_accepted_by_default
     server_ctx = OpenSSL::SSL::SSLContext.new
     server_ctx.cert = @svr_cert
