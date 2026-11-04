@@ -1,3 +1,25 @@
+## 0.19.5
+
+TLS handshake error reporting and shutdown alert fix, OCSP request improvements,
+ASN.1 decoding compatibility and safety handling for uninitialized objects.
+
+- [fix] `OCSP::Request` nonce and certid handling (#396)
+- [fix] avoid flushing stale bytes after failed wrap
+- [compat] report cert verify error on failed handshake (#399)
+- [fix] flush buffered alert on failed handshake shutdown (#399)
+- [fix] handle uninitialized Digest/HMAC objects
+- [fix] prevent loop in PKCS12 on cyclic safe bags
+- [fix] bounds and space escaping in X509::Extension
+- [compat] keep ObjectId value as given on initialize
+- [fix] string insertion index in HMAC fallback
+- [fix] revoked entry extensions in X509CRL#to_text
+- [fix] handle uninitialized CRL in X509CRL#to_text
+- [fix] handle null around X509Cert#to_text
+- [fix] X509Cert#to_der when cert is uninitialized
+- [fix] validate keyword arguments in KDF.pbkdf2_hmac and KDF.hkdf
+- [fix] ASN.1 constructed bit and subclassing support
+- [fix] ASN.1 encoding decoding and type resolution
+
 ## 0.19.4
 
 TLS compatibility, cipher selection and key-handling (regression) fixes.
