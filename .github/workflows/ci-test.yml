@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         runtime:
-          - ruby: jruby-10.0.6.0
+          - ruby: jruby-10.0.7.0
             java: 11
             distribution: temurin
           - ruby: jruby-10.0.6.0
@@ -57,10 +57,10 @@ jobs:
             ruby: jruby-10.0.5.0
           - java: 21
             distribution: oracle
-            ruby: jruby-10.0.1.0
+            ruby: jruby-10.0.6.0
           - java: 21
             distribution: zulu
-            ruby: jruby-10.1.0.0
+            ruby: jruby-10.1.2.0
           - java: 25
             distribution: temurin
             ruby: jruby-10.1.2.0
