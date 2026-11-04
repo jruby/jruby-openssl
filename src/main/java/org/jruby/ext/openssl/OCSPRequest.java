@@ -46,11 +46,16 @@ import java.util.List;
 import org.jruby.ext.openssl.log.Logger;
 
 import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers;
+import org.bouncycastle.asn1.ocsp.Request;
 import org.bouncycastle.asn1.ocsp.Signature;
 import org.bouncycastle.asn1.ocsp.TBSRequest;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -82,6 +87,7 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.Visibility;
 import org.jruby.runtime.builtin.IRubyObject;
 
+import static org.jruby.ext.openssl.OCSP.generateNonce;
 import static org.jruby.ext.openssl.OpenSSL.throwOperationErrorOrOriginal;
 import static org.jruby.ext.openssl.OCSP._OCSP;
 import static org.jruby.ext.openssl.OCSP.newOCSPError;
@@ -114,8 +120,7 @@ public class OCSPRequest extends RubyObject {
     private final static String OCSP_TRUSTOTHER = "TRUSTOTHER";
     private final static String OCSP_NOCHAIN = "NOCHAIN";
     private org.bouncycastle.asn1.ocsp.OCSPRequest asn1bcReq;
-    private List<OCSPCertificateId> certificateIds = new ArrayList<OCSPCertificateId>();
-    private byte[] nonce;
+    private List<OCSPCertificateId> certificateIds = new ArrayList<>();
     
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, IRubyObject[] args) {
@@ -125,77 +130,95 @@ public class OCSPRequest extends RubyObject {
         
         RubyString derString = StringHelper.readPossibleDERInput(context, args[0]);
         asn1bcReq = org.bouncycastle.asn1.ocsp.OCSPRequest.getInstance(derString.getBytes());
-        
+
+        // populate certificate IDs:
+        certificateIds.clear();
+        ASN1Sequence reqList = asn1bcReq.getTbsRequest().getRequestList();
+        for (int i = 0; i < reqList.size(); i++) {
+            Request req = Request.getInstance(reqList.getObjectAt(i));
+            certificateIds.add(new OCSPCertificateId(runtime, req.getReqCert()));
+        }
+
         return this;
     }
     
     @JRubyMethod(name = "add_certid")
     public IRubyObject add_certid(IRubyObject certId) {
-        Ruby runtime = getRuntime();
         OCSPCertificateId rubyCertId = (OCSPCertificateId) certId;
         certificateIds.add(rubyCertId);
-        
-        OCSPReqBuilder builder = new OCSPReqBuilder();
-        for (OCSPCertificateId certificateId : certificateIds) {
-            builder.addRequest(new CertificateID(certificateId.getCertID()));
+
+        GeneralName requestorName = null;
+        Extensions requestExts = null; // optional
+        Signature signature = null; // optional
+        ASN1EncodableVector requests = new ASN1EncodableVector();
+
+        if (asn1bcReq != null) {
+            TBSRequest currentTbsReq = asn1bcReq.getTbsRequest();
+            requestorName = currentTbsReq.getRequestorName();
+            requestExts = currentTbsReq.getRequestExtensions();
+            ASN1Sequence reqList = currentTbsReq.getRequestList();
+            for (int i = 0; i < reqList.size(); i++) {
+                requests.add(reqList.getObjectAt(i));
+            }
+            signature = asn1bcReq.getOptionalSignature();
         }
-        
-        try {
-            asn1bcReq = org.bouncycastle.asn1.ocsp.OCSPRequest.getInstance(builder.build().getEncoded());
-        }
-        catch (Exception e) {
-            throw newOCSPError(runtime, e);
-        }
-        
-        if (nonce != null) {
-            addNonceImpl();
-        }
+
+        requests.add(new Request(rubyCertId.getCertID(), null));
+        TBSRequest newTbsReq = new TBSRequest(requestorName, new DERSequence(requests), requestExts);
+        asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(newTbsReq, signature);
+
         return this;
     }
 
     @JRubyMethod(name = "add_nonce", rest = true)
     public IRubyObject add_nonce(ThreadContext context, IRubyObject[] args) {
-        if ( Arity.checkArgumentCount(context.runtime, args, 0, 1) == 0 ) {
-            try {
-                nonce = OCSP.generateNonce(context);
-            }
-            catch (NoSuchAlgorithmException e) {
-                throw newOCSPError(context.runtime, e);
-            }
+        final boolean random = Arity.checkArgumentCount(context.runtime, args, 0, 1) == 0 || args[0].isNil();
+        final Extension nonceExt;
+        try {
+            byte[] nonce = random ? OCSP.generateNonce(context) : args[0].convertToString().getBytes();
+            nonceExt = createNonceExtension(nonce);
         }
-        else {
-            RubyString input = (RubyString) args[0];
-            nonce = input.getBytes();
+        catch (NoSuchAlgorithmException|IOException e) {
+            throw newOCSPError(context.runtime, e);
         }
-        
-        addNonceImpl();
+        addNonceImpl(nonceExt);
         return this;
     }
-    
-    // BC doesn't have support for nonces... gotta do things manually
-    private void addNonceImpl() {
+
+    private void addNonceImpl(final Extension nonceExt) {
         GeneralName requestorName = null;
         ASN1Sequence requestList = new DERSequence();
-        Extensions extensions;
-        Signature sig = null;
-        List<Extension> tmpExtensions = new ArrayList<Extension>();
+        Signature signature = null;
+        List<Extension> tmpExtensions = new ArrayList<>();
         
         if (asn1bcReq != null) {
             TBSRequest currentTbsReq = asn1bcReq.getTbsRequest();
-            extensions = currentTbsReq.getRequestExtensions();
-            sig = asn1bcReq.getOptionalSignature();        
-            Enumeration<ASN1ObjectIdentifier> oids = extensions.oids();
-            while (oids.hasMoreElements()) {
-                tmpExtensions.add(extensions.getExtension(oids.nextElement()));
+            requestorName = currentTbsReq.getRequestorName();
+            requestList = currentTbsReq.getRequestList();
+            Extensions extensions = currentTbsReq.getRequestExtensions(); // optional
+            if (extensions != null) {
+                Enumeration<ASN1ObjectIdentifier> oids = extensions.oids();
+                while (oids.hasMoreElements()) {
+                    ASN1ObjectIdentifier oid = oids.nextElement();
+                    if (!OCSPObjectIdentifiers.id_pkix_ocsp_nonce.equals(oid)) {
+                        tmpExtensions.add(extensions.getExtension(oid));
+                    }
+                }
             }
+            signature = asn1bcReq.getOptionalSignature();
         }
-        
-        tmpExtensions.add(new Extension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce, false, nonce));
-        Extension[] exts = new Extension[tmpExtensions.size()];
-        Extensions newExtensions = new Extensions(tmpExtensions.toArray(exts));
+
+        tmpExtensions.add(nonceExt);
+
+        Extensions newExtensions = new Extensions(tmpExtensions.toArray(new Extension[tmpExtensions.size()]));
         TBSRequest newTbsReq = new TBSRequest(requestorName, requestList, newExtensions);
 
-        asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(newTbsReq, sig);
+        asn1bcReq = new org.bouncycastle.asn1.ocsp.OCSPRequest(newTbsReq, signature);
+    }
+
+    static Extension createNonceExtension(final byte[] nonce) throws IOException {
+        final byte[] nonceOctet = new DEROctetString(nonce).getEncoded();
+        return new Extension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce, false, nonceOctet);
     }
     
     @JRubyMethod(name = "certid")
@@ -212,16 +235,17 @@ public class OCSPRequest extends RubyObject {
     @JRubyMethod(name = "check_nonce")
     public IRubyObject check_nonce(ThreadContext context, IRubyObject response) {
         final Ruby runtime = context.runtime;
+        final byte[] reqNonce = getNonce();
         if (response instanceof OCSPBasicResponse) {
             OCSPBasicResponse rubyBasicRes = (OCSPBasicResponse) response;
-            return checkNonceImpl(runtime, this.nonce, rubyBasicRes.getNonce());
+            return checkNonceImpl(runtime, reqNonce, rubyBasicRes.getNonce());
         }
         else if (response instanceof OCSPResponse) {
             OCSPResponse rubyResp = (OCSPResponse) response;
-            return checkNonceImpl(runtime, this.nonce, ((OCSPBasicResponse)rubyResp.basic(context)).getNonce());
+            return checkNonceImpl(runtime, reqNonce, ((OCSPBasicResponse)rubyResp.basic(context)).getNonce());
         }
         else {
-            return checkNonceImpl(runtime, this.nonce, null);
+            return checkNonceImpl(runtime, reqNonce, null);
         }
     }
     
@@ -274,6 +298,12 @@ public class OCSPRequest extends RubyObject {
             for (OCSPCertificateId certId : certificateIds) {
                 builder.addRequest(new CertificateID(certId.getCertID()));
             }
+            if (asn1bcReq != null) {
+                Extensions exts = asn1bcReq.getTbsRequest().getRequestExtensions();
+                if (exts != null) {
+                    builder.setRequestExtensions(exts);
+                }
+            }
             
             List<X509CertificateHolder> certChain = new ArrayList<>();
             if (flag != RubyFixnum.fix2int(nocerts)) {
@@ -304,8 +334,6 @@ public class OCSPRequest extends RubyObject {
             //    handlePotentialOperationError(ex, e -> newSecurityError(runtime, e));
             //}
 
-            if (nonce != null) addNonceImpl();
-                    
             return this;
         }
         catch (Throwable ex) {
@@ -410,7 +438,9 @@ public class OCSPRequest extends RubyObject {
         if ( this == obj ) return this;
 
         checkFrozen();
-        this.asn1bcReq = ((OCSPRequest)obj).asn1bcReq;
+        OCSPRequest other = (OCSPRequest) obj;
+        this.asn1bcReq = other.asn1bcReq;
+        this.certificateIds = new ArrayList<>(other.certificateIds);
         return this;
     }
     
@@ -437,7 +467,25 @@ public class OCSPRequest extends RubyObject {
     }
 
     public byte[] getNonce() {
-        return this.nonce;
+        if (asn1bcReq == null) return null;
+        return extractNonce(asn1bcReq.getTbsRequest().getRequestExtensions());
+    }
+
+    static byte[] extractNonce(final Extensions exts) {
+        return exts == null ? null : extractNonce(exts.getExtension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce));
+    }
+
+    static byte[] extractNonce(final Extension ext) {
+        if (ext == null) return null;
+
+        final byte[] value = ext.getExtnValue().getOctets();
+        try {
+            ASN1Primitive primitive = ASN1Primitive.fromByteArray(value);
+            if (primitive instanceof ASN1OctetString) {
+                return ((ASN1OctetString) primitive).getOctets();
+            }
+        } catch (IOException ignored) {}
+        return value;
     }
     
     private IRubyObject checkNonceImpl(Ruby runtime, byte[] reqNonce, byte[] respNonce) {

@@ -155,12 +155,105 @@ class TestOCSP < TestCase
     req2 = OpenSSL::OCSP::Request.new.add_nonce("ABCDE")
     bres = OpenSSL::OCSP::BasicResponse.new
     assert_equal 2, req0.check_nonce(bres)
-    bres.copy_nonce(req1)
+    assert_equal 2, bres.copy_nonce(req0)
+    assert_equal 1, bres.copy_nonce(req1)
     assert_equal 3, req0.check_nonce(bres)
     assert_equal 1, req1.check_nonce(bres)
     bres.add_nonce("NONCE")
     assert_equal 1, req1.check_nonce(bres)
     assert_equal 0, req2.check_nonce(bres)
+  end
+
+  def test_request_nonce_with_certid # GH-396
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert)
+
+    # add_certid then add_nonce
+    req1 = OpenSSL::OCSP::Request.new
+    req1.add_certid(cid)
+    req1.add_nonce("NONCE")
+    assert_equal 1, req1.certid.size
+    assert_equal cid.to_der, req1.certid.first.to_der
+
+    # add_nonce then add_certid
+    req2 = OpenSSL::OCSP::Request.new
+    req2.add_nonce("NONCE")
+    req2.add_certid(cid)
+    assert_equal 1, req2.certid.size
+    assert_equal cid.to_der, req2.certid.first.to_der
+
+    # preserved after to_der and add_nonce
+    req_parsed = OpenSSL::OCSP::Request.new(req1.to_der)
+    assert_equal 1, req_parsed.certid.size
+    assert_equal cid.to_der, req_parsed.certid.first.to_der
+    req_parsed.add_nonce("NEWNONCE")
+    assert_equal 1, req_parsed.certid.size
+
+    # check nonce preserved in DER
+    bres = OpenSSL::OCSP::BasicResponse.new
+    bres.add_nonce("NONCE")
+    assert_equal 1, req1.check_nonce(bres)
+    assert_equal 1, OpenSSL::OCSP::Request.new(req1.to_der).check_nonce(bres)
+  end
+
+  def test_request_nonce_der # MRI encodes nonce as an OCTET STRING inside extnValue
+    req = OpenSSL::OCSP::Request.new.add_nonce("NONCE")
+    assert_equal [["Nonce", "\x04\x05NONCE"]], request_extensions(req)
+
+    req.add_nonce("ABC") # replaces existing nonce
+    assert_equal [["Nonce", "\x04\x03ABC"]], request_extensions(req)
+
+    req = OpenSSL::OCSP::Request.new.add_nonce(nil)
+    nonce = request_extensions(req).first
+    assert_equal "Nonce", nonce[0]
+    assert_equal 18, nonce[1].bytesize # 16 random bytes
+
+    assert_raise(TypeError) { OpenSSL::OCSP::Request.new.add_nonce(1) }
+  end
+
+  def test_basic_response_nonce_der
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert)
+    bres = OpenSSL::OCSP::BasicResponse.new
+    bres.add_nonce("NONCE")
+    bres.add_status(cid, OpenSSL::OCSP::V_CERTSTATUS_GOOD, 0, nil, -300, 500, [])
+    bres.sign(@ocsp_cert, @ocsp_key, [], 0, OpenSSL::Digest::SHA256.new)
+
+    resp_exts = OpenSSL::ASN1.decode(bres.to_der).value[0].value.last
+    assert_equal 1, resp_exts.tag # responseExtensions [1]
+    ext = OpenSSL::X509::Extension.new(resp_exts.value[0].value[0].to_der)
+    assert_equal ["Nonce", "\x04\x05NONCE"], [ext.oid, ext.value_der]
+
+    parsed = OpenSSL::OCSP::BasicResponse.new(bres.to_der)
+    assert_equal 1, OpenSSL::OCSP::Request.new.add_nonce("NONCE").check_nonce(parsed)
+    req = OpenSSL::OCSP::Request.new(OpenSSL::OCSP::Request.new.add_nonce("NONCE").to_der)
+    assert_equal 1, req.check_nonce(parsed)
+    assert_equal 0, OpenSSL::OCSP::Request.new.add_nonce("OTHER").check_nonce(parsed)
+  end
+
+  def test_basic_response_copy_nonce
+    bres = OpenSSL::OCSP::BasicResponse.new
+    assert_equal 2, bres.copy_nonce(OpenSSL::OCSP::Request.new)
+    assert_equal 2, OpenSSL::OCSP::Request.new.check_nonce(bres)
+
+    req = OpenSSL::OCSP::Request.new.add_nonce("NONCE")
+    assert_equal 1, bres.copy_nonce(req)
+    assert_equal 1, req.check_nonce(bres)
+    assert_equal 1, OpenSSL::OCSP::Request.new(req.to_der).check_nonce(bres)
+
+    assert_raise(TypeError) { bres.copy_nonce("NONCE") }
+  end
+
+  def test_request_sign_with_nonce
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert)
+    store = OpenSSL::X509::Store.new.add_cert(@ca_cert)
+
+    req = OpenSSL::OCSP::Request.new.add_certid(cid)
+    req.add_nonce("NONCE")
+    req.sign(@cert, @cert_key, [], 0, OpenSSL::Digest::SHA256.new)
+    assert_equal true, req.verify([], store)
+
+    req_parsed = OpenSSL::OCSP::Request.new(req.to_der)
+    assert_equal true, req_parsed.verify([], store)
+    assert_equal 1, req_parsed.certid.size
   end
 
   def test_request_is_signed
@@ -373,4 +466,14 @@ class TestOCSP < TestCase
     res = OpenSSL::OCSP::Response.create(OpenSSL::OCSP::RESPONSE_STATUS_SUCCESSFUL, bres)
     assert_equal res.to_der, res.dup.to_der
   end
+
+  private
+
+  def request_extensions(req)
+    tbs = OpenSSL::ASN1.decode(req.to_der).value[0]
+    exts = tbs.value.find { |v| v.tag_class == :CONTEXT_SPECIFIC && v.tag == 2 } # requestExtensions [2]
+    return [] unless exts
+    exts.value[0].value.map { |e| ext = OpenSSL::X509::Extension.new(e.to_der); [ext.oid, ext.value_der] }
+  end
+
 end
