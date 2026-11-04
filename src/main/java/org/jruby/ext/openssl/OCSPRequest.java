@@ -120,7 +120,6 @@ public class OCSPRequest extends RubyObject {
     private final static String OCSP_TRUSTOTHER = "TRUSTOTHER";
     private final static String OCSP_NOCHAIN = "NOCHAIN";
     private org.bouncycastle.asn1.ocsp.OCSPRequest asn1bcReq;
-    private List<OCSPCertificateId> certificateIds = new ArrayList<>();
     
     @JRubyMethod(name = "initialize", rest = true, visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, IRubyObject[] args) {
@@ -130,22 +129,12 @@ public class OCSPRequest extends RubyObject {
         
         RubyString derString = StringHelper.readPossibleDERInput(context, args[0]);
         asn1bcReq = org.bouncycastle.asn1.ocsp.OCSPRequest.getInstance(derString.getBytes());
-
-        // populate certificate IDs:
-        certificateIds.clear();
-        ASN1Sequence reqList = asn1bcReq.getTbsRequest().getRequestList();
-        for (int i = 0; i < reqList.size(); i++) {
-            Request req = Request.getInstance(reqList.getObjectAt(i));
-            certificateIds.add(new OCSPCertificateId(runtime, req.getReqCert()));
-        }
-
         return this;
     }
     
     @JRubyMethod(name = "add_certid")
     public IRubyObject add_certid(IRubyObject certId) {
         OCSPCertificateId rubyCertId = (OCSPCertificateId) certId;
-        certificateIds.add(rubyCertId);
 
         GeneralName requestorName = null;
         Extensions requestExts = null; // optional
@@ -222,9 +211,16 @@ public class OCSPRequest extends RubyObject {
     }
     
     @JRubyMethod(name = "certid")
-    public IRubyObject certid() {
-        Ruby runtime = getRuntime();
-        return RubyArray.newArray(runtime, certificateIds);
+    public IRubyObject certid(ThreadContext context) {
+        if (asn1bcReq == null) return context.nil;
+        ASN1Sequence reqList = asn1bcReq.getTbsRequest().getRequestList();
+        if (reqList.size() == 0) return context.nil;
+
+        RubyArray certIds = RubyArray.newArray(context.runtime, reqList.size());
+        for (int i = 0; i < reqList.size(); i++) {
+            certIds.append(new OCSPCertificateId(context.runtime, Request.getInstance(reqList.getObjectAt(i)).getReqCert()));
+        }
+        return certIds;
     }
 
     @JRubyMethod(name = "signed?")
@@ -295,10 +291,12 @@ public class OCSPRequest extends RubyObject {
 
             OCSPReqBuilder builder = new OCSPReqBuilder();
             builder.setRequestorName(signer.getSubject().getX500Name());
-            for (OCSPCertificateId certId : certificateIds) {
-                builder.addRequest(new CertificateID(certId.getCertID()));
-            }
             if (asn1bcReq != null) {
+                ASN1Sequence reqList = asn1bcReq.getTbsRequest().getRequestList();
+                for (int i = 0; i < reqList.size(); i++) {
+                    Request req = Request.getInstance(reqList.getObjectAt(i));
+                    builder.addRequest(new CertificateID(req.getReqCert()), req.getSingleRequestExtensions());
+                }
                 Extensions exts = asn1bcReq.getTbsRequest().getRequestExtensions();
                 if (exts != null) {
                     builder.setRequestExtensions(exts);
@@ -440,7 +438,6 @@ public class OCSPRequest extends RubyObject {
         checkFrozen();
         OCSPRequest other = (OCSPRequest) obj;
         this.asn1bcReq = other.asn1bcReq;
-        this.certificateIds = new ArrayList<>(other.certificateIds);
         return this;
     }
     

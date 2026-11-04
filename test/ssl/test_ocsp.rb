@@ -256,6 +256,34 @@ class TestOCSP < TestCase
     assert_equal 1, req_parsed.certid.size
   end
 
+  def test_request_certid
+    assert_nil OpenSSL::OCSP::Request.new.certid
+    assert_nil OpenSSL::OCSP::Request.new(OpenSSL::OCSP::Request.new.add_nonce.to_der).certid
+
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert)
+    req = OpenSSL::OCSP::Request.new.add_certid(cid)
+    assert_not_same req.certid.first, req.certid.first
+    assert_equal cid.to_der, req.dup.certid.first.to_der
+  end
+
+  def test_request_sign_keeps_single_request_extensions
+    cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert)
+    ext = OpenSSL::X509::Extension.new("1.3.6.1.5.5.7.48.1.7", OpenSSL::ASN1::Null.new(nil).to_der)
+    single = OpenSSL::ASN1::Sequence([
+      OpenSSL::ASN1.decode(cid.to_der),
+      OpenSSL::ASN1::Sequence([OpenSSL::ASN1.decode(ext.to_der)], 0, :EXPLICIT)
+    ])
+    der = OpenSSL::ASN1::Sequence([OpenSSL::ASN1::Sequence([OpenSSL::ASN1::Sequence([single])])]).to_der
+
+    req = OpenSSL::OCSP::Request.new(der)
+    req.sign(@cert, @cert_key, [], 0, OpenSSL::Digest::SHA256.new)
+    assert_equal true, req.verify([], OpenSSL::X509::Store.new.add_cert(@ca_cert))
+
+    tbs = OpenSSL::ASN1.decode(req.to_der).value[0]
+    request_list = tbs.value.find { |v| v.is_a?(OpenSSL::ASN1::Sequence) }
+    assert_equal single.to_der, request_list.value[0].to_der
+  end
+
   def test_request_is_signed
     cid = OpenSSL::OCSP::CertificateId.new(@cert, @ca_cert)
     req = OpenSSL::OCSP::Request.new.add_certid(cid)
