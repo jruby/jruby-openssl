@@ -93,7 +93,7 @@ class TestHMAC < TestCase
     assert_instance_of OpenSSL::HMAC, uninit.dup
     assert_instance_of OpenSSL::HMAC, uninit.clone
 
-    h = OpenSSL::HMAC.new('key', 'SHA256')
+    h = OpenSSL::HMAC.new(@key, 'SHA256')
     h.send(:initialize_copy, uninit)
     assert_raise(OpenSSL::HMACError) { h.digest }
   end
