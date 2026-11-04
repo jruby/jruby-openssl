@@ -122,7 +122,6 @@ public class OCSPBasicResponse extends RubyObject {
         BasicResponse.defineAnnotatedMethods(OCSPBasicResponse.class);
     }
 
-    private byte[] nonce;
     private List<OCSPSingleResponse> singleResponses = new ArrayList<>();
     private BasicOCSPResponse asn1BCBasicOCSPResp;
     private List<Extension> extensions = new ArrayList<>();
@@ -155,29 +154,27 @@ public class OCSPBasicResponse extends RubyObject {
         if ( this == obj ) return this;
 
         checkFrozen();
-        this.asn1BCBasicOCSPResp = ((OCSPBasicResponse)obj).getASN1BCOCSPResp();
+        OCSPBasicResponse other = (OCSPBasicResponse) obj;
+        this.asn1BCBasicOCSPResp = other.getASN1BCOCSPResp();
+        this.extensions = new ArrayList<>(other.extensions);
+        this.singleResponses = new ArrayList<>(other.singleResponses);
         return this;
     }
 
     @JRubyMethod(name = "add_nonce", rest = true)
     public OCSPBasicResponse add_nonce(ThreadContext context, IRubyObject... args) {
-        byte[] tmpNonce;
-        if ( Arity.checkArgumentCount(context.runtime, args, 0, 1) == 0 ) {
-            try {
-                tmpNonce = generateNonce(context);
-            }
-            catch (NoSuchAlgorithmException e) {
-                throw newOCSPError(context.runtime, e);
-            }
+        final boolean random = Arity.checkArgumentCount(context.runtime, args, 0, 1) == 0 || args[0].isNil();
+        final Extension nonceExt;
+        try {
+            byte[] nonce = random ? generateNonce(context) : args[0].convertToString().getBytes();
+            nonceExt = OCSPRequest.createNonceExtension(nonce);
         }
-        else {
-            RubyString input = (RubyString) args[0];
-            tmpNonce = input.getBytes();
+        catch (NoSuchAlgorithmException|IOException e) {
+            throw newOCSPError(context.runtime, e);
         }
 
-        extensions.add(new Extension(OCSPObjectIdentifiers.id_pkix_ocsp_nonce, false, tmpNonce));
-        nonce = tmpNonce;
-
+        extensions.removeIf(ext -> OCSPObjectIdentifiers.id_pkix_ocsp_nonce.equals(ext.getExtnId()));
+        extensions.add(nonceExt);
         return this;
     }
 
@@ -232,7 +229,14 @@ public class OCSPBasicResponse extends RubyObject {
 
     @JRubyMethod(name = "copy_nonce")
     public IRubyObject copy_nonce(final ThreadContext context, IRubyObject request) {
-        add_nonce(context, RubyString.newString(context.runtime, ((OCSPRequest) request).getNonce()));
+        if (!(request instanceof OCSPRequest)) {
+            throw context.runtime.newTypeError(request, (RubyClass) _OCSP(context.runtime).getConstantAt("Request"));
+        }
+        byte[] reqNonce = ((OCSPRequest) request).getNonce();
+        if (reqNonce == null) {
+            return RubyFixnum.two(context.runtime);
+        }
+        add_nonce(context, RubyString.newString(context.runtime, reqNonce));
         return RubyFixnum.one(context.runtime);
     }
 
@@ -593,7 +597,11 @@ public class OCSPBasicResponse extends RubyObject {
     }
 
     public byte[] getNonce() {
-        return this.nonce;
+        for (Extension ext : extensions) {
+            if (OCSPObjectIdentifiers.id_pkix_ocsp_nonce.equals(ext.getExtnId())) return OCSPRequest.extractNonce(ext);
+        }
+        if (asn1BCBasicOCSPResp == null) return null;
+        return OCSPRequest.extractNonce(asn1BCBasicOCSPResp.getTbsResponseData().getResponseExtensions());
     }
 
     private ASN1GeneralizedTime rubyIntOrTimeToGenTime(IRubyObject intOrTime) {

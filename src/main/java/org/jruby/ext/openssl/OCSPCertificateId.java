@@ -87,6 +87,11 @@ public class OCSPCertificateId extends RubyObject {
     public OCSPCertificateId(Ruby runtime) {
         this(runtime, (RubyClass) _OCSP(runtime).getConstantAt("CertificateId"));
     }
+
+    OCSPCertificateId(Ruby runtime, CertID bcCertId) {
+        this(runtime);
+        this.bcCertId = bcCertId;
+    }
     
     @JRubyMethod(name = "initialize", visibility = Visibility.PRIVATE)
     public IRubyObject initialize(final ThreadContext context, IRubyObject subject, IRubyObject issuer, IRubyObject digest) {           
