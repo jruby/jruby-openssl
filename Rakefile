@@ -36,21 +36,31 @@ task :release => :release_check do
   puts "SOURCE_DATE_EPOCH=#{ENV['SOURCE_DATE_EPOCH']} (#{Time.at(ENV['SOURCE_DATE_EPOCH'].to_i).utc})"
   Rake::Task[:clean].invoke
   Rake::Task[:build_release].invoke
-  gem = Dir['target/*.gem', 'pkg/*.gem'].max_by { |f| File.mtime(f) }
-  abort "release aborted - no .gem produced" unless gem
+  gem = release_gem_path
+  abort "release aborted - #{gem} was not produced" unless File.exist?(gem)
   puts "built #{gem}"
-  # gem push #{gem}  (or: #{File.basename(mvnw)} deploy -Pjar-release for the jar artifact)"
+  puts "publish with: rake push (rubygems) and rake push:coop (gem.coop)"
 end
 
 task :release_check do
   dirty = `git status --porcelain`.strip
   abort "release aborted - working tree is not clean:\n#{dirty}" unless dirty.empty?
 
-  load File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
-  version = JOpenSSL::VERSION
+  version = parsed_version
+  begin
+    gem_version = Gem::Version.new(version)
+    segments = gem_version.release.segments
+  rescue ArgumentError => e
+    fail "malformed JOpenSSL::VERSION #{version.inspect} - #{e.message}"
+  end
+  fail "JOpenSSL::VERSION #{version} must be 3 segments (got #{segments.size})" if segments.size != 3
 
-  if Gem::Version.new(version).prerelease? && ENV['PRERELEASE'] != 'true'
+  if gem_version.prerelease? && ENV['PRERELEASE'] != 'true'
     abort "release aborted - #{version} is a prerelease"
+  end
+
+  if loaded_version != version
+    abort "loaded JOpenSSL::VERSION (#{loaded_version}) and parsed #{version} don't match"
   end
 
   branch = `git rev-parse --abbrev-ref HEAD`.strip
@@ -146,3 +156,52 @@ namespace :integration do
     ruby "-I#{lib.join(':')} -C integration -e \"#{loader}\" #{test_files.map { |f| "\"#{f}\"" }.join(' ')}"
   end
 end
+
+def parsed_version
+  return @parsed_version if (@parsed_version ||= nil)
+
+  version_rb = File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
+  version = File.read(version_rb)[/^\s*VERSION\s*=\s*['"]([^'"]+)['"]/, 1]
+  fail "could not parse JOpenSSL::VERSION from #{version_rb}" if version.nil?
+
+  @parsed_version = version
+end
+
+def loaded_version
+  load File.expand_path('lib/jopenssl/version.rb', File.dirname(__FILE__))
+  JOpenSSL::VERSION
+end
+
+GEM_PUSH_TARGETS = {
+  rubygems: { name: 'rubygems', host: 'https://rubygems.org' },
+  gem_coop: { name: 'gem.coop', host: 'https://gem.coop/@jossl' }
+}
+
+def release_gem_path(version = (ENV['VERSION'] || parsed_version))
+  File.join(File.dirname(__FILE__), 'pkg', "org.jruby.openssl.jruby-openssl-#{version}.gem")
+end
+
+def push_gem(target_key)
+  target = GEM_PUSH_TARGETS.fetch(target_key) { abort "unknown push target: #{target_key}" }
+  gem_file = release_gem_path
+  abort "missing #{gem_file} - run `rake release` first" unless File.exist?(gem_file)
+
+  require 'rubygems/package'
+  spec = Gem::Package.new(gem_file).spec
+  unless spec.version.to_s == version
+    abort "#{gem_file} is version #{spec.version}, expected #{version}"
+  end
+
+  puts "pushing #{File.basename(gem_file)} to #{target[:name]} (#{target[:host]})"
+  sh "gem push --host #{target[:host]} #{gem_file}"
+end
+
+namespace :push do
+  desc 'Push the release gem to rubygems.org'
+  task(:rubygems) { push_gem(:rubygems) }
+
+  desc 'Push the release gem to gem.coop'
+  task(:coop) { push_gem(:gem_coop) }
+end
+
+task :push => 'push:rubygems'
