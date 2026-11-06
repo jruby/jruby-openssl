@@ -1373,29 +1373,30 @@ public class SSLContext extends RubyObject {
             }
 
             final ArrayList<java.security.cert.X509Certificate> chain = new ArrayList<>(8);
-            StoreContext storeCtx = internalContext.createStoreContext(null);
-            X509AuxCertificate x = credential.leaf;
-            while (true) {
-
-                chain.add(x);
-
-                if ( x.getIssuerDN().equals(x.getSubjectDN()) ) break;
-
-                try {
-                    final Name name = new Name(x.getIssuerX500Principal());
-                    X509Object[] s_obj = new X509Object[1];
-                    if (storeCtx.getBySubject(X509Utils.X509_LU_X509, name, s_obj) <= 0) {
+            chain.add(credential.leaf);
+            final StoreContext storeCtx = internalContext.createStoreContext(null);
+            if (storeCtx != null) {
+                X509AuxCertificate x = credential.leaf;
+                final int maxChain = Math.max(storeCtx.getParam().getDepth(), 0) + 2;
+                while (chain.size() < maxChain && !x.getIssuerDN().equals(x.getSubjectDN())) {
+                    try {
+                        final Name name = new Name(x.getIssuerX500Principal());
+                        X509Object[] s_obj = new X509Object[1];
+                        if (storeCtx.getBySubject(X509Utils.X509_LU_X509, name, s_obj) <= 0) {
+                            break;
+                        }
+                        x = ((Certificate) s_obj[0]).cert;
+                    }
+                    catch (RuntimeException e) {
+                        LOG.debugStack(e);
                         break;
                     }
-                    x = ((Certificate) s_obj[0]).cert;
-                }
-                catch (RuntimeException e) {
-                    LOG.debugStack(e);
-                    break;
-                }
-                catch (Exception e) {
-                    LOG.debug("KeyManagerImpl bySubject failed", e);
-                    break;
+                    catch (Exception e) {
+                        LOG.debug("KeyManagerImpl bySubject failed", e);
+                        break;
+                    }
+                    if (chain.contains(x)) break; // avoid circular chains
+                    chain.add(x);
                 }
             }
             return chain.toArray( new java.security.cert.X509Certificate[chain.size()] );

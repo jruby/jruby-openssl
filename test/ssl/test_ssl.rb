@@ -1585,6 +1585,43 @@ Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
     end
   end
 
+  def test_auto_chain_with_circular_cert_store
+    now = Time.now
+    ca_exts = [["basicConstraints", "CA:TRUE", true], ["keyUsage", "cRLSign,keyCertSign", true]]
+    key_a = OpenSSL::PKey::RSA.new(2048)
+    key_b = OpenSSL::PKey::RSA.new(2048)
+    dn_a = OpenSSL::X509::Name.parse("/CN=Cross-CA-A")
+    dn_b = OpenSSL::X509::Name.parse("/CN=Cross-CA-B")
+
+    # Cross-signed cycle: A issued by B, B issued by A
+    stub_b = OpenSSL::X509::Certificate.new
+    stub_b.subject = dn_b
+    cert_a = issue_cert(dn_a, key_a, 20, ca_exts, stub_b, key_b, not_before: now - 60, not_after: now + 3600)
+    cert_b = issue_cert(dn_b, key_b, 21, ca_exts, cert_a, key_a, not_before: now - 60, not_after: now + 3600)
+
+    store = OpenSSL::X509::Store.new
+    store.add_cert(cert_a)
+    store.add_cert(cert_b)
+
+    ctx_proc = Proc.new do |ctx|
+      ctx.cert_store = store
+      ctx.cert = cert_a
+      ctx.key = key_a
+    end
+
+    start_server(OpenSSL::SSL::VERIFY_NONE, true, ctx_proc: ctx_proc) do |server, port|
+      cctx = OpenSSL::SSL::SSLContext.new
+      cctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      server_connect(port, cctx) do |ssl|
+        chain = ssl.peer_cert_chain
+        assert_equal ["/CN=Cross-CA-A", "/CN=Cross-CA-B"], chain.first(2).map { |c| c.subject.to_s }
+        assert_equal 2, chain.size if jruby?
+        ssl.puts "hello"
+        assert_equal "hello\n", ssl.gets
+      end
+    end
+  end
+
   def test_sysread_syswrite_raise_before_handshake
     require 'socket'
     server = TCPServer.new("127.0.0.1", 0)
