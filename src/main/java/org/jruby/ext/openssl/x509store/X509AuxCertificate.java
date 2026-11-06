@@ -64,6 +64,7 @@ import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
 import org.jruby.ext.openssl.SecurityHelper;
+import org.jruby.ext.openssl.util.ExceptionUtil;
 
 /**
  * Since regular X509Certificate doesn't represent the Aux part of a
@@ -73,14 +74,12 @@ import org.jruby.ext.openssl.SecurityHelper;
  * @author <a href="mailto:ola.bini@ki.se">Ola Bini</a>
  */
 public class X509AuxCertificate extends X509Certificate implements Cloneable {
-    private static final long serialVersionUID = -909543379295427515L;
 
     final X509Certificate cert;
+    final transient X509Aux aux;
 
-    final X509Aux aux;
-
-    boolean verified = false; // opt: avoids doing internal_verify twice
-    private int ex_flags = -1;
+    transient boolean verified; // opt: avoids doing internal_verify twice
+    private transient int ex_flags = -1;
 
     public X509AuxCertificate(Certificate wrap) throws IOException, CertificateException {
         super();
@@ -100,12 +99,13 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
         this.aux = aux;
     }
 
-    public final X509AuxCertificate clone() {
+    @Override
+    protected final X509AuxCertificate clone() {
         try {
             return (X509AuxCertificate) super.clone();
         }
         catch (CloneNotSupportedException ex) {
-            throw new IllegalStateException(ex);
+            ExceptionUtil.throwException(ex); return null;
         }
     }
 
@@ -117,13 +117,7 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
     }
 
     public int getExFlags() throws IOException {
-        if (ex_flags == -1) {
-            //try {
-                ex_flags = computeExFlags();
-            //} catch (IOException e) {
-            //    throw new IllegalStateException(e);
-            //}
-        }
+        if (ex_flags == -1) ex_flags = computeExFlags();
         return ex_flags;
     }
 
@@ -290,17 +284,14 @@ public class X509AuxCertificate extends X509Certificate implements Cloneable {
     public boolean equals(Object other) {
         if ( this == other ) return true;
         if ( other instanceof X509AuxCertificate ) {
-            X509AuxCertificate o = (X509AuxCertificate) other;
-            return this.cert.equals(o.cert) && ((this.aux == null) ? o.aux == null : this.aux.equals(o.aux));
+            return this.cert.equals(((X509AuxCertificate) other).cert);
         }
-        return false;
+        return this.cert.equals(other);
     }
 
     @Override
     public int hashCode() {
-        int ret = cert.hashCode();
-        ret += 3 * (aux == null ? 1 : aux.hashCode());
-        return ret;
+        return 11 * cert.hashCode();
     }
 
     @Override
